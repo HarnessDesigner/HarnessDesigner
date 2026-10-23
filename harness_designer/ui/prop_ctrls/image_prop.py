@@ -20,7 +20,7 @@ class ImageProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """
         Initialise the :class:`ImageProperty` instance.
 
@@ -61,12 +61,12 @@ class ImageProperty(QtWidgets.QWidget):
         self._ctrl.pathChanged.connect(self._on_path_changed)
 
     @_check_types.do
-    def SetFileTypes(self, file_types: str) -> None:
+    def SetFileTypes(self, file_types: dict[str, str]) -> None:
         """
         Execute the set file types operation.
 
         :param file_types: Value for ``file_types``.
-        :type file_types: `str``
+        :type file_types: `dict[str, str]`
         """
 
         self._file_types = file_types

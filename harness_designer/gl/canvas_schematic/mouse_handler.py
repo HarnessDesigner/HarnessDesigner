@@ -4,6 +4,7 @@
 from typing import TYPE_CHECKING
 
 from ..canvas_base import mouse_handler_base as _mouse_handler_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -14,5 +15,6 @@ if TYPE_CHECKING:
 class MouseHandler(_mouse_handler_base.MouseHandlerBase):
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         return obj.objschematic

@@ -74,7 +74,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
     STATE_NAMES = {0: "x", 1: "checked", 2: "empty"}
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
 
         # 0=x, 1=check, 2=empty
@@ -315,7 +315,7 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '') -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = ''):
         """Initialise the :class:`CheckboxCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

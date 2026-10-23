@@ -39,7 +39,7 @@ class AddNoteDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         """
         Initialise the :class:`AddNoteDialog` instance.
 

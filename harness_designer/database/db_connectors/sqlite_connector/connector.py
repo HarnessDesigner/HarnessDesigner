@@ -43,6 +43,7 @@ _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
+@_check_types.do
 def _enable_wal(connection: sqlite3.Connection) -> bool:
     """Put *connection* in write-ahead-log mode with ``synchronous=NORMAL``.
 
@@ -91,7 +92,7 @@ class SQLConnector(_base.ConnectorBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialize the SQLite connector state.
 
@@ -404,7 +405,7 @@ class SQLConnector(_base.ConnectorBase):
 
     @_check_types.do
     def _report_sql_error(self, err: Exception, operation: str, params: _ParamsSequenceOrDictType | None,
-                          call_stack: list = None) -> None:
+                          call_stack: list | None = None) -> None:
         """Log a failed SQL statement's traceback and pop an error dialog.
 
         Never lets the exception itself propagate -- callers must keep

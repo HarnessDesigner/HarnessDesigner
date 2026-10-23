@@ -103,7 +103,7 @@ class Housing(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
-                 db_obj: "_pjt_housing.PJTHousing") -> None:
+                 db_obj: "_pjt_housing.PJTHousing"):
         """Initialise the :class:`Housing` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1055,7 +1055,7 @@ class HousingMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", obj: Housing) -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", obj: Housing):
         """Initialise the :class:`HousingMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

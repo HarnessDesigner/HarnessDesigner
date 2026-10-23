@@ -91,13 +91,13 @@ def add_temperature(con: "_connector_base.ConnectorBase", name: str, id: int | N
     """
 
     if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+        id_bytes = _id_generator.generate_global_row_id(con).bytes
     else:
-        id = _id_generator.NIL_UUID.bytes
+        id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute(
         'INSERT INTO temperatures (id, name) '
-        'VALUES (?, ?);', (id, name)
+        'VALUES (?, ?);', (id_bytes, name)
         )
 
     _logger.database(f'temperature added "{name}"')
@@ -125,14 +125,16 @@ def get_temperature_id(con: "_connector_base.ConnectorBase", name: str) -> bytes
 
     if isinstance(name, str):
         if '-' in name:
-            name = -int(name[1:].replace('°', '').replace('C', ''))
+            name_val = -int(name[1:].replace('°', '').replace('C', ''))
         else:
-            name = int(name.replace('°', '').replace('C', ''))
-
-    if name > 0:
-        name = '+' + str(name) + '°C'
+            name_val = int(name.replace('°', '').replace('C', ''))
     else:
-        name = str(name) + '°C'
+        name_val = name
+
+    if name_val > 0:
+        name = '+' + str(name_val) + '°C'
+    else:
+        name = str(name_val) + '°C'
 
     con.execute('SELECT id FROM temperatures WHERE name=?;', (name,))
     res = con.fetchall()

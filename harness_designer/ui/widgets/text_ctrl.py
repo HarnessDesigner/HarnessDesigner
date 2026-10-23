@@ -34,7 +34,7 @@ class TextCtrl(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', size: tuple[int, int] | None = None,
                  style: int = 0, apply_button: bool = True, # NOQA
                  hslider: bool = True, readonly: bool = False,
-                 multiline: bool = False) -> None:
+                 multiline: bool = False):
         """Initialise the :class:`TextCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

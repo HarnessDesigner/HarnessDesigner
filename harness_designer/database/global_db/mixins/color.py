@@ -73,10 +73,12 @@ class ColorMixin(BaseMixin):
         self._populate('color_id')
 
 
+@_check_types.do
 def _color_of(db_obj: "ColorMixin") -> _Union["_color.Color", None]:
     return db_obj.color
 
 
+@_check_types.do
 def _set_color_id(db_obj: "ColorMixin", db_id: bytes) -> None:
     db_obj.color_id = db_id
 
@@ -88,7 +90,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`ColorControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -96,7 +98,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.choices: list[list[str, int]] = None
+        self.choices: list[list[str, int]] | None = None
         self.db_obj: ColorMixin | None = None
         self._get_target: Callable[[ColorMixin], _Union["_color.Color", None]] = _color_of
         self._set_target_id: Callable[[ColorMixin, bytes], None] = _set_color_id

@@ -28,7 +28,7 @@ class _ColourPickerCtrl(QtWidgets.QPushButton):
     """Minimal wx.ColourPickerCtrl replacement."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, colour: _color.Color) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, colour: _color.Color):
         """Initialise the :class:`_ColourPickerCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +100,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         """Initialise the :class:`DebugSettingsDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -45,7 +45,7 @@ class ImageCtrl(QtWidgets.QWidget):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, file_types: dict[str, str],
                  original_path: str | None, saved_path: str | None,
-                 support_pdf: bool = False) -> None:
+                 support_pdf: bool = False):
         """Initialise the :class:`ImageCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

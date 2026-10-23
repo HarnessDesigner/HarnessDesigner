@@ -35,7 +35,7 @@ class EditorPegboard(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorPegboard` instance.
 
@@ -180,7 +180,7 @@ class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorPegboardPanel` instance.
 
         :param parent: Parent object.

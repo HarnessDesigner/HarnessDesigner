@@ -72,7 +72,7 @@ def _obj_label(obj: "_objects.ObjectBase") -> str:
 class _FilePickerRow(QtWidgets.QWidget):
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
 
         self._qt_filter = 'All Files (*)'
@@ -122,7 +122,7 @@ class _ExportWorker(QtCore.QThread):
 
     @_check_types.do
     def __init__(self, verts: np.ndarray, normals: np.ndarray,
-                 path: str, export_type: int) -> None:
+                 path: str, export_type: int):
         super().__init__()
         self._verts = verts
         self._normals = normals
@@ -186,7 +186,7 @@ class ExportDialog(_dialog_base.BaseDialog):
     """Non-modal dialog for exporting all visible 3-D model data."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         super().__init__(
             parent, 'Export Models', size=(720, 560),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Close)

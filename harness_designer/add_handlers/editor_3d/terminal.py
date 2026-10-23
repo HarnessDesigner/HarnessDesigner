@@ -47,7 +47,7 @@ class Terminal(_base.AddHandlerBase):
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
                  part: "_glb_terminal.Terminal",
                  project_cavities: list["_cavity.Cavity"],
-                 is_male: bool) -> None:
+                 is_male: bool):
 
         super().__init__(canvas, target)
 

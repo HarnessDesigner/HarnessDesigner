@@ -124,6 +124,7 @@ class _CursorAndCloseFilter(QtCore.QObject):
     cursor_changed = QtCore.Signal(QtGui.QCursor)
     close_requested = QtCore.Signal()
 
+    @_check_types.do
     def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
         if event.type() == QtCore.QEvent.Type.CursorChange:
             self.cursor_changed.emit(watched.cursor())
@@ -153,7 +154,7 @@ class PegboardTableHost(QtWidgets.QMdiArea):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", title: str,
-                 pegboard_table: "_pjt_pegboard_table.PJTPegboardTable") -> None:
+                 pegboard_table: "_pjt_pegboard_table.PJTPegboardTable"):
         """Initialise the :class:`PegboardTableHost` instance.
 
         :param mainframe: Main application frame.

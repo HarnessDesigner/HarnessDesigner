@@ -30,7 +30,7 @@ class Cancelled(Exception):
     """Raised by CancelToken.raise_if_cancelled(); carries why (a REASON_* value)."""
 
     @_check_types.do
-    def __init__(self, reason: int) -> None:
+    def __init__(self, reason: int):
         super().__init__('cancelled')
         self.reason = reason
 
@@ -39,7 +39,7 @@ class CancelToken:
     """Hand one to a call; call :meth:`cancel` from anywhere to stop it."""
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         self._event = threading.Event()
         self._lock = threading.Lock()
         self._callbacks: list[Callable[[], None]] = []

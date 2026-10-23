@@ -90,7 +90,7 @@ class RotationRings(_object_base.ObjectBase):
     _angle_lock_snapshot: tuple | None = None
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         """Initialise the :class:`RotationRings` instance.
 
         :param canvas: Canvas instance.

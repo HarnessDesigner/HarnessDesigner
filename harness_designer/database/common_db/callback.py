@@ -14,7 +14,7 @@ class CallbackMixin:
     """Provide callback registration and dispatch support.
     """
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialize callback storage for the mixin instance.
         """
         self._callbacks = []
@@ -70,7 +70,7 @@ class Callback:
     """Represent a weakly referenced callback binding.
     """
     @_check_types.do
-    def __init__(self, parent: CallbackMixin, callback: Callable[..., None], tag: str) -> None:
+    def __init__(self, parent: CallbackMixin, callback: Callable[..., None], tag: str):
         """Initialize the callback wrapper.
 
         :param parent: Parent :class:`CallbackMixin` that owns this wrapper.

@@ -299,6 +299,7 @@ def _stub_boundary(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire
     old_ids = list(ptables.pjt_wire_paths_table.point_ids(wire_db_obj.db_id, 'pegboard'))
     points_table = ptables.pjt_points_pegboard_table
 
+    @_check_types.do
     def count(expected_ids: list[bytes], from_tail: bool) -> int:
         found = 0
         for i, expected in enumerate(expected_ids):
@@ -588,6 +589,7 @@ def _anchor_index(ptables: "_PJTPegboardTable") -> dict[bytes, list[tuple]]:
     """
     index: dict[bytes, list[tuple]] = {}
 
+    @_check_types.do
     def add(chain_db_obj, path_table, layouts_table, layout_facade_cls) -> None:
         start_id = chain_db_obj.start_position_pegboard_id
         stop_id = chain_db_obj.stop_position_pegboard_id
@@ -1002,6 +1004,7 @@ def _evaluate_points(
     # left to fail its own feasibility check, which refuses the move.
     repulls: dict[bytes, int] = {}
 
+    @_check_types.do
     def pull_node(
         point_id: bytes, from_xz: tuple[float, float], to_xz: tuple[float, float],
         chain_id: bytes, is_repull: bool
@@ -1026,6 +1029,7 @@ def _evaluate_points(
             if repull_count > _MAX_REPULLS:
                 return False
 
+        @_check_types.do
         def moved_from(p: bytes) -> tuple[float, float]:
             # A first pull moves a point from where the DB has it; a
             # re-pull from where this solve already put it.
@@ -1093,6 +1097,7 @@ def _evaluate_points(
 
         return True
 
+    @_check_types.do
     def pull_if_needed(
         chain_id: bytes, far_point_id: bytes, far_xz: tuple[float, float],
         near_target_xz: tuple[float, float], required_length: float
@@ -1410,15 +1415,17 @@ class _Waypoint:
 
     __slots__ = ('point_id', 'point', 'pseudo_layout')
 
+    @_check_types.do
     def __init__(
         self, point_id: bytes | None, point: "_point.Point", pseudo_layout: object | None
-    ) -> None:
+    ):
         self.point_id = point_id
         self.point = point
         self.pseudo_layout = pseudo_layout
 
 
 @_debug.logfunc
+@_check_types.do
 def _make_pseudo_layout(chain_db_obj: object, position: "_point.Point") -> object:
     """A pseudo layout (never a database row) carrying *position* for a new
     in-memory waypoint, built on the same template as the wire probe layout."""
@@ -1442,6 +1449,7 @@ def _make_pseudo_layout(chain_db_obj: object, position: "_point.Point") -> objec
 
 
 @_debug.logfunc
+@_check_types.do
 def _move_point(point: "_point.Point", x: float, z: float) -> bool:
     """Move a cached peg-board ``Point`` to (x, z) by a delta (``+=``), so its
     bound callbacks fire -- plain assignment would not.
@@ -1473,6 +1481,7 @@ def _move_point(point: "_point.Point", x: float, z: float) -> bool:
 
 
 @_debug.logfunc
+@_check_types.do
 def _overlay_for(
     points_table: object,
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
@@ -1857,6 +1866,7 @@ def _resolve_pinned_move(
     off_z = float(anchor_start.z) - center_z
     dx, dz = full_delta
 
+    @_check_types.do
     def center_at(s: float, cast: bool) -> tuple[float, float]:
         cursor_x = center_x + dx * s
         cursor_z = center_z + dz * s
@@ -1867,6 +1877,7 @@ def _resolve_pinned_move(
         anchor_x, anchor_z = clamp_to_length_from_anchor(far_xz, anchor_desired, length)
         return anchor_x - off_x, anchor_z - off_z
 
+    @_check_types.do
     def candidate(s: float, cast: bool) -> list[tuple[bytes, tuple[float, float]]]:
         # Every point of the group moves rigidly with the center.
         center_placed_x, center_placed_z = center_at(s, cast)
@@ -1876,6 +1887,7 @@ def _resolve_pinned_move(
             (point_id, (float(start.x) + ddx, float(start.z) + ddz))
             for point_id, start in point_starts]
 
+    @_check_types.do
     def displacement_at(s: float, cast: bool) -> tuple[float, float]:
         center_placed_x, center_placed_z = center_at(s, cast)
         return center_placed_x - center_x, center_placed_z - center_z
@@ -1951,6 +1963,7 @@ def resolve_local_move(
 
     dx, dz = full_delta
 
+    @_check_types.do
     def candidate(t: float) -> list[tuple[bytes, tuple[float, float]]]:
         return [
             (point_id, (float(start.x) + dx * t, float(start.z) + dz * t))
@@ -2052,6 +2065,7 @@ def resolve_rigid_move(
     ptables = mainframe.project.ptables
     dx, dz = full_delta
 
+    @_check_types.do
     def candidate(t: float) -> list[tuple[bytes, tuple[float, float]]]:
         return [
             (point_id, (float(start.x) + dx * t, float(start.z) + dz * t))

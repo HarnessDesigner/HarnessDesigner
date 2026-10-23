@@ -49,7 +49,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
     # (it rejects any `type` subclass) the moment a real config section is
     # passed in. Keep this `object`, not `type`.
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", config: object, size: tuple[int, int]) -> None:
+    def __init__(self, parent: "_ui.MainFrame", config: object, size: tuple[int, int]):
         """
         Initialise the :class:`Canvas3D` instance.
 
@@ -80,9 +80,9 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.setFixedSize(vw, vh)
         self._virtual_size = QtCore.QSize(vw, vh)
 
-        size = self.size()
-        w = size.width()
-        h = size.height()
+        real_size = self.size()
+        w = real_size.width()
+        h = real_size.height()
 
         x = (w - vw) // 2
         y = (h - vh) // 2

@@ -32,6 +32,8 @@ from __future__ import annotations
 import importlib
 from functools import singledispatch
 
+from .. import check_types as _check_types
+
 _LAZY_EXTRAS = {
     'decimal.Decimal': 'harness_designer.crash_dump.extras.decimal_support',
     'uuid.UUID': 'harness_designer.crash_dump.extras.uuid_support',
@@ -42,6 +44,7 @@ _LAZY_EXTRAS = {
 _resolved_extras: dict[str, object] = {}
 
 
+@_check_types.do
 def _resolve_extra(type_key: str):
     cached_renderer = _resolved_extras.get(type_key)
     if cached_renderer is not None:
@@ -56,6 +59,7 @@ def _resolve_extra(type_key: str):
 
 
 @singledispatch
+@_check_types.do
 def iter_render_children(value):
     type_key = f'{type(value).__module__}.{type(value).__qualname__}'
     renderer = _resolve_extra(type_key)
@@ -68,10 +72,12 @@ def iter_render_children(value):
 @iter_render_children.register(tuple)
 @iter_render_children.register(set)
 @iter_render_children.register(frozenset)
+@_check_types.do
 def _render_sequence(value):
     return ('children', [(f'[{index}]', item) for index, item in enumerate(value)])
 
 
+@_check_types.do
 def _key_label(key) -> str:
     if isinstance(key, bytes):
         return key.hex()
@@ -79,5 +85,6 @@ def _key_label(key) -> str:
 
 
 @iter_render_children.register(dict)
+@_check_types.do
 def _render_mapping(value):
     return ('children', [(_key_label(key), item) for key, item in value.items()])

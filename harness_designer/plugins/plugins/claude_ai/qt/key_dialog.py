@@ -35,7 +35,7 @@ class ApiKeyDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", client: _client.ClaudeClient) -> None:
+    def __init__(self, parent: "_ui.MainFrame", client: _client.ClaudeClient):
         super().__init__(parent, 'Claude settings', size=(560, 460))
         self._client = client
         self._store = client.key_store

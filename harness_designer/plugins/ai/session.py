@@ -21,7 +21,7 @@ class Session:
     """Holds history and runs Jobs one at a time, on its own thread."""
 
     @_check_types.do
-    def __init__(self, *, name: str = '') -> None:
+    def __init__(self, *, name: str = ''):
         self.name = name
         self._queue: queue.Queue = queue.Queue()
         self._cancel_token: _cancel.CancelToken | None = None

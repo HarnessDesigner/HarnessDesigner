@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class _StreamRedirector(io.TextIOWrapper):
     """Shared TextIOWrapper plumbing for mirroring a std stream into the logger."""
 
-    def __init__(self, original: TextIO | None) -> None:
+    def __init__(self, original: TextIO | None):
         self._original = original
         self._line = ''
 
@@ -194,7 +194,7 @@ class _StreamRedirector(io.TextIOWrapper):
 class StdOut(_StreamRedirector):
     """Mirrors :data:`sys.stdout`; completed lines are logged at INFO."""
 
-    def __init__(self, logger: "_log_handler.Log") -> None:
+    def __init__(self, logger: "_log_handler.Log"):
         super().__init__(sys.stdout)
         self._logger = logger
         sys.stdout = self
@@ -210,7 +210,7 @@ class StdOut(_StreamRedirector):
 class StdErr(_StreamRedirector):
     """Mirrors :data:`sys.stderr`; completed lines are logged at ERROR."""
 
-    def __init__(self, logger: "_log_handler.Log") -> None:
+    def __init__(self, logger: "_log_handler.Log"):
         super().__init__(sys.stderr)
         self._logger = logger
         sys.stderr = self

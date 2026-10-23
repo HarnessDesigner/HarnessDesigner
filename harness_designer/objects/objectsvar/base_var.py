@@ -85,7 +85,7 @@ class BaseVar:
     def __init__(self, parent: "_ObjectBase", db_obj: _Union["_project_db.PJTEntryBase", None],
                  vbo: _vbo_base.VBOHandlerBase | _text.Text | None,
                  angle: _angle.Angle | None, position: _point.Point | None,
-                 scale: _point.Point | None, material: _materials.GLMaterial | None) -> None:
+                 scale: _point.Point | None, material: _materials.GLMaterial | None):
 
         self._is_selected = False
         self._is_visible = False
@@ -142,7 +142,7 @@ class BaseVar:
         # that DOES get a real one only ever mutates that same array in
         # place from then on, instead of rebinding this name.
         self._obb_index = self._obb_manager[self]
-        self._obb: np.ndarray = None
+        self._obb: np.ndarray | None = None
 
         self._compute_obb()
         self._compute_aabb()
@@ -157,10 +157,12 @@ class BaseVar:
         else:
             self._smooth = True
 
+    @_check_types.do
     def __update_smooth(self, *_, **__) -> None:
         self._smooth = self.db_obj.smooth  # NOQA
 
     @property
+    @_check_types.do
     def smooth(self) -> bool:
         if self._smooth is None:
             return True
@@ -168,6 +170,7 @@ class BaseVar:
         return self._smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -1050,6 +1053,7 @@ class BaseVar:
         self._vbo.render(
             program, self._position, angle, self._scale, self.smooth)
 
+    @_check_types.do
     def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw this object's selection debug overlay (AABB/OBB boxes,
         floor projection, etc. -- see the ``Base3D`` override for the
@@ -1069,9 +1073,11 @@ class BaseVar:
         """
         pass
 
+    @_check_types.do
     def render_handler(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
+    @_check_types.do
     def try_pick_cavity(self, x: int, y: int) -> _Union["_cavity3d.Cavity", None]:
         return None
 

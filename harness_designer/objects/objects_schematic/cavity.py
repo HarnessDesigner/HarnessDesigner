@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_schematic
 
 
+@_check_types.do
 def _is_180(degrees: float) -> bool:
     """Whether *degrees* (the owning housing's own live ``angle.y``) is
     the 180 special case -- rotating this cavity's own name glyph a
@@ -104,7 +105,7 @@ class Cavity(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
-                 db_obj: "_pjt_cavity.PJTCavity") -> None:
+                 db_obj: "_pjt_cavity.PJTCavity"):
         """Initialise the :class:`Cavity` instance.
 
         :param parent: Parent object.
@@ -249,6 +250,7 @@ class Cavity(_base_schematic.BaseSchematic):
 
         return self._aabb
 
+    @_check_types.do
     def _label_angle(self, housing: "_housing_schematic.Housing") -> _angle.Angle:
         """The angle this cavity's name is drawn at -- the same one
         :meth:`render` uses: the housing's, except at exactly 180 degrees where

@@ -70,20 +70,6 @@ class HousingsTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash: "_splash.Splash") -> None:
-        """Load the database.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param splash: Value for ``splash``.
-        :type splash: UNKNOWN
-        """
-        from ..create_database import housings
-
-        data_path = self._con.db_data.open(splash)
-        housings.add_records(self._con, splash, data_path)
-
-    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -108,8 +94,6 @@ class HousingsTable(TableBase):
         from ..create_database import housings
 
         housings.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-        housings.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:
@@ -160,9 +144,9 @@ class HousingsTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_compat(self, seal: str = None, terminal: str = None,
-                   cpa_lock: str = None, tpa_lock: str = None,
-                   cover: str = None) -> list[bytes]:
+    def get_compat(self, seal: str | None = None, terminal: str | None = None,
+                   cpa_lock: str | None = None, tpa_lock: str | None = None,
+                   cover: str | None = None) -> list[bytes]:
         """Return the compat.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -500,8 +484,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         self._stored_compat_covers_array = value
         self._stored_compat_covers = DefaultStoredValue
-        value = ", ".join(value)
-        self._table.update(self._db_id, compat_covers=value)
+        value_str = ", ".join(value)
+        self._table.update(self._db_id, compat_covers=value_str)
         self._populate('compat_covers_array')
 
     _stored_compat_boots: DefaultStoredValueType | list[_boot.Boot] = DefaultStoredValue
@@ -571,8 +555,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         self._stored_compat_boots_array = value
         self._stored_compat_boots = DefaultStoredValue
-        value = ", ".join(value)
-        self._table.update(self._db_id, compat_boots=value)
+        value_str = ", ".join(value)
+        self._table.update(self._db_id, compat_boots=value_str)
         self._populate('compat_boots_array')
 
     _stored_compat_cpas: DefaultStoredValueType | list[_cpa_lock.CPALock] = DefaultStoredValue
@@ -643,8 +627,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._stored_compat_cpas_array = value
         self._stored_compat_cpas = DefaultStoredValue
 
-        value = ', '.join(value)
-        self._table.update(self._db_id, compat_cpas=value)
+        value_str = ', '.join(value)
+        self._table.update(self._db_id, compat_cpas=value_str)
 
         self._populate('compat_cpas_array')
 
@@ -712,8 +696,8 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._stored_compat_tpas_array = value
         self._stored_compat_tpas = DefaultStoredValue
 
-        value = f'[{", ".join(value)}]'
-        self._table.update(self._db_id, compat_tpas=value)
+        value_str = f'[{", ".join(value)}]'
+        self._table.update(self._db_id, compat_tpas=value_str)
         self._populate('compat_tpas_array')
 
     _stored_ip_rating: DefaultStoredValueType | _ip.IPRating = DefaultStoredValue
@@ -836,7 +820,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_seal_type
 
-    _stored_seal_type_id: DefaultStoredValueType | bytes = DefaultStoredValue
+    _stored_seal_type_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1701,7 +1685,7 @@ class HousingControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.db_obj.num_pins = evt.GetValue()
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`HousingControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

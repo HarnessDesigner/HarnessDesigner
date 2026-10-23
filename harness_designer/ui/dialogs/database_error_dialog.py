@@ -27,7 +27,7 @@ class DatabaseErrorDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", err: BaseException, context: str) -> None:
+    def __init__(self, parent: "_ui.MainFrame", err: BaseException, context: str):
         """Build the dialog.
 
         :param parent: Main window the dialog is centred on.

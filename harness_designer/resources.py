@@ -38,7 +38,7 @@ class ResourceException(Exception):
     __msg__ = 'Resource Base Exception'
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__(self.__msg__)
 
 
@@ -46,19 +46,18 @@ class RequestsError(ResourceException):
     __msg__ = ''
 
     @_check_types.do
-    def __init__(self, msg: str, code: int, url: str) -> None:
+    def __init__(self, msg: str, code: int, url: str):
         self.__msg__ = msg
         self.code = code
         self.url = url
         super().__init__()
-
 
 class ImageReadError(ResourceException):
 
     __msg__ = 'Image Read Error'
 
     @_check_types.do
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str):
         self.path = path
         self.code = -10
         super().__init__()
@@ -69,7 +68,7 @@ class SaveFileError(ResourceException):
     __msg__ = 'Save File Error'
 
     @_check_types.do
-    def __init__(self, path: str, code: int) -> None:
+    def __init__(self, path: str, code: int):
         self.path = path
         self.code = code
         super().__init__()
@@ -80,7 +79,7 @@ class RemoveFileError(ResourceException):
     __msg__ = 'Remove File Error'
 
     @_check_types.do
-    def __init__(self, path: str, code: int) -> None:
+    def __init__(self, path: str, code: int):
         self.path = path
         self.code = code
         super().__init__()
@@ -91,7 +90,7 @@ class FileTypeNotSupportedError(ResourceException):
     __msg__ = 'File Type Not Supported'
 
     @_check_types.do
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str):
         self.path = path
         self.code = -20
         super().__init__()
@@ -102,7 +101,7 @@ class ExistingFileNotFoundError(ResourceException):
     __msg__ = 'File Not Found'
 
     @_check_types.do
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str):
         self.path = path
         self.code = -30
         super().__init__()
@@ -248,17 +247,17 @@ def _download_model(con: object, url: str, is_type: str) -> str:
             if content_type in mime_types:
                 ext = mime_types[content_type]
             else:
-                ext = [e for e in extensions if e in used_url]
-                if ext:
-                    ext = ext[0]
+                candidate_exts = [e for e in extensions if e in used_url]
+                if candidate_exts:
+                    ext = candidate_exts[0]
                 else:
                     raise FileTypeNotSupportedError(used_url)
 
             data = response.content
     else:
-        ext = [e for e in extensions if e in used_url]
-        if ext:
-            ext = ext[0]
+        candidate_exts = [e for e in extensions if e in used_url]
+        if candidate_exts:
+            ext = candidate_exts[0]
         else:
             raise FileTypeNotSupportedError(used_url)
 
@@ -367,9 +366,9 @@ def _download_image(con: object, url: str, image_path: str, is_type: str) -> str
         else:
             raise FileTypeNotSupportedError(used_url)
     else:
-        ext = [e for e in extensions if e in used_url]
-        if ext:
-            ext = ext[0]
+        candidate_exts = [e for e in extensions if e in used_url]
+        if candidate_exts:
+            ext = candidate_exts[0]
             data = response.content
         else:
             raise FileTypeNotSupportedError(used_url)

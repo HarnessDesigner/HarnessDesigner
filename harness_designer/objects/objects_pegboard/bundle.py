@@ -82,7 +82,7 @@ class Bundle(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
-                 db_obj: "_pjt_bundle.PJTBundle") -> None:
+                 db_obj: "_pjt_bundle.PJTBundle"):
         """Initialise the :class:`Bundle` instance.
 
         :param parent: Parent object.
@@ -180,6 +180,7 @@ class Bundle(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -646,7 +647,7 @@ class BundleMenu(QtWidgets.QMenu):
     """Right-click menu for a pegboard Bundle."""
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: Bundle) -> None:
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: Bundle):
         QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected

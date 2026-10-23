@@ -21,7 +21,7 @@ class EditorObj(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorObj` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -74,7 +74,7 @@ class EditorObjPanel(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorObjPanel` instance.
 

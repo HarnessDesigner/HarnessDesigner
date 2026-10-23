@@ -13,7 +13,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, choices: list[str] | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, choices: list[str] | None = None):
         """Initialise the :class:`AutoCompleteTextCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

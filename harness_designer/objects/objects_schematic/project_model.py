@@ -17,9 +17,10 @@ class ProjectModel(_base_schematic.BaseSchematic):
     db_obj: "_project.Project" = None
 
     @_check_types.do
-    def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project") -> None:
+    def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project"):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

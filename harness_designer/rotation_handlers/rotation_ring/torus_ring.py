@@ -58,7 +58,7 @@ class TorusRing:
     @_check_types.do
     def __init__(self, position: _point.Point, angle: _angle.Angle,
                  radius: float, tube_diameter_scale: float,
-                 material: _materials.GLMaterial, context: "_gl_context.GLContext") -> None:
+                 material: _materials.GLMaterial, context: "_gl_context.GLContext"):
 
         self.position = position
         self.angle = angle

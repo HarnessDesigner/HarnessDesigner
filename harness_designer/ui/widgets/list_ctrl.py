@@ -46,7 +46,7 @@ class ListCtrl(QtWidgets.QWidget):
         items: list[str | float | int] | None = None,
         unique: bool = False,
         item_type: type[str | int | float] = str,
-    ) -> None:
+    ):
         """Initialise the :class:`ListCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

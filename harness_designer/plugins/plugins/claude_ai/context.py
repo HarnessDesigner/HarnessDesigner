@@ -56,7 +56,7 @@ class StaticContext(ContextProvider):
     """Fixed background text, for the simple cases (and for tests)."""
 
     @_check_types.do
-    def __init__(self, title: str, text: str) -> None:
+    def __init__(self, title: str, text: str):
         self._block = ContextBlock(title, text)
 
     @_check_types.do

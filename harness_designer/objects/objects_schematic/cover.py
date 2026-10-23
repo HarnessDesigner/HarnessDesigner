@@ -21,7 +21,7 @@ class Cover(_base_schematic.BaseSchematic):
     db_obj: "_pjt_cover.PJTCover"
 
     @_check_types.do
-    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover") -> None:
+    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
         """Initialise the :class:`Cover` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -35,5 +35,6 @@ class Cover(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

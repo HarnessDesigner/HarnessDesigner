@@ -93,7 +93,7 @@ class _WireList(QtWidgets.QListWidget):
     wire_moved = QtCore.Signal(object, object, object)  # (conc_wire, src_list, dst_list)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -152,7 +152,7 @@ class _WireList(QtWidgets.QListWidget):
 class _BranchGroup(QtWidgets.QGroupBox):
 
     @_check_types.do
-    def __init__(self, branch_idx: int, branch_db: "_pjt_transition_branch.PJTTransitionBranch", g_branch: "_global_transition_branch.TransitionBranch", parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, branch_idx: int, branch_db: "_pjt_transition_branch.PJTTransitionBranch", g_branch: "_global_transition_branch.TransitionBranch", parent: QtWidgets.QWidget | None = None):
         label = f'Branch {branch_idx}'
         super().__init__(label, parent)
         self.branch_db = branch_db
@@ -219,7 +219,7 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
     """Show one list per output branch; allow drag-and-drop wire reassignment."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", transition_3d: "_transition_3d.Transition") -> None:
+    def __init__(self, parent: "_ui.MainFrame", transition_3d: "_transition_3d.Transition"):
         super().__init__(parent, 'Route Wires', size=(780, 520))
         self._transition_3d = transition_3d
         self._branch_groups: list[_BranchGroup] = []

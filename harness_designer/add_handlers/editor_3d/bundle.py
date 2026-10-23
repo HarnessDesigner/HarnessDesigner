@@ -128,7 +128,7 @@ class Bundle(_base.AddHandlerBase):
         start_branch: _Union[tuple["_transition_obj.Transition", "_transition_3d.Branch"], None] = None,
         start_branch_orig_diameter: float | None = None,
         start_layout: _Union["_bundle_layout_facade.BundleLayout", None] = None
-    ) -> None:
+    ):
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe

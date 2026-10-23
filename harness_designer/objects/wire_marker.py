@@ -26,7 +26,7 @@ class WireMarker(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
-                 db_obj: "_wire_marker.PJTWireMarker", project_load: bool = False) -> None:
+                 db_obj: "_wire_marker.PJTWireMarker", project_load: bool = False):
         """Initialise the :class:`WireMarker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

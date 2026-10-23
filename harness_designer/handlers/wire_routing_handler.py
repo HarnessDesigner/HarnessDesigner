@@ -184,7 +184,7 @@ class EnterBundle:
     """
 
     @_check_types.do
-    def __init__(self, bundle: "_PJTBundle", point: _Point) -> None:
+    def __init__(self, bundle: "_PJTBundle", point: _Point):
         self.bundle = bundle
         self.point = point
 
@@ -197,7 +197,7 @@ class EnterBranch:
     """
 
     @_check_types.do
-    def __init__(self, branch: "_PJTTransitionBranch") -> None:
+    def __init__(self, branch: "_PJTTransitionBranch"):
         self.branch = branch
 
 
@@ -211,7 +211,7 @@ class ContinueBranch:
     """
 
     @_check_types.do
-    def __init__(self, branch: "_PJTTransitionBranch") -> None:
+    def __init__(self, branch: "_PJTTransitionBranch"):
         self.branch = branch
 
 
@@ -229,7 +229,7 @@ class EndAtSplice:
     """
 
     @_check_types.do
-    def __init__(self, point_id: bytes) -> None:
+    def __init__(self, point_id: bytes):
         self.point_id = point_id
 
 
@@ -605,7 +605,7 @@ class RouteWalk:
     def __init__(
         self, ptables: "_ProjectTables", wire: "_wire_obj.Wire",
         grabbed_position: np.ndarray, entry: _Union[EnterBundle, EnterBranch], view: str,
-    ) -> None:
+    ):
         check_view(view)
 
         self._ptables = ptables
@@ -645,6 +645,7 @@ class RouteWalk:
         self._entry_diameter = _diameter_of_terminus(entry)
         self._advance()
 
+    @_check_types.do
     def _add(self, point_id: bytes, **tags: int | bytes | None) -> None:
         self._ordered.append(point_id)
         d = self._point_tags.setdefault(point_id, {})
@@ -652,6 +653,7 @@ class RouteWalk:
             if value is not None:
                 d[key] = value
 
+    @_check_types.do
     def _advance(self) -> None:
         """Auto-walk ``self._bundle`` (if any) to its far end, then
         either finish (a genuinely free end reached) or add the
@@ -692,10 +694,12 @@ class RouteWalk:
         self._add(_transition_centre_point_id(transition, self._view), transition_id=transition.db_id)
 
     @property
+    @_check_types.do
     def is_finished(self) -> bool:
         return self._finished
 
     @property
+    @_check_types.do
     def pending_transition(self) -> _Union["_PJTTransition", None]:
         """The transition currently awaiting a :meth:`choose` call, or
         ``None`` once :attr:`is_finished`."""

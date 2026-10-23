@@ -100,7 +100,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`CompatSealsControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

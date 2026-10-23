@@ -127,7 +127,7 @@ class _ImageView(QtWidgets.QGraphicsView):
     zoom_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._scene = QtWidgets.QGraphicsScene(self)
         self._renderer: QtSvg.QSvgRenderer | None = None   # keeps SVG renderer alive
@@ -281,7 +281,7 @@ class _PDFPanFilter(QtCore.QObject):
     zoom_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
     @_check_types.do
-    def __init__(self, pdf_view: QtPdfWidgets.QPdfView) -> None:
+    def __init__(self, pdf_view: QtPdfWidgets.QPdfView):
         super().__init__(pdf_view)
         self._view = pdf_view
         self._dragging = False
@@ -323,9 +323,9 @@ class _PDFPanFilter(QtCore.QObject):
 
         elif t == QtCore.QEvent.Type.Wheel:
             if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
-                delta = event.angleDelta().y()
-                if delta:
-                    factor = _ZOOM_STEP_WHEEL ** (delta / 120.0)
+                wheel_delta_y = event.angleDelta().y()
+                if wheel_delta_y:
+                    factor = _ZOOM_STEP_WHEEL ** (wheel_delta_y / 120.0)
 
                     new_f = max(
                         _ZOOM_MIN, min(self._view.zoomFactor() * factor, _ZOOM_MAX))
@@ -370,7 +370,7 @@ class CADDatasheetCtrl(QtWidgets.QWidget):
     # ── init ──────────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._pdf_doc: QtPdf.QPdfDocument | None = None
         self._mode = _PANE_IMAGE   # start on blank image pane
@@ -794,7 +794,7 @@ class CADDatasheetPreviewCtrl(QtWidgets.QWidget):
     _RENDER_LONG_EDGE = 1200
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.NoFocus)
         self._pixmap: QtGui.QPixmap | None = None

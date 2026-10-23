@@ -43,7 +43,7 @@ class Terminal(_base.AddHandlerBase):
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part: "_glb_terminal.Terminal",
         housing: _Union["_housing.Housing", None]
-    ) -> None:
+    ):
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -59,6 +59,7 @@ class Terminal(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_schematic.BaseSchematic":
         return obj.objschematic
 

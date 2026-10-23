@@ -71,7 +71,7 @@ class BundleWiresDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", bundle_3d: "_bundle_3d.Bundle") -> None:
+    def __init__(self, parent: "_ui.MainFrame", bundle_3d: "_bundle_3d.Bundle"):
         super().__init__(parent, 'Bundle Wire Contents', size=(620, 420))
         self._build_ui(bundle_3d)
 

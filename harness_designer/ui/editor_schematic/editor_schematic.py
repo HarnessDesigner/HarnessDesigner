@@ -27,7 +27,7 @@ class EditorSchematic(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`Editor2D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -135,7 +135,7 @@ class EditorSchematicPanel(_canvas_schematic.CanvasSchematic):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """Initialise the :class:`Editor2DPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

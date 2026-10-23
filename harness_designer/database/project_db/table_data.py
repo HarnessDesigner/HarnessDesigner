@@ -28,7 +28,7 @@ class RowDeletedError(Exception):
     """A row was read or changed after it was deleted."""
 
     @_check_types.do
-    def __init__(self, table_name: str, row_id: bytes) -> None:
+    def __init__(self, table_name: str, row_id: bytes):
         """Build the error.
 
         :param table_name: The table the row belonged to.
@@ -41,6 +41,7 @@ class RowDeletedError(Exception):
         self.row_id = row_id
 
 
+@_check_types.do
 def _row_matches(row: _Row, where: dict[str, _CellValue], use_or: bool) -> bool:
     """Whether *row* satisfies *where*, with the same rules as ``PJTTableBase.select``.
 
@@ -83,7 +84,7 @@ class TableData:
     )
 
     @_check_types.do
-    def __init__(self, table_name: str, field_names: list[str]) -> None:
+    def __init__(self, table_name: str, field_names: list[str]):
         """Create an empty cache. Call :meth:`load` to fill it.
 
         :param table_name: The SQL table name.
@@ -154,7 +155,7 @@ class TableData:
             rows = [self._rows[id]]
 
         else:
-            rows = self._rows.values()
+            rows = list(self._rows.values())
 
         results = []
         for row in rows:

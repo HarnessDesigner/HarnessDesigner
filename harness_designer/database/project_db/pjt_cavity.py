@@ -405,10 +405,10 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     def aabb(self, value: np.ndarray) -> None:
         self._stored_aabb = value
 
-        value = [[float(str(item)) for item in items]
+        value_list = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
-        self._table.update(self._db_id, aabb=str(value))
+        self._table.update(self._db_id, aabb=str(value_list))
         self._populate('aabb')
 
     _stored_obb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
@@ -429,10 +429,10 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     def obb(self, value: np.ndarray) -> None:
         self._stored_obb = value
 
-        value = [[float(str(item)) for item in items]
+        value_list = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
-        self._table.update(self._db_id, obb=str(value))
+        self._table.update(self._db_id, obb=str(value_list))
         self._populate('obb')
 
     @property
@@ -1154,7 +1154,7 @@ class PJTCavityControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """
         Initialise the :class:`PJTCavityControl` instance.
 

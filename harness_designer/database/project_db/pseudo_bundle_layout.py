@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Union as _Union
 
 from .pjt_bundle_layout import PJTBundleLayout
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -31,9 +32,10 @@ class _PseudoAttachedBundle:
     """
     __slots__ = ('part', 'part_id', 'diameter')
 
+    @_check_types.do
     def __init__(
         self, part: "_global_bundle_cover.BundleCover", diameter: float
-    ) -> None:
+    ):
         self.part = part
         self.part_id = part.db_id
         self.diameter = diameter
@@ -56,6 +58,7 @@ class PseudoPJTBundleLayout(PJTBundleLayout):
     _bundle_diameter: float = 0.0
     _visible_pegboard: bool = True
 
+    @_check_types.do
     def configure(
         self,
         bundle_part: "_global_bundle_cover.BundleCover | None" = None,
@@ -71,6 +74,7 @@ class PseudoPJTBundleLayout(PJTBundleLayout):
         self._visible_pegboard = visible_pegboard
 
     @property
+    @_check_types.do
     def attached_bundles(self) -> list:
         if self._bundle_part is None:
             return []
@@ -78,28 +82,35 @@ class PseudoPJTBundleLayout(PJTBundleLayout):
         return [_PseudoAttachedBundle(self._bundle_part, self._bundle_diameter)]
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         return self._bundle_diameter
 
     @property
+    @_check_types.do
     def table(self) -> None:
         return None
 
+    @_check_types.do
     def delete(self) -> None:
         # No real row backs this instance -- the drag tears these down itself.
         pass
 
+    @_check_types.do
     def get_object(self) -> None:
         return None
 
+    @_check_types.do
     def set_object(self, obj: object) -> None:
         pass
 
     @property
+    @_check_types.do
     def position3d(self) -> _point.Point | None:
         return self._position3d
 
     @property
+    @_check_types.do
     def position3d_id(self) -> bytes | None:
         if self._position3d is None:
             return None
@@ -108,14 +119,17 @@ class PseudoPJTBundleLayout(PJTBundleLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position3d_id.setter
+    @_check_types.do
     def position3d_id(self, value: bytes | None) -> None:
         pass
 
     @property
+    @_check_types.do
     def position_pegboard(self) -> _point.Point | None:
         return self._position_pegboard
 
     @property
+    @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         if self._position_pegboard is None:
             return None
@@ -124,31 +138,38 @@ class PseudoPJTBundleLayout(PJTBundleLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position_pegboard_id.setter
+    @_check_types.do
     def position_pegboard_id(self, value: bytes | None) -> None:
         pass
 
     @property
+    @_check_types.do
     def is_visible3d(self) -> bool:
         return False
 
     @is_visible3d.setter
+    @_check_types.do
     def is_visible3d(self, value: bool) -> None:
         pass
 
     @property
+    @_check_types.do
     def is_visible_pegboard(self) -> bool:
         return self._visible_pegboard
 
     @is_visible_pegboard.setter
+    @_check_types.do
     def is_visible_pegboard(self, value: bool) -> None:
         # Memory only: the object-level visibility is what the renderer reads,
         # and it must not write a database row mid-drag.
         self._visible_pegboard = bool(value)
 
     @property
+    @_check_types.do
     def smooth(self) -> bool | None:
         return True
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         pass

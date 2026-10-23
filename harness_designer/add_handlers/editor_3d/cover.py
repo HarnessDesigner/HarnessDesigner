@@ -32,7 +32,7 @@ class Cover(_base.AddHandlerBase):
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
                  housing: _Union["_housing.Housing", None],
-                 project_housings: list["_housing.Housing"]) -> None:
+                 project_housings: list["_housing.Housing"]):
 
         super().__init__(canvas, target)
 

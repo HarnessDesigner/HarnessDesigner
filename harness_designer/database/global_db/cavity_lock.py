@@ -44,8 +44,6 @@ class CavityLocksTable(TableBase):
         from ..create_database import cavity_locks
 
         cavity_locks.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-        cavity_locks.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:

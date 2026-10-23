@@ -25,6 +25,8 @@ from __future__ import annotations
 import json
 import math
 
+from ... import check_types as _check_types
+
 _SCRIPT_SAFE_ESCAPES = {
     ord('<'): '\\u003C',
     ord('>'): '\\u003E',
@@ -32,6 +34,7 @@ _SCRIPT_SAFE_ESCAPES = {
 }
 
 
+@_check_types.do
 def _json_safe(value):
     if isinstance(value, float):
         if math.isnan(value):
@@ -46,6 +49,7 @@ def _json_safe(value):
     return value
 
 
+@_check_types.do
 def dumps_for_script_embed(record: dict) -> str:
     safe_record = _json_safe(record)
     return json.dumps(safe_record, separators=(',', ':')).translate(_SCRIPT_SAFE_ESCAPES)

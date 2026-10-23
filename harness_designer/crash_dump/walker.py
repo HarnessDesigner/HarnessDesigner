@@ -28,11 +28,13 @@ from datetime import datetime, timezone
 from .registry import capture_groups_for
 from .render import iter_render_children
 from .writer import HtmlDumpWriter
+from .. import check_types as _check_types
 
 _MAX_CONTAINER_DEPTH = 4
 _MAX_CONTAINER_ITEMS = 50
 
 
+@_check_types.do
 def walk(roots, *, trigger_severity: int):
     """Yield one node dict per captured object reachable from ``roots``,
     in breadth-first discovery order.
@@ -50,6 +52,7 @@ def walk(roots, *, trigger_severity: int):
         yield _build_node(obj, trigger_severity, to_visit, seen_ids)
 
 
+@_check_types.do
 def dump_to_html(
     roots,
     *,
@@ -72,6 +75,7 @@ def dump_to_html(
             writer.write_node(node)
 
 
+@_check_types.do
 def _build_node(obj, trigger_severity: int, to_visit: deque, seen_ids: set[int]) -> dict:
     # Every object reaching here was either an explicitly-requested root
     # (which may have no schema at all, e.g. during schema rollout) or a
@@ -103,10 +107,12 @@ def _build_node(obj, trigger_severity: int, to_visit: deque, seen_ids: set[int])
     }
 
 
+@_check_types.do
 def _label_for(obj) -> str:
     return f'{type(obj).__qualname__} #{id(obj)}'
 
 
+@_check_types.do
 def _error_child(name: str, severity: int, exc: Exception) -> dict:
     formatted = ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     return {
@@ -117,6 +123,7 @@ def _error_child(name: str, severity: int, exc: Exception) -> dict:
     }
 
 
+@_check_types.do
 def _classify_value(name: str, value, to_visit: deque, seen_ids: set[int], depth: int):
     if value is None or isinstance(value, (bool, int, float, str)):
         return {'name': name, 'kind': 'value', 'value': value}
@@ -139,6 +146,7 @@ def _classify_value(name: str, value, to_visit: deque, seen_ids: set[int], depth
     return _classify_children(name, type(value).__name__, payload, to_visit, seen_ids, depth)
 
 
+@_check_types.do
 def _classify_children(
     name: str,
     container_type: str,

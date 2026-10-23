@@ -91,7 +91,7 @@ class Seal(_base_3d.Base3D):
     _vbo_id: str | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal") -> None:
+    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
         """
         Initialise the :class:`Seal` instance.
 
@@ -495,7 +495,7 @@ class SealMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Seal") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Seal"):
         """Initialise the :class:`SealMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -56,20 +56,6 @@ class WiresTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash: "_splash.Splash") -> None:
-        """Load the database.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param splash: Value for ``splash``.
-        :type splash: UNKNOWN
-        """
-        from ..create_database import wires
-
-        data_path = self._con.db_data.open(splash)
-        wires.add_records(self._con, splash, data_path)
-
-    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -94,9 +80,6 @@ class WiresTable(TableBase):
         from ..create_database import wires
 
         wires.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-
-        wires.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:
@@ -1098,18 +1081,22 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('stripe_color_id')
 
 
+@_check_types.do
 def _stripe_color_of(db_obj: "Wire") -> _Union["_color.Color", None]:
     return db_obj.stripe_color
 
 
+@_check_types.do
 def _set_stripe_color_id(db_obj: "Wire", db_id: bytes | None) -> None:
     db_obj.stripe_color_id = db_id
 
 
+@_check_types.do
 def _core_material_of(db_obj: "Wire") -> "_plating.Plating":
     return db_obj.core_material
 
 
+@_check_types.do
 def _set_core_material_id(db_obj: "Wire", db_id: bytes) -> None:
     db_obj.core_material_id = db_id
 
@@ -1346,7 +1333,7 @@ class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.db_obj.od_mm = value
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`WireControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -36,7 +36,7 @@ class ProjectModelDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", project_db: "_project.Project") -> None:
+    def __init__(self, parent: "_ui.MainFrame", project_db: "_project.Project"):
         title = 'Add Project Model'
         current_model = project_db.model
 

@@ -319,7 +319,7 @@ class WireRouteMixin:
     ``super()`` here for the same reason that module's docstring gives.
     """
 
-    _view: str = None  # '3d' or 'pegboard' -- set by the concrete subclass
+    _view: str | None = None  # '3d' or 'pegboard' -- set by the concrete subclass
 
     drop_hit = None
     _eligible_ends = None
@@ -342,6 +342,7 @@ class WireRouteMixin:
     moving = None
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         """Established by WireDragMixin -- see that class's own
         docstring. Declared here only so static analysis can resolve
@@ -440,7 +441,7 @@ class RouteSession:
     def __init__(
         self, canvas: "_canvas_base.CanvasBase", wire_obj: "_wire_obj.Wire",
         walk: "_wire_routing_handler.RouteWalk", wire_od: float, view: str,
-    ) -> None:
+    ):
         self.canvas = canvas
         self.target = wire_obj
         self._walk = walk

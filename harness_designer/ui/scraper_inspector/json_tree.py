@@ -42,6 +42,7 @@ def _no_names() -> set[str]:
 class _NameDelegate(QtWidgets.QStyledItemDelegate):
     """Only the variable-name column is editable."""
 
+    @_check_types.do
     def createEditor(self, parent: QtWidgets.QWidget, option: QtWidgets.QStyleOptionViewItem,  # NOQA
                      index: QtCore.QModelIndex) -> QtWidgets.QWidget | None:
         if index.column() != 2:
@@ -61,7 +62,7 @@ class JsonTree(QtWidgets.QTreeWidget):
     messageRaised = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._value: object = None
         self._root_name = 'data'

@@ -35,7 +35,7 @@ class SQLTable:
     """Describe a SQL table definition for the SQLite connector.
     """
     @_check_types.do
-    def __init__(self, name: str, *fields: "SQLField") -> None:
+    def __init__(self, name: str, *fields: "SQLField"):
         """Initialize the table definition.
 
         :param name: Table name to represent.
@@ -135,7 +135,7 @@ class SQLFieldReference:
     """Represent a foreign-key reference for a SQL field.
     """
     @_check_types.do
-    def __init__(self, table: SQLTable, field: "SQLField", on_delete: str = REFERENCE_DEFAULT, on_update: str = REFERENCE_DEFAULT) -> None:
+    def __init__(self, table: SQLTable, field: "SQLField", on_delete: str = REFERENCE_DEFAULT, on_update: str = REFERENCE_DEFAULT):
         """Initialize the foreign-key reference metadata.
 
         :param table: Referenced parent table.
@@ -181,7 +181,7 @@ class SQLField:
     def __init__(self, name: str, data_type: str, no_null: bool = False,
                  is_unique: bool = False, default: str | None = None,
                  references: SQLFieldReference | None = None, is_primary: bool = False,
-                 autoincrement: bool = True) -> None:
+                 autoincrement: bool = True):
 
         """Initialize the SQL field metadata.
 
@@ -316,7 +316,7 @@ class PrimaryKeyField(SQLField):
     """Represent an auto-incrementing integer primary-key field.
     """
     @_check_types.do
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str):
 
         """Initialize the primary-key field definition.
 
@@ -345,7 +345,7 @@ class UUIDField(SQLField):
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None,
-                 references: SQLFieldReference | None = None, is_primary: bool = False) -> None:
+                 references: SQLFieldReference | None = None, is_primary: bool = False):
 
         """Initialize the UUID field definition.
 
@@ -373,7 +373,7 @@ class TextField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None) -> None:
+                 default: str | None = None, references: SQLField | None = None):
 
         """Initialize the text field definition.
 
@@ -398,7 +398,7 @@ class FloatField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None) -> None:
+                 default: str | None = None, references: SQLField | None = None):
 
         """Initialize the floating-point field definition.
 
@@ -423,7 +423,7 @@ class BytesField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None) -> None:
+                 default: str | None = None, references: SQLField | None = None):
 
         """Initialize the bytes field definition.
 
@@ -448,7 +448,7 @@ class IntField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None) -> None:
+                 default: str | None = None, references: SQLField | None = None):
 
         """Initialize the integer field definition.
 
@@ -473,7 +473,7 @@ class BlobField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None) -> None:
+                 default: str | None = None, references: SQLField | None = None):
 
         """Initialize the blob field definition.
 

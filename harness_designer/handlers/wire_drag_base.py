@@ -144,9 +144,10 @@ class WireDragPlan:
 
     __slots__ = ('moving', 'anchor', 'snap_point')
 
+    @_check_types.do
     def __init__(
             self, moving: list[_point.Point], anchor: _point.Point,
-            snap_point: _point.Point | None) -> None:
+            snap_point: _point.Point | None):
         self.moving = moving
         self.anchor = anchor
         self.snap_point = snap_point
@@ -188,6 +189,7 @@ class WireDragMixin:
     # ------------------------------------------------------------------
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         """
         Return *obj*'s own view-specific wrapper for this editor --
@@ -197,6 +199,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_editor(mainframe: "_ui.MainFrame") -> "_canvas_base.CanvasBase":
         """
         Return this view's own INNER GL canvas widget (``mainframe.editorX.
@@ -212,6 +215,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _points_table(project: "_project.Project") -> _Union["_pjt_point3d.PJTPoints3DTable", "_pjt_point_pegboard.PJTPointsPegboardTable"]:
         """
         This view's own peg-board/3D points table (``pjt_points3d_table``
@@ -222,6 +226,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _waypoints(wire_db_obj: "_pjt_wire.PJTWire") -> list:
         """
         This wire's own ordered interior waypoints for this view
@@ -231,6 +236,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _wire_position_id_raw(obj: _Union["_pjt_cavity.PJTCavity", "_pjt_terminal.PJTTerminal"]) -> bytes | None:
         """
         A cavity's or terminal's own ``wire_position*_id_raw`` column
@@ -240,6 +246,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _attach_position_id_raw(obj: "_pjt_terminal.PJTTerminal") -> bytes | None:
         """
         A terminal's own ``attach_position*_id_raw`` column for this
@@ -249,6 +256,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_start_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         """
         This view's own ``start_position*_id`` column on a wire's DB
@@ -258,10 +266,12 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _set_start_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         """
         This view's own ``stop_position*_id`` column on a wire's DB
@@ -271,10 +281,12 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _set_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _layout_position_id(layout_db_obj: "_pjt_wire_layout.PJTWireLayout") -> bytes | None:
         """
         This view's own ``position*_id`` column on a WireLayout's DB
@@ -284,6 +296,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _is_in_view(obj: "_objects.ObjectBase") -> bool:
         """
         This view's own ``is_in_3dview``/``is_in_pegboardview`` check
@@ -568,6 +581,7 @@ class WireDragMixin:
         return view_obj.stop_position
 
     @staticmethod
+    @_check_types.do
     def _view_merge_geometry(get_view_object: Callable, get_waypoints: Callable, wire_obj: "_wire_object.Wire",
                              other_wire: "_wire_object.Wire", own_end: str,
                              other_end: str) -> tuple[bytes, list, list, bytes, bytes]:

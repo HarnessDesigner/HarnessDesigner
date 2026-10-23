@@ -53,6 +53,7 @@ _SEGMENT2_STRIPE_OFFSET_DEG = -90.0 + _STRIPE_ARC_WIDTH_DEG + 1.0
 _LOOP_STRIPE_OFFSET_DEG = 180.0
 
 
+@_check_types.do
 def _stripe_profile(radius: float, extra_deg: float = 0.0) -> "build123d.Face":
     """Small offset-arc cross-section for the decorative twist stripe,
     riding a diameter straddling ``radius`` (half embedded in the wire,
@@ -77,6 +78,7 @@ def _stripe_profile(radius: float, extra_deg: float = 0.0) -> "build123d.Face":
     return face
 
 
+@_check_types.do
 def _straight_stripe(radius: float, length: float, start_deg: float = 0.0) -> "build123d.Shape":
     """Twist stripe for a straight wire segment running along +Z from the
     origin -- same offset-arc + binormal-helix technique as
@@ -101,6 +103,7 @@ def _straight_stripe(radius: float, length: float, start_deg: float = 0.0) -> "b
     return build123d.sweep(profile, s_line, binormal=twist)
 
 
+@_check_types.do
 def _loop_stripe_guide(path: "build123d.Shape", radius: float, start_deg: float = 0.0, n_samples: int = 40) -> "build123d.Edge":
     """Sampled twist-reference curve for the loop's stripe.
 
@@ -139,6 +142,7 @@ def _loop_stripe_guide(path: "build123d.Shape", radius: float, start_deg: float 
     return build123d.Spline(*points)
 
 
+@_check_types.do
 def _loop_stripe(path: "build123d.Shape", radius: float, start_deg: float = 0.0) -> "build123d.Shape":
     """Twist stripe following the loop's own helical path, riding the same
     diameter as the loop's swept tube.

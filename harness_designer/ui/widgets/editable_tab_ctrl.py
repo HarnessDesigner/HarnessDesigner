@@ -25,7 +25,7 @@ class EditableTabBar(QtWidgets.QTabBar):
     tabAddRequested: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, parent: "EditableTabCtrl") -> None:
+    def __init__(self, parent: "EditableTabCtrl"):
         """Initialise the :class:`EditableTabBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -194,7 +194,7 @@ class EditableTabCtrl(QtWidgets.QTabWidget):
     tab_bar_tooltip = None
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         """Initialise the :class:`EditableTabCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

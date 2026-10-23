@@ -47,7 +47,7 @@ class MoveArrows(_object_base.ObjectBase):
 
     @_check_types.do
     def __init__(self, obj_position: _point.Point, axis: str,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
         """
         Initialise the :class:`MoveArrows` instance.
 
@@ -115,7 +115,7 @@ class MoveArrows(_object_base.ObjectBase):
 class ArrowsSchematic(_base_schematic.BaseSchematic):
 
     @_check_types.do
-    def __init__(self, parent: MoveArrows) -> None:
+    def __init__(self, parent: MoveArrows):
         super().__init__(parent, None, None, None,
                          None, None, None)
 
@@ -132,7 +132,7 @@ class ArrowsSchematic(_base_schematic.BaseSchematic):
 class ArrowsPegboard(_base_pegboard.BasePegboard):
 
     @_check_types.do
-    def __init__(self, parent: MoveArrows) -> None:
+    def __init__(self, parent: MoveArrows):
         super().__init__(parent, None, None, None,
                          None, None, None)
 
@@ -152,7 +152,7 @@ class Arrows3D(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: MoveArrows, obj_position: _point.Point, axis: str,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
 
         # Create cyan material
         color = _color.Color(0, 170, 170, 255)

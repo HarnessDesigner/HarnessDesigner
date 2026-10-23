@@ -134,7 +134,7 @@ class PJTTPALocksTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: bytes, name: str, position3d_id: bytes, idx: int, housing_id: bytes = None) -> "PJTTPALock":
+    def insert(self, part_id: bytes, name: str, position3d_id: bytes, idx: int, housing_id: bytes | None = None) -> "PJTTPALock":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -307,7 +307,7 @@ class PJTTPALockControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTTPALockControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

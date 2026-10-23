@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 _CAVITY_SELECTING_EDITORS = ('editor3d', 'editor_pegboard')
 
 
+@_check_types.do
 def _wire_end_id(wire_db, end: str, view: str) -> bytes | None:
     """The point id a wire's *end* ('start' or 'stop') uses in *view*.
 
@@ -50,6 +51,7 @@ def _wire_end_id(wire_db, end: str, view: str) -> bytes | None:
     return wire_db.stop_position2d_id
 
 
+@_check_types.do
 def _set_wire_end_id(wire_db, end: str, view: str, value: bytes) -> None:
     """Point a wire's *end* at *value* in *view* (see :func:`_wire_end_id`)."""
     if end == 'start':
@@ -69,6 +71,7 @@ def _set_wire_end_id(wire_db, end: str, view: str, value: bytes) -> None:
         wire_db.stop_position2d_id = value
 
 
+@_check_types.do
 def _wire_end_point(wire_db, end: str, view: str):
     """The point object a wire's *end* resolves to in *view* (or ``None``)."""
     if end == 'start':
@@ -98,7 +101,7 @@ class Terminal(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_terminal.PJTTerminal", project_load: bool = False, free: bool = False) -> None:
+                 db_obj: "_pjt_terminal.PJTTerminal", project_load: bool = False, free: bool = False):
         """Initialise the :class:`Terminal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

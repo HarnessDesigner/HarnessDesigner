@@ -42,7 +42,7 @@ class Note(_base_3d.Base3D):
     _vbo: _text.Text | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote") -> None:
+    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
         """Initialise the :class:`Note` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -401,7 +401,7 @@ class NoteMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Note") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Note"):
         """Initialise the :class:`NoteMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

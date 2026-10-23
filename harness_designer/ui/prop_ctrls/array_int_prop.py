@@ -32,7 +32,7 @@ class ArrayIntDialog(_ArrayDialog):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, values: list[int],
-                 title: str = 'Modify Array') -> None:
+                 title: str = 'Modify Array'):
         """Initialise the :class:`ArrayIntDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -73,7 +73,7 @@ class ArrayIntProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`ArrayIntProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

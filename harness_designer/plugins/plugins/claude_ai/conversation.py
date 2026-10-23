@@ -47,7 +47,7 @@ class Conversation:
                  system: str | None = None, tools: list[_messages.Tool] | None = None,
                  context: list[_context.ContextProvider] | None = None, topic: str = '',
                  output_schema: dict[str, Any] | None = None,
-                 max_tool_rounds: int = DEFAULT_MAX_TOOL_ROUNDS) -> None:
+                 max_tool_rounds: int = DEFAULT_MAX_TOOL_ROUNDS):
         settings.validate()
         tools = list(tools or [])
 

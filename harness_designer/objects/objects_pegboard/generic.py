@@ -17,7 +17,7 @@ class Generic(_base_pegboard.BasePegboard):
     _parent: "_generic.Generic" = None
 
     @_check_types.do
-    def __init__(self, parent: "_generic.Generic") -> None:
+    def __init__(self, parent: "_generic.Generic"):
         """Initialise the :class:`Generic` instance.
 
         :param parent: Parent object.
@@ -27,5 +27,6 @@ class Generic(_base_pegboard.BasePegboard):
         super().__init__(parent, None, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

@@ -270,6 +270,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         """
         return self._table
 
+    @_check_types.do
     def branch_in_slot(self, slot: int) -> "_pjt_transition_branch.PJTTransitionBranch | None":
         """The branch in slot *slot* (1 to 6), or ``None`` if that slot is empty."""
         if slot == 1:
@@ -498,8 +499,8 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
             pos._process_callbacks()  # NOQA
 
-    _o_quat3d: list = None
-    _o_euler3d: list = None
+    _o_quat3d: list | None = None
+    _o_euler3d: list | None = None
 
     @_check_types.do
     def _update_angle3d(self, angle: _angle.Angle) -> None:
@@ -567,8 +568,8 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
             pos._process_callbacks()  # NOQA
 
-    _o_quat_pegboard: list = None
-    _o_euler_pegboard: list = None
+    _o_quat_pegboard: list | None = None
+    _o_euler_pegboard: list | None = None
 
     @_check_types.do
     def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
@@ -789,7 +790,7 @@ class PJTTransitionControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTTransitionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

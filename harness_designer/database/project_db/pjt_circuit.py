@@ -123,7 +123,7 @@ class _Set:
     """
 
     @_check_types.do
-    def __init__(self, args: list) -> None:
+    def __init__(self, args: list):
         """Initialise the :class:`_Set` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -199,8 +199,8 @@ class _Set:
                     line.append(_iter(item, indent + '  '))
                 else:
                     line.append(f'{indent}  {str(item)}')
-            line = ',\n'.join(line)
-            return f'{indent}[' + '\n' + line + '\n' + f'{indent}]'
+            line_str = ',\n'.join(line)
+            return f'{indent}[' + '\n' + line_str + '\n' + f'{indent}]'
 
         return _iter(self.items)
 
@@ -1127,7 +1127,7 @@ class PJTCircuitControl(QtWidgets.QTabWidget):
             self.splice_weight_lb_ctrl.SetValue(str(db_obj.splice_weight_lb))
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTCircuitControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

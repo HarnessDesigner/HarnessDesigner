@@ -68,7 +68,7 @@ class AnglePegboardMixin(BaseMixin):
 class AnglePegboardControl(_prop_ctrls.AngleProperty):
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         self.db_obj: AnglePegboardMixin | None = None
 
         super().__init__(parent, 'Pegboard Angle', axes='y')

@@ -80,7 +80,7 @@ class ScriptEditorPanel(QtWidgets.QWidget, _insertion.SnippetSink):
 
     @_check_types.do
     def __init__(self, client: _claude.ClaudeClient, scratch_path: str | None, scripts_folder: str,
-                 parent: QtWidgets.QWidget | None = None) -> None:
+                 parent: QtWidgets.QWidget | None = None):
         """
         :param client: The Claude client the assistant uses.
         :param scratch_path: Where the unsaved working copy is kept between
@@ -501,7 +501,7 @@ class ScriptEditor(_dock_base.DockBase, _insertion.SnippetSink):
     application start."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         app_data = _paths.get_appdata()
         scripts_folder = os.path.join(_paths.get_documents(), 'HarnessDesigner', 'scrapers')
 

@@ -56,7 +56,7 @@ class WeightControl(_prop_ctrls.FloatProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`WeightControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

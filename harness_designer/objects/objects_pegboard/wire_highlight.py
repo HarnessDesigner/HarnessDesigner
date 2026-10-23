@@ -63,7 +63,7 @@ class WireHighlight:
     )
 
     @_check_types.do
-    def __init__(self, editor: "_editor_pegboard.EditorPegboard") -> None:
+    def __init__(self, editor: "_editor_pegboard.EditorPegboard"):
         """Initialise the :class:`WireHighlight` instance.
 
         :param editor: The Peg Board Editor to repaint after a change.

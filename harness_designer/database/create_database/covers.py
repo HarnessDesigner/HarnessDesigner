@@ -223,7 +223,7 @@ def add_cover(con: "_connector_base.ConnectorBase", part_number: str, descriptio
 
         description += ' Cover'
 
-    compat_housings = ', '.join(compat_housings)
+    compat_housings_str = ', '.join(compat_housings)
 
     _logger.database(f'adding cover {part_number}: {description}')
 
@@ -235,7 +235,7 @@ def add_cover(con: "_connector_base.ConnectorBase", part_number: str, descriptio
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
-                 model3d_id, length, width, height, weight, pins, compat_housings))
+                 model3d_id, length, width, height, weight, pins, compat_housings_str))
 
     _logger.database(f'cover added "{part_number}"')
 

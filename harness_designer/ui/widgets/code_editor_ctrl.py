@@ -37,7 +37,7 @@ class _PygmentsHighlighter(QtGui.QSyntaxHighlighter):
     """
 
     @_check_types.do
-    def __init__(self, document: QtGui.QTextDocument) -> None:
+    def __init__(self, document: QtGui.QTextDocument):
         super().__init__(document)
 
         self._lexer = PythonLexer()
@@ -67,6 +67,7 @@ class _PygmentsHighlighter(QtGui.QSyntaxHighlighter):
 
             self.setFormat(overlap_start - block_start, overlap_end - overlap_start, self._format_for(token_type))
 
+    @_check_types.do
     def _format_for(self, token_type) -> QtGui.QTextCharFormat:
         cached = self._formats.get(token_type)
         if cached is not None:
@@ -89,13 +90,15 @@ class _PygmentsHighlighter(QtGui.QSyntaxHighlighter):
 
 class _LineNumberArea(QtWidgets.QWidget):
     @_check_types.do
-    def __init__(self, editor: 'CodeEditorCtrl') -> None:
+    def __init__(self, editor: 'CodeEditorCtrl'):
         super().__init__(editor)
         self._editor = editor
 
+    @_check_types.do
     def sizeHint(self) -> QtCore.QSize:  # NOQA -- Qt's own camelCase override
         return QtCore.QSize(self._editor.line_number_area_width(), 0)
 
+    @_check_types.do
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:  # NOQA -- Qt's own camelCase override
         self._editor.paint_line_numbers(event)
 
@@ -108,7 +111,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
 
         font = QtGui.QFont('Consolas', 11)
@@ -132,10 +135,12 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
         self._on_block_count_changed(0)
         self._highlight_current_line()
 
+    @_check_types.do
     def line_number_area_width(self) -> int:
         digits = max(1, len(str(max(1, self.blockCount()))))
         return 10 + self.fontMetrics().horizontalAdvance('9') * digits
 
+    @_check_types.do
     def paint_line_numbers(self, event: QtGui.QPaintEvent) -> None:
         painter = QtGui.QPainter(self._line_number_area)
         painter.fillRect(event.rect(), QtGui.QColor('#252526'))
@@ -157,6 +162,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
             bottom = top + round(self.blockBoundingRect(block).height())
             block_number += 1
 
+    @_check_types.do
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # NOQA -- Qt's own camelCase override
         super().resizeEvent(event)
         contents_rect = self.contentsRect()
@@ -164,6 +170,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
             QtCore.QRect(contents_rect.left(), contents_rect.top(),
                          self.line_number_area_width(), contents_rect.height()))
 
+    @_check_types.do
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:  # NOQA -- Qt's own camelCase override
         key = event.key()
         has_selection = self.textCursor().hasSelection()
@@ -186,6 +193,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
 
         super().keyPressEvent(event)
 
+    @_check_types.do
     def _insert_auto_indented_newline(self) -> None:
         cursor = self.textCursor()
         current_line = cursor.block().text()
@@ -197,6 +205,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
 
         cursor.insertText('\n' + new_indent)
 
+    @_check_types.do
     def _indent_selection(self) -> None:
         cursor = self.textCursor()
         start, end = sorted((cursor.selectionStart(), cursor.selectionEnd()))
@@ -210,6 +219,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
         indented_lines = [_INDENT + line for line in selected_lines]
         cursor.insertText('\n'.join(indented_lines))
 
+    @_check_types.do
     def _dedent_selection(self) -> None:
         cursor = self.textCursor()
         start, end = sorted((cursor.selectionStart(), cursor.selectionEnd()))
@@ -223,9 +233,11 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
         dedented_lines = [_dedent_one_line(line) for line in selected_lines]
         cursor.insertText('\n'.join(dedented_lines))
 
+    @_check_types.do
     def _on_block_count_changed(self, _new_block_count: int) -> None:
         self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
 
+    @_check_types.do
     def _on_update_request(self, rect: QtCore.QRect, dy: int) -> None:
         if dy:
             self._line_number_area.scroll(0, dy)
@@ -235,6 +247,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
         if rect.contains(self.viewport().rect()):
             self._on_block_count_changed(0)
 
+    @_check_types.do
     def _highlight_current_line(self) -> None:
         selection = QtWidgets.QTextEdit.ExtraSelection()
         selection.format.setBackground(QtGui.QColor('#2a2d2e'))
@@ -244,6 +257,7 @@ class CodeEditorCtrl(QtWidgets.QPlainTextEdit):
         self.setExtraSelections([selection])
 
 
+@_check_types.do
 def _dedent_one_line(line: str) -> str:
     removed = 0
     while removed < len(_INDENT) and removed < len(line) and line[removed] == ' ':

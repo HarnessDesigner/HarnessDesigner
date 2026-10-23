@@ -78,9 +78,10 @@ class SegmentDragPlan:
 
     __slots__ = ('points', 'outer_budgets')
 
+    @_check_types.do
     def __init__(self, points: tuple[_point.Point, _point.Point],
                  outer_budgets: tuple[tuple[float, float, float] | None,
-                                       tuple[float, float, float] | None]) -> None:
+                                       tuple[float, float, float] | None]):
         self.points = points
         self.outer_budgets = outer_budgets
 
@@ -182,7 +183,7 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-                 mouse_pos: _point.Point) -> None:
+                 mouse_pos: _point.Point):
         # Bypass DragHandlerPegboard's own __init__ -- it caches
         # target.objpegboard.touching_budgets(), meaningful for a
         # single-point drag, but a segment drag moves TWO points and the

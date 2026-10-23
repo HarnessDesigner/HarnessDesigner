@@ -20,7 +20,7 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", last_project: str | None, project_names: list[str]) -> None:
+    def __init__(self, parent: "_ui.MainFrame", last_project: str | None, project_names: list[str]):
         """Initialise the :class:`OpenProjectDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

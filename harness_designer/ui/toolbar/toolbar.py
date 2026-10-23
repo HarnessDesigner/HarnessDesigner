@@ -117,7 +117,7 @@ class EditorToolbar(QtWidgets.QToolBar):
     modeChanged: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorToolbar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -376,7 +376,7 @@ class NoteToolbar(QtWidgets.QToolBar):
     ID_ALIGN_VERT_BOTTOM = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`NoteToolbar` instance.
 
@@ -551,7 +551,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
     ID_MOVE_Z = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorObjectToolbar` instance.
 
@@ -1099,7 +1099,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
     ID_SHOW_REFLECTIONS = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`Setting3DToolbar` instance.
 
         :param mainframe: Main application frame.
@@ -1384,7 +1384,7 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`PegBoardToolbar` instance.
 
         :param mainframe: Main application frame.
@@ -1485,7 +1485,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
     ID_BOM = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`GeneralToolbar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

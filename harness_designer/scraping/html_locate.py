@@ -63,7 +63,7 @@ class LocatedDocument:
     offset in" for any number of selections."""
 
     @_check_types.do
-    def __init__(self, document: str) -> None:
+    def __init__(self, document: str):
         self.document = document
         self._soups: dict[str, bs4.BeautifulSoup] = {}
 

@@ -18,7 +18,7 @@ class EditorAssembly(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorAssembly` instance.
 
@@ -43,7 +43,7 @@ class EditorAssemblyPanel(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorAssemblyPanel` instance.
 

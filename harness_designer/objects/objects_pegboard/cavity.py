@@ -22,7 +22,7 @@ class Cavity(_base_pegboard.BasePegboard):
     db_obj: "_pjt_cavity.PJTCavity"
 
     @_check_types.do
-    def __init__(self, parent: "_cavity.Cavity", db_obj: "_pjt_cavity.PJTCavity") -> None:
+    def __init__(self, parent: "_cavity.Cavity", db_obj: "_pjt_cavity.PJTCavity"):
         """Initialise the :class:`Cavity` instance.
 
         :param parent: Parent object.
@@ -54,5 +54,6 @@ class Cavity(_base_pegboard.BasePegboard):
         # can't tell apart from "never seeded" -- confirmed 2026-09-07,
         # Kevin, hence deleted).
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

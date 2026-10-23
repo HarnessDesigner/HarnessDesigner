@@ -206,7 +206,7 @@ def add_bundle_cover(con: "_connector_base.ConnectorBase", part_number: str, des
     max_temp_id = _temperatures.get_temperature_id(con, max_temp)
     protection_id = _protections.get_protection_id(con, protection)
 
-    adhesive_ids = ', '.join(adhesive_ids)
+    adhesive_ids_str = ', '.join(adhesive_ids)
 
     new_id = _id_generator.generate_global_row_id(con).bytes
     con.execute('INSERT INTO bundle_covers (id, part_number, description, mfg_id, family_id, '
@@ -216,7 +216,7 @@ def add_bundle_cover(con: "_connector_base.ConnectorBase", part_number: str, des
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (new_id, part_number, description, mfg_id, family_id, series_id, color_id, material_id,
                  image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id,
-                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids,
+                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids_str,
                  weight))
 
     _logger.database(f'bundle cover added "{part_number}"')

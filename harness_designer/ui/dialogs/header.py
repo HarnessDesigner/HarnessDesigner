@@ -16,7 +16,7 @@ class Header(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, size: tuple[int, int]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str, size: tuple[int, int]):
         """Initialise the :class:`Header` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

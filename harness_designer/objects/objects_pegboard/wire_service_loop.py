@@ -68,7 +68,7 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop") -> None:
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
         """Initialise the :class:`WireServiceLoop` instance.
 
         :param parent: Parent object.
@@ -157,6 +157,7 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

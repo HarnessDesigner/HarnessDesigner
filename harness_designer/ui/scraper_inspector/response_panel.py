@@ -34,7 +34,7 @@ class ResponsePanel(QtWidgets.QWidget):
     messageRaised = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._request: _capture_model.CapturedRequest | None = None
         self._taken_provider: Callable[[], set[str]] = _no_names

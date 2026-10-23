@@ -260,7 +260,7 @@ class Table(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_pegboard_table.PegboardTable",
-                 db_obj: "_pjt_pegboard_table.PJTPegboardTable") -> None:
+                 db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
         """Initialise the :class:`Table` instance.
 
         :param parent: Parent object.

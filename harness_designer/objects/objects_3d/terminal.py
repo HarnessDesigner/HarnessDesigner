@@ -70,7 +70,7 @@ class Terminal(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
-                 db_obj: "_pjt_terminal.PJTTerminal") -> None:
+                 db_obj: "_pjt_terminal.PJTTerminal"):
         """Initialise the :class:`Terminal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -647,6 +647,7 @@ class Terminal(_base_3d.Base3D):
         if part is None:
             return None
 
+        @_check_types.do
         def _end_and_direction(
             waypoints: list, start_point: _point.Point, stop_point: _point.Point
         ) -> tuple[_point.Point, tuple[float, float, float]]:
@@ -673,6 +674,7 @@ class Terminal(_base_3d.Base3D):
             wire_db.waypoints_pegboard, wire_db.start_position_pegboard,
             wire_db.stop_position_pegboard)
 
+        @_check_types.do
         def _place() -> tuple[tuple[float, float, float], tuple[float, float, float]]:
             return (_terminal_handler.free_end_position(part, end3d, direction3d),
                     _terminal_handler.free_end_position(part, end_pegboard, direction_pegboard))
@@ -714,6 +716,7 @@ class Terminal(_base_3d.Base3D):
             placement = (origin, origin)
             position2d = (cx, 0.0, cz)
 
+        @_check_types.do
         def _place() -> tuple[tuple[float, float, float], tuple[float, float, float]]:
             return placement
 
@@ -954,7 +957,7 @@ class TerminalMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Terminal") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Terminal"):
         """Initialise the :class:`TerminalMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

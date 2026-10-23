@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import program as _program
+from ... import check_types as _check_types
 
 
 class ShaderProgram:
@@ -15,7 +16,8 @@ class ShaderProgram:
     exactly the cross-context GL_INVALID_OPERATION bug this replaced.
     """
 
-    def __init__(self) -> None:
+    @_check_types.do
+    def __init__(self):
         self.grid = _program.GridProgram()
         self.faces = _program.FacesProgram()
         self.edges = _program.EdgesProgram()

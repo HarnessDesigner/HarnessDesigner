@@ -49,7 +49,7 @@ class BVHWorkerThread(threading.Thread):
 
     @_check_types.do
     def __init__(self, thread_id: int, work_queue: queue.Queue,
-                 results_queue: queue.Queue, stats_lock: threading.Lock) -> None:
+                 results_queue: queue.Queue, stats_lock: threading.Lock):
         """Initialize the worker thread.
 
         :param thread_id: Numeric identifier used in log output.
@@ -172,7 +172,7 @@ class ThreadedBVHProcessor:
     """Manages worker threads for parallel BVH processing"""
 
     @_check_types.do
-    def __init__(self, num_threads: int = 10) -> None:
+    def __init__(self, num_threads: int = 10):
         """Initialize the processor.
 
         :param num_threads: Number of worker threads to launch when started.

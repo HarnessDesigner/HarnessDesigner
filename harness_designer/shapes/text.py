@@ -38,6 +38,7 @@ from .. import utils as _utils
 from ..geometry import angle as _angle
 from ..geometry import point as _point
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..gl.shaders import program as _shader_program
@@ -121,6 +122,7 @@ _FontMetrics = tuple  # (advance: dict[str, float], kern: dict[tuple[str, str], 
 _FONT_METRICS: dict = {}
 
 
+@_check_types.do
 def _font_metrics(style: int) -> tuple[dict[str, float], dict[tuple[str, str], float]]:
     """
     Return (building it first if needed) *style*'s own
@@ -158,6 +160,7 @@ def _font_metrics(style: int) -> tuple[dict[str, float], dict[tuple[str, str], f
     hmtx = font['hmtx']
     cmap = font.getBestCmap()
 
+    @_check_types.do
     def _glyph_name(char_: str) -> str | None:
         return cmap.get(ord(char_))
 
@@ -203,10 +206,12 @@ def _font_metrics(style: int) -> tuple[dict[str, float], dict[tuple[str, str], f
 _GLYPH_CACHE_VERSION = 2
 
 
+@_check_types.do
 def _glyph_cache_path() -> str:
     return os.path.join(_utils.get_appdata(), 'glyph_cache.npz')
 
 
+@_check_types.do
 def _load_glyph_cache() -> dict | None:
     """Return every previously-tessellated glyph cached on disk by an
     earlier run, as ``{(char, style_value): (packed, count, aabb, obb,
@@ -242,6 +247,7 @@ def _load_glyph_cache() -> dict | None:
         return None
 
 
+@_check_types.do
 def _save_glyph_cache(entries: dict) -> None:
     """Write every ``(char, style_value): (packed, count, aabb, obb,
     width, height, center_y)`` entry in *entries* to disk as a single
@@ -283,6 +289,7 @@ def _save_glyph_cache(entries: dict) -> None:
     os.replace(tmp_path, path)
 
 
+@_check_types.do
 def _tessellate_char(char: str, depth: float, style: build123d.FontStyle) -> tuple[np.ndarray, int, np.ndarray, np.ndarray, float, float, float]:
     """Build *char*'s mesh via build123d/OCCT and tessellate it -- the
     slow, OCCT-bound half of building one glyph, split out from
@@ -363,17 +370,20 @@ def _tessellate_char(char: str, depth: float, style: build123d.FontStyle) -> tup
     return packed, count, aabb, obb, width, height, center_y
 
 
+@_check_types.do
 def _glyph_id(char: str, style: int) -> str:
     """The VBO id of *char*'s glyph at *style* (``FontStyle.value``)."""
     return f'text glyph:{style}:{char}'
 
 
+@_check_types.do
 def _word_id(word: str, style: int) -> str:
     """The VBO id of *word* at *style*. The style is part of it -- the same
     letters in bold and regular are different meshes."""
     return f'text word:{style}:{word}'
 
 
+@_check_types.do
 def _build_char(char: str, depth: float, style: build123d.FontStyle,
                 tessellated: tuple | None = None) -> tuple["_vbo_handler.VBOHandlerBase", "_point.Point", float]:
     """Return this character's ``(vbo, dims, center_y)`` glyph entry.
@@ -407,6 +417,7 @@ def _build_char(char: str, depth: float, style: build123d.FontStyle,
     return vbo, _point.Point(width, height, depth), center_y
 
 
+@_check_types.do
 def build_chars(mainframe: "_ui.MainFrame", on_progress: Callable[[int, int], None] | None = None) -> None:
     """Eagerly build+cache every character in *chars* (the full keyboard
     set by default), in every FontStyle, at *depth* -- so every later
@@ -527,6 +538,7 @@ def build_chars(mainframe: "_ui.MainFrame", on_progress: Callable[[int, int], No
         f'({tessellate_time:.3f}s in build123d/OCCT tessellation) -- {status}')
 
 
+@_check_types.do
 def _billboard_matrices(positions: np.ndarray, camera_pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Return one cylindrical camera-facing rotation matrix per row of
     *positions* (N, 3), plus a same-length ``safe`` boolean mask (False
@@ -614,6 +626,7 @@ class CameraTrackedOwner(Protocol):
     _aabb: np.ndarray
     _vbo: Any
 
+    @_check_types.do
     def refresh_canvas_registration(self) -> None: ...
 
 
@@ -680,7 +693,8 @@ class _CameraTrackingArena:
     _INITIAL_CAPACITY = 256
     _GROWTH_FACTOR = 2
 
-    def __init__(self) -> None:
+    @_check_types.do
+    def __init__(self):
         self._capacity = 0
         self._obb: np.ndarray | None = None
         self._aabb: np.ndarray | None = None
@@ -691,6 +705,7 @@ class _CameraTrackingArena:
         self._free: list = []
         self._grow(self._INITIAL_CAPACITY)
 
+    @_check_types.do
     def _grow(self, capacity: int) -> None:
         old_capacity = self._capacity
 
@@ -774,6 +789,7 @@ class _CameraTrackingArena:
 
         return self._obb[row], self._aabb[row]
 
+    @_check_types.do
     def unregister(self, owner: "CameraTrackedOwner") -> bool:
         """Release *owner*'s row back to the free-list, returning
         whether that row was tracking real OBB/AABB (see
@@ -793,6 +809,7 @@ class _CameraTrackingArena:
 
         return False
 
+    @_check_types.do
     def update(self, camera: "_camera_base.CameraBase") -> None:
         """Recompute every currently-tracked Text's own camera-facing
         angle, in one batched vectorized pass covering every registered
@@ -888,6 +905,7 @@ class _CameraTrackingArena:
 _tracking_arena = _CameraTrackingArena()
 
 
+@_check_types.do
 def update_camera_tracking(camera: "_camera_base.CameraBase") -> None:
     """Recompute every currently camera-tracking :class:`Text`'s own
     facing angle -- see :meth:`_CameraTrackingArena.update`. Bind this
@@ -906,12 +924,13 @@ class Text:
 
     _font_metrics_cache: dict[int, _FontMetrics] = {}
 
+    @_check_types.do
     def __init__(self, text: str, size: float,
                  style: build123d.FontStyle | int,
                  h_align: build123d.TextAlign | int = build123d.TextAlign.LEFT,
                  local_tilt: _angle.Angle | None = None,
                  center_anchor: bool = False,
-                 measure_only: bool = False) -> None:
+                 measure_only: bool = False):
         """
         :param h_align: How each line is positioned relative to the
             others when *text* has more than one line (a single-line
@@ -1107,6 +1126,7 @@ class Text:
 
         self._compute_local_bounds()
 
+    @_check_types.do
     def _add_word(self, word: list, x: float, y: float) -> None:
         """Record the word made of *word* (``(char, glyph vbo, x within the
         word)`` for each of its characters -- nothing, for a stretch of spaces),
@@ -1119,6 +1139,7 @@ class Text:
             [(vbo, at) for _, vbo, at in word],
             x, y))
 
+    @_check_types.do
     def _layout(self, merged: bool) -> None:
         """Set ``_vbos``/``_locals`` from ``_words``: one VBO per word (its own
         cached one -- see :meth:`_word_vbo`; a one-character word just uses its
@@ -1156,12 +1177,14 @@ class Text:
         self._cached_position = None
         self._cached_world_positions = []
 
+    @_check_types.do
     def build_vbos(self) -> None:
         """Make the word VBOs a measure-only Text left out, so it can be drawn.
         Needs the GL context current. Does nothing if they already exist."""
         if not self._merged:
             self._layout(True)
 
+    @_check_types.do
     def _word_vbo(self, word: str, glyphs: list) -> _vbo_handler.PooledVBOHandler:
         """The VBO of *word* -- the one already made for it if there is one,
         else a new one whose mesh is *glyphs* (``(glyph vbo, x within the
@@ -1202,6 +1225,7 @@ class Text:
         return _vbo_handler.PooledVBOHandler(
             id_, packed, count, aabb=aabb, obb=obb, arena_kind=_vbo_handler.VBO_TYPE_MODEL)
 
+    @_check_types.do
     def _compute_local_bounds(self) -> None:
         """This Text's own ``local_aabb``/``local_obb``, in its own local
         (unrotated -- everything render() itself later rotates by whatever angle
@@ -1233,6 +1257,7 @@ class Text:
         self.local_aabb = np.array([p1.as_float, p2.as_float], dtype=np.float32)
         self.local_obb = _utils.compute_obb(p1, p2)
 
+    @_check_types.do
     def _advance(self, char: str, next_char: str) -> float:
         if char == ' ':
             return SPACE_ADVANCE
@@ -1242,6 +1267,7 @@ class Text:
 
         return base + kern.get((char, next_char), 0.0)
 
+    @_check_types.do
     def _entry(self, char: str) -> tuple["_vbo_handler.VBOHandlerBase", "_point.Point", float]:
         entry = _CHARS.get(char)
 
@@ -1252,6 +1278,7 @@ class Text:
 
         return entry[self._style]
 
+    @_check_types.do
     def center_y(self, char: str) -> float:
         """Return *char*'s own true vertical center, as an offset from the
         baseline (font_size=1.0 basis) -- distinct from ``get()``'s own
@@ -1262,10 +1289,12 @@ class Text:
         _vbo, _dims, cy = self._entry(char)
         return cy
 
+    @_check_types.do
     def _get(self, char: str) -> tuple[_vbo_handler.NonPooledVBOHandler, _point.Point]:
         vbo, dims, _center_y = self._entry(char)
         return vbo, dims
 
+    @_check_types.do
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: _point.Point, angle: _angle.Angle, scale: _point.Point,
                smooth: bool | None) -> None:
@@ -1361,9 +1390,11 @@ class Text:
     _tracking_angle: _angle.Angle | None = None
 
     @property
+    @_check_types.do
     def is_dirty(self) -> bool:
         return False
 
+    @_check_types.do
     def render_angle(self, angle: _angle.Angle) -> _angle.Angle:
         """*angle* (the owner's own real, stored angle) unchanged, or
         this Text's own live camera-facing angle while tracking is
@@ -1378,6 +1409,7 @@ class Text:
 
         return angle
 
+    @_check_types.do
     def enable_camera_tracking(self, owner: "CameraTrackedOwner", track_bounds: bool = True) -> None:
         """Start continuously re-facing the 3D camera instead of
         rendering at *owner*'s own real, stored angle.
@@ -1424,6 +1456,7 @@ class Text:
         # runs.
         self._tracking_angle = _angle.Angle()
 
+    @_check_types.do
     def disable_camera_tracking(self, owner: "CameraTrackedOwner") -> None:
         """Stop tracking the camera.
 
@@ -1479,6 +1512,7 @@ class Text:
     # asked for -- most labels never are.
     _mesh: tuple[np.ndarray, int] | None = None
 
+    @_check_types.do
     def _build_mesh(self) -> tuple[np.ndarray, int]:
         if self._mesh is not None:
             return self._mesh
@@ -1519,37 +1553,45 @@ class Text:
         return self._mesh
 
     @property
+    @_check_types.do
     def data(self) -> np.ndarray:
         return self._build_mesh()[0]
 
     @property
+    @_check_types.do
     def vertices(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[:count * 3]
 
     @property
+    @_check_types.do
     def smooth_normals(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[count * 3:count * 6]
 
     @property
+    @_check_types.do
     def face_normals(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[count * 6:]
 
     @property
+    @_check_types.do
     def faces(self) -> None:
         return None
 
     @property
+    @_check_types.do
     def vertex_count(self) -> int:
         return self._build_mesh()[1]
 
     @staticmethod
+    @_check_types.do
     def get_aspect() -> tuple[float, float, float]:
         return 1.0, 1.0, 1.0
 
     @property
+    @_check_types.do
     def ctx(self) -> "QtGui.QOpenGLContext":
         from PySide6 import QtGui
 
@@ -1559,10 +1601,12 @@ class Text:
 
         return ctx
 
+    @_check_types.do
     def acquire(self) -> None:
         """No-op -- each word's own cached VBO (see :meth:`_word_vbo`) manages
         its own GL acquisition lazily."""
 
+    @_check_types.do
     def release(self) -> None:
         """No-op -- a Text never owns a VBO of its own to release; its
         glyphs (see build_chars()) and words are globally shared/cached, and

@@ -110,7 +110,7 @@ class Line:
     def __init__(self, p1: _point.Point,
                  p2: _point.Point | None = None,
                  length: float | None = None,
-                 angle: _angle.Angle | None = None) -> None:
+                 angle: _angle.Angle | None = None):
         """
         Create a line segment.
 

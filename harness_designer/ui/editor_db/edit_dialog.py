@@ -20,7 +20,7 @@ class EditDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", title: str, db_obj) -> None:
+    def __init__(self, parent: "_ui.MainFrame", title: str, db_obj):
         """Initialise the :class:`EditDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -17,7 +17,7 @@ class ComboBoxProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, units: str | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str, units: str | None = None):
         """
         Initialise the :class:`ComboBoxProperty` instance.
 

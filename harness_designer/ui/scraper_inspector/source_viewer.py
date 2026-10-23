@@ -47,7 +47,7 @@ class SpanHighlighter(QtGui.QSyntaxHighlighter):
     :func:`~harness_designer.scraping.highlight.highlight_spans`)."""
 
     @_check_types.do
-    def __init__(self, document: QtGui.QTextDocument) -> None:
+    def __init__(self, document: QtGui.QTextDocument):
         super().__init__(document)
         self._lines: list[list[_highlight.Span]] = []
         self._formats: dict[_highlight.Style, QtGui.QTextCharFormat] = {}
@@ -91,7 +91,7 @@ class _SourceEdit(QtWidgets.QPlainTextEdit):
     contextMenuRequested = QtCore.Signal(QtCore.QPoint)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         font = QtGui.QFont('Consolas', 10)
         font.setStyleHint(QtGui.QFont.StyleHint.Monospace)
@@ -100,6 +100,7 @@ class _SourceEdit(QtWidgets.QPlainTextEdit):
         self.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
         self.setStyleSheet(_STYLE_SHEET)
 
+    @_check_types.do
     def contextMenuEvent(self, event: QtGui.QContextMenuEvent) -> None:  # NOQA -- Qt's own camelCase override
         self.contextMenuRequested.emit(event.globalPos())
 
@@ -117,7 +118,7 @@ class SourceViewer(QtWidgets.QWidget):
     messageRaised = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._text = ''
         self._kind = 'text'
@@ -438,8 +439,8 @@ class SourceViewer(QtWidgets.QWidget):
         if not words:
             return None
 
-        for candidate in (words, [_html.escape(word, quote=False) for word in words]):
-            pattern = r'\s+'.join(re.escape(word) for word in candidate)
+        for word_candidate in (words, [_html.escape(word, quote=False) for word in words]):
+            pattern = r'\s+'.join(re.escape(word) for word in word_candidate)
             found = re.search(pattern, self._text)
             if found is not None:
                 return found.span()

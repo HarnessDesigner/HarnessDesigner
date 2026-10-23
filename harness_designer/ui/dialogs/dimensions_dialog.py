@@ -75,7 +75,7 @@ class _DimensionField(QtWidgets.QLineEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
         self.setValidator(QtGui.QDoubleValidator(0.0, 999999.0, 6, self))
 
@@ -121,7 +121,7 @@ class DimensionsDialog(_dialog_base.BaseDialog):
     def __init__(
         self, parent: "_ui.MainFrame", part: "_dimension.DimensionMixin", part_number: str,
         suggested: dict | None = None
-    ) -> None:
+    ):
         super().__init__(parent, title=f'Missing Dimensions -- {part_number}', size=(380, 260))
 
         suggested = suggested or {}

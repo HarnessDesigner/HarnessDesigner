@@ -53,7 +53,7 @@ class Splice(_base.AddHandlerBase):
                  part_id: bytes, part: "_splice_part.Splice",
                  preview_material: "_materials.GLMaterial",
                  compat_material: "_materials.GLMaterial",
-                 snapped_wire: _wire.Wire | None = None) -> None:
+                 snapped_wire: _wire.Wire | None = None):
 
         super().__init__(canvas, target)
 
@@ -73,6 +73,7 @@ class Splice(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_3d.Base3D":
         return obj.obj3d
 

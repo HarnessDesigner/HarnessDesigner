@@ -32,8 +32,6 @@ class WireTypesTable(TableBase):
         from ..create_database import wire_types
 
         wire_types.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-        wire_types.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:

@@ -78,7 +78,7 @@ class SnapOverlay(QtWidgets.QLabel):
         ' padding: 4px 6px; border-radius: 3px;')
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
         self.setStyleSheet(self._BLOCK_STYLE)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)

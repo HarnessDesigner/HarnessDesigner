@@ -89,7 +89,7 @@ class GLMaterial:
     _cl_ior = 1.45
 
     @_check_types.do
-    def __init__(self, color: _color.Color) -> None:
+    def __init__(self, color: _color.Color):
         """Initialise the :class:`GLMaterial` instance.
 
         :param color: The material's true color -- every shading term

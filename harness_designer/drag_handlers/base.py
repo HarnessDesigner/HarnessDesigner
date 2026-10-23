@@ -37,7 +37,7 @@ class DragHandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase"):
         """Initialise the :class:`DragHandlerBase` instance.
 
         :param canvas: The canvas this drag is happening on.

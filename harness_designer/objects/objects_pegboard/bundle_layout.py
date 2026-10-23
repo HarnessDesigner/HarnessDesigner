@@ -35,7 +35,7 @@ class BundleLayout(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout") -> None:
+                 db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         """Initialise the :class:`BundleLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -124,6 +124,7 @@ class BundleLayout(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

@@ -58,7 +58,7 @@ class ErrorDialog(QtWidgets.QDialog):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None, message: str, title: str,
-                 *widgets: QtWidgets.QWidget) -> None:
+                 *widgets: QtWidgets.QWidget):
         """Initialise the :class:`ErrorDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -90,9 +90,9 @@ class ErrorDialog(QtWidgets.QDialog):
         top_row.setSpacing(14)
 
         icon_label = QtWidgets.QLabel()
-        icon = self.style().StandardPixmap.SP_MessageBoxCritical
-        icon = self.style().standardIcon(icon).pixmap(40, 40)
-        icon_label.setPixmap(icon)
+        icon_enum = self.style().StandardPixmap.SP_MessageBoxCritical
+        icon_pixmap = self.style().standardIcon(icon_enum).pixmap(40, 40)
+        icon_label.setPixmap(icon_pixmap)
         icon_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
 
         icon_label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,

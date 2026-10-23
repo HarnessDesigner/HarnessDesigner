@@ -19,7 +19,7 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
-def add_pjt_wire_layout(con: "_connector_base.ConnectorBase", project_id: bytes, point2d_id: bytes | None = None, point3d_id: bytes | None = None, notes: str = '',
+def add_pjt_wire_layout(con: "_connector_base.ConnectorBase", project_id: int, point2d_id: bytes | None = None, point3d_id: bytes | None = None, notes: str = '',
                         is_visible2d: int = 0, is_visible3d: int = 0) -> None:
     """Add a PJT wire layout.
 

@@ -142,7 +142,7 @@ class TemperatureControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`TemperatureControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

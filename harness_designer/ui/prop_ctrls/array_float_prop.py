@@ -33,7 +33,7 @@ class ArrayFloatDialog(_ArrayDialog):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, values: list[float],
-                 title: str = 'Modify Array') -> None:
+                 title: str = 'Modify Array'):
         """Initialise the :class:`ArrayFloatDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -74,7 +74,7 @@ class ArrayFloatProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(list)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`ArrayFloatProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

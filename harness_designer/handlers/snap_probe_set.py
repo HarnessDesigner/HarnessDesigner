@@ -113,7 +113,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  wire_part: "_global_wire.Wire",
-                 exclude_wire: _Union["_wire.Wire", None] = None) -> None:
+                 exclude_wire: _Union["_wire.Wire", None] = None):
 
         self.mainframe = mainframe
         self._probes: list[_wire_layout.WireLayout] = []
@@ -260,26 +260,32 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
         return _wire_layout.WireLayout(self.mainframe, db_obj)
 
     @staticmethod
+    @_check_types.do
     def _get_start_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_stop_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_branch_position(db_obj: "_pjt_transition_branch.PJTTransitionBranch") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_wire_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         raise NotImplementedError
 
     @staticmethod
+    @_check_types.do
     def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire.Wire") -> tuple[bool, bool]:
         """Return (start_anchored, stop_anchored) for *wire_obj* -- see
         ``handlers.wire_drag_base.WireDragMixin.wire_end_anchors``'s own

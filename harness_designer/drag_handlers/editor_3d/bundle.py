@@ -53,7 +53,7 @@ class Bundle(_editor_3d.DragHandler3D):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_bundle_object.Bundle",
-                 mouse_pos: _point.Point) -> None:
+                 mouse_pos: _point.Point):
         super().__init__(canvas, target)
 
         obj3d = target.obj3d

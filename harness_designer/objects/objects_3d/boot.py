@@ -38,7 +38,7 @@ class Boot(_base_3d.Base3D):
     db_obj: "_pjt_boot.PJTBoot" = None
 
     @_check_types.do
-    def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot") -> None:
+    def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot"):
         """Initialise the :class:`Boot` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +104,7 @@ class BootMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Boot") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Boot"):
         """Initialise the :class:`BootMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

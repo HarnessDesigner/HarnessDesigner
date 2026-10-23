@@ -22,7 +22,7 @@ class Circuit(_base_pegboard.BasePegboard):
     db_obj: "_pjt_circuit.PJTCircuit"
 
     @_check_types.do
-    def __init__(self, parent: "_circuit.Circuit", db_obj: "_pjt_circuit.PJTCircuit") -> None:
+    def __init__(self, parent: "_circuit.Circuit", db_obj: "_pjt_circuit.PJTCircuit"):
         """Initialise the :class:`Circuit` instance.
 
         :param parent: Parent object.
@@ -34,5 +34,6 @@ class Circuit(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

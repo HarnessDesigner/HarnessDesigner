@@ -40,6 +40,7 @@ Config = _config.Config.editor_schematic
 HOUSING_DEPTH = 0.1
 
 
+@_check_types.do
 def _is_180(degrees: float) -> bool:
     """Whether *degrees* (this housing's own live ``angle2d.y``) is the
     180 special case -- rotating the corner label's own glyphs a full
@@ -110,7 +111,7 @@ class Housing(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
-                 db_obj: "_pjt_housing.PJTHousing") -> None:
+                 db_obj: "_pjt_housing.PJTHousing"):
         """
         Initialise the :class:`Housing` instance.
 
@@ -166,6 +167,7 @@ class Housing(_base_schematic.BaseSchematic):
 
             self.db_obj.bind(self._update_name, 'name')
 
+    @_check_types.do
     def _update_name(self, *_: tuple[Any]) -> None:
 
         with self.parent.mainframe.editor2d.editor.context:
@@ -192,6 +194,7 @@ class Housing(_base_schematic.BaseSchematic):
         return False
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         pass
 
@@ -477,7 +480,7 @@ class HousingMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Housing") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Housing"):
         """
         Initialise the :class:`HousingMenu` instance.
 

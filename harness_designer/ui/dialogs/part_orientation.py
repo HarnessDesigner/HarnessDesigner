@@ -121,7 +121,7 @@ class PartModel(_ObjectBase):
     obj3d: "PartModel3D" = None
 
     @_check_types.do
-    def __init__(self, dialog: "PartOrientationDialog", model_db: "_model3d.Model3D") -> None:
+    def __init__(self, dialog: "PartOrientationDialog", model_db: "_model3d.Model3D"):
         super().__init__(dialog, model_db)
         self.dialog = dialog
         self.obj3d = PartModel3D(self, model_db)
@@ -151,7 +151,7 @@ class PartModel3D(_base_3d.Base3D):
     """
 
     @_check_types.do
-    def __init__(self, parent: PartModel, model_db: "_model3d.Model3D") -> None:
+    def __init__(self, parent: PartModel, model_db: "_model3d.Model3D"):
         self.db_obj = model_db
 
         with parent.dialog.context:
@@ -205,24 +205,28 @@ class PartModel3D(_base_3d.Base3D):
 
 class PartModelPegboard(_base_pegboard.BasePegboard):
 
-    def __init__(self, parent: PartModel, db_obj: "_model3d.Model3D") -> None:
+    @_check_types.do
+    def __init__(self, parent: PartModel, db_obj: "_model3d.Model3D"):
         super().__init__(
             parent, db_obj, None, None,
             None, None, None
             )
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
 
 class PartModelSchematic(_base_schematic.BaseSchematic):
 
-    def __init__(self, parent: PartModel, db_obj: "_model3d.Model3D") -> None:
+    @_check_types.do
+    def __init__(self, parent: PartModel, db_obj: "_model3d.Model3D"):
         super().__init__(
             parent, db_obj, None, None,
             None, None, None
             )
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
@@ -234,7 +238,7 @@ class AxisLabel(_ObjectBase):
 
     @_check_types.do
     def __init__(self, dialog: "PartOrientationDialog", text: str,
-                 position: _point.Point, angle: _angle.Angle) -> None:
+                 position: _point.Point, angle: _angle.Angle):
         super().__init__(dialog, None)
         self.dialog = dialog
         self.obj3d = AxisLabel3D(self, text, position, angle)
@@ -258,7 +262,7 @@ class AxisLabel3D(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: AxisLabel, text: str,
-                 position: _point.Point, angle: _angle.Angle) -> None:
+                 position: _point.Point, angle: _angle.Angle):
         self.db_obj = None
 
         with parent.dialog.context:
@@ -305,7 +309,7 @@ class MeshStatsOverlay(QtWidgets.QLabel):
     """
 
     @_check_types.do
-    def __init__(self, canvas_wrapper: QtWidgets.QWidget, vertex_count: int) -> None:
+    def __init__(self, canvas_wrapper: QtWidgets.QWidget, vertex_count: int):
         super().__init__(canvas_wrapper)
         triangle_count = vertex_count // 3
         self.setText(f'Vertices: {vertex_count}\nTriangles: {triangle_count}')
@@ -343,7 +347,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
     config = _Config
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Part Orientation', size=(1100, 650),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)

@@ -54,7 +54,7 @@ class Splice(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_splice.Splice",
-                 db_obj: "_pjt_splice.PJTSplice") -> None:
+                 db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
 
         :param parent: Parent object.
@@ -101,16 +101,16 @@ class Splice(_base_pegboard.BasePegboard):
             area = math.pi * ((dia / 2.0) ** 2.0)
             area2.append(area)
 
-        area1 = sum(area1)
-        area2 = sum(area2)
+        area1_total = sum(area1)
+        area2_total = sum(area2)
 
-        if area1:
-            dia1 = 2.0 * math.sqrt(area1 / math.pi)
+        if area1_total:
+            dia1 = 2.0 * math.sqrt(area1_total / math.pi)
         else:
             dia1 = 0.0
 
-        if area2:
-            dia2 = 2.0 * math.sqrt(area2 / math.pi)
+        if area2_total:
+            dia2 = 2.0 * math.sqrt(area2_total / math.pi)
         else:
             dia2 = 0.0
 
@@ -184,6 +184,7 @@ class Splice(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

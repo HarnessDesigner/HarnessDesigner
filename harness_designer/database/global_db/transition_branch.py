@@ -684,7 +684,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.SetLabel(f'Branch {index}')
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`TransitionBranchControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

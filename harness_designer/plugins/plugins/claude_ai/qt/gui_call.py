@@ -28,7 +28,7 @@ _POLL_SECONDS = 0.05
 
 class _Call:
     @_check_types.do
-    def __init__(self, function: Callable[[], Any]) -> None:
+    def __init__(self, function: Callable[[], Any]):
         self.function = function
         self.done = threading.Event()
         self.result: Any = None
@@ -51,7 +51,7 @@ class _Invoker(QtCore.QObject):
     requested = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         super().__init__()
         self.requested.connect(self._execute)
 

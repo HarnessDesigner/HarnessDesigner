@@ -16,7 +16,7 @@ class Property(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str,
-                 orientation: str | None = None) -> None:
+                 orientation: str | None = None):
         """Initialise the :class:`Property` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -51,18 +51,18 @@ class Property(QtWidgets.QWidget):
                 self._sizer.setContentsMargins(4, 4, 4, 4)
                 self._static_box.setLayout(self._sizer)
 
-                sizer = QtWidgets.QHBoxLayout()
-                sizer.addWidget(self._static_box, 1)
-                self.setLayout(sizer)
+                h_sizer = QtWidgets.QHBoxLayout()
+                h_sizer.addWidget(self._static_box, 1)
+                self.setLayout(h_sizer)
 
             else:
                 self._sizer = QtWidgets.QHBoxLayout()
                 self._sizer.setContentsMargins(5, 5, 5, 5)
                 self._static_box.setLayout(self._sizer)
 
-                sizer = QtWidgets.QVBoxLayout()
-                sizer.addWidget(self._static_box, 1)
-                self.setLayout(sizer)
+                v_sizer = QtWidgets.QVBoxLayout()
+                v_sizer.addWidget(self._static_box, 1)
+                self.setLayout(v_sizer)
 
     @_check_types.do
     def addWidget(self, widget: QtWidgets.QWidget) -> None:

@@ -72,7 +72,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     db_obj: "_pjt_wire.PJTWire" = None
 
     @_check_types.do
-    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire") -> None:
+    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -191,6 +191,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -877,7 +878,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     @_check_types.do
     def start_add(
         cls, mainframe: "_ui.MainFrame", terminal: _Union["_terminal_facade.Terminal", None]=None, splice: _Union["_splice_facade.Splice", None]=None,
-        extend_wire: tuple = None, add_to_wire: tuple = None, preset_part_id: bytes = None,
+        extend_wire: tuple | None = None, add_to_wire: tuple | None = None, preset_part_id: bytes | None = None,
         mouse_pos: _point.Point | None = None
     ) -> _Union["_wire.Wire", None]:
         """Entry point for every way a peg-board wire-placement session
@@ -1325,7 +1326,7 @@ class WireStripe(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", wire: Wire, color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point) -> None:
+                 angle: _angle.Angle, position: _point.Point):
         """Initialise the :class:`WireStripe` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1572,7 +1573,7 @@ class WireMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Wire") -> None:
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Wire"):
         """Initialise the :class:`WireMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

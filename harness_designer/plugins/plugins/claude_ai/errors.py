@@ -16,7 +16,7 @@ class ClaudeError(Exception):
 
     @_check_types.do
     def __init__(self, message: str, *, status_code: int | None = None, request_id: str | None = None,
-                 details: str = '') -> None:
+                 details: str = ''):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -63,7 +63,7 @@ class RateLimited(ClaudeError):
 
     @_check_types.do
     def __init__(self, message: str, *, retry_after: float | None = None, status_code: int | None = None,
-                 request_id: str | None = None) -> None:
+                 request_id: str | None = None):
         super().__init__(message, status_code=status_code, request_id=request_id)
         self.retry_after = retry_after
 
@@ -110,7 +110,7 @@ class Refused(ClaudeError):
 
     @_check_types.do
     def __init__(self, message: str, *, category: str | None = None, explanation: str | None = None,
-                 request_id: str | None = None) -> None:
+                 request_id: str | None = None):
         super().__init__(message, request_id=request_id)
         self.category = category
         self.explanation = explanation
@@ -138,7 +138,7 @@ class Cancelled(ClaudeError):
     """The caller cancelled the request."""
 
     @_check_types.do
-    def __init__(self, message: str = 'cancelled') -> None:
+    def __init__(self, message: str = 'cancelled'):
         super().__init__(message)
 
     @property

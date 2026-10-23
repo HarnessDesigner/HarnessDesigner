@@ -153,12 +153,12 @@ class MeshSurfacePicker:
         return self._pos_arr
 
     @_check_types.do
-    def __init__(self, obj3d: "_base_3d.Base3D", canvas3d: "_Canvas3D") -> None:
+    def __init__(self, obj3d: "_base_3d.Base3D", canvas3d: "_Canvas3D"):
         self._obj3d = obj3d
         self._gl_widget = canvas3d._canvas  # NOQA
         self._camera = self._gl_widget.camera
 
-        self.selected_surf_idx: int = None
+        self.selected_surf_idx: int | None = None
         self.overlay_color = (100, 180, 255, 110)
 
         # Live references to the object's transform attributes.

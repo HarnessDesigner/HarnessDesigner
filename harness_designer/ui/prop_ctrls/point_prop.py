@@ -20,7 +20,7 @@ class PointProperty(QtWidgets.QGroupBox):
     INCREMENT: float = 0.01
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, units: str, axes: str = 'xyz') -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str, units: str, axes: str = 'xyz'):
         """
         Initialise the :class:`PointProperty` instance.
 

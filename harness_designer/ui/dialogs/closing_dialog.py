@@ -24,7 +24,7 @@ class ClosingDialog(QtWidgets.QDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", total_steps: int = 1) -> None:
+    def __init__(self, parent: "_ui.MainFrame", total_steps: int = 1):
         """Build and center the shutdown progress dialog.
 
         :param parent: Main window the dialog is centered on and blocks

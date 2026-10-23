@@ -33,7 +33,7 @@ class Housing(_objects.ObjectBase):
 
     @_check_types.do
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
-                 housing: "_housing.Housing") -> None:
+                 housing: "_housing.Housing"):
         """Initialise the :class:`Housing` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -67,7 +67,7 @@ class Housing3D(_base_3d.Base3D):
     db_obj: "_housing.Housing" = None
 
     @_check_types.do
-    def __init__(self, parent: Housing, db_obj: "_housing.Housing") -> None:
+    def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
         """Initialise the :class:`Housing3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -148,20 +148,24 @@ class Housing3D(_base_3d.Base3D):
 
 class HousingPegboard(_base_pegboard.BasePegboard):
 
-    def __init__(self, parent: Housing, db_obj: "_housing.Housing") -> None:
+    @_check_types.do
+    def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
 
 class HousingSchematic(_base_schematic.BaseSchematic):
 
-    def __init__(self, parent: Housing, db_obj: "_housing.Housing") -> None:
+    @_check_types.do
+    def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
 
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

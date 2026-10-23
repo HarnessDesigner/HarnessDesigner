@@ -61,7 +61,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
-                 db_obj: "_pjt_bundle.PJTBundle") -> None:
+                 db_obj: "_pjt_bundle.PJTBundle"):
         """Initialise the :class:`Bundle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -250,6 +250,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         ptables = mainframe.project.ptables
         covers_table = ptables.global_db.bundle_covers_table
 
+        @_check_types.do
         def _fits(cover) -> bool:
             return (float(cover.max_dia) >= branch.min_diameter and
                     float(cover.min_dia) <= branch.max_diameter)
@@ -901,7 +902,7 @@ class BundleMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Bundle") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Bundle"):
         """Initialise the :class:`BundleMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

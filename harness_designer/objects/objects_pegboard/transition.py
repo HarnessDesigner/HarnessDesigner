@@ -98,7 +98,7 @@ class _PegBranch:
 
     @_check_types.do
     def __init__(self, catalog_branch: "_g_transition_branch.TransitionBranch",
-                 db_obj: _Union["_pjt_transition_branch.PJTTransitionBranch", None] = None) -> None:
+                 db_obj: _Union["_pjt_transition_branch.PJTTransitionBranch", None] = None):
         self.idx = catalog_branch.idx
         self.catalog_branch = catalog_branch
         self.db_obj = db_obj
@@ -202,6 +202,7 @@ class _PegBranch:
         self._angle = angle
         self._refresh_world()
 
+    @_check_types.do
     def _refresh_world(self) -> None:
         """See ``objects_3d.transition.Branch._refresh_world``'s own
         docstring for why this always rebuilds fresh from local data
@@ -412,7 +413,7 @@ class _PegBody:
     is_dirty = False
 
     @_check_types.do
-    def __init__(self, part: "_g_transition.Transition", branch_db_objs: list) -> None:
+    def __init__(self, part: "_g_transition.Transition", branch_db_objs: list):
         self.branches: list[_PegBranch] = []
         self._mesh: tuple[np.ndarray, int] | None = None
         self.local_aabb = np.zeros((2, 3), dtype=np.float32)
@@ -541,13 +542,16 @@ class _PegBody:
     def render_angle(self, angle: "_angle.Angle") -> "_angle.Angle":
         return angle
 
+    @_check_types.do
     def acquire(self) -> None:
         """No-op -- see ``objects_3d.transition._Body.acquire``."""
 
+    @_check_types.do
     def release(self) -> None:
         """No-op -- see ``objects_3d.transition._Body.release``."""
 
     @property
+    @_check_types.do
     def ctx(self) -> "QtGui.QOpenGLContext":
 
         ctx = QtGui.QOpenGLContext.currentContext()
@@ -562,6 +566,7 @@ class _PegBody:
         all_faces = []
         offset = 0
 
+        @_check_types.do
         def _add(verts: np.ndarray, faces: np.ndarray) -> None:
             nonlocal offset
             all_vertices.append(verts.astype(np.float32))
@@ -604,6 +609,7 @@ class _PegBody:
         faces = np.concatenate(all_faces, axis=0).astype(np.int32)
         return vertices, faces
 
+    @_check_types.do
     def _build_mesh(self) -> tuple[np.ndarray, int]:
         if self._mesh is None:
             vertices, faces = self.local_mesh()
@@ -613,18 +619,22 @@ class _PegBody:
         return self._mesh
 
     @property
+    @_check_types.do
     def vertices(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[:count * 3]
 
     @property
+    @_check_types.do
     def vertex_count(self) -> int:
         return self._build_mesh()[1]
 
     @property
+    @_check_types.do
     def faces(self) -> None:
         return None
 
+    @_check_types.do
     def _compute_local_bounds(self) -> None:
         if self.vertex_count == 0:
             self.local_aabb = np.zeros((2, 3), dtype=np.float32)
@@ -695,7 +705,7 @@ class Transition(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_transition.Transition",
-                 db_obj: "_pjt_transition.PJTTransition") -> None:
+                 db_obj: "_pjt_transition.PJTTransition"):
         """Initialise the :class:`Transition` instance.
 
         :param parent: Parent object.
@@ -935,6 +945,7 @@ class Transition(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -955,7 +966,7 @@ class TransitionMenu(QtWidgets.QMenu):
     """Right-click menu for a pegboard Transition."""
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Transition") -> None:
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Transition"):
         QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected

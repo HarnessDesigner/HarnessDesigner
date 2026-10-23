@@ -54,7 +54,7 @@ class ObjectBrowser(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`ObjectBrowser` instance.
 
@@ -317,7 +317,7 @@ class _BrowserTree(QtWidgets.QTreeWidget):
     _SELECT_MIN_MS = 150
 
     @_check_types.do
-    def __init__(self, panel: "ObjectBrowserPanel") -> None:
+    def __init__(self, panel: "ObjectBrowserPanel"):
         """
         Initialise the :class:`_BrowserTree` instance.
 
@@ -460,28 +460,34 @@ class _BrowserTree(QtWidgets.QTreeWidget):
 
 class TreeItem:
 
+    @_check_types.do
     def __init__(self, browser: "ObjectBrowserPanel",
-                 treeitem: QtWidgets.QTreeWidgetItem, obj: "_object_base.ObjectBase") -> None:
+                 treeitem: QtWidgets.QTreeWidgetItem, obj: "_object_base.ObjectBase"):
 
         self._treeitem = treeitem
         self._obj = obj
         self._browser = browser
         self._treeitems = []
 
+    @_check_types.do
     def add_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
         self._treeitems.append(treeitem)
 
     @property
+    @_check_types.do
     def treeitem(self) -> QtWidgets.QTreeWidgetItem:
         return self._treeitem
 
     @property
+    @_check_types.do
     def obj(self) -> "_object_base.ObjectBase":
         return self._obj
 
+    @_check_types.do
     def set_selected(self) -> None:
         self._browser.set_selected(self._obj)
 
+    @_check_types.do
     def delete(self) -> None:
         self._browser.remove_object(self._obj)
 
@@ -524,7 +530,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
     )
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """
         Initialise the :class:`ObjectBrowserPanel` instance.
 
@@ -587,21 +593,21 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         h_layout.addWidget(self._treectrl)
         v_layout.addLayout(h_layout)
 
-        self._boots: QtWidgets.QTreeWidgetItem = None
-        self._bundles: QtWidgets.QTreeWidgetItem = None
-        self._cavities: QtWidgets.QTreeWidgetItem = None
-        self._circuits: QtWidgets.QTreeWidgetItem = None
-        self._covers: QtWidgets.QTreeWidgetItem = None
-        self._cpa_locks: QtWidgets.QTreeWidgetItem = None
-        self._housings: QtWidgets.QTreeWidgetItem = None
-        self._notes: QtWidgets.QTreeWidgetItem = None
-        self._seals: QtWidgets.QTreeWidgetItem = None
-        self._splices: QtWidgets.QTreeWidgetItem = None
-        self._terminals: QtWidgets.QTreeWidgetItem = None
-        self._tpa_locks: QtWidgets.QTreeWidgetItem = None
-        self._transitions: QtWidgets.QTreeWidgetItem = None
-        self._wires: QtWidgets.QTreeWidgetItem = None
-        self._wire_markers: QtWidgets.QTreeWidgetItem = None
+        self._boots: QtWidgets.QTreeWidgetItem | None = None
+        self._bundles: QtWidgets.QTreeWidgetItem | None = None
+        self._cavities: QtWidgets.QTreeWidgetItem | None = None
+        self._circuits: QtWidgets.QTreeWidgetItem | None = None
+        self._covers: QtWidgets.QTreeWidgetItem | None = None
+        self._cpa_locks: QtWidgets.QTreeWidgetItem | None = None
+        self._housings: QtWidgets.QTreeWidgetItem | None = None
+        self._notes: QtWidgets.QTreeWidgetItem | None = None
+        self._seals: QtWidgets.QTreeWidgetItem | None = None
+        self._splices: QtWidgets.QTreeWidgetItem | None = None
+        self._terminals: QtWidgets.QTreeWidgetItem | None = None
+        self._tpa_locks: QtWidgets.QTreeWidgetItem | None = None
+        self._transitions: QtWidgets.QTreeWidgetItem | None = None
+        self._wires: QtWidgets.QTreeWidgetItem | None = None
+        self._wire_markers: QtWidgets.QTreeWidgetItem | None = None
         self._weakrefs = []
 
     @_check_types.do
@@ -696,8 +702,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         self._weakrefs = []
 
+    @_check_types.do
     def remove_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
 
+        @_check_types.do
         def iter_tree(parent: QtWidgets.QTreeWidgetItem) -> None:
             """
             Iterate over the tree.
@@ -782,10 +790,12 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         item.setData(0, self._CANONICAL_ROLE, True)
 
     @staticmethod
+    @_check_types.do
     def _set_treeitem(db_obj: "_pjt_bases.PJTEntryBase", treeitem: QtWidgets.QTreeWidgetItem) -> None:
         obj = db_obj.get_object()
 
         if obj is None:
+            @_check_types.do
             def _set_treeitem(obj_: "_object_base.ObjectBase") -> None:
                 obj_.get_treeitem().add_treeitem(treeitem)
 
@@ -794,6 +804,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             obj_treeitem = obj.get_treeitem()
 
             if obj_treeitem is None:
+                @_check_types.do
                 def _set_treeitem(treeitem_: "TreeItem") -> None:
                     treeitem_.add_treeitem(treeitem)
 

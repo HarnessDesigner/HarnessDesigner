@@ -28,6 +28,7 @@ with the overridden name filtered out, into its own registry entry.
 from __future__ import annotations
 
 from .schema import Attr
+from .. import check_types as _check_types
 
 _registry: dict[type, tuple['CaptureGroup', ...]] = {}
 
@@ -35,11 +36,13 @@ _registry: dict[type, tuple['CaptureGroup', ...]] = {}
 class CaptureGroup:
     __slots__ = ('source_class', 'severity', 'attrs')
 
-    def __init__(self, source_class: object, severity: int, attrs: tuple[Attr, ...]) -> None:
+    @_check_types.do
+    def __init__(self, source_class: object, severity: int, attrs: tuple[Attr, ...]):
         self.source_class = source_class
         self.severity = severity
         self.attrs = attrs
 
+    @_check_types.do
     def __repr__(self) -> str:
         return (
             f'CaptureGroup({self.source_class.__name__}, '
@@ -47,6 +50,7 @@ class CaptureGroup:
         )
 
 
+@_check_types.do
 def _own_dump_property_attrs(cls: object) -> list[Attr]:
     found: list[Attr] = []
     for name, value in vars(cls).items():
@@ -59,6 +63,7 @@ def _own_dump_property_attrs(cls: object) -> list[Attr]:
     return found
 
 
+@_check_types.do
 def _resolve_own_severity(cls: object, explicit_severity: int | None) -> int:
     if explicit_severity is not None:
         return explicit_severity
@@ -121,6 +126,7 @@ def capturable(*, severity: int | None = None):
     return decorator
 
 
+@_check_types.do
 def capture_groups_for(cls: object) -> tuple[CaptureGroup, ...] | None:
     """The full, already-merged set of capture groups for ``cls`` -- itself
     if registered, else its nearest registered ancestor. ``None`` if

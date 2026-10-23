@@ -101,7 +101,7 @@ class Cavity(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
-                 db_obj: "_pjt_cavity.PJTCavity") -> None:
+                 db_obj: "_pjt_cavity.PJTCavity"):
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -296,7 +296,7 @@ class CavityMenu(QtWidgets.QMenu):
     wire-side plane.
     """
     @_check_types.do
-    def __init__(self, cavity_3d: Cavity) -> None:
+    def __init__(self, cavity_3d: Cavity):
         """Initialise the :class:`CavityMenu` instance.
 
         :param cavity_3d: The cavity this menu was opened on. Its own

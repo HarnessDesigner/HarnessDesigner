@@ -42,7 +42,7 @@ class WireMarker(_editor_3d.DragHandler3D):
     """Wire-marker drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
         super().__init__(canvas, target)
 
         self.last_pos = target.obj3d.position.copy()

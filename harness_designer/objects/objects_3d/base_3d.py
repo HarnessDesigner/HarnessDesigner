@@ -76,7 +76,7 @@ class Base3D(_objectsvar.BaseVar):
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
-                 material: _materials.GLMaterial | None) -> None:
+                 material: _materials.GLMaterial | None):
 
         self.editor3d: "_editor_3d.Editor3D" = parent.mainframe.editor3d
         self._aabb_manager: "_aabb.AABB" = parent.mainframe.bounds_manager.editor_3d.aabb

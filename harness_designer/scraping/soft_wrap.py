@@ -29,7 +29,7 @@ class SoftWrap:
     """
 
     @_check_types.do
-    def __init__(self, text: str, width: int = DEFAULT_WIDTH) -> None:
+    def __init__(self, text: str, width: int = DEFAULT_WIDTH):
         if width < 20:
             raise ValueError('width must be at least 20 characters')
 

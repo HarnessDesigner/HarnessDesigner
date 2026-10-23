@@ -31,7 +31,7 @@ class RayTracingDialog(QtWidgets.QDialog):
     """Display render progress, preview the current image, and expose save/settings actions for the ray tracer.
     """
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", title: str = "Ray Tracing Progress") -> None:
+    def __init__(self, parent: "_ui.MainFrame", title: str = "Ray Tracing Progress"):
         """Initialize the object and capture the state required for later interaction.
 
         :param parent: Owning main window or parent widget.
@@ -53,7 +53,7 @@ class RayTracingDialog(QtWidgets.QDialog):
         self.last_saved_file = 'new_render.png'
 
         self.cancelled = False
-        self.current_image: QtGui.QImage = None
+        self.current_image: QtGui.QImage | None = None
 
         lay = QtWidgets.QVBoxLayout(self)
 

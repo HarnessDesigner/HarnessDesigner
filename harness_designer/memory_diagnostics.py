@@ -194,6 +194,7 @@ _GPU_GROWTH_FIELDS = (
 _last_gpu_snapshot = None
 
 
+@_check_types.do
 def _make_gpu_detector():
     """Build the :class:`QtCore.QObject`-based helper that lets
     :func:`_format_gpu_growth` run :meth:`.gpu.GPU.detect` on the thread
@@ -220,11 +221,13 @@ def _make_gpu_detector():
 
     class _MainThreadGPUDetector(QtCore.QObject):
 
-        def __init__(self) -> None:
+        @_check_types.do
+        def __init__(self):
             super().__init__()
             self._result: _Union["_gpu.GPU", None] = None
 
         @QtCore.Slot()
+        @_check_types.do
         def _run_detect(self) -> None:
             from .gpu import GPU
 
@@ -232,6 +235,7 @@ def _make_gpu_detector():
             gpu.detect()
             self._result = gpu
 
+        @_check_types.do
         def detect_blocking(self) -> _Union["_gpu.GPU", None]:
             """Run ``GPU.detect()`` on this object's own (main/UI) thread
             and return the populated :class:`.gpu.GPU` instance, blocking
@@ -384,6 +388,7 @@ def _format_caches() -> str:
     return '\n'.join(lines)
 
 
+@_check_types.do
 def _fmt_bytes(value: int | None) -> str:
     if value is None:
         return 'Unknown'
@@ -506,12 +511,13 @@ _HANDLERS = {
 class _MemoryDiagnosticsListener(threading.Thread):
 
     @_check_types.do
-    def __init__(self, port: int) -> None:
+    def __init__(self, port: int):
         super().__init__(name='Memory Diagnostics Listener', daemon=True)
         self._port = port
         self._listener: Listener | None = None
         self._exit_event = threading.Event()
 
+    @_check_types.do
     def run(self) -> None:
         try:
             self._listener = Listener(('localhost', self._port), authkey=_AUTHKEY)

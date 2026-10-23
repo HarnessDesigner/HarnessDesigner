@@ -228,13 +228,14 @@ class CameraBase:
 
     is_top_down: bool = False
 
+    @_check_types.do
     def zoom_at_point(self, screen_pos: _point.Point, delta: float) -> None:
         raise NotImplementedError
 
     __doc__ = __doc__
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
+    def __init__(self, canvas: "_canvas_base.CanvasBase"):
         """
         Initialise the :class:`Camera` instance.
 
@@ -252,9 +253,9 @@ class CameraBase:
         self._clip = None
         self._inv_clip = None
         self._fov = None
-        self._up = None
-        self._right = None
-        self._forward = None
+        self._up: np.ndarray | None = None
+        self._right: np.ndarray | None = None
+        self._forward: np.ndarray | None = None
 
         self._frustum_planes = None
         self._frustum_normals = None
@@ -946,7 +947,7 @@ class CameraBase:
         if current_distance < 1e-6:
             return
 
-        target_distance = current_distance - float(delta)
+        target_distance = float(current_distance - float(delta))
 
         if target_distance < min_distance:
             target_distance = min_distance
@@ -1294,9 +1295,9 @@ class CameraBase:
 
             diffs = points - eye
             dist_sq = np.sum(diffs * diffs, axis=1)
-            best_idx = int(np.argmin(dist_sq))
+            idx = int(np.argmin(dist_sq))
 
-            return best_idx, points[best_idx]
+            return idx, points[idx]
 
         best_idx = None
         best_point = None

@@ -21,7 +21,7 @@ class Headlight:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas") -> None:
+    def __init__(self, canvas: "_canvas.Canvas"):
         """
         Initialise the :class:`Headlight` instance.
 

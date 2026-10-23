@@ -20,7 +20,7 @@ class ColorProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`ColorProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -75,7 +75,7 @@ class ColorProperty(QtWidgets.QWidget):
 
         self._button.setStyleSheet(f'background-color: {color.name()};')
 
-        color = _color.Color(r, g, b, a)
+        new_color = _color.Color(r, g, b, a)
 
         colors = [item[1] for item in self._choices]
         if rgba in colors:
@@ -86,10 +86,10 @@ class ColorProperty(QtWidgets.QWidget):
             self._ctrl.setCurrentText(name)
 
             self._ctrl.blockSignals(False)
-            self._value = [name, color]
+            self._value = [name, new_color]
         else:
             name = self._ctrl.currentText()
-            self._value = [name, color]
+            self._value = [name, new_color]
 
         evt = _events.PropertyEvent()
         evt.SetValue(self._value)
@@ -116,13 +116,13 @@ class ColorProperty(QtWidgets.QWidget):
             a = rgba & 0xFF
             color = QtGui.QColor(r, g, b, a)
             self._button.setStyleSheet(f'background-color: {color.name()};')
-            color = _color.Color(r, g, b, a)
-            self._value = [value, color]
+            new_color = _color.Color(r, g, b, a)
+            self._value = [value, new_color]
         else:
             self._button.setStyleSheet('background-color: black;')
 
-            color = _color.Color(0, 0, 0, 255)
-            self._value = [value, color]
+            new_color = _color.Color(0, 0, 0, 255)
+            self._value = [value, new_color]
 
         evt = _events.PropertyEvent()
         evt.SetValue(self._value)

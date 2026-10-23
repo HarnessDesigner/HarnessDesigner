@@ -92,14 +92,15 @@ def add_transition_branch(con: "_connector_base.ConnectorBase", idx: int, transi
     offset = _offset_to_text(offset)
     angle = _angle_to_text(angle)
 
+    bulb_offset_str = None
     if bulb_offset is not None:
-        bulb_offset = str(bulb_offset)
+        bulb_offset_str = str(bulb_offset)
 
     new_id = _id_generator.generate_global_row_id(con).bytes
     con.execute('INSERT INTO transition_branches (id, transition_id, idx, bulb_offset, '
                 'bulb_length, min_dia, max_dia, length, offset, angle, flange_height, '
                 'flange_width) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, transition_id, idx, bulb_offset, bulb_length, min_dia, max_dia,
+                (new_id, transition_id, idx, bulb_offset_str, bulb_length, min_dia, max_dia,
                  length, offset, angle, flange_height, flange_width))
 
     _logger.database(f'transition branch added {idx} - {transition_id}')
@@ -109,9 +110,15 @@ def add_transition_branch(con: "_connector_base.ConnectorBase", idx: int, transi
         return new_id
 
 
+# `branch_id` matches the `pjt_transition_branches.branch_id` column
+# (`_con.IntField('branch_id', no_null=True)`, see `pjt_table` below): a NOT
+# NULL int column, not a UUID -- `int` is the correct annotation, not
+# `bytes | None` (the mismatch used to crash the Cython build at import time,
+# since Cython type-checks a typed parameter's default value against its
+# annotation when the function object is built).
 @_check_types.do
-def add_pjt_transition_branch(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, transition_id: bytes,
-                              point3d_id: bytes | None = None, diameter: float = 0.0, branch_id: bytes | None = 0) -> None:
+def add_pjt_transition_branch(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, transition_id: bytes,
+                              point3d_id: bytes | None = None, diameter: float = 0.0, branch_id: int = 0) -> None:
     """Add a PJT transition branch.
 
     UNKNOWN details are inferred from the callable name and signature.

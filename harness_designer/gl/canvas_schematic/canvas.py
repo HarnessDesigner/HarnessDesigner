@@ -53,9 +53,10 @@ class Canvas(_canvas_base.CanvasBase):
     _editor_name = 'editor2d'
     _debug_frame_end = True  # DEBUG (temporary) -- see CanvasBase._on_draw
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_schematic,
-                 size: QtCore.QSize | None = None) -> None:
+                 size: QtCore.QSize | None = None):
         """
         Initialise the :class:`Canvas` instance.
 
@@ -94,6 +95,7 @@ class Canvas(_canvas_base.CanvasBase):
         GL.glDepthFunc(GL.GL_LESS)
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         return obj.objschematic
 
@@ -126,6 +128,7 @@ class Canvas(_canvas_base.CanvasBase):
         # objects load. Still respects an outer `with canvas:` batch.
         self.Refresh()
 
+    @_check_types.do
     def add_preview_object(self, obj: "_objects.ObjectBase") -> None:
         """Register a wire that is still being drawn (one end not attached
         yet) so it is rendered while the user places it -- what
@@ -154,6 +157,7 @@ class Canvas(_canvas_base.CanvasBase):
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
+    @_check_types.do
     def _render_floor_after(self) -> None:
         try:
             self._floor.render(self._shaders)

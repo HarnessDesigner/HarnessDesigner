@@ -307,9 +307,9 @@ class _MoveSession:
     candidate set in two batched numpy calls instead of looping
     candidate-by-candidate.
     """
-    attached: list = None
-    markers: list = None
-    candidates: list = None
+    attached: list | None = None
+    markers: list | None = None
+    candidates: list | None = None
     candidate_obb_tris: np.ndarray | None = None
     candidate_tri_owner: np.ndarray | None = None
     candidate_obb_edge_origins: np.ndarray | None = None
@@ -346,7 +346,7 @@ class WireServiceLoop(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop") -> None:
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
         """Initialise the :class:`WireServiceLoop` instance.
 
         :param parent: Parent object.
@@ -997,7 +997,7 @@ class WireServiceLoopStripe(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", wireserviceloop: WireServiceLoop, color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point) -> None:
+                 angle: _angle.Angle, position: _point.Point):
         """Initialise the :class:`WireStripe` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1142,7 +1142,7 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireServiceLoop") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireServiceLoop"):
         """Initialise the :class:`WireServiceLoopMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

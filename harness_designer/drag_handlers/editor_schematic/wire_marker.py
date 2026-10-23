@@ -28,7 +28,7 @@ class WireMarker(_editor_schematic.DragHandlerSchematic):
     """Wire-marker drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
         super().__init__(canvas, target)
 
         # Open the move gesture for this drag's whole lifetime -- see

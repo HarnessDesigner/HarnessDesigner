@@ -136,8 +136,8 @@ class PJTWireLayoutsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: bytes = None, point2d_id: bytes = None,
-               point_pegboard_id: bytes = None) -> "PJTWireLayout":
+    def insert(self, point3d_id: bytes | None = None, point2d_id: bytes | None = None,
+               point_pegboard_id: bytes | None = None) -> "PJTWireLayout":
         """Create a wire-layout row marking a waypoint in exactly one
         view -- pass whichever one point id the waypoint was placed in
         (see the class docstring's exclusivity rule); the other two stay
@@ -543,7 +543,7 @@ class PJTWireLayoutControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTWireLayoutControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

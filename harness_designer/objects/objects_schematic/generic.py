@@ -21,7 +21,7 @@ class Generic(_base_schematic.BaseSchematic):
     _parent: "_generic.Generic" = None
 
     @_check_types.do
-    def __init__(self, parent: "_generic.Generic", ) -> None:
+    def __init__(self, parent: "_generic.Generic", ):
         """Initialise the :class:`Generic` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,5 +33,6 @@ class Generic(_base_schematic.BaseSchematic):
         super().__init__(parent, None, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

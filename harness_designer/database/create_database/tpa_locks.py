@@ -116,7 +116,7 @@ def add_tpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
 
         description += ' TPA Lock'
 
-    compat_housings = ', '.join(compat_housings)
+    compat_housings_str = ', '.join(compat_housings)
 
     _logger.database(f'adding tpa lock {part_number}, {description}')
 
@@ -129,7 +129,7 @@ def add_tpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
                 (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  lock_type, length, width, height, weight, pins, terminal_size,
-                 compat_housings))
+                 compat_housings_str))
 
     _logger.database(f'tpa lock added "{part_number}"')
 
@@ -139,7 +139,7 @@ def add_tpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
 
 
 @_check_types.do
-def add_pjt_tpa_lock(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, point3d_id: bytes | None = None, housing_id: bytes | None = None,
+def add_pjt_tpa_lock(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, point3d_id: bytes | None = None, housing_id: bytes | None = None,
                      name: str = '', notes: str = '', quat3d: list[float] | None = None, angle3d: list[float] | None = None, is_visible3d: int = 0) -> None:
     """Add a PJT TPA lock.
 

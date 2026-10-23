@@ -56,7 +56,7 @@ class WireMarker(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
-                 db_obj: "_pjt_wire_marker.PJTWireMarker") -> None:
+                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
         """Initialise the :class:`WireMarker` instance.
 
         :param parent: Parent object.
@@ -126,6 +126,7 @@ class WireMarker(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

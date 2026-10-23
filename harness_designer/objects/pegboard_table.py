@@ -29,7 +29,7 @@ class PegboardTable(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
-                 db_obj: "_pjt_pegboard_table.PJTPegboardTable") -> None:
+                 db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
         """Initialise the :class:`PegboardTable` instance.
 
         :param mainframe: Main application frame.

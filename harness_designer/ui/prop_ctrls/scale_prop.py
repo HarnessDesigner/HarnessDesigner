@@ -3,6 +3,7 @@
 from PySide6 import QtWidgets
 
 from . import point_prop as _point_prop
+from ... import check_types as _check_types
 
 
 class ScaleProperty(_point_prop.PointProperty):
@@ -11,5 +12,6 @@ class ScaleProperty(_point_prop.PointProperty):
     MAX_VALUE: float = 9.9
     INCREMENT: float = 0.01
 
-    def __init__(self, parent: QtWidgets.QWidget, label: str, axes: str = 'xyz') -> None:
+    @_check_types.do
+    def __init__(self, parent: QtWidgets.QWidget, label: str, axes: str = 'xyz'):
         super().__init__(parent, label, '', axes)

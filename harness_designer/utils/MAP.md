@@ -30,7 +30,7 @@ Mesh surface picking (ray/triangle hit testing). `split_into_components()`'s vec
 
 #### paths.py
 
-`get_appdata()`, `get_documents()` — platform app-data/documents directory lookups. `get_appdata()` uses a non-recursive `os.mkdir`, so a scratch/sandboxed `USERPROFILE` must have its `appdata/roaming` parent pre-created or this raises `FileNotFoundError` (see the root `MAP.md`'s "Config is a live DB" note — this directory is also where `config.db` and the log files live).
+`get_appdata()`, `get_documents()` — platform app-data/documents directory lookups. `get_appdata()` uses a non-recursive `os.mkdir`, so a scratch/sandboxed `USERPROFILE` must have its `appdata/roaming` parent pre-created or this raises `FileNotFoundError` (see the root `MAP.md`'s "Config is a live DB" note — this directory is also where `config.db` and the log files live). `paths.py` also owns `SKELETON_WORKER_NAME` (`'Skeleton Generator Worker'`, the name of the worker process PyCharm builds stubs in; re-exported as `utils.SKELETON_WORKER_NAME`) -- the one place that string is written. `config.py` and `logger/log_handler.py` compare `multiprocessing.current_process().name` against it, and so does `get_appdata()`, which skips its `os.mkdir` on a match: three `Config` class bodies in `config.py` call it, so it runs on every import of this package.
 
 #### remap.py
 

@@ -32,7 +32,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", name: str, table: "_project.ProjectsTable") -> None:
+    def __init__(self, parent: "_ui.MainFrame", name: str, table: "_project.ProjectsTable"):
         """Initialise the :class:`AddProjectDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

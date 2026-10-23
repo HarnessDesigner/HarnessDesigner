@@ -21,7 +21,7 @@ class Boot(_base_pegboard.BasePegboard):
     db_obj: "_pjt_boot.PJTBoot"
 
     @_check_types.do
-    def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot") -> None:
+    def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot"):
         """Initialise the :class:`Boot` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -48,5 +48,6 @@ class Boot(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

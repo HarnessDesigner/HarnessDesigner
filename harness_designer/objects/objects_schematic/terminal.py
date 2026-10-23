@@ -50,6 +50,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_schematic
 
 
+@_check_types.do
 def _is_180(degrees: float) -> bool:
     """Whether *degrees* (this terminal's own live ``angle2d.y``) is
     the 180 special case -- rotating this terminal's own name glyph a
@@ -168,7 +169,7 @@ class Terminal(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
-                 db_obj: "_pjt_terminal.PJTTerminal", free: bool = False) -> None:
+                 db_obj: "_pjt_terminal.PJTTerminal", free: bool = False):
         """
         Initialise the :class:`Terminal` instance.
 
@@ -523,6 +524,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -576,6 +578,7 @@ class Terminal(_base_schematic.BaseSchematic):
             housing.position.z + float(wz))
 
     @staticmethod
+    @_check_types.do
     def _lift_name(vbo: _text.Text) -> float:
         """How far a name label has to be raised so its lowest point is at
         y = 0, the housing's top surface.
@@ -756,6 +759,7 @@ class Terminal(_base_schematic.BaseSchematic):
 
         return self._aabb
 
+    @_check_types.do
     def _label_angle(self) -> _angle.Angle:
         """The angle this terminal's name AND bracket are drawn at --
         the same one :meth:`render` uses.
@@ -1142,7 +1146,7 @@ class TerminalMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Terminal") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Terminal"):
         """
         Initialise the :class:`TerminalMenu` instance.
 

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ...geometry import point as _point
 from ...handlers import snap_probe_set as _snap_probe_set
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -16,26 +17,32 @@ if TYPE_CHECKING:
 class SnapProbeSet(_snap_probe_set.SnapProbeSet):
 
     @staticmethod
+    @_check_types.do
     def _get_start_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         return dict(position_pegboard=db_obj.start_position_pegboard)
 
     @staticmethod
+    @_check_types.do
     def _get_stop_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         return dict(position_pegboard=db_obj.stop_position_pegboard)
 
     @staticmethod
+    @_check_types.do
     def _get_branch_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         return dict(position_pegboard=db_obj.branch_position_pegboard)
 
     @staticmethod
+    @_check_types.do
     def _get_wire_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         return dict(position_pegboard=db_obj.wire_position_pegboard)
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_wire_object.Wire") -> "_base_pegboard.BasePegboard":
         return obj.objpegboard
 
     @staticmethod
+    @_check_types.do
     def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
         # Always the 3D concrete Wire -- see
         # snap_probe_set.SnapProbeSet._wire_end_anchors's own docstring

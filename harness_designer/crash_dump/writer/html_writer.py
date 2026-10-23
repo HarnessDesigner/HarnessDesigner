@@ -18,6 +18,7 @@ its target id in the same map.
 from __future__ import annotations
 
 from .json_writer import dumps_for_script_embed
+from ... import check_types as _check_types
 
 _HEAD = """<!doctype html>
 <html lang="en">
@@ -238,26 +239,32 @@ class HtmlDumpWriter:
                 writer.write_node(node)
     """
 
-    def __init__(self, path: str) -> None:
+    @_check_types.do
+    def __init__(self, path: str):
         self._path = path
         self._file = None
 
+    @_check_types.do
     def __enter__(self) -> 'HtmlDumpWriter':
         self._file = open(self._path, 'w', encoding='utf-8', newline='\n')
         self._file.write(_HEAD)
         return self
 
+    @_check_types.do
     def write_meta(self, meta: dict) -> None:
         self._write_line({**meta, 'kind': 'meta'})
 
+    @_check_types.do
     def write_node(self, node: dict) -> None:
         self._write_line({**node, 'kind': 'node'})
 
+    @_check_types.do
     def _write_line(self, record: dict) -> None:
         self._file.write(dumps_for_script_embed(record))
         self._file.write('\n')
         self._file.flush()
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_value, exc_tb) -> bool:
         try:
             self._file.write(_TAIL)

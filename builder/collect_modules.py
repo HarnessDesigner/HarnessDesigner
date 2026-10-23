@@ -37,18 +37,19 @@ from packaging.utils import canonicalize_name
 # dependency (and matplotlib's own dependency chain: contourpy, cycler,
 # fonttools, kiwisolver, pyparsing) -- none of which harness_designer uses.
 #
-# amdsmi / nvidia-ml-py (pynvml) / apple_smi are GPU vendor SMI bindings,
-# installed at runtime by dep_installer.py (see REQUIRED_PACKAGES there) for
-# the same reason PySide6 is: CI build machines have no GPU driver installed,
-# so PyInstaller can't resolve the driver DLL these compiled extensions link
-# against, and a module that "looks" bundled would actually be broken at
-# runtime on the end-user's machine.
+# apple_smi is a GPU/SoC vendor SMI binding, installed at runtime by
+# dep_installer.py (see REQUIRED_PACKAGES there) for the same reason PySide6
+# is: CI build machines have no GPU driver installed, so PyInstaller can't
+# resolve the driver DLL it links against, and a module that "looks" bundled
+# would actually be broken at runtime on the end-user's machine. nvapi and
+# pyamd_adl don't have this problem (ctypes wrappers, dlopen on first use
+# only) so they're ordinary bundled dependencies, not excluded here.
 #
 # Names are pre-canonicalized (packaging.utils.canonicalize_name: lowercased,
 # separators normalized to '-').
 _EXCLUDED_DISTRIBUTIONS = frozenset({
     'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6', 'vtk',
-    'amdsmi', 'nvidia-ml-py', 'apple-smi'})
+    'apple-smi'})
 
 
 def _distribution_to_import_names():
@@ -185,8 +186,8 @@ def get_modules():
             except Exception:
                 # The package is installed but its import-time code raised
                 # something other than ModuleNotFoundError — e.g. GPU
-                # vendor SMI bindings (amdsmi, nvidia-ml-py/pynvml,
-                # apple_smi) and other hardware-probing libraries look for
+                # vendor SMI bindings (apple_smi) and
+                # other hardware-probing libraries look for
                 # a display driver's shared library at import time and
                 # raise arbitrary errors (TypeError, KeyError, OSError...)
                 # when no such GPU exists on this build machine. That

@@ -39,7 +39,7 @@ class GLContext:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "QtOpenGLWidgets.QOpenGLWidget") -> None:
+    def __init__(self, canvas: "QtOpenGLWidgets.QOpenGLWidget"):
         """Initialise the :class:`GLContext` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

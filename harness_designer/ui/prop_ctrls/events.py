@@ -22,7 +22,7 @@ class PropertyEvent:
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialise the :class:`PropertyEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

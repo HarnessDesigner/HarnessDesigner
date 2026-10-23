@@ -56,7 +56,7 @@ class WireTypeControl(_prop_ctrls.ComboBoxProperty):
     """Combo box that picks a wire's type; typing a new name adds it to the wire types table."""
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Create the control.
 
         :param parent: Parent widget.

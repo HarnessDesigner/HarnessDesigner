@@ -33,7 +33,7 @@ class GPU:
     """
 
     @_check_types.do
-    def __init__(self, opencl_device: _Union["_cl.Device", None] = None) -> None:
+    def __init__(self, opencl_device: _Union["_cl.Device", None] = None):
         """Create the attribute set (all start at ``'Unknown'``) and store
         the optional OpenCL device used for fallback estimation.
 

@@ -52,7 +52,7 @@ class ClaudeJob(QtCore.QObject):
     cancelled = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, work: Work, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, work: Work, parent: QtCore.QObject | None = None):
         """Create jobs on the GUI thread. *work* receives the cancel token
         and the two progress callbacks and returns the Response."""
         super().__init__(parent)

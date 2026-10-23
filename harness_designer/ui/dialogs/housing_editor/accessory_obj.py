@@ -26,7 +26,7 @@ class HousingAccessory(_objects.ObjectBase):
 
     @_check_types.do
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
-                 position: _point.Point, color: _color.Color) -> None:
+                 position: _point.Point, color: _color.Color):
         """Initialise the :class:`HousingAccessory` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -56,7 +56,7 @@ class HousingAccessory3D(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: HousingAccessory,
-                 position: _point.Point, color: _color.Color) -> None:
+                 position: _point.Point, color: _color.Color):
         """Initialise the :class:`HousingAccessory3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

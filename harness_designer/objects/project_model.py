@@ -27,7 +27,7 @@ class ProjectModel(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_project.Project", vbo: "_vbo.PooledVBOHandler") -> None:
+                 db_obj: "_project.Project", vbo: "_vbo.PooledVBOHandler"):
 
         super().__init__(mainframe, db_obj)
 

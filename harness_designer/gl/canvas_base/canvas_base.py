@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Union as _Union
-from typing import Self, TYPE_CHECKING
+from typing import Self as _Self, TYPE_CHECKING
 
 import types
 from OpenGL import GL
@@ -45,7 +45,7 @@ class CanvasEventFilter(QtCore.QObject):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "CanvasBase") -> None:
+    def __init__(self, canvas: "CanvasBase"):
         """Initialise the :class:`CanvasEventFilter` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -347,7 +347,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # `mainframe._selection_source_editor` with this so the editor a
     # selection click originated in is skipped when the other two views
     # decide whether to re-center on the newly selected object.
-    _editor_name: str = None
+    _editor_name: str | None = None
 
     # This attribute needs to be created in an overrided initializeGL function
     # created before calling super().initializeGL
@@ -365,7 +365,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # (it rejects any `type` subclass) the moment a real config section is
     # passed in. Keep this `object`, not `type`.
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", config: object, size: QtCore.QSize = None) -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", config: object, size: QtCore.QSize | None = None):
         """
         Initialise the :class:`CanvasBase` instance.
 
@@ -602,6 +602,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     def active_handler_obj(self, value: _Union["_base_var.BaseVar", None]) -> None:
         self._active_handler_obj = value
 
+    @_check_types.do
     def add_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Add an object.
@@ -706,6 +707,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()  # Qt: schedules a repaint (≈ wx Refresh)
 
+    @_check_types.do
     def _dump_visible_objects(self) -> None:
         """Snapshot every object this canvas actually drew last frame --
         see ``key_handler.KeyHandler.handle_event``'s Ctrl+Shift+D
@@ -746,7 +748,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __enter__(self) -> Self:
+    def __enter__(self) -> _Self:
         self._ref_count += 1
         return self
 
@@ -808,6 +810,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         dx *= self.config.input.zoom.sensitivity
         self.camera.Zoom(dx)
 
+    @_check_types.do
     def Dolly(self, distance: float) -> None:
         self.camera.Dolly(distance)
 
@@ -979,6 +982,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         self._on_draw()
 
+    @_check_types.do
     def event_signal(self, event_type: str) -> QtCore.SignalInstance:
         """Return the Qt signal that carries a GL event of *event_type*.
 
@@ -1002,6 +1006,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         except Exception as err:  # NOQA
             _logger.traceback(err, 'set floor error')
 
+    @_check_types.do
     def _set_shader_programs(self) -> None:
         # Camera's own locally-computed matrices (row-major, for
         # matrix @ column_vector) -- transpose=GL_TRUE converts them to
@@ -1214,15 +1219,19 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                     err, 'object render removal error')
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         raise NotImplementedError
 
+    @_check_types.do
     def _set_view(self) -> None:
         raise NotImplementedError
 
+    @_check_types.do
     def _render_floor_before(self) -> None:
         pass
 
+    @_check_types.do
     def _render_floor_after(self) -> None:
         pass
 

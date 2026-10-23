@@ -38,7 +38,7 @@ class EditorDB(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorDB` instance.
 
@@ -232,7 +232,7 @@ class EditorDBPanel(QtWidgets.QTabWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorDBPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

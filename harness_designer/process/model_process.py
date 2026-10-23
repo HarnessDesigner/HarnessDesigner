@@ -20,6 +20,7 @@ from OCP.TopLoc import TopLoc_Location
 from OCP.Vrml import Vrml_Provider
 from OCP.STEPControl import STEPControl_Reader
 from OCP.IGESControl import IGESControl_Reader
+from OCP.IFSelect import IFSelect_RetDone
 from OCP.TopExp import TopExp_Explorer
 from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
@@ -189,6 +190,36 @@ def _find_assembly_markers(file: str) -> list[str]:
             if re.search(rf'=\s*{marker}\s*\(', text)]
 
 
+def _read_cad_shape(reader: STEPControl_Reader | IGESControl_Reader, file: str) -> "TopoDS_Shape":
+    """Read *file* with *reader* and return everything in it as one shape.
+
+    ``Shape()`` only returns the first transferred root. A STEP part is
+    normally a single solid root, but an IGES part is one root per surface
+    and per curve, so its first root can be a lone edge with nothing to
+    tessellate (TE 2399667-3: 71 roots, the first an edge, 69 faces).
+    ``OneShape()`` returns all of the roots combined into one compound.
+
+    :param reader: A fresh STEP or IGES reader.
+    :type reader: STEPControl_Reader | IGESControl_Reader
+    :param file: Path to the file to read.
+    :type file: str
+    :returns: The whole file's geometry as a single shape.
+    :rtype: TopoDS_Shape
+    :raises ModelLoadError: Raised when the file cannot be read or holds no geometry.
+    """
+    status = reader.ReadFile(file)
+    if status != IFSelect_RetDone:
+        raise ModelLoadError(f'could not be read (reader status: {status})')
+
+    reader.TransferRoots()  # NOQA
+    shape = reader.OneShape()
+
+    if shape.IsNull():
+        raise ModelLoadError('was read but no geometry could be transferred from it')
+
+    return shape
+
+
 def _load_step(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Load the step.
 
@@ -213,10 +244,7 @@ def _load_step(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndar
         # re-triangulating a shape in place like this). STEP parsing
         # itself is cheap relative to meshing, so re-reading the file is
         # the safe option, not a real cost.
-        loose_reader = STEPControl_Reader()
-        loose_reader.ReadFile(file)
-        loose_reader.TransferRoots()  # NOQA
-        loose_shape = loose_reader.Shape()
+        loose_shape = _read_cad_shape(STEPControl_Reader(), file)
 
         return _ocp_read_shape(
             loose_shape, lin_deflection=cfg.loose_lin_deflection,
@@ -226,10 +254,7 @@ def _load_step(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndar
     if use_loose_tessellation:
         return _read_loose()
 
-    step_reader = STEPControl_Reader()
-    step_reader.ReadFile(file)
-    step_reader.TransferRoots()  # NOQA
-    shape = step_reader.Shape()
+    shape = _read_cad_shape(STEPControl_Reader(), file)
 
     vertices, faces = _ocp_read_shape(shape)
 
@@ -255,10 +280,7 @@ def _load_iges(file: str) -> tuple[np.ndarray, np.ndarray]:
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
-    reader = IGESControl_Reader()
-    reader.ReadFile(file)
-    reader.TransferRoots()  # NOQA
-    shape = reader.Shape()
+    shape = _read_cad_shape(IGESControl_Reader(), file)
 
     vertices, faces = _ocp_read_shape(shape)
 
@@ -287,7 +309,14 @@ def _load(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, 
         try:
             vertices, faces = _load_with_assimp(file)
         except Exception as err:
-            raise ModelLoadError from err
+            raise ModelLoadError(f'could not be read by assimp ({err})') from err
+
+    # A file that reads cleanly but tessellates to nothing would otherwise
+    # fail much later, inside the normals step, with an unrelated IndexError.
+    if len(vertices) == 0 or len(faces) == 0:
+        raise ModelLoadError(
+            'was read but no faces could be tessellated from it, so there '
+            'is no model to build')
 
     return vertices, faces
 
@@ -383,7 +412,7 @@ def _reduce_triangles(
 
 class ThreadWorker(threading.Thread):
 
-    def __init__(self, db_broker: types.ModuleType, credentials: dict[str, Any], message: dict[str, Any], out_queue: multiprocessing.Queue) -> None:
+    def __init__(self, db_broker: types.ModuleType, credentials: dict[str, Any], message: dict[str, Any], out_queue: multiprocessing.Queue):
         self.db_broker = db_broker
         self.credentials = credentials
         self.message = message
@@ -542,9 +571,21 @@ class ThreadWorker(threading.Thread):
                     connector.close()
                     return
 
-            vertices, faces = _load(
-                model_path,
-                use_loose_tessellation=message.get('use_loose_tessellation', False))
+            try:
+                vertices, faces = _load(
+                    model_path,
+                    use_loose_tessellation=message.get('use_loose_tessellation', False))
+            except ModelLoadError as err:
+                message['err_msg'] = (
+                    f'Manufacturer "{message["mfg"]}", part number '
+                    f'"{message["part_number"]}": the {ext.upper()} file {err}')
+                message['err_no'] = -10007
+                message['allow_retry'] = False
+                message['model_path'] = model_path
+
+                self.out_queue.put(message)
+                connector.close()
+                return
 
             vertices = _center_model(vertices)
 
@@ -751,7 +792,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 class ProcessWorker:
 
     def __init__(self, manager: "_manager.ProcessManager",
-                 print_lock: multiprocessing.Lock) -> None:
+                 print_lock: multiprocessing.Lock):
 
         self.manager = manager
         self.exit_event = multiprocessing.Event()

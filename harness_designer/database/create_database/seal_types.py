@@ -110,13 +110,13 @@ def add_seal_type(con: "_connector_base.ConnectorBase", name: str, category: str
     """
 
     if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+        id_bytes = _id_generator.generate_global_row_id(con).bytes
     else:
-        id = _id_generator.NIL_UUID.bytes
+        id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute(
         'INSERT INTO seal_types (id, name, category) '
-        'VALUES (?, ?, ?);', (id, name, category)
+        'VALUES (?, ?, ?);', (id_bytes, name, category)
         )
 
     _logger.database(f'seal type added "{name}" ({category})')

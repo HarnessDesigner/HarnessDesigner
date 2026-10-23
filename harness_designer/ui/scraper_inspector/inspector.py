@@ -30,7 +30,7 @@ class ScraperInspector(QtWidgets.QWidget, _assistant.AssistantContext):
     messageRaised = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._page_url = ''
         self._user_agent = ''

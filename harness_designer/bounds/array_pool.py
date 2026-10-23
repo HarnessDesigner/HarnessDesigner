@@ -84,7 +84,7 @@ class ArrayPool:
 
     @_check_types.do
     def __init__(self, sentinel_row: list, block_size: int = 50,
-                 dtype: type = np.float32) -> None:
+                 dtype: type = np.float32):
         self._block_size = block_size
 
         # float32 is load-bearing: rows are handed straight to
@@ -219,10 +219,12 @@ class ArrayPool:
         block, slot = divmod(index, self._block_size)
         self._blocks[block][slot][:] = values
 
+    @_check_types.do
     def __contains__(self, item: "_base_var.BaseVar") -> bool:
         ref = weakref.ref(item)
         return ref in self._refs
 
+    @_check_types.do
     def __getitem__(self, item: "_base_var.BaseVar") -> int:
         # this next bit of code makes sure we are not double allocating
         # an aabb or obb for any object.
@@ -233,6 +235,7 @@ class ArrayPool:
 
         return self.allocate(item)
 
+    @_check_types.do
     def __setitem__(self, key: int, value: bool) -> None:
         if value is True:
             self.mark_visible(key)
@@ -357,6 +360,7 @@ class ArrayPool:
 
         return rows[issued]
 
+    @_check_types.do
     def visible_objects(self) -> list["_base_var.BaseVar"]:
         ret = []
         for ref in self._visible_refs:
@@ -381,6 +385,7 @@ class ArrayPool:
 
         return self._visible.copy()
 
+    @_check_types.do
     def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
                               direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
         """Subclass hook -- given *rows* (an ``(N, ...)`` array, this

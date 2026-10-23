@@ -1588,12 +1588,15 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
   - scripts/
     - bootstrap.py
     - dep_installer.py
+    - license_screen.py
     - rthook_pip_distlib.py
     - run.py
 - diagnostics/
   - CLAUDE.md
   - compare_snapshots.py
+  - cython_hint_audit.py
   - dep_trace.py
   - find_unused_functions.py
   - fix_string_annotations.py
   - query_memory.py
+  - type_audit_report.py

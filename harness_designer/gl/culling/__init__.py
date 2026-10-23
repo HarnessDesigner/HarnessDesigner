@@ -9,7 +9,7 @@ from . import culling as _culling
 
 class __CullingLoader:
 
-    def __init__(self) -> None:
+    def __init__(self):
         import sys
 
         mod = sys.modules[__name__]

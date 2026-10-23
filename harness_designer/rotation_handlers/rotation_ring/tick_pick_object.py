@@ -52,7 +52,7 @@ class TickPickObject(_object_base.ObjectBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         _object_base.ObjectBase.__init__(self, mainframe, None)
 
     @_check_types.do

@@ -15,7 +15,7 @@ class Light:
     """Light source"""
 
     @_check_types.do
-    def __init__(self, position: tuple[float, float, float] = (0, 0, 0), intensity: float = 1.0, color: tuple[float, float, float] = (1, 1, 1)) -> None:
+    def __init__(self, position: tuple[float, float, float] = (0, 0, 0), intensity: float = 1.0, color: tuple[float, float, float] = (1, 1, 1)):
         """Initialize a light definition.
 
         :param position: Light position in world space.

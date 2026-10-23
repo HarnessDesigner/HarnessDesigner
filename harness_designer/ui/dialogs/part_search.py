@@ -909,7 +909,7 @@ class _QueryWorker(QtCore.QObject):
     resultReady: QtCore.SignalInstance = QtCore.Signal(int, object, object)
 
     @_check_types.do
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str):
         super().__init__()
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
@@ -945,7 +945,7 @@ class QueryScope(QtCore.QObject):
     _queryRequested: QtCore.SignalInstance = QtCore.Signal(int, str, list)
 
     @_check_types.do
-    def __init__(self, db_path: str, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, db_path: str, parent: QtCore.QObject | None = None):
         super().__init__(parent)
         self._next_id = 0
         self._pending: dict[int, tuple[int, Callable]] = {}
@@ -1021,7 +1021,7 @@ class _HistoryPopup(QtWidgets.QFrame):
     entrySelected: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent, QtCore.Qt.WindowType.Popup)
         self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
@@ -1115,7 +1115,7 @@ class SearchTextEdit(QtWidgets.QPlainTextEdit):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
-                 schema: TableSchema, table_name: str) -> None:
+                 schema: TableSchema, table_name: str):
 
         self._init = 2
 
@@ -1658,7 +1658,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
-                 search_edit: SearchTextEdit, col: ColumnInfo) -> None:
+                 search_edit: SearchTextEdit, col: ColumnInfo):
 
         super().__init__(parent)
         self.search_edit = search_edit
@@ -1683,7 +1683,7 @@ class FKFilterPanel(_FilterPanelBase):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
                  search_edit: SearchTextEdit,
-                 col: ColumnInfo, values: list[str]) -> None:
+                 col: ColumnInfo, values: list[str]):
 
         super().__init__(parent, search_edit, col)
 
@@ -1777,7 +1777,7 @@ class RangeFilterPanel(_FilterPanelBase):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
                  search_edit: SearchTextEdit, col: ColumnInfo,
-                 lo: float, hi: float) -> None:
+                 lo: float, hi: float):
 
         super().__init__(parent, search_edit, col)
         self._lo_default, self._hi_default = lo, hi
@@ -1917,7 +1917,7 @@ class HelpDialog(QtWidgets.QDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, schema: TableSchema) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, schema: TableSchema):
         super().__init__(parent)
         self.setWindowTitle('How to Search')
         self.setModal(False)
@@ -2061,7 +2061,7 @@ class SearchDialog(_dialog_base.BaseDialog):
     def __init__(self, parent: "_ui.MainFrame",
                  page_class: type["_editor_db_base.EditorList"],
                  table: "_glb_bases.TableBase", title: str,
-                 initial_params: SearchParameters | None = None) -> None:
+                 initial_params: SearchParameters | None = None):
 
         super().__init__(parent, title=title, size=(1180, 780))
 

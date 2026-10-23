@@ -50,11 +50,13 @@ if TYPE_CHECKING:
 
 class SegmentPool:
 
-    def __init__(self) -> None:
+    @_check_types.do
+    def __init__(self):
         self._zero = np.zeros(3, dtype=np.float32)
 
         self.reset()
 
+    @_check_types.do
     def reset(self) -> None:
         """Forget every registered path, in place (see
         :meth:`.array_pool.ArrayPool.reset`). Weakref callbacks from
@@ -109,6 +111,7 @@ class SegmentPool:
                 self._buffers[index] = self._zero
                 self._free.append(index)
 
+    @_check_types.do
     def _on_dead(self, ref: weakref.ref) -> None:
         pairs = self._entries.pop(ref, None)
         if pairs is not None:

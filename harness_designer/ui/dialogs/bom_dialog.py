@@ -47,7 +47,7 @@ class _BomToolbarRow(QtWidgets.QWidget):
     bundleExcessChanged: QtCore.SignalInstance = QtCore.Signal(float)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
 
         self.view_ctrl = _choice_ctrl.ChoiceCtrl(
@@ -86,7 +86,7 @@ class _FlatListTree(QtWidgets.QTreeWidget):
     """View 1: flat parts list, one row per distinct part number."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
@@ -108,7 +108,7 @@ class _HousingTree(QtWidgets.QTreeWidget):
     """View 2: one expandable tree per housing."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
         self.setColumnCount(6)
         self.setHeaderLabels(
@@ -150,7 +150,7 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
     _COLOR_COLUMN = 7
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
@@ -179,7 +179,7 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
     """View 4: one row per bundle-covering instance."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         super().__init__(parent)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
@@ -211,7 +211,7 @@ class BomDialog(_dialog_base.BaseDialog):
     here is persisted."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         super().__init__(
             parent, 'Bill of Materials', size=(960, 640),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)

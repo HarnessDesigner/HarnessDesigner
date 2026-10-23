@@ -39,7 +39,7 @@ class FloatSpinButton(QtWidgets.QToolButton):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, icon: QtGui.QIcon,
                  min_val: float, max_val: float, step: float = 0.1, decimals: int = 2,
-                 suffix: str = "") -> None:
+                 suffix: str = ""):
 
         super().__init__(parent)
 

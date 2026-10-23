@@ -33,7 +33,7 @@ class _ItemRow(QtWidgets.QWidget):
     """A label + checkbox row inside _ItemsPanel."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`_ItemRow` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -78,7 +78,7 @@ class _ItemsPanel(QtWidgets.QScrollArea):
     """Scrollable list of label + checkbox rows."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, choices: list[str]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, choices: list[str]):
         """Initialise the :class:`_ItemsPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -135,7 +135,7 @@ class _SearchPanelField(QtWidgets.QFrame):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, params: list[str],
-                 types: list[type]) -> None:
+                 types: list[type]):
         """Initialise the :class:`_SearchPanelField` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -221,7 +221,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
-                 db_table: _Union["_global_db.TableBase", "_project_db.PJTTableBase"]) -> None:
+                 db_table: _Union["_global_db.TableBase", "_project_db.PJTTableBase"]):
         """Initialise the :class:`_SearchPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -317,7 +317,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
     """Virtual list control for lazily-fetched search results."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, columns: list[str]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, columns: list[str]):
         """Initialise the :class:`_ResultCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -465,7 +465,7 @@ class SearchPanel(QtWidgets.QWidget):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None = None,
                  table: _Union["_global_db.TableBase", "_project_db.PJTTableBase", None] = None,
-                 *compat_parts: tuple[Any]) -> None:
+                 *compat_parts: tuple[Any]):
         """Initialise the :class:`SearchPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

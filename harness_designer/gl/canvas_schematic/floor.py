@@ -21,6 +21,7 @@ import math
 
 from ...geometry.decimal import Decimal as _d
 from ..canvas_base import floor_base as _floor_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Geometry
 # ═══════════════════════════════════════════════════════════════════════════════
+@_check_types.do
 def _build_quad(left: float | _d, right: float | _d, bottom: float, top: float | _d) -> np.ndarray:
     """
     Two triangles covering the given world-space rectangle, flat vec2 array.
@@ -50,11 +52,13 @@ def _build_quad(left: float | _d, right: float | _d, bottom: float, top: float |
 class Floor(_floor_base.FloorBase):
     """Procedural top-down dot grid."""
 
-    def __init__(self, canvas: "_canvas.Canvas") -> None:
+    @_check_types.do
+    def __init__(self, canvas: "_canvas.Canvas"):
         super().__init__(canvas)
 
         self.grid_spacing = 1.0
 
+    @_check_types.do
     def _initialize_grid(self) -> tuple[int, int]:
         # placeholder bounds, updated every render()
         verts = _build_quad(-1.0, 1.0, -1.0, 1.0)
@@ -74,6 +78,7 @@ class Floor(_floor_base.FloorBase):
 
         return vao, vbo
 
+    @_check_types.do
     def set(self, flag: bool) -> None:
         """
         Enable or disable the floor, rebuilding GPU resources as needed.
@@ -98,6 +103,7 @@ class Floor(_floor_base.FloorBase):
 
         self.canvas.Refresh(False)
 
+    @_check_types.do
     def _current_spacing(self, world_per_pixel: float) -> float:
         """Return the current world-space dot spacing: ``2**n`` for
         whatever integer *n* (positive, negative, or zero) keeps this
@@ -123,6 +129,7 @@ class Floor(_floor_base.FloorBase):
         n = math.floor(math.log2(raw))
         return float(2.0 ** n)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw the procedural floor in a single pass."""
 

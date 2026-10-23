@@ -37,6 +37,7 @@ import numpy as np
 from .. import config as _config
 from .. import bounds as _bounds
 from ..geometry import cavity_layout as _cavity_layout
+from .. import check_types as _check_types
 
 
 # The four per-run arrays the vectorised run tests work on:
@@ -78,6 +79,7 @@ _EPS = 1e-6
 _LANE_EPS = 1e-3
 
 
+@_check_types.do
 def _lane_spacing() -> float:
     """
     Centre-to-centre distance kept between parallel wires, and the pitch
@@ -101,6 +103,7 @@ def _lane_spacing() -> float:
     return Config.layout.wire_spacing
 
 
+@_check_types.do
 def _terminal_cylinder_rect(term2d: "_objects.ObjectBase") -> tuple[float, float, float, float] | None:
     """
     One ``objects_schematic/terminal.py`` ``Terminal``'s own rendered
@@ -150,6 +153,7 @@ def _terminal_cylinder_rect(term2d: "_objects.ObjectBase") -> tuple[float, float
     return min_x, min_z, max_x, max_z
 
 
+@_check_types.do
 def _terminal_cylinder_rects(
     project: "_project.Project",
     lo_x: float,
@@ -194,6 +198,7 @@ def _terminal_cylinder_rects(
     return rects
 
 
+@_check_types.do
 def attached_terminal_cylinder_rects(
     project: "_project.Project",
     wire: "_wire_obj.Wire"
@@ -222,6 +227,7 @@ def attached_terminal_cylinder_rects(
     return rects
 
 
+@_check_types.do
 def _obstacle_excludes(
     project: "_project.Project",
     ignore_wire: _Union["_wire_obj.Wire", None]
@@ -255,6 +261,7 @@ def _obstacle_excludes(
     return exclude_aabb, exclude_terminals
 
 
+@_check_types.do
 def _housing_rects(
     project: "_project.Project",
     lo_x: float,
@@ -349,6 +356,7 @@ def _housing_rects(
     return [tuple(rect) for rect in rects.tolist()]
 
 
+@_check_types.do
 def _obstacle_rects(
     project: "_project.Project",
     lo_x: float,
@@ -393,6 +401,7 @@ def _obstacle_rects(
             project, lo_x, lo_z, hi_x, hi_z, exclude=exclude_terminals))
 
 
+@_check_types.do
 def _wire_segments(
     project: "_project.Project",
     lo_x: float,
@@ -457,6 +466,7 @@ def _wire_segments(
     return segments.astype(np.float64)
 
 
+@_check_types.do
 def _build_axis(
     a: float,
     b: float,
@@ -493,6 +503,7 @@ def _build_axis(
     return np.unique(np.rint(np.concatenate(parts) * _SCALE).astype(np.int64))
 
 
+@_check_types.do
 def _node_blocked(
     x: float,
     z: float,
@@ -511,6 +522,7 @@ def _node_blocked(
     return False
 
 
+@_check_types.do
 def _edge_crosses_obstacle(
     x1: float,
     z1: float,
@@ -558,6 +570,7 @@ def _edge_crosses_obstacle(
     return False
 
 
+@_check_types.do
 def _edge_too_close_to_wire(
     x1: float,
     z1: float,
@@ -611,6 +624,7 @@ def _edge_too_close_to_wire(
     return False
 
 
+@_check_types.do
 def segment_blocked(
     project: "_project.Project",
     p1: tuple[float, float],
@@ -656,6 +670,7 @@ def segment_blocked(
     return False
 
 
+@_check_types.do
 def _segment_hits_rect(
     x1: float,
     z1: float,
@@ -714,6 +729,7 @@ def _segment_hits_rect(
 _PARALLEL_SINE = 0.0087
 
 
+@_check_types.do
 def free_segment_blocked(
     project: "_project.Project",
     p1: tuple[float, float],
@@ -816,6 +832,7 @@ def free_segment_blocked(
     return None
 
 
+@_check_types.do
 def _direction_sign(dx: float, dz: float) -> tuple[float, float]:
     """
     Axis-aligned unit sign vector for *(dx, dz)* -- exactly one of the
@@ -831,6 +848,7 @@ def _direction_sign(dx: float, dz: float) -> tuple[float, float]:
 _NO_LANES = (np.empty((0, 3)), np.empty((0, 3)))
 
 
+@_check_types.do
 def _prepare_lanes(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Split the ``(S, 2, 2)`` *segments* into horizontal and vertical
@@ -870,6 +888,7 @@ def _prepare_lanes(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return h_lanes, v_lanes
 
 
+@_check_types.do
 def _build_tables(
     xs: list[float],
     zs: list[float],
@@ -958,6 +977,7 @@ def _build_tables(
     return ok_left.ravel(), ok_right.ravel(), ok_down.ravel(), ok_up.ravel()
 
 
+@_check_types.do
 def _astar_py(
     xs: list[float],
     zs: list[float],
@@ -1171,6 +1191,7 @@ def _astar_py(
     return None
 
 
+@_check_types.do
 def _direction_code(sign: tuple[float, float] | None) -> int:
     """
     The compiled search's code for a forbidden direction vector (see
@@ -1197,6 +1218,7 @@ def _direction_code(sign: tuple[float, float] | None) -> int:
     return -1
 
 
+@_check_types.do
 def _astar(
     xs: np.ndarray,
     zs: np.ndarray,
@@ -1258,6 +1280,7 @@ def _astar(
     return [(node // nz, node % nz) for node in path.tolist()]
 
 
+@_check_types.do
 def _collapse(path_xz: list[tuple[float, float]]) -> list[tuple[float, float]]:
     """
     Drop every node that doesn't actually turn, and drop the first/
@@ -1285,6 +1308,7 @@ def _collapse(path_xz: list[tuple[float, float]]) -> list[tuple[float, float]]:
 _MAX_WINDOW_RETRIES = 6
 
 
+@_check_types.do
 def _search_window(
     project: "_project.Project",
     start: tuple[float, float],
@@ -1357,6 +1381,7 @@ class WireEnds(NamedTuple):
     ignore_rects: list[tuple[float, float, float, float]]
 
 
+@_check_types.do
 def attached_splice_rects(
     project: "_project.Project",
     wire: "_wire_obj.Wire"
@@ -1388,10 +1413,12 @@ def attached_splice_rects(
     return rects
 
 
+@_check_types.do
 def _scaled(values: np.ndarray) -> np.ndarray:
     return np.rint(values * _SCALE).astype(np.int64)
 
 
+@_check_types.do
 def _frame_axis(
     exact: list[float],
     anchor: float,
@@ -1452,7 +1479,8 @@ class RoutingFrame:
     Only available when the compiled search is (see :func:`build_frame`).
     """
 
-    def __init__(self, project: "_project.Project", batch: dict, pack_with: Iterable["_wire_obj.Wire"] = ()) -> None:
+    @_check_types.do
+    def __init__(self, project: "_project.Project", batch: dict, pack_with: Iterable["_wire_obj.Wire"] = ()):
         """
         :param batch: ``{wire: WireEnds}`` for every wire that will be routed
             through this frame.
@@ -1532,17 +1560,21 @@ class RoutingFrame:
 
             self._paint(self._stubs[wire], 1)
 
+    @_check_types.do
     def __contains__(self, wire: "_wire_obj.Wire") -> bool:
         return wire in self._ends
 
+    @_check_types.do
     def _paint(self, segments: np.ndarray, delta: int) -> None:
         h_lanes, v_lanes = _prepare_lanes(segments)
         self._router.paint_lanes(_scaled(h_lanes), _scaled(v_lanes), delta)
 
+    @_check_types.do
     def _pack(self, segments: np.ndarray, delta: int) -> None:
         h_lanes, v_lanes = _prepare_lanes(segments)
         self._router.paint_pack(_scaled(h_lanes), _scaled(v_lanes), delta)
 
+    @_check_types.do
     def _node(self, point: tuple[float, float]) -> tuple[int, int]:
         x = round(point[0] * _SCALE)
         z = round(point[1] * _SCALE)
@@ -1557,6 +1589,7 @@ class RoutingFrame:
 
         return i, j
 
+    @_check_types.do
     def route(self, wire: "_wire_obj.Wire") -> list[tuple[float, float]]:
         """
         Route *wire* (one of the batch) and settle it into the grid.
@@ -1649,6 +1682,7 @@ class RoutingFrame:
         return interior
 
 
+@_check_types.do
 def _wire_segments_of(project: "_project.Project", wires: Iterable["_wire_obj.Wire"]) -> np.ndarray:
     """
     The ``(S, 2, 2)`` segments of just *wires* (connected ones), from the pool.
@@ -1665,6 +1699,7 @@ def _wire_segments_of(project: "_project.Project", wires: Iterable["_wire_obj.Wi
     return pool.segments(skip).astype(np.float64)
 
 
+@_check_types.do
 def _static_segments(project: "_project.Project", batch: Container["_wire_obj.Wire"]) -> np.ndarray:
     """
     Every connected wire's ``(S, 2, 2)`` segments except those of *batch*
@@ -1682,6 +1717,7 @@ def _static_segments(project: "_project.Project", batch: Container["_wire_obj.Wi
     return pool.segments(skip).astype(np.float64)
 
 
+@_check_types.do
 def _runs(
     segments: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -1706,6 +1742,7 @@ def _runs(
     return horizontal, lane, lo, hi
 
 
+@_check_types.do
 def _runs_hit_rects(runs: _Runs, rects: np.ndarray) -> bool:
     """
     Whether any of *runs* cuts through the interior of any of *rects* --
@@ -1732,6 +1769,7 @@ def _runs_hit_rects(runs: _Runs, rects: np.ndarray) -> bool:
     return bool(np.where(horizontal, across_h, across_v).any())
 
 
+@_check_types.do
 def _runs_hit_runs(
     runs: _Runs,
     other: _Runs,
@@ -1761,6 +1799,7 @@ def _runs_hit_runs(
     return bool(hit.any())
 
 
+@_check_types.do
 def _path_folds(runs: _Runs, limit: float) -> bool:
     """
     Whether a path's runs come back to run too close and parallel to an
@@ -1802,6 +1841,7 @@ class ShiftJob(NamedTuple):
     stub_length: float
 
 
+@_check_types.do
 def _shift_candidates(
     job: ShiftJob,
     delta: tuple[float, float]
@@ -1859,12 +1899,14 @@ def _shift_candidates(
     if abs(shift) < 1e-9 and abs(advance) < 1e-9:
         return [[]]
 
+    @_check_types.do
     def moved(point: Iterable[float], amount: float, axis: int) -> list[float]:
         new = list(point)
         new[axis] = point[axis] + amount
 
         return new[0], new[1]
 
+    @_check_types.do
     def keeps_direction(before: Iterable[float], after: Iterable[float], target: Iterable[float], axis: int) -> bool:
         # Still runs the same way to *target*, and by more than nothing.
         old = target[axis] - before[axis]
@@ -1908,6 +1950,7 @@ def _shift_candidates(
     return candidates
 
 
+@_check_types.do
 def plan_shift(
     project: "_project.Project",
     jobs: list[ShiftJob],
@@ -1944,6 +1987,7 @@ def plan_shift(
     segments = [static]
     owners = [np.full(static.shape[0], -1)]
 
+    @_check_types.do
     def add(owner: int, points: list[tuple[float, float]]) -> None:
         if len(points) >= 2:
             segments.append(np.array(
@@ -1995,6 +2039,7 @@ def plan_shift(
     return result
 
 
+@_check_types.do
 def build_frame(
     project: "_project.Project",
     batch: dict,
@@ -2013,6 +2058,7 @@ def build_frame(
     return RoutingFrame(project, batch, pack_with)
 
 
+@_check_types.do
 def route(
     project: "_project.Project",
     start: tuple[float, float],

@@ -85,7 +85,7 @@ class PositionPegboardMixin(BaseMixin):
 class PositionPegboardControl(_prop_ctrls.PositionProperty):
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`PositionPegboardControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

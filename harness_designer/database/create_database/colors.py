@@ -95,12 +95,12 @@ def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int, id: int
     """
 
     if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+        id_bytes = _id_generator.generate_global_row_id(con).bytes
     else:
-        id = _id_generator.NIL_UUID.bytes
+        id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute('INSERT INTO colors (id, name, rgb) '
-                'VALUES (?, ?, ?);', (id, name, rgb))
+                'VALUES (?, ?, ?);', (id_bytes, name, rgb))
 
     _logger.database(f'color added "{name}"')
 

@@ -78,7 +78,7 @@ class Wire(_base.AddHandlerBase):
                  part_id: bytes, phase: int, growing_point: _point.Point | None = None,
                  preexisting_wire: bool = False, start_circuit_id: bytes | None = None,
                  extension_mode: bool = False, source_wire: _wire.Wire | None = None,
-                 source_point: _point.Point | None = None) -> None:
+                 source_point: _point.Point | None = None):
 
         super().__init__(canvas, target)
 
@@ -199,6 +199,7 @@ class Wire(_base.AddHandlerBase):
         return False
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_3d.Base3D":
         return obj.obj3d
 

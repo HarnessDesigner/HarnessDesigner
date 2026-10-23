@@ -18,7 +18,7 @@ class BaseConnector:
 
     """Wrap a low-level database connection used by monitor workers.
     """
-    def __init__(self, con: _Union["sqlite3.Connection", "MySQLConnection"], cur: _Union["sqlite3.Cursor", "MySQLCursor"]) -> None:
+    def __init__(self, con: _Union["sqlite3.Connection", "MySQLConnection"], cur: _Union["sqlite3.Cursor", "MySQLCursor"]):
         """Initialize the connection and cursor wrapper.
 
         :param con: Open database connection.
@@ -29,7 +29,7 @@ class BaseConnector:
         self._connection = con
         self._cursor = cur
 
-    def execute(self, cmd: str, params: tuple | None = None) -> None:
+    def execute(self, cmd: str, params: tuple | list | None = None) -> None:
         """Execute a SQL statement with the wrapped cursor.
 
         :param cmd: SQL command string to execute.
@@ -78,7 +78,7 @@ class MySQLConnector(BaseConnector):
 
     """Open a monitor-side connection to a MySQL database.
     """
-    def __init__(self, host: str, port: int, user: str, password: str, database: str) -> None:
+    def __init__(self, host: str, port: int, user: str, password: str, database: str):
         """Initialize the MySQL monitor connector.
 
         :param host: MySQL host name or address.
@@ -130,7 +130,7 @@ class SQLiteConnector(BaseConnector):
 
     """Open a monitor-side connection to a SQLite database.
     """
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str):
         """Initialize the SQLite monitor connector.
 
         :param path: Path to the SQLite database file.

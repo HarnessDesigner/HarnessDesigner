@@ -93,7 +93,7 @@ class Position2DControl(_prop_ctrls.PositionProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`Position2DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

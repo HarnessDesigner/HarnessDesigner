@@ -19,7 +19,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", obj: "_object_base.ObjectBase") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", obj: "_object_base.ObjectBase"):
         """Initialise the :class:`Rotate2DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -82,7 +82,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", obj: "_object_base.ObjectBase") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", obj: "_object_base.ObjectBase"):
         """Initialise the :class:`Mirror2DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -126,7 +126,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "_object_base.ObjectBase") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "_object_base.ObjectBase"):
         """Initialise the :class:`Rotate3DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -235,7 +235,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "_object_base.ObjectBase") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "_object_base.ObjectBase"):
         """Initialise the :class:`Mirror3DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

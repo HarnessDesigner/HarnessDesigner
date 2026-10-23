@@ -150,8 +150,8 @@ class PJTBundleLayoutsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: bytes = None,
-               point_pegboard_id: bytes = None) -> "PJTBundleLayout":
+    def insert(self, point3d_id: bytes | None = None,
+               point_pegboard_id: bytes | None = None) -> "PJTBundleLayout":
         """Create a bundle-layout row marking a waypoint in exactly one
         view -- pass whichever one point id the waypoint was placed in
         (see the class docstring's exclusivity rule); the other stays
@@ -476,7 +476,7 @@ class PJTBundleLayoutControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTBundleLayoutControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

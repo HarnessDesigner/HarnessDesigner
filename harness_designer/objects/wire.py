@@ -47,7 +47,7 @@ class Wire(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_wire.PJTWire", project_load: bool = False) -> None:
+                 db_obj: "_pjt_wire.PJTWire", project_load: bool = False):
         """Initialise the :class:`Wire` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

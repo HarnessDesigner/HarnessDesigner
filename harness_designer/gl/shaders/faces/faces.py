@@ -4,11 +4,13 @@ import os
 from OpenGL import GL
 
 from .. import compiler as _compiler
+from .... import check_types as _check_types
 
 
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 
 
+@_check_types.do
 def compile_program() -> int:
     """
     Compile and link the faces shader program.

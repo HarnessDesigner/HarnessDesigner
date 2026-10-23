@@ -44,8 +44,6 @@ class ManufacturersTable(TableBase):
         from ..create_database import manufacturers
 
         manufacturers.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-        manufacturers.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:

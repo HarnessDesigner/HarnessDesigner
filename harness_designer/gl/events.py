@@ -119,7 +119,7 @@ class _GLEventBase:
     """Common base for all GL event data objects."""
 
     @_check_types.do
-    def __init__(self, type_: str) -> None:
+    def __init__(self, type_: str):
         """Initialise the :class:`_GLEventBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -286,7 +286,7 @@ class GLCameraEvent(_GLEventBase):
         return instance
 
     @_check_types.do
-    def __init__(self, type_: str) -> None:
+    def __init__(self, type_: str):
         super().__init__(type_)
         self._mouse_pos = None
         self._mouse_buttons: int = BTN_NONE
@@ -404,7 +404,7 @@ class GLEvent(_GLEventBase):
     """Mouse-position event on a GL canvas."""
 
     @_check_types.do
-    def __init__(self, type_: str) -> None:
+    def __init__(self, type_: str):
         """Initialise the :class:`GLEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -543,7 +543,7 @@ class GLObjectEvent(_GLEventBase):
     """Mouse interaction with a specific GL object."""
 
     @_check_types.do
-    def __init__(self, type_: str) -> None:
+    def __init__(self, type_: str):
         """Initialise the :class:`GLObjectEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -705,7 +705,7 @@ class GLKeyEvent(_GLEventBase):
     """Keyboard event on a GL canvas."""
 
     @_check_types.do
-    def __init__(self, type_: str) -> None:
+    def __init__(self, type_: str):
         """Initialise the :class:`GLKeyEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

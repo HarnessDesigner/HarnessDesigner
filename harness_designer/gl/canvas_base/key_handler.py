@@ -105,7 +105,7 @@ def _process_key_event(keycode: int, *keys: int) -> int | None:
 class KeyHandler:
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
+    def __init__(self, canvas: "_canvas_base.CanvasBase"):
         """
         Initialise the :class:`KeyHandler` instance.
 
@@ -358,6 +358,7 @@ class KeyHandler:
         if not self._send_event(_events.EVT_GL_KEY_DOWN, evt):
             return
 
+        @_check_types.do
         def add_to_queue(func: Callable[[], None], k: int) -> None:
             with self._key_queue_lock:
                 if func not in self._running_keycodes:

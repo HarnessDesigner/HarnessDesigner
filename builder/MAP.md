@@ -14,7 +14,7 @@ The actual PEP 517 hook module (`build_wheel`/`build_sdist`/`get_requires_for_bu
 
 #### build.py
 
-`build_dependency_installer()`, `build_installer()` — the PyInstaller onedir build driver. `_clean_dist(app_dir)` strips stub `.py`/`.pyi`/`.pyc` files, dead/unreferenced resources, and empty directories from the onedir output after the post-build rename (HD→harness_designer), before installer packaging — it exists because the onedir output contained material that was getting compressed into the installer unnecessarily. Don't confuse this with `prune_dist.py`'s separate, more aggressive pass.
+`build_dependency_installer()`, `build_installer()` — the PyInstaller onedir build driver. `_clean_dist(app_dir)` strips stub `.py`/`.pyi`/`.pyc` files, dead/unreferenced resources, and empty directories from the onedir output after the post-build rename (HD→harness_designer), before installer packaging — it exists because the onedir output contained material that was getting compressed into the installer unnecessarily. Don't confuse this with `prune_dist.py`'s separate, more aggressive pass. `build_dependency_installer()` is a no-op on Linux (prints a message and returns) — Linux has no separate installer process any more, see `builder/scripts/bootstrap.py`; on Windows/macOS it also now bundles `harness_designer/licenses/{LGPLv3,GPLv3,Qt-Commercial-Reference}.txt` into `dep_installer`'s `--onefile` payload via `--add-data`, for its new `--phase pre` license screen.
 
 #### build_native_deps.py
 
@@ -38,7 +38,7 @@ Pure file discovery (`discover_modules()` — walks for plain `.py` modules to c
 
 #### installer.py
 
-`build_windows`/`build_macos`/`build_linux` — per-platform installer packaging (Inno Setup on Windows via `_find_iscc`, codesigning on macOS, `.deb`/shell installer assembly on Linux); `_check_build_outputs()` validates the onedir build exists first.
+`build_windows`/`build_macos`/`build_linux`/`build_deb` — per-platform installer packaging (Inno Setup on Windows via `_find_iscc`, codesigning on macOS, `.deb`/shell installer assembly on Linux); `_check_build_outputs()` validates the onedir build exists first (skips requiring a `dep_installer` binary on Linux, which doesn't build one). `build_deb()`'s `_PREINST_SH` is a plain-text (no GUI, Debian-policy-compliant) check that the app isn't currently running, run before `dpkg` unpacks the new files; `_LAUNCHER_SH` is a plain `exec` launcher (PySide6 installs itself from inside the main app now, see `builder/scripts/bootstrap.py`, not a separate first-launch wrapper).
 
 #### msvc_env.py
 

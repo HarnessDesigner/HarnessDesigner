@@ -143,7 +143,7 @@ class Seal(_base.AddHandlerBase):
                  housing: _housing.Housing | None, terminal: _terminal.Terminal | None,
                  cavity: _Union["_cavity.Cavity", None], is_instant: bool,
                  snap_targets: list[_Union[_housing.Housing, _terminal.Terminal, "_cavity.Cavity"]],
-                 is_dummy_pin: bool) -> None:
+                 is_dummy_pin: bool):
 
         super().__init__(canvas, target)
 

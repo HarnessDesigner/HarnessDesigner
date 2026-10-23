@@ -19,7 +19,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     valueChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', choices: list[str] | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', choices: list[str] | None = None):
         """Initialise the :class:`ChoiceCtrl` instance.
 
         :param parent: Parent widget.

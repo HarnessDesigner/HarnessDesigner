@@ -56,8 +56,8 @@ class UsedPartsTable(TableBase):
         return [UsedPart(self, row[0]) for row in rows]
 
     @_check_types.do
-    def insert(self, housing_id: bytes, tpa_lock_id: bytes = None, cpa_lock_id: bytes = None,
-               cover_id: bytes = None, terminal_id: bytes = None) -> "UsedPart":
+    def insert(self, housing_id: bytes, tpa_lock_id: bytes | None = None, cpa_lock_id: bytes | None = None,
+               cover_id: bytes | None = None, terminal_id: bytes | None = None) -> "UsedPart":
         db_id = TableBase.insert(
             self, housing_id=housing_id, tpa_lock_id=tpa_lock_id,
             cpa_lock_id=cpa_lock_id, cover_id=cover_id, terminal_id=terminal_id)

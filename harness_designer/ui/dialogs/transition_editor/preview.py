@@ -44,7 +44,7 @@ class PreviewTransition(_ObjectBase):
     obj3d: "PreviewTransition3D" = None
 
     @_check_types.do
-    def __init__(self, dialog: "_dialog.TransitionEditorDialog", part: "_g_transition.Transition") -> None:
+    def __init__(self, dialog: "_dialog.TransitionEditorDialog", part: "_g_transition.Transition"):
         super().__init__(dialog, None)
         self.dialog = dialog
         self.obj3d = PreviewTransition3D(self, part)
@@ -71,7 +71,7 @@ class PreviewTransition3D(_transition_3d.Transition):
     """
 
     @_check_types.do
-    def __init__(self, parent: PreviewTransition, part: "_g_transition.Transition") -> None:
+    def __init__(self, parent: PreviewTransition, part: "_g_transition.Transition"):
         self._part = part
         self.branch_count = part.branch_count
 

@@ -8,10 +8,6 @@ Package init; no real logic of its own.
 
 `ConnectorBase` — abstract base wrapping a `con`+`cursor` pair, the common surface both concrete connectors (`mysql_connector/`, `sqlite_connector/`) implement.
 
-#### db_data.py
-
-`DBData` — helpers for downloading and unpacking bundled database seed data.
-
 ## FOLDERS
 
 #### mysql_connector/

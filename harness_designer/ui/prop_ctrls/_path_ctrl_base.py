@@ -14,7 +14,7 @@ class PathCtrl(QtWidgets.QWidget):
     pathChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, path: str, wildcard: str = '', http_browse: bool = True) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, path: str, wildcard: str = '', http_browse: bool = True):
         """
         Initialise the :class:`PathCtrl` instance.
 

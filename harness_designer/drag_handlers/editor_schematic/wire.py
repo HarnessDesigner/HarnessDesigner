@@ -172,13 +172,14 @@ class WireSegmentDragPlan:
         'layout_near', 'layout_far', 'waypoint_near', 'waypoint_far',
         'waypoint_before', 'waypoint_after', 'layout_before', 'layout_after')
 
+    @_check_types.do
     def __init__(self, p_before: _point.Point, p_near: _point.Point, p_far: _point.Point,
                 p_after: _point.Point, horizontal: bool,
                 layout_near: _Union["_wire_layout_obj.WireLayout", None], layout_far: _Union["_wire_layout_obj.WireLayout", None],
                 waypoint_near: "_pjt_point2d.PJTPoint2D", waypoint_far: "_pjt_point2d.PJTPoint2D",
                 waypoint_before: _Union["_pjt_point2d.PJTPoint2D", None] = None,
                 waypoint_after: _Union["_pjt_point2d.PJTPoint2D", None] = None,
-                layout_before: _Union["_wire_layout_obj.WireLayout", None] = None, layout_after: _Union["_wire_layout_obj.WireLayout", None] = None) -> None:
+                layout_before: _Union["_wire_layout_obj.WireLayout", None] = None, layout_after: _Union["_wire_layout_obj.WireLayout", None] = None):
         self.p_before = p_before
         self.p_near = p_near
         self.p_far = p_far
@@ -208,6 +209,7 @@ def _find_layout(project: "_project.Project", point: _point.Point) -> _Union["_w
     return None
 
 
+@_check_types.do
 def _chain_points(wire: "_wire_obj.Wire") -> tuple[list[_point.Point], list["_pjt_point2d.PJTPoint2D"]]:
     """*wire*'s own live 2D path, start to stop, as ``(points, waypoints)``
     -- ``points`` is every live Point along it (true start, each interior
@@ -224,6 +226,7 @@ def _chain_points(wire: "_wire_obj.Wire") -> tuple[list[_point.Point], list["_pj
     return points, waypoints
 
 
+@_check_types.do
 def _segment_plan_at(wire: "_wire_obj.Wire", points: list[_point.Point],
                       waypoints: list["_pjt_point2d.PJTPoint2D"], i: int) -> WireSegmentDragPlan | None:
     """Build the :class:`WireSegmentDragPlan` for *wire*'s segment
@@ -273,6 +276,7 @@ def _segment_plan_at(wire: "_wire_obj.Wire", points: list[_point.Point],
 _END_TOL = 1e-6
 
 
+@_check_types.do
 def _end_jog_points(wire: "_wire_obj.Wire", end: str, p_end: tuple[float, float],
                     p_next: tuple[float, float]) -> tuple[list[tuple[float, float]], float] | None:
     """The new waypoints (all at the same spot) that give the run leaving
@@ -419,6 +423,7 @@ def plan_wire_segment_drag(wire: "_wire_obj.Wire", world_click: tuple[float, flo
     return _plan_end_segment_drag(wire, points, best_i)
 
 
+@_check_types.do
 def _pushable_segment_plan(wire: "_wire_obj.Wire", seg_index: int) -> WireSegmentDragPlan | None:
     """The push-eligible plan for *wire*'s segment #*seg_index* (0-based,
     the edge from its chain's point *seg_index* to point *seg_index + 1*)
@@ -434,6 +439,7 @@ def _pushable_segment_plan(wire: "_wire_obj.Wire", seg_index: int) -> WireSegmen
     return _segment_plan_at(wire, points, waypoints, seg_index)
 
 
+@_check_types.do
 def _find_blocking_wire(project: "_project.Project", exclude_wires: frozenset["_wire_obj.Wire"],
                          edge_p1: tuple[float, float], edge_p2: tuple[float, float]
                          ) -> tuple["_wire_obj.Wire", int, tuple[float, float], tuple[float, float]] | None:
@@ -489,6 +495,7 @@ def _find_blocking_wire(project: "_project.Project", exclude_wires: frozenset["_
     return None
 
 
+@_check_types.do
 def _attempt_push(project: "_project.Project", wire: "_wire_obj.Wire", seg_index: int,
                   candidate_lane: float, sign: float, horizontal: bool,
                   exclude_wires: frozenset["_wire_obj.Wire"],
@@ -573,7 +580,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-                plan: WireSegmentDragPlan) -> None:
+                plan: WireSegmentDragPlan):
         super().__init__(canvas, target)
 
         self._plan = plan
@@ -642,6 +649,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
         project = self.canvas.mainframe.project
 
+        @_check_types.do
         def _candidate_edges(value: float) -> tuple[tuple[float, float], tuple[float, float],
                                                      tuple[float, float], tuple[float, float]]:
             if plan.horizontal:
@@ -725,6 +733,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
             self._collapsed_far = collapsed_far
 
+    @_check_types.do
     def _maybe_reroute_past(self, project: "_project.Project", candidate: float) -> None:
         """Once a push has failed outright, give up on this interactive
         segment-drag and ask the auto-router for a whole fresh path
@@ -749,6 +758,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
             _wire_reroute.reroute_wire(project, self.target)
             self._rerouted = True
 
+    @_check_types.do
     def _maybe_partial_jog(self, project: "_project.Project", candidate: float, along: float,
                             blocker: tuple["_wire_obj.Wire", int, tuple[float, float], tuple[float, float]]
                             ) -> bool:

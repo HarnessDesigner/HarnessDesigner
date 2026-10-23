@@ -41,7 +41,7 @@ class Splash:
     """
 
     @_check_types.do
-    def __init__(self, args: list[str], logger: "_logger.Log") -> None:
+    def __init__(self, args: list[str], logger: "_logger.Log"):
         """
         Create and display the splash screen.
 

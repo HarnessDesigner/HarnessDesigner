@@ -42,10 +42,13 @@ import queue
 import threading
 import types
 
+from . import check_types as _check_types
+
 
 class OCPThreadTask:
 
-    def __init__(self, func: Callable, *args: tuple[Any], **kwargs: dict[str, Any]) -> None:
+    @_check_types.do
+    def __init__(self, func: Callable, *args: tuple[Any], **kwargs: dict[str, Any]):
         self._func = func
         self._args = args
         self._kwargs = kwargs
@@ -54,13 +57,16 @@ class OCPThreadTask:
         self._lock.acquire()
         self._result = None
 
+    @_check_types.do
     def __enter__(self) -> None:
         self._lock.acquire()
 
+    @_check_types.do
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
                  exc_tb: types.TracebackType | None) -> None:
         self._lock.release()
 
+    @_check_types.do
     def __call__(self) -> None:
         try:
             self._result = self._func(*self._args, **self._kwargs)
@@ -70,22 +76,26 @@ class OCPThreadTask:
         self._lock.release()
 
     @property
+    @_check_types.do
     def result(self) -> object:
         return self._result
 
     @property
+    @_check_types.do
     def exception(self) -> Exception | None:
         return self._exception
 
 
 class _OCPThreadWorker(threading.Thread):
 
-    def __init__(self) -> None:
+    @_check_types.do
+    def __init__(self):
         super().__init__(name='OCP Access Thread')
         self.daemon = True
         self._queue = queue.Queue()
         self._exit_event = threading.Event()
 
+    @_check_types.do
     def add(self, func: Callable, *args: tuple[Any], **kwargs: dict[str, Any]) -> object:
         worker = OCPThreadTask(func, *args, **kwargs)
         self._queue.put_nowait(worker)
@@ -98,12 +108,14 @@ class _OCPThreadWorker(threading.Thread):
 
         return worker.result
 
+    @_check_types.do
     def run(self) -> None:
         while not self._exit_event.is_set():
             worker = self._queue.get(True)
             if worker is not None:
                 worker()
 
+    @_check_types.do
     def stop(self) -> None:
         self._exit_event.set()
         self._queue.put(None)
@@ -117,8 +129,10 @@ OCPThreadWorker = _OCPThreadWorker()
 OCPThreadWorker.start()
 
 
+@_check_types.do
 def ocp_thread(func: Callable) -> Callable:
 
+    @_check_types.do
     def _wrapper(*args: tuple[Any], **kwargs: dict[str, Any]) -> object:
         res = OCPThreadWorker.add(func, *args, **kwargs)
         return res

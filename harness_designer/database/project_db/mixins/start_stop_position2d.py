@@ -162,7 +162,7 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`StartStopPosition2DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

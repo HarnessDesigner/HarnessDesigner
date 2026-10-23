@@ -65,7 +65,7 @@ class _ScraperPage(QtWebEngineCore.QWebEnginePage):
     openRequested = QtCore.Signal(QtCore.QUrl)
 
     @_check_types.do
-    def __init__(self, profile: QtWebEngineCore.QWebEngineProfile, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, profile: QtWebEngineCore.QWebEngineProfile, parent: QtCore.QObject | None = None):
         super().__init__(profile, parent)
         self.permissionRequested.connect(self._deny)
 
@@ -158,7 +158,7 @@ class BrowserWidget(QtWidgets.QWidget):
     messageRaised = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, storage_path: str | None = None, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, storage_path: str | None = None, parent: QtWidgets.QWidget | None = None):
         """
         :param storage_path: Folder for cookies and cache, so logins
             survive between sessions. ``None`` browses privately: nothing

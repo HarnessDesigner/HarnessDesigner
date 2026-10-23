@@ -27,7 +27,7 @@ class Overlay(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, config: _config.Config.editor_3d.axis_overlay) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, config: _config.Config.editor_3d.axis_overlay):
         """
         Initialise the :class:`Overlay` instance.
 
@@ -166,7 +166,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: Overlay, size: tuple[int, int] = (-1, -1)) -> None:
+    def __init__(self, parent: Overlay, size: tuple[int, int] = (-1, -1)):
         """
         Initialise the :class:`GLOverlay` instance.
 

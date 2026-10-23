@@ -41,6 +41,7 @@ import build123d
 from ..shapes import text as _text
 from .. import config as _config
 from .. import utils as _utils
+from .. import check_types as _check_types
 
 
 Config = _config.Config
@@ -55,6 +56,7 @@ class CavityStackGeometry(NamedTuple):
     text_padding: float
 
 
+@_check_types.do
 def compute_stack_geometry(num_cavities: int) -> CavityStackGeometry:
     """
     Derive a housing's font-size-driven per-cavity slot height and
@@ -100,6 +102,7 @@ class CavityGeometry(NamedTuple):
     term_text_width: float
     text_padding: float
 
+    @_check_types.do
     def point_at_180(self, point: tuple[float, float]) -> tuple[float, float]:
         """Where a housing-local *point* of this cavity (its own name
         anchor, bracket, cylinder start/stop -- anything laid out inside
@@ -122,6 +125,7 @@ class CavityGeometry(NamedTuple):
         """
         return -point[0], point[1] - (2.0 * self.position[1])
 
+    @_check_types.do
     def z_shift_at_180(self, point_z: float) -> float:
         """How far a point at housing-local *point_z*, already rotated 180
         degrees about the housing's center, has to move in Z to be where
@@ -133,6 +137,7 @@ class CavityGeometry(NamedTuple):
         return 2.0 * (point_z - self.position[1])
 
 
+@_check_types.do
 def is_180(degrees: float) -> bool:
     """Whether *degrees* (a housing's own ``angle2d.y``) is the 180
     special case -- see :meth:`CavityGeometry.point_at_180`.
@@ -140,6 +145,7 @@ def is_180(degrees: float) -> bool:
     return round(abs(degrees)) % 360 == 180
 
 
+@_check_types.do
 def compute_housing_cavity_geometry(
     cavity_names: list[str]
 ) -> list[CavityGeometry]:

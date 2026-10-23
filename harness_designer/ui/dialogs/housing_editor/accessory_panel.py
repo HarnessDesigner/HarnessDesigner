@@ -24,7 +24,7 @@ class AccessoryPanel(QtWidgets.QTabWidget):
     @_check_types.do
     def __init__(self, dialog: "_housing_editor.HousingEditorDialog",
                  panel: QtWidgets.QTabWidget,
-                 housing: _housing_obj.Housing3D) -> None:
+                 housing: _housing_obj.Housing3D):
         """Initialise the :class:`AccessoryPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

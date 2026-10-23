@@ -26,7 +26,7 @@ class Note(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_note.PJTNote", project_load: bool = False) -> None:
+                 db_obj: "_pjt_note.PJTNote", project_load: bool = False):
         """Initialise the :class:`Note` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

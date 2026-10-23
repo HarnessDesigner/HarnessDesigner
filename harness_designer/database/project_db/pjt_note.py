@@ -506,7 +506,7 @@ class PJTNoteControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.db_obj.style = value
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTNoteControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

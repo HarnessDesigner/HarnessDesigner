@@ -170,14 +170,14 @@ def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, descriptio
     """
 
     if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+        id_bytes = _id_generator.generate_global_row_id(con).bytes
     else:
-        id = _id_generator.NIL_UUID.bytes
+        id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute(
         'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-        (id, name, description, address, contact_person, phone, ext, email, website)
+        (id_bytes, name, description, address, contact_person, phone, ext, email, website)
         )
 
     _logger.database(f'manufacturer added "{name}"')

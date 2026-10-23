@@ -17,7 +17,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None):
         """
         Initialise the :class:`AutocompleteStringProperty` instance.
 

@@ -3,7 +3,7 @@
 """Quaternion math used by :mod:`harness_designer.geometry.angle`."""
 
 from typing import TYPE_CHECKING
-from typing import Self, Any, Union as _Union
+from typing import Self as _Self, Any, Union as _Union
 from collections.abc import Iterable
 
 import math
@@ -62,19 +62,19 @@ class Quaternion:
 
                 # __imatmul__
                 else:
-                    out = out[0]
+                    out_arr = out[0]
 
-                    shape = out.shape
+                    shape = out_arr.shape
                     if len(shape) == 1:
-                        out = out.reshape(-1, 3)
+                        out_arr = out_arr.reshape(-1, 3)
 
-                    t = np.cross(qvec, out)  # NOQA
-                    out += (2.0 * w * t) + (2.0 * np.cross(qvec, t))  # NOQA
+                    t = np.cross(qvec, out_arr)  # NOQA
+                    out_arr += (2.0 * w * t) + (2.0 * np.cross(qvec, t))  # NOQA
 
                     if len(shape) == 1:
-                        out = out.reshape(-1)
+                        out_arr = out_arr.reshape(-1)
 
-                    return out
+                    return out_arr
 
         if func == np.add:
             # numpy array is left hand and class instance is right hand
@@ -89,14 +89,14 @@ class Quaternion:
 
                 # __iadd__
                 else:
-                    out = out[0]
+                    out_arr = out[0]
 
-                    if out.shape == (4,):
-                        q = Quaternion(q=out)
+                    if out_arr.shape == (4,):
+                        q = Quaternion(q=out_arr)
                         q += self
-                        out[:] = q.as_numpy
+                        out_arr[:] = q.as_numpy
 
-                        return out
+                        return out_arr
 
         if func == np.subtract:
             # numpy array is left hand and class instance is right hand
@@ -110,12 +110,12 @@ class Quaternion:
                         return q.as_numpy
                 # __isub__
                 else:
-                    out = out[0]
-                    if out.shape == (4,):
-                        q = Quaternion(q=out)
+                    out_arr = out[0]
+                    if out_arr.shape == (4,):
+                        q = Quaternion(q=out_arr)
                         q -= self
-                        out[:] = q.as_numpy
-                        return out
+                        out_arr[:] = q.as_numpy
+                        return out_arr
 
         raise RuntimeError
 
@@ -143,7 +143,7 @@ class Quaternion:
         self._data[3] = z
 
     @_check_types.do
-    def __enter__(self) -> Self:
+    def __enter__(self) -> _Self:
         """
         Enter a mutation block before re-normalization.
 
@@ -173,7 +173,7 @@ class Quaternion:
 
     @_check_types.do
     def __init__(self, w: float | None = None, x: float | None = None, y: float | None = None,
-                 z: float | None = None, q: np.ndarray | None = None) -> None:
+                 z: float | None = None, q: np.ndarray | None = None):
         """
         Create and normalize a quaternion.
 
@@ -341,7 +341,7 @@ class Quaternion:
         return _d(w), _d(x), _d(y), _d(z)
 
     @_check_types.do
-    def __isub__(self, other: "Quaternion") -> Self:
+    def __isub__(self, other: "Quaternion") -> _Self:
         """
         Subtract ``other`` from this quaternion in place.
 
@@ -405,7 +405,7 @@ class Quaternion:
         return Quaternion(q=q)
 
     @_check_types.do
-    def __iadd__(self, other: "Quaternion") -> Self:
+    def __iadd__(self, other: "Quaternion") -> _Self:
         """
         Compose this quaternion with ``other`` in place.
 
@@ -450,7 +450,7 @@ class Quaternion:
         return self.__mul(self, other)
 
     @_check_types.do
-    def __itruediv__(self, other: "Quaternion") -> Self:
+    def __itruediv__(self, other: "Quaternion") -> _Self:
         """
         Divide quaternion components in place.
 

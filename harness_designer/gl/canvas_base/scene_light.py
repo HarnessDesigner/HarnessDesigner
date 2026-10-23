@@ -19,7 +19,7 @@ class SceneLight:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
+    def __init__(self, canvas: "_canvas_base.CanvasBase"):
         """
         Initialise the :class:`SceneLight` instance.
 

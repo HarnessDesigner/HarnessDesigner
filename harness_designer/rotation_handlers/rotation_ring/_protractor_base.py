@@ -111,7 +111,8 @@ class _Tick:
     __slots__ = ('degrees', 'is_major', 'tick_len', 'scale',
                  'position', 'mesh_rotation', 'label', 'label_position')
 
-    def __init__(self, degrees: float, is_major: bool, label: _text.Text | None) -> None:
+    @_check_types.do
+    def __init__(self, degrees: float, is_major: bool, label: _text.Text | None):
         self.degrees = degrees
         self.is_major = is_major
         self.tick_len = 0.0
@@ -179,7 +180,7 @@ class ProtractorRingBase:
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material: _materials.GLMaterial,
                  label_size: float, context: "_gl_context.GLContext", camera: _camera_base.CameraBase | None = None,
-                 labels_outward: bool = True, local_tilt: _angle.Angle | None = None) -> None:
+                 labels_outward: bool = True, local_tilt: _angle.Angle | None = None):
 
         self.axis = axis
         self.center = center
@@ -732,6 +733,7 @@ class ProtractorRingBase:
 
         raise NotImplementedError
 
+    @_check_types.do
     def _get_label_color(self) -> tuple[float, float, float, float]:
         raise NotImplementedError
 

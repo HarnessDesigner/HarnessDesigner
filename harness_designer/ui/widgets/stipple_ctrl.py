@@ -39,7 +39,7 @@ class StippleEditor(QtWidgets.QWidget):
     _C_BG = QtGui.QColor(28,  28,  28)
 
     @_check_types.do
-    def __init__(self, value: int = 0, parent: QtWidgets.QWidget = None) -> None:
+    def __init__(self, value: int = 0, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
 
         self._value = int(value) & 0xFFFFFFFF
@@ -151,7 +151,7 @@ class StippleEditor(QtWidgets.QWidget):
 class StippleCtrl(QtWidgets.QWidget):
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
 
         sizer = QtWidgets.QVBoxLayout(self)

@@ -28,7 +28,7 @@ Cython-compiled, so `df` has no Python frame to be a local of, and pandas 3.x's 
 misattributes a spurious `ChainedAssignmentError` to an unrelated pure-Python frame below it. `Log` (also in
 this file) is the application logger that routes `print`/`info`/`debug`/etc. calls into `LogHandler` entries
 and owns the `redirect.py` stdout/stderr wrappers; `startup()` writes the one-time GL/machine-info banner
-block read from `..gl.info`.
+block read from `..gl.info`. **Skeleton-generator mode:** PyCharm builds stubs by importing every compiled module in the project interpreter, each in a throwaway worker process named `Skeleton Generator Worker` (so an installed copy of this package is imported without the app ever starting). `Log.__init__` compares `multiprocessing.current_process().name` with `utils.SKELETON_WORKER_NAME` and, there, uses `NullLogHandler` (every method a no-op) instead of `LogHandler`, and skips the `redirect.StdOut`/`StdErr` wrappers. A no-op stand-in is needed rather than just not starting the thread: `LogHandler.__init__` itself creates the log folder, finalizes leftover `pending` files and opens a new one, and an unstarted handler's `flush()` blocks forever (so the first `error()` call would hang).
 
 #### redirect.py
 

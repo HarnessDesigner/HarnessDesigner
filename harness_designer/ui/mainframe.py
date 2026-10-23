@@ -70,6 +70,7 @@ class MainFrame(QtWidgets.QMainWindow):
     _project_opened: bool = False
 
     @property
+    @_check_types.do
     def project(self) -> "_project.Project":
 
         while self._project is None:
@@ -78,6 +79,7 @@ class MainFrame(QtWidgets.QMainWindow):
         return self._project
 
     @project.setter
+    @_check_types.do
     def project(self, value: _Union["_project.Project", None]) -> None:
         self._project = value
 
@@ -101,7 +103,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.editor3d.editor.camera.position.x += 0.000001
 
     @_check_types.do
-    def __init__(self, splash: "_splash.Splash", logger: "_logger.Log") -> None:
+    def __init__(self, splash: "_splash.Splash", logger: "_logger.Log"):
         """
         Initialise the :class:`MainFrame` instance.
 
@@ -192,7 +194,7 @@ class MainFrame(QtWidgets.QMainWindow):
         # Programmatic selection (tree view, "Select" menu action, etc.)
         # leaves this None, so all three viewers still center on it as
         # before.
-        self._selection_source_editor: str = None
+        self._selection_source_editor: str | None = None
 
         # ------------------------------------------------------------------
         # Docking setup
@@ -552,7 +554,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.progress_bar.hide()
 
     @_check_types.do
-    def set_progress(self, value: int, label: str = None) -> None:
+    def set_progress(self, value: int, label: str | None = None) -> None:
         """
         Set the progress.
 
@@ -3464,6 +3466,7 @@ class MainFrame(QtWidgets.QMainWindow):
         :type project: :class:`_project.Project`
         """
 
+        @_check_types.do
         def _extent_value(view: "_bounds.View") -> list[list[float]] | None:
             extent = view.aabb.extent()
             if extent is None:

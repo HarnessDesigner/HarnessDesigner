@@ -112,7 +112,7 @@ class _BuildWorker(QtCore.QObject):
     progress: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, db: "_project_db.PJTTables") -> None:
+    def __init__(self, db: "_project_db.PJTTables"):
         """Initialise the :class:`_BuildWorker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -319,7 +319,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
     cell_edited: QtCore.SignalInstance = QtCore.Signal(int, int, object)
 
     @_check_types.do
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None):
         """Initialise the :class:`CircuitTableModel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -663,7 +663,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None):
         """Initialise the :class:`CircuitFilterProxy` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -982,7 +982,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         """Initialise the :class:`CircuitDetailPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1240,7 +1240,7 @@ class CircuitTableView(QtWidgets.QTableView):
 
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
-                 parent: QtWidgets.QWidget | None = None) -> None:
+                 parent: QtWidgets.QWidget | None = None):
         """Initialise the :class:`CircuitTableView` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1338,7 +1338,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorCircuitPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

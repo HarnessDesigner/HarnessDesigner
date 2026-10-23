@@ -128,7 +128,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: _Union["QtWidgets.QWidget", None] = None) -> None:
+    def __init__(self, parent: _Union["QtWidgets.QWidget", None] = None):
         """Initialise the :class:`Canvas` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

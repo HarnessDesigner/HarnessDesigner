@@ -151,9 +151,9 @@ def convert_model_to_mesh(model: "build123d.Shape", lin_deflection: float = 0.00
             offset += node_count
 
         vertices = np.array(vertices, dtype=np.float32)
-        faces = np.array(faces, dtype=np.int32)
+        faces_array = np.array(faces, dtype=np.int32)
     finally:
         if gc_was_enabled:
             gc.enable()
 
-    return vertices, faces
+    return vertices, faces_array

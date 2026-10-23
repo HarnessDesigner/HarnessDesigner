@@ -382,7 +382,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.max_mm2_ctrl.SetValue(self.db_obj.wire_size_cross_max)
     
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`WireSizeControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

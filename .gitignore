@@ -227,3 +227,4 @@ __marimo__/
 /scratches/
 /routing_test/
 /.claude/
+/type_audit.sqlite3*

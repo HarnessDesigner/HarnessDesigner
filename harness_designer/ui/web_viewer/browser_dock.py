@@ -25,7 +25,7 @@ class ScraperBrowserPanel(QtWidgets.QWidget):
     """The browser and the inspector, wired together."""
 
     @_check_types.do
-    def __init__(self, storage_path: str | None, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, storage_path: str | None, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
 
         self.browser = _browser_widget.BrowserWidget(storage_path, self)
@@ -72,7 +72,7 @@ class ScraperBrowser(_dock_base.DockBase):
     application start (see SCRAPER_DESIGN.md)."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         storage = os.path.join(_paths.get_appdata(), 'scraper', 'browser_profile')
         self._ui_obj = ScraperBrowserPanel(storage, mainframe)
         super().__init__(mainframe, 'Web Browser', 'scraper_browser',

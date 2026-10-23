@@ -12,7 +12,7 @@ class _ArrayDialog(QtWidgets.QDialog):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
                  values: list[float] | list[int] | list[str],
-                 title: str = 'Modify Array') -> None:
+                 title: str = 'Modify Array'):
         """Initialise the :class:`_ArrayDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -35,7 +35,7 @@ class Camera(_camera_base.CameraBase):
     is_top_down: bool = True
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas") -> None:
+    def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`Camera2D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

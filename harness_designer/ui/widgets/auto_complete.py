@@ -9,7 +9,7 @@ class _AutoCompleter:
     """Pure-Python autocomplete state machine, shared by all widget wrappers."""
 
     @_check_types.do
-    def __init__(self, choices: list[str]) -> None:
+    def __init__(self, choices: list[str]):
         """Initialise the :class:`_AutoCompleter` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -109,7 +109,7 @@ class AutoComplete(QtWidgets.QLineEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, value: str = '', autocomplete_choices: list[str] | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, value: str = '', autocomplete_choices: list[str] | None = None):
         """Initialise the :class:`AutoComplete` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

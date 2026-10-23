@@ -3,7 +3,7 @@
 """Angle wrappers that combine Euler angles and quaternions."""
 
 from typing import TYPE_CHECKING
-from typing import Self, Any, Union as _Union
+from typing import Self as _Self, Any, Union as _Union
 from collections.abc import Callable, Iterable
 
 import math
@@ -126,9 +126,9 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
                     return inputs @ self._q
                 # __imatmul__
                 else:
-                    out = out[0]
-                    out @= self._q
-                    return out
+                    out_arr = out[0]
+                    out_arr @= self._q
+                    return out_arr
 
         if func == np.add:
             # numpy array is left hand and class instance is right hand
@@ -153,28 +153,28 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
                         return angle.as_matrix_numpy
                 # __iadd__
                 else:
-                    out = out[0]
+                    out_arr = out[0]
 
                     # euler angle array
-                    if out.shape == (3,):
+                    if out_arr.shape == (3,):
                         # arr = np.array(self.as_float, dtype=np.float32)
-                        angle = self.from_euler(*[float(str(v)) for v in out.tolist()])
+                        angle = self.from_euler(*[float(str(v)) for v in out_arr.tolist()])
                         angle += self
-                        out[:] = angle.as_euler_numpy
-                        return out
+                        out_arr[:] = angle.as_euler_numpy
+                        return out_arr
                     # quat array
-                    elif out.shape == (4,):
-                        angle = self.from_quat([float(str(v)) for v in out.tolist()])
+                    elif out_arr.shape == (4,):
+                        angle = self.from_quat([float(str(v)) for v in out_arr.tolist()])
                         angle += self
-                        out[:] = angle.as_quat_numpy
-                        return out
+                        out_arr[:] = angle.as_quat_numpy
+                        return out_arr
 
                     # we assume this is a matrix array
                     else:
-                        angle = self.from_matrix(out)
+                        angle = self.from_matrix(out_arr)
                         angle += self
-                        out[:] = angle.as_matrix_numpy
-                        return out
+                        out_arr[:] = angle.as_matrix_numpy
+                        return out_arr
 
         if func == np.subtract:
             # numpy array is left hand and class instance is right hand
@@ -200,35 +200,35 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
                 # __isub__
                 else:
-                    out = out[0]
+                    out_arr = out[0]
 
                     # euler angle array
-                    if out.shape == (3,):
+                    if out_arr.shape == (3,):
                         # arr = np.array(self.as_float, dtype=np.float32)
-                        angle = self.from_euler(*[float(str(v)) for v in out.tolist()])
+                        angle = self.from_euler(*[float(str(v)) for v in out_arr.tolist()])
                         angle -= self
-                        out[:] = angle.as_euler_numpy
-                        return out
+                        out_arr[:] = angle.as_euler_numpy
+                        return out_arr
                     # quat array
-                    elif out.shape == (4,):
-                        angle = self.from_quat([float(str(v)) for v in out.tolist()])
+                    elif out_arr.shape == (4,):
+                        angle = self.from_quat([float(str(v)) for v in out_arr.tolist()])
                         angle -= self
-                        out[:] = angle.as_quat_numpy
-                        return out
+                        out_arr[:] = angle.as_quat_numpy
+                        return out_arr
 
                     # we assume this is a matrix array
                     else:
-                        angle = self.from_matrix(out)
+                        angle = self.from_matrix(out_arr)
                         angle -= self
-                        out[:] = angle.as_matrix_numpy
-                        return out
+                        out_arr[:] = angle.as_matrix_numpy
+                        return out_arr
 
         raise RuntimeError
 
     @_check_types.do
     def __init__(self, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: bytes | None = None) -> None:
+                 db_id: bytes | None = None):
         """
         Create an angle.
 
@@ -456,8 +456,8 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         """
 
         if isinstance(other, Angle):
-            quat = other.as_quat_numpy
-            quat = _quaternion.Quaternion(q=quat)
+            quat_arr = other.as_quat_numpy
+            quat = _quaternion.Quaternion(q=quat_arr)
 
         elif isinstance(other, np.ndarray):
             if other.shape == (4,):
@@ -491,7 +491,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
                 self._matrix[i][j] = matrix[i][j]
 
     @_check_types.do
-    def __iadd__(self, other: _Union["Angle", np.ndarray]) -> Self:
+    def __iadd__(self, other: _Union["Angle", np.ndarray]) -> _Self:
         """
         Compose this angle with ``other`` in place.
 
@@ -554,7 +554,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self.from_quat(q)
 
     @_check_types.do
-    def __isub__(self, other: _Union["Angle", np.ndarray]) -> Self:
+    def __isub__(self, other: _Union["Angle", np.ndarray]) -> _Self:
         """
         Subtract ``other`` from this angle in place.
 
@@ -706,8 +706,8 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :rtype: bool
         """
 
-        other = other.as_quat_numpy
-        return all(np.isclose(other, self.as_quat_numpy))
+        other_arr = other.as_quat_numpy
+        return all(np.isclose(other_arr, self.as_quat_numpy))
 
     @_check_types.do
     def __ne__(self, other: "Angle") -> bool:

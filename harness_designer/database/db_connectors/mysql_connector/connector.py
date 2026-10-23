@@ -51,7 +51,7 @@ class LoginDialog(QtWidgets.QDialog):
     """Collect MySQL login credentials from the user.
     """
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Build the MySQL login dialog widgets.
 
         :param parent: Parent Qt widget for the login dialog.
@@ -136,7 +136,7 @@ class SQLConnector(_base.ConnectorBase):
     Implement database access through :mod:`mysql.connector`.
     """
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialize the MySQL connector state.
 

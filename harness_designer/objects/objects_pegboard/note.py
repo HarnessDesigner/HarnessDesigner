@@ -46,7 +46,7 @@ class Note(_base_pegboard.BasePegboard):
     _vbo: _text.Text | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote") -> None:
+    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
         """Initialise the :class:`Note` instance.
 
         :param parent: Parent object.
@@ -114,6 +114,7 @@ class Note(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

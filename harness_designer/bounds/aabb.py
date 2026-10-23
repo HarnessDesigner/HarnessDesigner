@@ -11,7 +11,8 @@ class AABB(_array_pool.ArrayPool):
     ``row[0]`` the min corner and ``row[1]`` the max corner.
     """
 
-    def __init__(self) -> None:
+    @_check_types.do
+    def __init__(self):
         super().__init__([[0.0] * 3] * 2)
 
     @_check_types.do

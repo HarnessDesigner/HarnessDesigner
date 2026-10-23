@@ -152,7 +152,7 @@ def add_boot(con: "_connector_base.ConnectorBase", part_number: str, description
 
     protection_id = _protections.get_protection_id(con, protection)
 
-    compat_housings = (', '.join(compat_housings))
+    compat_housings_str = (', '.join(compat_housings))
 
     new_id = _id_generator.generate_global_row_id(con).bytes
     con.execute('INSERT INTO boots (id, part_number, description, mfg_id, family_id, '
@@ -163,7 +163,7 @@ def add_boot(con: "_connector_base.ConnectorBase", part_number: str, description
                 (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  material_id, direction_id, image_id, datasheet_id, cad_id, min_temp_id,
                  max_temp_id, model3d_id, length, width, height, weight,
-                 compat_housings, min_dia, max_dia, protection_id))
+                 compat_housings_str, min_dia, max_dia, protection_id))
 
     _logger.database(f'boot added "{part_number}"')
 

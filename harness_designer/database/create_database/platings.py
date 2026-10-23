@@ -93,12 +93,12 @@ def add_plating(con: "_connector_base.ConnectorBase", symbol: str, description: 
     """
 
     if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+        id_bytes = _id_generator.generate_global_row_id(con).bytes
     else:
-        id = _id_generator.NIL_UUID.bytes
+        id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute('INSERT INTO platings (id, symbol, description) '
-                'VALUES (?, ?, ?);', (id, symbol, description))
+                'VALUES (?, ?, ?);', (id_bytes, symbol, description))
 
     _logger.database(f'plating added "{symbol}" - "{description}"')
 

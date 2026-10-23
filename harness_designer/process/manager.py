@@ -61,7 +61,7 @@ class CredManager:
 
     """Store and recover database credentials for monitor subprocesses.
     """
-    def __init__(self, print_lock: "multiprocessing.synchronize.Lock", pid: int | None = None) -> None:
+    def __init__(self, print_lock: "multiprocessing.synchronize.Lock", pid: int | None = None):
         """Initialize the credential manager and derive the service identifier.
 
         :param print_lock: Lock optionally used for debug output.
@@ -283,7 +283,7 @@ class ProcessManager(threading.Thread):
 
     """Coordinate background database monitoring for the main UI thread.
     """
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         """Initialize monitor threads, queues, and subprocesses.
 
         :param mainframe: Main application frame that receives update notifications.

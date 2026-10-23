@@ -69,10 +69,12 @@ class PlatingMixin(BaseMixin):
         self._populate('plating_id')
 
 
+@_check_types.do
 def _plating_of(db_obj: "PlatingMixin") -> _Union["_plating.Plating", None]:
     return db_obj.plating
 
 
+@_check_types.do
 def _set_plating_id(db_obj: "PlatingMixin", db_id: bytes) -> None:
     db_obj.plating_id = db_id
 
@@ -84,7 +86,7 @@ class PlatingControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`PlatingControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

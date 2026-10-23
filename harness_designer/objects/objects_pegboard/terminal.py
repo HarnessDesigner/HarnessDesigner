@@ -53,7 +53,7 @@ class Terminal(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
-                 db_obj: "_pjt_terminal.PJTTerminal") -> None:
+                 db_obj: "_pjt_terminal.PJTTerminal"):
         """Initialise the :class:`Terminal` instance.
 
         :param parent: Parent object.
@@ -137,6 +137,7 @@ class Terminal(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

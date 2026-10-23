@@ -71,7 +71,7 @@ class _ColumnPickerPopup(QtWidgets.QFrame):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, visible_indices: list[int],
-                 available_indices: list[int], on_toggle: Callable[[int, bool], None]) -> None:
+                 available_indices: list[int], on_toggle: Callable[[int, bool], None]):
         """Initialise the popup.
 
         :param parent: The table this popup lives inside.
@@ -164,7 +164,8 @@ class _HeaderLiveMoveFilter(QtCore.QObject):
 
     _EDGE_PX = 4
 
-    def __init__(self, table: "WireTable") -> None:
+    @_check_types.do
+    def __init__(self, table: "WireTable"):
         super().__init__(table)
         self._table = table
         self._logical: int | None = None
@@ -172,6 +173,7 @@ class _HeaderLiveMoveFilter(QtCore.QObject):
         self._grab_offset = 0
         self._dragging = False
 
+    @_check_types.do
     def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
         event_type = event.type()
 
@@ -256,7 +258,7 @@ class WireTable(_base.EditorList):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None, mainframe: "_mainframe.MainFrame", label: str, table: "PJTWiresTable",
-                 pegboard_table: "PJTPegboardTable") -> None:
+                 pegboard_table: "PJTPegboardTable"):
         """Initialise the :class:`WireTable` instance.
 
         :param parent: Parent widget.
@@ -737,6 +739,7 @@ class WireTable(_base.EditorList):
         self.appearance_changed.emit()
 
     @property
+    @_check_types.do
     def has_column_picker(self) -> bool:
         """Whether the column checklist is currently open."""
         return self._picker is not None

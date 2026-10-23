@@ -128,7 +128,7 @@ class WireServiceLoop(_base.AddHandlerBase):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-                 split_state: SplitState) -> None:
+                 split_state: SplitState):
 
         super().__init__(canvas, target)
 

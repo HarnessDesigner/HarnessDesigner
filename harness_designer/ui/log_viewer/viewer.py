@@ -140,7 +140,7 @@ class _LogModel(QtCore.QAbstractTableModel):
     _LEVEL_COL = _COLS.index('level')
 
     @_check_types.do
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None):
         """
         Initialise the :class:`_LogModel` instance.
 
@@ -276,7 +276,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
     """Replaces wx.ListCtrl (LC_REPORT | LC_VIRTUAL | LC_SINGLE_SEL)."""
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         """
         Initialise the :class:`VirtualLogListCtrl` instance.
 
@@ -428,7 +428,7 @@ class ViewerPanel(QtWidgets.QSplitter):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None, logger: "_logger.Log") -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None, logger: "_logger.Log"):
         """
         Initialise the :class:`LogViewerPanel` instance.
 

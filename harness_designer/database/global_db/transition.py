@@ -80,9 +80,6 @@ class TransitionsTable(TableBase):
         from ..create_database import transitions
 
         transitions.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-
-        transitions.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:
@@ -513,7 +510,7 @@ class TransitionControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.db_obj.branch_count = new_value
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`TransitionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

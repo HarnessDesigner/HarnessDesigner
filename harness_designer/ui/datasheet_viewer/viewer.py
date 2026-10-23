@@ -16,7 +16,7 @@ class ImageViewer(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None, img: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None, img: str):
         """Initialise the :class:`ImageViewer` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -170,7 +170,7 @@ class PDFViewer(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None, pdf_file: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None, pdf_file: str):
         """Initialise the :class:`PDFViewer` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -263,7 +263,7 @@ class DatasheetViewer(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None, datasheet: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None, datasheet: str):
         """Initialise the :class:`DatasheetViewer` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

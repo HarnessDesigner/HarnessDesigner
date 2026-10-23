@@ -27,7 +27,7 @@ class BackgroundJob(QtCore.QObject):
     failed = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, work: Callable[[], object], parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, work: Callable[[], object], parent: QtCore.QObject | None = None):
         super().__init__(parent)
         self._work = work
         self._thread = threading.Thread(target=self._run, daemon=True)

@@ -76,7 +76,7 @@ def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", 
 
 
 @_check_types.do
-def add_accessory(con: "_connector_base.ConnectorBase", part_number: str, mfg: str, description: str = None, series: str | None = None,
+def add_accessory(con: "_connector_base.ConnectorBase", part_number: str, mfg: str, description: str | None = None, series: str | None = None,
                   family: str | None = None, color: str | None = None, material: str | None = None, image: str | None = None,
                   datasheet: str | None = None, cad: str | None = None, model3d: str | None = None, length: float = 0.0,
                   width: float = 0.0, height: float = 0.0, weight: float = 0.0, commit: bool = True) -> bytes:

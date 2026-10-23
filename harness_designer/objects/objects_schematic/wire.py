@@ -55,6 +55,7 @@ _MAX_YAW_ANGLES = 512
 _CHORD_YAW_TOLERANCE = 0.05
 
 
+@_check_types.do
 def _yaw_angle(degrees: float) -> _angle.Angle:
     """A shared :class:`~harness_designer.geometry.angle.Angle` of *degrees*
     about Y. Keyed to 0.001 degree -- on a 1 m wire that is under 0.02 mm,
@@ -78,6 +79,7 @@ _YAW_MATRICES: dict[float, np.ndarray] = {}
 _IDENTITY = np.identity(3, dtype=np.float32)
 
 
+@_check_types.do
 def _yaw_matrix(degrees: float) -> np.ndarray:
     """The 3x3 float32 matrix ``corners @ matrix`` rotates row-vector corners
     by, for the shared angle :func:`_yaw_angle` returns for *degrees*.
@@ -152,7 +154,7 @@ class Wire(_base_schematic.BaseSchematic):
     )
 
     @_check_types.do
-    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire") -> None:
+    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
 
         :param parent: Parent object.
@@ -219,6 +221,7 @@ class Wire(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -335,6 +338,7 @@ class Wire(_base_schematic.BaseSchematic):
 
         self._compute_bounds()
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle) -> None:
         """Nothing to do: the wire's own angle isn't drawn with or hit-tested
         with (each segment has its own, and picking uses the pooled bounds),
@@ -342,10 +346,12 @@ class Wire(_base_schematic.BaseSchematic):
         recomputes the bounds itself. The inherited version recomputed them
         AGAIN, and copied and negated the angle in Decimal."""
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point) -> None:
         """See :meth:`_update_angle` -- same for the scale
         :meth:`_recalculate_geometry` sets."""
 
+    @_check_types.do
     def _compute_bounds(self) -> None:
         """OBB and AABB from ONE set of world corners (they are the same
         union-of-segments envelope -- see :meth:`_compute_obb`)."""
@@ -411,6 +417,7 @@ class Wire(_base_schematic.BaseSchematic):
 
         self._store_obb(corners)
 
+    @_check_types.do
     def _store_obb(self, corners: np.ndarray) -> None:
         mins = corners.min(axis=0)
         maxs = corners.max(axis=0)
@@ -964,7 +971,7 @@ class WireMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Wire") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Wire"):
         """Initialise the :class:`WireMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

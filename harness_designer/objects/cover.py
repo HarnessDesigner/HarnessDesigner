@@ -26,7 +26,7 @@ class Cover(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cover.PJTCover", project_load: bool = False) -> None:
+                 db_obj: "_pjt_cover.PJTCover", project_load: bool = False):
         """Initialise the :class:`Cover` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

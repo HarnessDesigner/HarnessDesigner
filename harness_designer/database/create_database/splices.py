@@ -221,8 +221,8 @@ def add_splice(con: "_connector_base.ConnectorBase", part_number: str, descripti
 
 
 @_check_types.do
-def add_pjt_splice(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, start_point3d_id: bytes | None = None, stop_point3d_id: bytes | None = None,
-                   branch_point3d_id: bytes | None = None, point2d_id: bytes | None = None, circuit_id: bytes = None, name: str = '',
+def add_pjt_splice(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, start_point3d_id: bytes | None = None, stop_point3d_id: bytes | None = None,
+                   branch_point3d_id: bytes | None = None, point2d_id: bytes | None = None, circuit_id: bytes | None = None, name: str = '',
                    notes: str = '', is_visible2d: int = 0, is_visible3d: int = 0) -> None:
     """Add a PJT splice.
 

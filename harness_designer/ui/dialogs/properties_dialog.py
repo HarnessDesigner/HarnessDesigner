@@ -16,7 +16,7 @@ class PropertiesDialog(_dialog_base.BaseDialog):
 
     @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", title: str,
-                 tab_widget: QtWidgets.QWidget, db_obj: "_global_bases.EntryBase") -> None:
+                 tab_widget: QtWidgets.QWidget, db_obj: "_global_bases.EntryBase"):
         super().__init__(parent, title, (500, 500),
                          button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)
 

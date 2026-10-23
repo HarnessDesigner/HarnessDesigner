@@ -66,7 +66,7 @@ class Rings2D(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_rotation_rings.RotationRings", selected: "_objects.ObjectBase",
-                 mainframe: "_ui.MainFrame") -> None:
+                 mainframe: "_ui.MainFrame"):
         """Initialise the :class:`Rings2D` instance.
 
         :param parent: Parent :class:`~..rotation_rings.RotationRings` wrapper.

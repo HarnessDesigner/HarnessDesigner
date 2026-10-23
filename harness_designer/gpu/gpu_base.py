@@ -12,7 +12,7 @@ class GPUAttribute:
     """
 
     @_check_types.do
-    def __init__(self, label: str) -> None:
+    def __init__(self, label: str):
         """Initialize the attribute with a display label.
 
         :param label: Prefix used when the value is converted to text.

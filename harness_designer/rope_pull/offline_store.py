@@ -14,36 +14,44 @@ in-memory. The database is written once, when the drag releases (see
 ``handlers.rope_pull_handler``).
 """
 
+from .. import check_types as _check_types
+
 _STORES: dict[bytes, list] = {}
 _OVERLAYS: dict[bytes, list] = {}
 
 
+@_check_types.do
 def for_chain(chain_id: bytes) -> list:
     """The live store for *chain_id*, index 0 = most recently given up."""
     return _STORES.setdefault(chain_id, [])
 
 
+@_check_types.do
 def push(chain_id: bytes, entry: object) -> None:
     """Give up *entry* from *chain_id*, placing it at index 0 of the store."""
     for_chain(chain_id).insert(0, entry)
 
 
+@_check_types.do
 def pop_front(chain_id: bytes) -> object:
     """Take the most recently given-up entry of *chain_id* back."""
     return for_chain(chain_id).pop(0)
 
 
+@_check_types.do
 def overlay(chain_id: bytes) -> list | None:
     """The chain's live overlay (its in-service waypoints, in order), or
     ``None`` when no drag has touched the chain yet."""
     return _OVERLAYS.get(chain_id)
 
 
+@_check_types.do
 def set_overlay(chain_id: bytes, entries: list) -> None:
     """Start the drag overlay for *chain_id*."""
     _OVERLAYS[chain_id] = entries
 
 
+@_check_types.do
 def overlay_chain_ids() -> list[bytes]:
     """The id of every chain that currently has a live drag overlay -- the
     chains a drag release still has to write (see
@@ -51,6 +59,7 @@ def overlay_chain_ids() -> list[bytes]:
     return list(_OVERLAYS)
 
 
+@_check_types.do
 def overlay_points(chain_id: bytes) -> list | None:
     """The overlay's live ``Point`` objects in order, for the strand to draw
     from, or ``None`` when no drag overlay is active for *chain_id*."""
@@ -61,11 +70,13 @@ def overlay_points(chain_id: bytes) -> list | None:
     return [entry.point for entry in entries]
 
 
+@_check_types.do
 def release(chain_id: bytes) -> list:
     """Empty *chain_id*'s store and return what it held."""
     return _STORES.pop(chain_id, [])
 
 
+@_check_types.do
 def release_overlay(chain_id: bytes) -> list | None:
     """End the drag overlay for *chain_id* and return its entries, or ``None``
     if there was none."""

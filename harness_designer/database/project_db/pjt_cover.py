@@ -281,7 +281,7 @@ class PJTCoverControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTCoverControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

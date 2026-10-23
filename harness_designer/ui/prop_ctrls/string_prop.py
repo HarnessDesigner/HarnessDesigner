@@ -17,7 +17,7 @@ class StringProperty(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0,
-                 units: str | None = None, read_only: bool = False) -> None:
+                 units: str | None = None, read_only: bool = False):
         """
         Initialise the :class:`StringProperty` instance.
 

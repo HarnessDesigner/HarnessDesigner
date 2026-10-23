@@ -71,6 +71,7 @@ if TYPE_CHECKING:
     from ... import objects as _objects
 
 
+@_check_types.do
 def _write_profile_report() -> None:
     """Dump whatever :mod:`debug` captured during one drag gesture to a
     timestamped file under the appdata log directory (same convention
@@ -100,7 +101,7 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
     """Generic locked-X/Z drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
         _base.DragHandlerBase.__init__(self, canvas, target)
 
         # Every real peg-board point this drag could ever move, each at ITS

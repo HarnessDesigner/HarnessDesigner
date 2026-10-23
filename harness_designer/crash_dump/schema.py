@@ -3,14 +3,18 @@ class body, exactly which attributes and properties a crash dump may read.
 """
 from __future__ import annotations
 
+from .. import check_types as _check_types
+
 
 class Attr:
     __slots__ = ('name', 'severity')
 
-    def __init__(self, name: str, severity: int) -> None:
+    @_check_types.do
+    def __init__(self, name: str, severity: int):
         self.name = name
         self.severity = severity
 
+    @_check_types.do
     def __repr__(self) -> str:
         return f'Attr({self.name!r}, severity={self.severity})'
 

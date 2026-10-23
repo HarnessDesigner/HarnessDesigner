@@ -49,7 +49,7 @@ class _ParseCache:
     slow, and a model often tests several selectors on the same one)."""
 
     @_check_types.do
-    def __init__(self, parse: Callable[[str], Any], size: int = 4) -> None:
+    def __init__(self, parse: Callable[[str], Any], size: int = 4):
         self._parse = parse
         self._size = size
         self._entries: list[tuple[str, Any]] = []

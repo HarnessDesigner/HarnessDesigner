@@ -96,7 +96,7 @@ class SQLOptionsDialog(QtWidgets.QDialog):
     """Collect editable MySQL connector settings from the user.
     """
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Build the MySQL options dialog.
 
         :param parent: Parent Qt widget for the options dialog.

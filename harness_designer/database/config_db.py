@@ -24,7 +24,7 @@ class ConfigTable:
     """
 
     @_check_types.do
-    def __init__(self, con: "_connector_base.ConnectorBase", name: str) -> None:
+    def __init__(self, con: "_connector_base.ConnectorBase", name: str):
         """Initialize the configuration table wrapper.
 
         :param con: SQLite connection used for all table operations.
@@ -133,7 +133,7 @@ class ConfigDB:
     """
 
     @_check_types.do
-    def __init__(self, app_data: str) -> None:
+    def __init__(self, app_data: str):
 
         """Open the SQLite configuration database connection.
 

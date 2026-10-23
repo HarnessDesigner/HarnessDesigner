@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ..global_db import model3d as _model3d
 
 
+@_check_types.do
 def _parse_bounds(text: str | None) -> list[list[float]] | None:
     """A stored bounds list string back into ``[[min xyz], [max xyz]]``."""
     if text is None:
@@ -23,6 +24,7 @@ def _parse_bounds(text: str | None) -> list[list[float]] | None:
     return [[float(v) for v in corner] for corner in ast.literal_eval(text)]
 
 
+@_check_types.do
 def _format_bounds(value: list[list[float]] | np.ndarray | None) -> str | None:
     """``[[min xyz], [max xyz]]`` (a list or a ``(2, 3)`` array) as the
     list string stored in the DB, or ``None`` for "no bounds"."""
@@ -115,7 +117,7 @@ class ProjectsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_object_count(self, project_id: bytes) -> int:
+    def get_object_count(self, project_id: int) -> int:
         """Return the object count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -128,7 +130,7 @@ class ProjectsTable(PJTTableBase):
         return self.select('object_count', id=project_id)[0][0]
 
     @_check_types.do
-    def set_object_count(self, project_id: bytes, value: int) -> None:
+    def set_object_count(self, project_id: int, value: int) -> None:
         """Set the object count.
 
         UNKNOWN details are inferred from the callable name and signature.

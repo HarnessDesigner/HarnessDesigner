@@ -27,7 +27,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '',
-                 table: _Union["_global_color.ColorsTable", None] = None) -> None:
+                 table: _Union["_global_color.ColorsTable", None] = None):
         """Initialise the :class:`ColorCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

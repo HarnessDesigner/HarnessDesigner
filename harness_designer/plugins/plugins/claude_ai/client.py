@@ -55,7 +55,7 @@ class ClaudeClient:
 
     @_check_types.do
     def __init__(self, key_store: _keys.ApiKeyStore | None = None, settings: _settings.ClaudeSettings | None = None,
-                 *, base_url: str | None = None) -> None:
+                 *, base_url: str | None = None):
         self._key_store = key_store or _keys.ApiKeyStore()
         self._settings = settings
         self._base_url = base_url

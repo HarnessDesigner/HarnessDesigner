@@ -27,7 +27,7 @@ class _EmptySpaceMenu(QtWidgets.QMenu):
     """Shared shell: holds the mainframe and the right-click position."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point"):
         QtWidgets.QMenu.__init__(self)
         self.mainframe = mainframe
         self.mouse_pos = mouse_pos
@@ -50,7 +50,7 @@ class EmptySpaceMenu3D(_EmptySpaceMenu):
     """3D view: Add Wire / Terminal / Housing / Project Model."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point"):
         super().__init__(mainframe, mouse_pos)
 
         self._add_action('Add Wire', self.on_add_wire)
@@ -104,7 +104,7 @@ class EmptySpaceMenuPegboard(_EmptySpaceMenu):
     """Peg-board view: Add Wire / Terminal / Housing."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point"):
         super().__init__(mainframe, mouse_pos)
 
         self._add_action('Add Wire', self.on_add_wire)
@@ -134,7 +134,7 @@ class EmptySpaceMenuSchematic(_EmptySpaceMenu):
     """Schematic view: Add Terminal / Housing."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point"):
         super().__init__(mainframe, mouse_pos)
 
         self._add_action('Add Terminal', self.on_add_terminal)

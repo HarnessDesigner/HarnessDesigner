@@ -55,7 +55,7 @@ class WireMarker(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
-                 db_obj: "_pjt_wire_marker.PJTWireMarker") -> None:
+                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
         """Initialise the :class:`WireMarker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -409,7 +409,7 @@ class WireMarkerMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireMarker") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireMarker"):
         """Initialise the :class:`WireMarkerMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

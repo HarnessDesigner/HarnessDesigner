@@ -47,9 +47,10 @@ class Canvas(_canvas_base.CanvasBase):
     _mouse_handler: _mouse_handler2d.MouseHandler = None
     _editor_name = 'editor_pegboard'
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_pegboard = None,
-                 size: QtCore.QSize | None = None) -> None:
+                 size: QtCore.QSize | None = None):
 
         """
         Initialise the :class:`Canvas` instance.
@@ -106,6 +107,7 @@ class Canvas(_canvas_base.CanvasBase):
         GL.glViewport(0, 0, width, height)
         self.update()
 
+    @_check_types.do
     def _render_floor_after(self) -> None:
         try:
             self._floor.render(self._shaders)
@@ -115,6 +117,7 @@ class Canvas(_canvas_base.CanvasBase):
             raise
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         return obj.objpegboard
 
@@ -160,6 +163,7 @@ class Canvas(_canvas_base.CanvasBase):
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
+    @_check_types.do
     def _set_view(self) -> None:
         """
         Build the orthographic projection matrix for the current

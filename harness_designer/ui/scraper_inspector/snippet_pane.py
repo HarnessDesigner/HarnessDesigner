@@ -20,7 +20,7 @@ from ... import check_types as _check_types
 class SnippetPane(QtWidgets.QWidget, _insertion.SnippetSink):
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
 
         self._editor = _code_editor_ctrl.CodeEditorCtrl(self)

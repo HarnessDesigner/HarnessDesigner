@@ -90,7 +90,7 @@ class WireMarkerArrow(_object_base.ObjectBase):
 
     @_check_types.do
     def __init__(self, obj_position: _point.Point, direction: np.ndarray,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
         """Initialise the :class:`WireMarkerArrow` instance.
 
         :param obj_position: The dragged marker's own Point (bound so the
@@ -152,7 +152,7 @@ class _ArrowMarker2D(_base_schematic.BaseSchematic):
     ``move_arrows.Arrows2D`` for the identical pattern."""
 
     @_check_types.do
-    def __init__(self, parent: WireMarkerArrow) -> None:
+    def __init__(self, parent: WireMarkerArrow):
         angle = _angle.Angle()
         position = _point.Point(0, 0)
         super().__init__(parent, None, None, angle, position, None, None)
@@ -174,7 +174,7 @@ class ArrowMarker3D(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: WireMarkerArrow, obj_position: _point.Point, direction: np.ndarray,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
         color = _color.Color(0, 170, 170, 255)
         material = _materials.Glowing(color)
 

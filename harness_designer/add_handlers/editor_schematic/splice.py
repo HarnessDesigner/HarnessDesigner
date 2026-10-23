@@ -109,7 +109,7 @@ class Splice(_base.AddHandlerBase):
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part_id: bytes,
         part: "_glb_splice.Splice", preview_material: "_materials.GLMaterial",
         compat_material: "_materials.GLMaterial"
-    ) -> None:
+    ):
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -128,6 +128,7 @@ class Splice(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_schematic.BaseSchematic":
         return obj.objschematic
 

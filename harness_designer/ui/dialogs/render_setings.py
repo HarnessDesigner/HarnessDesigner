@@ -18,7 +18,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`RenderSettingsDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -190,7 +190,7 @@ class LightingPanel(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`LightingPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -255,7 +255,7 @@ class LightsPanel(QtWidgets.QScrollArea):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, lights: list[dict[str, list[float] | float]]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, lights: list[dict[str, list[float] | float]]):
         """Initialise the :class:`LightsPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -368,7 +368,7 @@ class LightItem(QtWidgets.QWidget):
     clicked_signal: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, position: list[float], intensity: float, color: list[float]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, position: list[float], intensity: float, color: list[float]):
         """Initialise the :class:`LightItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

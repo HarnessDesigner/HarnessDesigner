@@ -68,6 +68,7 @@ _PROFILE_EVENTS = 12
 _profile = {'stats': None, 'count': 0}
 
 
+@_check_types.do
 def _profile_report() -> None:
     stats = _profile['stats']
     if stats is None:
@@ -84,6 +85,7 @@ def _profile_report() -> None:
     _profile['count'] = 0
 
 
+@_check_types.do
 def _profile_event(profiler: cProfile.Profile) -> None:
     if _profile['stats'] is None:
         _profile['stats'] = pstats.Stats(profiler)
@@ -99,7 +101,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
     """Generic locked-X/Z drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
         super().__init__(canvas, target)
 
         self._deadlocked = False
@@ -161,6 +163,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
                 profiler.disable()
                 _profile_event(profiler)
 
+    @_check_types.do
     def _event(self, objschematic: "_base_schematic.BaseSchematic", mouse_pos: _point.Point,
                t_begin: float, t_context: float) -> None:
         world_pos = self._world_xz(mouse_pos)
@@ -198,6 +201,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
                   f'route {1000 * (t_end - t_follow):6.1f} ms ({len(remaining)} of {len(self._attached)} wires'
                   f'{", re-nested" if renested else ""}) | total {1000 * (t_end - t_begin):6.1f} ms')
 
+    @_check_types.do
     def _route(self, project: "_project.Project", wires: list["_wire_obj.Wire"]) -> None:
         # One grid for the whole batch, built once (see RoutingFrame). Every
         # wire in it not yet routed THIS pass stays out of the way of whichever

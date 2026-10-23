@@ -77,9 +77,6 @@ class WireMarkersTable(TableBase):
         from ..create_database import wire_markers
 
         wire_markers.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-
-        wire_markers.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:
@@ -513,7 +510,7 @@ class WireMarkerControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.db_obj.has_label = value
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`WireMarkerControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

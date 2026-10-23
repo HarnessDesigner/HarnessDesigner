@@ -19,7 +19,7 @@ class SnapPool(Generic[_T]):
 
     @_check_types.do
     def __init__(self, objects: list[_T], snap_points: list["_point.Point"],
-                 threshold: float = 5.00) -> None:
+                 threshold: float = 5.00):
 
         self.objects = objects
         self.numpy_points = np.array([point.as_float for point in snap_points], dtype=np.float32).reshape(-1, 3)

@@ -16,7 +16,7 @@ class IntCtrl(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, min_val: int,
-                 max_val: int, slider: bool = True) -> None:
+                 max_val: int, slider: bool = True):
         """Initialise the :class:`IntCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

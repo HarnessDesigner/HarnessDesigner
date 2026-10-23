@@ -132,7 +132,7 @@ class App(QtCore.QObject):
     """
 
     @_check_types.do
-    def __init__(self, args: list[str]) -> None:
+    def __init__(self, args: list[str]):
         """Initialise application state and cross-thread signals.
 
         :param args: Command-line arguments passed to the application.

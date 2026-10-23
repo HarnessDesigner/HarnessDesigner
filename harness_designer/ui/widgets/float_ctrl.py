@@ -21,7 +21,7 @@ class FloatCtrl(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, min_val: float, max_val: float,
-                 inc: float, slider: bool = True) -> None:
+                 inc: float, slider: bool = True):
         """Initialise the :class:`FloatCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -160,13 +160,13 @@ class FloatCtrl(QtWidgets.QWidget):
         if remaining:
             value += value_inc - remaining
 
-        value = round(float(value), self.__precision)
+        rounded_value = round(float(value), self.__precision)
 
         self.ctrl.blockSignals(True)
-        self.ctrl.setValue(value)
+        self.ctrl.setValue(rounded_value)
         self.ctrl.blockSignals(False)
 
-        self.value_changed.emit(value)
+        self.value_changed.emit(rounded_value)
 
     @_check_types.do
     def _on_spin(self, spin_value: float) -> None:

@@ -60,6 +60,7 @@ from OCP.TopoDS import TopoDS, TopoDS_Shape
 from OCP.TopTools import TopTools_ListOfShape
 
 from .ocp_threadworker import ocp_thread as _ocp_thread
+from . import check_types as _check_types
 
 
 class FontStyle(enum.Enum):
@@ -114,6 +115,7 @@ _VERT_ALIGN = {
 _font_cache: dict[tuple[str, FontStyle], StdPrs_BRepFont] = {}
 
 
+@_check_types.do
 def _get_font(name: str, style: FontStyle, font_size: float) -> StdPrs_BRepFont:
     key = (name, style)
     font_i = _font_cache.get(key)
@@ -131,6 +133,7 @@ def _get_font(name: str, style: FontStyle, font_size: float) -> StdPrs_BRepFont:
     return font_i
 
 
+@_check_types.do
 def _extrude_and_fuse(compound: TopoDS_Shape, depth: float) -> TopoDS_Shape | None:
     """Extrude every face of *compound* by *depth* along +Z and fuse the
     results into one shape. Mirrors build123d.extrude()'s own behavior
@@ -176,6 +179,7 @@ def _extrude_and_fuse(compound: TopoDS_Shape, depth: float) -> TopoDS_Shape | No
     return result
 
 
+@_check_types.do
 def _tessellate_shape(
     shape: TopoDS_Shape, lin_deflection: float = 0.001, ang_deflection: float = 0.5,
     is_relative: bool = True
@@ -243,6 +247,7 @@ def _tessellate_shape(
 
 
 @_ocp_thread
+@_check_types.do
 def build_text_mesh(
     text: str, font_size: float, depth: float, font: str = 'Arial',
     font_style: FontStyle = FontStyle.REGULAR,

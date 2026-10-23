@@ -62,7 +62,7 @@ class Floor(_floor_base.FloorBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas") -> None:
+    def __init__(self, canvas: "_canvas.Canvas"):
         super().__init__(canvas)
 
         self._ebo = None

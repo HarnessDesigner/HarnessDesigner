@@ -76,7 +76,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`ColorControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +84,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.choices: list[list[str, int]] = None
+        self.choices: list[list[str, int]] | None = None
         self.db_obj: ColorMixin | None = None
         super().__init__(parent, 'Color')
 

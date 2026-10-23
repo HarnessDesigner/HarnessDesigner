@@ -19,7 +19,15 @@ if sys.platform.startswith('darwin'):
 def build_dependency_installer():
     """
     Build dep_installer.exe — the lightweight GUI that installs external packages.
+
+    Windows/macOS only -- Linux no longer uses a separate installer process;
+    the main app's own bootstrap.py shows the same PySide6 license/Accept-
+    Cancel screen in process on first launch instead (see builder/scripts/
+    license_screen.py, shared by both).
     """
+    if sys.platform.startswith('linux'):
+        print('build_dependency_installer: skipped on Linux (not used there).')
+        return
 
     base_path = os.path.abspath(os.path.dirname(__file__))
 
@@ -27,6 +35,8 @@ def build_dependency_installer():
     #     base_path, '..', 'installer_scripts', 'windows', 'assets',
     #     'harness_designer.ico',
     # )
+
+    licenses_dir = os.path.join(base_path, '..', 'harness_designer', 'licenses')
 
     args = [
         f'--add-binary={sys.executable}{os.pathsep}.',
@@ -39,8 +49,16 @@ def build_dependency_installer():
         '--onefile',
         '--noconfirm',
         '--clean',
-        'dep_installer.py'
     ]
+
+    # Bundled directly into the --onefile payload (at its root, read back via
+    # sys._MEIPASS -- see dep_installer.py's _licenses_dir()) so the new
+    # license Accept/Cancel screen (--phase pre) is self-contained and never
+    # depends on the main app's own files existing yet.
+    for fname in ('LGPLv3.txt', 'GPLv3.txt', 'Qt-Commercial-Reference.txt'):
+        args.append(f'--add-data={os.path.join(licenses_dir, fname)}{os.pathsep}.')
+
+    args.append('dep_installer.py')
 
     # --windowed forces PyInstaller to build a macOS .app bundle, which
     # can't coexist with --onefile (a bundle is a directory, not a single
@@ -143,7 +161,7 @@ def _clean_dist(app_dir):
     # packages.
     _RUNTIME_ONLY_PREFIXES = (
         'pyside6', 'shiboken6', 'mysql_connector_python', 'mysql',
-        'amdsmi', 'nvidia_ml_py', 'pynvml', 'apple_smi',
+        'apple_smi',
     )
 
     for name in os.listdir(app_dir):
@@ -281,15 +299,15 @@ def build_installer():
     # driver's shared library at import time. CI build machines don't have
     # GPU drivers installed, so PyInstaller's binary dependency walk can't
     # resolve (and therefore can't bundle) whatever driver DLL the compiled
-    # extension links against — the module would look bundled but be broken
-    # at runtime even on an end-user machine that does have the driver.
-    # Installed at runtime instead, on the actual target machine, exactly
-    # like PySide6. Windows/Linux GPU monitoring (nvapi, pyamd_adl) doesn't
-    # have this problem -- they're ctypes wrappers that only dlopen the
-    # driver on first actual use, not at import time -- so they're ordinary
-    # bundled pyproject.toml dependencies, not excluded here (replaced
-    # nvidia-ml-py/amdsmi, which used to be in this exclude list and were
-    # runtime-installed the same way apple_smi still is -- see
+    # extension links against — the module would look bundled but be
+    # broken at runtime even on an end-user machine that does have the
+    # driver. Installed at runtime instead, on the actual target machine,
+    # exactly like PySide6. Windows/Linux GPU monitoring (nvapi, pyamd_adl)
+    # doesn't have this problem -- they're ctypes wrappers that only dlopen
+    # the driver on first actual use, not at import time -- so they're
+    # ordinary bundled pyproject.toml dependencies, not excluded here
+    # (replaced nvidia-ml-py/amdsmi, which used to be in this exclude list
+    # and were runtime-installed the same way apple_smi still is -- see
     # harness_designer/gpu/nvidia/backend.py, harness_designer/gpu/amd/backend.py).
     for mod in (
         'PySide6',

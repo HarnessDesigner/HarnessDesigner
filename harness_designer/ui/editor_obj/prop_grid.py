@@ -11,7 +11,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None):
         """Initialise the :class:`PropertyGrid` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

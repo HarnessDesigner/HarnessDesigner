@@ -65,7 +65,7 @@ class EditPanel(QtWidgets.QWidget):
     itemChanged: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._item: AnalysisItem | None = None
 

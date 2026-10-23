@@ -26,7 +26,7 @@ class HandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None) -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None):
         """
         Initialize the object and capture the state required for later interaction.
 
@@ -46,6 +46,7 @@ class HandlerBase:
         self._finalized = False
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_ObjectBase") -> "_base_var.BaseVar":
         return obj.obj3d
 

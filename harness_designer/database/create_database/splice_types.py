@@ -91,13 +91,13 @@ def add_splice_type(con: "_connector_base.ConnectorBase", name: str, id: int | N
     """
 
     if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+        id_bytes = _id_generator.generate_global_row_id(con).bytes
     else:
-        id = _id_generator.NIL_UUID.bytes
+        id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute(
         'INSERT INTO splice_types (id, name) '
-        'VALUES (?, ?);', (id, name)
+        'VALUES (?, ?);', (id_bytes, name)
         )
 
     _logger.database(f'splice type added "{name}"')

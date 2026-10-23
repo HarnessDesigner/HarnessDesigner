@@ -34,6 +34,7 @@ SnapPool = _snap_pool.SnapPool
 
 get_appdata = _paths.get_appdata
 get_documents = _paths.get_documents
+SKELETON_WORKER_NAME = _paths.SKELETON_WORKER_NAME
 
 compute_smooth_normals = _mn.compute_smooth_normals
 compute_face_normals = _mn.compute_face_normals

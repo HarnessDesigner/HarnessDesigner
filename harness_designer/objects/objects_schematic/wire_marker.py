@@ -68,7 +68,7 @@ class WireMarker(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
-                 db_obj: "_pjt_wire_marker.PJTWireMarker") -> None:
+                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
         """Initialise the :class:`WireMarker` instance.
 
         :param parent: Parent object.
@@ -149,6 +149,7 @@ class WireMarker(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -395,7 +396,7 @@ class WireMarkerMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "WireMarker") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "WireMarker"):
         """Initialise the :class:`WireMarkerMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

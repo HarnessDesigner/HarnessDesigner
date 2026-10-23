@@ -21,7 +21,7 @@ class BaseDialog(QtWidgets.QDialog):
 
     @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", title: str, size: tuple[int, int] = (-1, -1),
-                 style: QtCore.Qt.WindowType | None = None, button_ids: QtWidgets.QDialogButtonBox.StandardButton | None = None) -> None:
+                 style: QtCore.Qt.WindowType | None = None, button_ids: QtWidgets.QDialogButtonBox.StandardButton | None = None):
         """Initialise the :class:`BaseDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

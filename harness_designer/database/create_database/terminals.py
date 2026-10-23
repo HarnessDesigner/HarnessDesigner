@@ -174,8 +174,8 @@ def add_terminal(con: "_connector_base.ConnectorBase", part_number: str, descrip
 
         description += ' Terminal'
 
-    compat_housings = ', '.join(compat_housings)
-    compat_seals = ', '.join(compat_seals)
+    compat_housings_str = ', '.join(compat_housings)
+    compat_seals_str = ', '.join(compat_seals)
 
     _logger.database(f'adding terminal {part_number}, {description}')
 
@@ -194,8 +194,8 @@ def add_terminal(con: "_connector_base.ConnectorBase", part_number: str, descrip
                  plating_id, gender_id, cavity_lock_id, sealing, blade_size, resistance,
                  mating_cycles, max_vibration_g, max_current_ma, wire_size_awg_min,
                  wire_size_awg_max, wire_size_dia_min, wire_size_dia_max, wire_size_cross_min,
-                 wire_size_cross_max, length, width, height, weight, compat_housings,
-                 compat_seals))
+                 wire_size_cross_max, length, width, height, weight, compat_housings_str,
+                 compat_seals_str))
 
     _logger.database(f'terminal added "{part_number}"')
 
@@ -205,7 +205,7 @@ def add_terminal(con: "_connector_base.ConnectorBase", part_number: str, descrip
 
 
 @_check_types.do
-def add_pjt_terminal(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, cavity_id: bytes | None = None, circuit_id: bytes = None,
+def add_pjt_terminal(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, cavity_id: bytes | None = None, circuit_id: bytes | None = None,
                      wire_point3d_id: bytes | None = None, point3d_id: bytes | None = None, point2d_id: bytes | None = None,
                      wire_point2d_id: bytes | None = None, name: str = '', notes: str = '', quat3d: list[float] | None = None,
                      angle3d: list[float] | None = None, quat2d: list[float] | None = None, angle2d: list[float] | None = None, is_start: int = 0, volts: float = 0.0,

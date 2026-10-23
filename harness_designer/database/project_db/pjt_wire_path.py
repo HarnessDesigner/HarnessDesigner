@@ -114,8 +114,7 @@ class PJTWirePathsTable(PJTTableBase):
             self, wire_id=wire_id, idx=idx, point3d_id=point3d_id,
             point_pegboard_id=point_pegboard_id, point2d_id=point2d_id,
             bundle_id=bundle_id, concentric_id=concentric_id,
-            transition_id=transition_id, transition_branch_id=transition_branch_id,
-            guard_bundle_id=None, guard_end=None)
+            transition_id=transition_id, transition_branch_id=transition_branch_id)
 
         return PJTWirePath(self, db_id)
 

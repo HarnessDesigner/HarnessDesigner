@@ -120,7 +120,7 @@ class ResourceStateTable(TableBase):
         raise KeyError('invalid resource id')
 
     @_check_types.do
-    def insert(self, resource_type: str, resource_id: bytes) -> "ResourceState":
+    def insert(self, resource_type: int, resource_id: bytes) -> "ResourceState":
         field_name = _TYPE_TO_FIELD[resource_type]
 
         kwargs = {field_name: resource_id}

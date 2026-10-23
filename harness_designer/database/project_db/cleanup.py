@@ -94,7 +94,7 @@ class ProjectCleanup:
     """
 
     @_check_types.do
-    def __init__(self, project: "_project.Project") -> None:
+    def __init__(self, project: "_project.Project"):
         """Initialise the :class:`ProjectCleanup` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

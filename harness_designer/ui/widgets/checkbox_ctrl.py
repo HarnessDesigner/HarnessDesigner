@@ -15,7 +15,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '') -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = ''):
         """Initialise the :class:`CheckboxCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

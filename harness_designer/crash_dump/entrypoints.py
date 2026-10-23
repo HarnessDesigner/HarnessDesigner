@@ -25,6 +25,7 @@ import traceback
 from datetime import datetime
 
 from .walker import dump_to_html
+from .. import check_types as _check_types
 
 FATAL_SEVERITY = 1
 RENDER_FAILURE_SEVERITY = 2
@@ -42,6 +43,7 @@ _RENDER_FAILURE_COOLDOWN_SECONDS = 30.0
 _render_failure_last_dump: dict[int, float] = {}
 
 
+@_check_types.do
 def dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
     try:
         _dump_state_on_fatal_exception(exc_type, exc_value, exc_tb)
@@ -49,6 +51,7 @@ def dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
         pass
 
 
+@_check_types.do
 def dump_render_failure(view_obj, exc: Exception) -> None:
     try:
         _dump_render_failure(view_obj, exc)
@@ -56,6 +59,7 @@ def dump_render_failure(view_obj, exc: Exception) -> None:
         pass
 
 
+@_check_types.do
 def dump_visible_objects(view_objects, canvas_label: str) -> None:
     try:
         _dump_visible_objects(view_objects, canvas_label)
@@ -63,6 +67,7 @@ def dump_visible_objects(view_objects, canvas_label: str) -> None:
         pass
 
 
+@_check_types.do
 def _dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
     import harness_designer as _hd
 
@@ -82,6 +87,7 @@ def _dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
     ))
 
 
+@_check_types.do
 def _dump_render_failure(view_obj, exc: Exception) -> None:
     now = time.monotonic()
     obj_id = id(view_obj)
@@ -103,6 +109,7 @@ def _dump_render_failure(view_obj, exc: Exception) -> None:
     ))
 
 
+@_check_types.do
 def _dump_visible_objects(view_objects, canvas_label: str) -> None:
     if not view_objects:
         return
@@ -117,6 +124,7 @@ def _dump_visible_objects(view_objects, canvas_label: str) -> None:
     ))
 
 
+@_check_types.do
 def _prune_stale_cooldowns(now: float) -> None:
     stale_ids = [
         obj_id for obj_id, last_dump_time in _render_failure_last_dump.items()
@@ -126,6 +134,7 @@ def _prune_stale_cooldowns(now: float) -> None:
         del _render_failure_last_dump[obj_id]
 
 
+@_check_types.do
 def _dump_with_write_suppression(dump_callable) -> None:
     """Run ``dump_callable`` (a zero-arg closure that performs the actual
     walk/write) inside the current project's write-suppressing gesture,
@@ -146,6 +155,7 @@ def _dump_with_write_suppression(dump_callable) -> None:
         dump_callable()
 
 
+@_check_types.do
 def _current_project():
     try:
         import harness_designer as _hd
@@ -163,6 +173,7 @@ def _current_project():
     return getattr(mainframe, '_project', None)
 
 
+@_check_types.do
 def _log_dir() -> str:
     from ..utils import paths as _paths
 

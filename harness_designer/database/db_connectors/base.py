@@ -5,7 +5,6 @@
 from typing import TYPE_CHECKING
 from typing import Generator as _Generator
 
-from . import db_data as _db_data
 from ... import check_types as _check_types
 
 
@@ -19,7 +18,7 @@ class ConnectorBase:
     """Define the abstract interface shared by database connectors.
     """
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", db_name: str) -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", db_name: str):
         """Initialize shared connector state.
 
         :param mainframe: Main application frame that owns the connector.
@@ -29,31 +28,6 @@ class ConnectorBase:
         """
         self.mainframe = mainframe
         self.db_name = db_name
-        self._db_data = None
-
-    # @property
-    # def db_data(self):
-    #     """Return the lazily created database seed-data helper.
-    #
-    #     :returns: Return value for this callable. UNKNOWN.
-    #     :rtype: UNKNOWN
-    #     """
-    #     if self._db_data is None:
-    #         self._db_data = _db_data.DBData()
-    #
-    #     return self._db_data
-
-    # @db_data.setter
-    # def db_data(self, value):
-    #     """Clear and close the cached seed-data helper when set to ``None``.
-    #
-    #     :param value: Value or state to persist.
-    #     :type value: UNKNOWN
-    #     """
-    #     if value is None:
-    #         if self._db_data is not None:
-    #             self._db_data.close()
-    #             self._db_data = None
 
     @_check_types.do
     def get_tables(self) -> list[str]:
@@ -77,14 +51,14 @@ class ConnectorBase:
 
     @_check_types.do
     def execute(self, operation: str,
-                params: tuple | None = None,
+                params: tuple | list | None = None,
                 multi: bool = False) -> _Generator | None:
         """Execute a single database operation.
 
         :param operation: SQL statement to execute.
         :type operation: str
         :param params: Parameters supplied for the SQL operation.
-        :type params: tuple | None
+        :type params: tuple | list | None
         :param multi: Whether the connector should execute multiple statements.
         :type multi: bool
 

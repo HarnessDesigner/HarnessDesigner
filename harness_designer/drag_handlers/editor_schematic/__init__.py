@@ -33,7 +33,7 @@ class DragHandlerSchematic(_base.DragHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
         super().__init__(canvas, target)
 
     @_check_types.do

@@ -150,7 +150,7 @@ class Branch:
 
     @_check_types.do
     def __init__(self, catalog_branch: "_g_transition_branch.TransitionBranch",
-                 db_obj: _Union["_pjt_transition_branch.PJTTransitionBranch", None] = None) -> None:
+                 db_obj: _Union["_pjt_transition_branch.PJTTransitionBranch", None] = None):
         """Store this branch's own identity, PERMANENT catalog-defined
         shape data, AND its own render-ready cache, computed immediately
         -- all of it comes from this branch's own catalog row alone
@@ -348,6 +348,7 @@ class Branch:
         self._angle = angle
         self._refresh_world()
 
+    @_check_types.do
     def _refresh_world(self) -> None:
         """Recompute every position/orientation render attribute fresh
         from this branch's own permanent LOCAL data plus the current
@@ -629,7 +630,7 @@ class _Body:
     is_dirty = False
 
     @_check_types.do
-    def __init__(self, part: "_g_transition.Transition", branch_db_objs: list) -> None:
+    def __init__(self, part: "_g_transition.Transition", branch_db_objs: list):
         self.branches: list[Branch] = []
         self._mesh: tuple[np.ndarray, int] | None = None
         self.local_aabb = np.zeros((2, 3), dtype=np.float32)
@@ -790,15 +791,18 @@ class _Body:
     def render_angle(self, angle: "_angle.Angle") -> "_angle.Angle":
         return angle
 
+    @_check_types.do
     def acquire(self) -> None:
         """No-op -- every actual draw goes through the globally pooled
         cylinder/sphere VBOs, which manage their own acquisition lazily."""
 
+    @_check_types.do
     def release(self) -> None:
         """No-op -- releasing here would tear down VBOs every other
         transition (and everything else using cylinder/sphere) shares."""
 
     @property
+    @_check_types.do
     def ctx(self):
         ctx = QtGui.QOpenGLContext.currentContext()
         if ctx is None:
@@ -818,6 +822,7 @@ class _Body:
         all_faces = []
         offset = 0
 
+        @_check_types.do
         def _add(verts: np.ndarray, faces: np.ndarray) -> None:
             nonlocal offset
             all_vertices.append(verts.astype(np.float32))
@@ -860,6 +865,7 @@ class _Body:
         faces = np.concatenate(all_faces, axis=0).astype(np.int32)
         return vertices, faces
 
+    @_check_types.do
     def _build_mesh(self) -> tuple[np.ndarray, int]:
         if self._mesh is None:
             vertices, faces = self.local_mesh()
@@ -869,18 +875,22 @@ class _Body:
         return self._mesh
 
     @property
+    @_check_types.do
     def vertices(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[:count * 3]
 
     @property
+    @_check_types.do
     def vertex_count(self) -> int:
         return self._build_mesh()[1]
 
     @property
+    @_check_types.do
     def faces(self) -> None:
         return None
 
+    @_check_types.do
     def _compute_local_bounds(self) -> None:
         if self.vertex_count == 0:
             self.local_aabb = np.zeros((2, 3), dtype=np.float32)
@@ -958,7 +968,7 @@ class Transition(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_transition.Transition",
-                 db_obj: "_pjt_transition.PJTTransition") -> None:
+                 db_obj: "_pjt_transition.PJTTransition"):
         """Initialise the :class:`Transition` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1404,7 +1414,7 @@ class TransitionMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Transition") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Transition"):
         """Initialise the :class:`TransitionMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1454,7 +1464,7 @@ class BranchMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", transition: "Transition", branch: "Branch") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", transition: "Transition", branch: "Branch"):
         QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.transition = transition

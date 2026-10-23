@@ -11,7 +11,7 @@ from PySide6 import QtWidgets
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .. import id_generator as _id_generator
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import cavity_layout as _cavity_layout
@@ -209,8 +209,8 @@ class PJTHousingsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: bytes, name: str, position3d_id: bytes = None,
-               position2d_id: bytes = None, position_pegboard_id: bytes = None) -> "PJTHousing":
+    def insert(self, part_id: bytes, name: str, position3d_id: bytes | None = None,
+               position2d_id: bytes | None = None, position_pegboard_id: bytes | None = None) -> "PJTHousing":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -864,7 +864,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """
         return self._table
 
-    _stored_cavities: list = None
+    _stored_cavities: list | None = None
 
     @property
     @dump_property(severity=2)
@@ -939,7 +939,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return res
 
-    _stored_cavity_geometry: dict = None
+    _stored_cavity_geometry: dict | None = None
 
     @property
     @_check_types.do
@@ -1026,7 +1026,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return self._stored_stack_geometry
 
-    _stored_terminals: list = None
+    _stored_terminals: list | None = None
 
     @property
     @dump_property(severity=2)
@@ -1133,7 +1133,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._stored_cavities = cavities
         self._stored_terminals = terminals
 
-    _stored_cover_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_cover_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1196,7 +1196,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, cover_point3d_id=value)
         self._populate('cover_position3d_id')
 
-    _stored_seal_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_seal_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1259,7 +1259,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, seal_point3d_id=value)
         self._populate('seal_position3d_id')
 
-    _stored_seal_position_pegboard: _pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValue = DefaultStoredValue
+    _stored_seal_position_pegboard: _pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1319,7 +1319,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, seal_point_pegboard_id=value)
         self._populate('seal_position_pegboard_id')
 
-    _stored_boot_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_boot_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1382,7 +1382,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, boot_point3d_id=value)
         self._populate('boot_position3d_id')
 
-    _stored_tpa_lock_1_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_tpa_lock_1_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1445,7 +1445,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
         self._populate('tpa_lock_1_position3d_id')
 
-    _stored_tpa_lock_2_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_tpa_lock_2_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1508,7 +1508,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
         self._populate('tpa_lock_2_position3d_id')
 
-    _stored_cpa_lock_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_cpa_lock_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1755,7 +1755,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     #         res.append(accessory)
     #     return res
 
-    _stored_part: _Union["_housing.Housing", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_part: _Union["_housing.Housing", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @dump_property(severity=2)
@@ -2304,8 +2304,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return point
 
-    _o_quat3d: list = None
-    _o_euler3d: list = None
+    _o_quat3d: list | None = None
+    _o_euler3d: list | None = None
 
     @_check_types.do
     def _update_angle3d(self, angle: _angle.Angle) -> None:
@@ -2605,8 +2605,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._populate('angle3d')
 
-    _o_quat_pegboard: list = None
-    _o_euler_pegboard: list = None
+    _o_quat_pegboard: list | None = None
+    _o_euler_pegboard: list | None = None
 
     @_check_types.do
     def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
@@ -2837,8 +2837,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._populate('angle_pegboard')
 
-    _o_quat2d: list = None
-    _o_euler2d: list = None
+    _o_quat2d: list | None = None
+    _o_euler2d: list | None = None
 
     @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle) -> None:
@@ -3073,7 +3073,7 @@ class PJTHousingControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.cavities_notebook.setCurrentIndex(index)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTHousingControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

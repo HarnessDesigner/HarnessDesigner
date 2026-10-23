@@ -20,8 +20,8 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
-def add_pjt_wire_service_loop(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, name: str = '', start_point3d_id: bytes | None = None,
-                              stop_point3d_id: bytes | None = None, circuit_id: bytes = None, notes: str = '',
+def add_pjt_wire_service_loop(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, name: str = '', start_point3d_id: bytes | None = None,
+                              stop_point3d_id: bytes | None = None, circuit_id: bytes | None = None, notes: str = '',
                               quat3d: list[float] | None = [1.0, 0.0, 0.0, 0.0], angle3d: list[float] | None = [0.0, 0.0, 0.0],
                               is_visible3d: int = 1) -> None:
     """Add a PJT wire service loop.

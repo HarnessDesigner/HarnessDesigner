@@ -62,12 +62,14 @@ class WireTypeMixin:
     # navigation and static type-checking keep working.
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _waypoints(self, db_obj) -> None:
         """Return *db_obj*'s own ordered interior waypoints for this
         view (e.g. ``db_obj.waypoints3d`` / ``db_obj.waypoints_pegboard``).
         """
         raise NotImplementedError
 
+    @_check_types.do
     def _point_on_wire(
         self, mouse_pos: _point.Point
     ) -> tuple[np.ndarray, int] | tuple[None, None]:
@@ -77,6 +79,7 @@ class WireTypeMixin:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def _endpoint_diameter(self) -> float:
         """Return this object's own diameter in mm, used to size the
         endpoint-snap tolerance in :meth:`get_closest_endpoint`.

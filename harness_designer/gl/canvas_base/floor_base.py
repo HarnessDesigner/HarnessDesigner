@@ -32,7 +32,7 @@ class FloorBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
+    def __init__(self, canvas: "_canvas_base.CanvasBase"):
         self.canvas = canvas
 
         self._vao = None

@@ -21,7 +21,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, choices: list[tuple[str, QtGui.QPixmap | None, str | None]] | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, choices: list[tuple[str, QtGui.QPixmap | None, str | None]] | None = None):
         """Initialise the :class:`BitmapAutoCompleteComboBox` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

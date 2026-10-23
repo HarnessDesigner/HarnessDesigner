@@ -63,7 +63,7 @@ class InnerRing(ProtractorRingBase):
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material: "_material.GLMaterial", label_size: float,
                  obj_angle: _angle.Angle, context: "_gl_context.GLContext", camera: "_camera_base.CameraBase" = None,
-                 local_tilt: _angle.Angle | None = None) -> None:
+                 local_tilt: _angle.Angle | None = None):
 
         self._obj_angle = obj_angle
 
@@ -85,6 +85,7 @@ class InnerRing(ProtractorRingBase):
         self.reposition_all(self._disc_rotation())
         self.start_camera_tracking()
 
+    @_check_types.do
     def _get_label_color(self) -> tuple[float, float, float, float]:
         return _LABEL_COLORS[self.axis]
 

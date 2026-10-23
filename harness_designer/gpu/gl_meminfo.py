@@ -92,7 +92,7 @@ class GLMemInfoBackend(GPUBackend):
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         renderer = _get_renderer()
         spec = _gpu_specs_lookup.lookup(renderer) if renderer else None
 

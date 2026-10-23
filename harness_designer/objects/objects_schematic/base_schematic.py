@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_schematic
 
 
+@_check_types.do
 def box_hit_test(obb: np.ndarray | None, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
     """Whether a ray hits the oriented box *obb* (``(8, 3)``, the pool's
     corner order) -- what a label's hit test is: the box, never its glyph
@@ -94,7 +95,7 @@ class BaseSchematic(_objectsvar.BaseVar):
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
-                 material: _materials.GLMaterial | None) -> None:
+                 material: _materials.GLMaterial | None):
         """Initialise the :class:`BaseSchematic` instance.
 
         :param parent: Parent object.

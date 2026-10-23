@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
+@_check_types.do
 def _build_sws(length: float, o_dia: float, i_dia: float) -> tuple[np.ndarray, np.ndarray]:
     """
     Build the sws.
@@ -92,7 +93,7 @@ class Seal(_base_pegboard.BasePegboard):
     db_obj: "_pjt_seal.PJTSeal"
 
     @_check_types.do
-    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal") -> None:
+    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
         """Initialise the :class:`Seal` instance.
 
         :param parent: Parent object.
@@ -179,6 +180,7 @@ class Seal(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 

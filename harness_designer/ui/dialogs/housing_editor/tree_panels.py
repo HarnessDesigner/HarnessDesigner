@@ -110,7 +110,7 @@ class _TreeControlBase(QtWidgets.QWidget):
     removeRequested: QtCore.SignalInstance = QtCore.Signal(list)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, caption: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, caption: str):
         super().__init__(parent)
 
         self._pending_reselect_index: int | None = None
@@ -271,7 +271,7 @@ class PlaneTreePanel(_TreeControlBase):
     addTerminalToggled: QtCore.SignalInstance = QtCore.Signal(bool)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, is_terminal: bool, caption: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, is_terminal: bool, caption: str):
         self._is_terminal = is_terminal
         self._view_mode: str = 'plane'  # 'plane' | 'size'
 
@@ -670,7 +670,7 @@ class CavityTreePanel(_TreeControlBase):
     removeAllRequested: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, caption: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, caption: str):
         self._items: list[_analysis_panel.AnalysisItem] = []
 
         super().__init__(parent, caption)

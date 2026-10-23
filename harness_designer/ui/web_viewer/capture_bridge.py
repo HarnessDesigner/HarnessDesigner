@@ -25,7 +25,7 @@ class CaptureBridge(QtCore.QObject):
     pageSourceReceived = QtCore.Signal(str, str)
 
     @_check_types.do
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent)
         self._counter = 0
 

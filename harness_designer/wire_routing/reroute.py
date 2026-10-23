@@ -181,6 +181,7 @@ def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, 
     return wire_x, wire_z + sign * stub_length
 
 
+@_check_types.do
 def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_routing.WireEnds:
     """*wire*'s two true 2D ends, the terminal exit stub (if any) at each,
     and the splice/terminal-cylinder rects it's attached to -- what a
@@ -208,6 +209,7 @@ def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_rout
         + _wire_routing.attached_terminal_cylinder_rects(project, wire))
 
 
+@_check_types.do
 def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
                 pack_with: list["_wire_obj.Wire"] = []) -> "_wire_routing.RoutingFrame":
     """One shared routing grid for *wires* (see
@@ -226,6 +228,7 @@ def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
         project, {wire: wire_ends(project, wire) for wire in wires}, pack_with)
 
 
+@_check_types.do
 def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int, tuple[float, float]]]
                   ) -> list[tuple["_point.Point", float, float]]:
     """Turn a wire's *updates* -- ``(index into the wire's path with the
@@ -252,6 +255,7 @@ def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int
     return targets
 
 
+@_check_types.do
 def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point", float, float]]) -> None:
     """Move every ``(waypoint Point, x, z)`` in *targets* -- across ALL the
     wires being shifted.
@@ -281,6 +285,7 @@ def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point"
         point._process_callbacks()  # NOQA
 
 
+@_check_types.do
 def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires: list["_wire_obj.Wire"],
                  delta: tuple[float, float]) -> list["_wire_obj.Wire"]:
     """Let the wires of a housing that has just moved by *delta* follow it
@@ -385,6 +390,7 @@ def _skipped_stub_segments(skip_wires: Iterable["_wire_obj.Wire"]) -> list[tuple
     return segments
 
 
+@_check_types.do
 def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int) -> None:
     """Append a new interior 2D waypoint at ``(x, z)`` as index *idx* of
     *wire*'s path, with its own WireLayout handle -- every interior bend has
@@ -405,6 +411,7 @@ def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, 
     return point
 
 
+@_check_types.do
 def remove_waypoint(project: "_project.Project", point: "_pjt_point2d.PJTPoint2D") -> None:
     """Delete a waypoint row *point* (a ``PJTPoint2D``) and its WireLayout.
 
@@ -423,6 +430,7 @@ def remove_waypoint(project: "_project.Project", point: "_pjt_point2d.PJTPoint2D
     point.delete()
 
 
+@_check_types.do
 def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
                   waypoints: list[tuple[float, float]]) -> None:
     """Reconcile *wire*'s interior 2D waypoint rows to match *waypoints*
@@ -483,6 +491,7 @@ def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
     wire.objschematic.refresh_waypoints()
 
 
+@_check_types.do
 def _axis_aligned(a: tuple[float, float], b: tuple[float, float]) -> bool:
     """Whether *a* -> *b* is a real horizontal or vertical run (not a point)."""
     dx = abs(a[0] - b[0])

@@ -12,7 +12,8 @@ class OBB(_array_pool.ArrayPool):
     = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z.
     """
 
-    def __init__(self) -> None:
+    @_check_types.do
+    def __init__(self):
         super().__init__([[0.0] * 3] * 8)
 
     @_check_types.do

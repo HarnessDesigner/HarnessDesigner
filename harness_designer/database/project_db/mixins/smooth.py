@@ -45,11 +45,12 @@ class SmoothMixin(BaseMixin):
 
         :type value: bool | None
         """
-        real_value = value
-        if real_value is not None:
-            real_value = int(real_value)
+        if value is None:
+            db_value = None
+        else:
+            db_value = int(value)
 
-        self._table.update(self._db_id, smooth=real_value)
+        self._table.update(self._db_id, smooth=db_value)
         self._populate('smooth')
 
 
@@ -59,7 +60,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`SmoothControl` instance.
 
         :param parent: Parent object.

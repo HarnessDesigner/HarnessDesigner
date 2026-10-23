@@ -17,7 +17,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, position_or_angle: _point.Point | _angle.Angle | None,
-                 color: _color.Color | None = None, register_events: bool = True, label: str | None = None) -> None:
+                 color: _color.Color | None = None, register_events: bool = True, label: str | None = None):
         """Initialise the :class:`TripleFloatCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -45,6 +45,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
 
         self.setMaximumHeight(250)
 
+        group: QtWidgets.QWidget
         if label is None:
             group = self
         else:

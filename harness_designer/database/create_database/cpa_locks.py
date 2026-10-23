@@ -139,7 +139,7 @@ def add_cpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
 
         description += ' CPA Lock'
 
-    compat_housings = ', '.join(compat_housings)
+    compat_housings_str = ', '.join(compat_housings)
 
     _logger.database(f'adding cpa lock {part_number}, {description}')
 
@@ -152,7 +152,7 @@ def add_cpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
                 (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  type_id, length, width, height, weight, pins, terminal_size,
-                 compat_housings))
+                 compat_housings_str))
 
     _logger.database(f'cpa lock added "{part_number}"')
 

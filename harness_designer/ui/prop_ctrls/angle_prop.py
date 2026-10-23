@@ -21,7 +21,7 @@ class AngleProperty(QtWidgets.QGroupBox):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, axes: str = 'xyz') -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str, axes: str = 'xyz'):
         """Initialise the :class:`Angle3DProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

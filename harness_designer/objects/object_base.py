@@ -38,19 +38,22 @@ class ObjectBase:
     objpegboard: "_base_pegboard.BasePegboard" = None
     db_obj: "_project_db.PJTEntryBase" = None
 
-    @_check_types.do
     @property
+    @_check_types.do
     def is_angle_locked(self) -> bool:
         """Whether this object's angle is locked. Plain objects never lock."""
         return False
 
+    @_check_types.do
     def lock_angle(self) -> None:
         """Lock this object's angle. A no-op for objects without a lockable angle."""
 
+    @_check_types.do
     def unlock_angle(self) -> None:
         """Unlock this object's angle. A no-op for objects without a lockable angle."""
 
-    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase") -> None:
+    @_check_types.do
+    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase"):
         """Initialise the :class:`ObjectBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -86,6 +89,7 @@ class ObjectBase:
         if self.objpegboard is not None:
             self.objpegboard.identify(material)
 
+    @_check_types.do
     def bind_for_treeitem(self, callback) -> None:
         if self._treeitem is None:
             self.__tree_item_callbacks.append(weakref.ref(callback))

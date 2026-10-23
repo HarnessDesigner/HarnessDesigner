@@ -46,7 +46,7 @@ class Splice(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_splice.Splice",
-                 db_obj: "_pjt_splice.PJTSplice") -> None:
+                 db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
 
         :param parent: Parent object.
@@ -84,6 +84,7 @@ class Splice(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -205,7 +206,7 @@ class SpliceMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Splice") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Splice"):
         """Initialise the :class:`SpliceMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

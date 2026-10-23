@@ -7,7 +7,10 @@ map the name to the matching attribute with plain branches, so no
 
 from typing import Any
 
+from .. import check_types as _check_types
 
+
+@_check_types.do
 def get_axis(angle: Any, axis: str) -> float:
     """Read one Euler component (``'x'``, ``'y'`` or ``'z'``) of *angle*."""
     if axis == 'x':
@@ -20,6 +23,7 @@ def get_axis(angle: Any, axis: str) -> float:
     raise ValueError(f'unknown axis {axis!r}')
 
 
+@_check_types.do
 def set_axis(angle: Any, axis: str, value: float) -> None:
     """Write one Euler component (``'x'``, ``'y'`` or ``'z'``) of *angle*."""
     if axis == 'x':
@@ -32,6 +36,7 @@ def set_axis(angle: Any, axis: str, value: float) -> None:
         raise ValueError(f'unknown axis {axis!r}')
 
 
+@_check_types.do
 def axis_color(ring_config: Any, axis: str) -> list[float]:
     """The configured RGBA colour for one axis's ring."""
     if axis == 'x':

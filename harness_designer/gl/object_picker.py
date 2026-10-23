@@ -88,8 +88,10 @@ def build_ray(mouse_pos: "_point.Point", camera: _Union["_camera3d.Camera", "_ca
 _DEBUG_PICK = False
 
 
+@_check_types.do
 def _debug_pick_report(origin: np.ndarray, direc: np.ndarray, canvas: "_canvas_base.CanvasBase", obb_hits: list[tuple[int, float]], aabb_hits: list[tuple[int, float]], hits: list[tuple[Any, float]], picked: _Union["_objects.ObjectBase", None]) -> None:
     """Print one block describing a pick -- see ``_DEBUG_PICK``."""
+    @_check_types.do
     def describe(pool: "_array_pool.ArrayPool", index: int, t: float) -> str:
         obj = pool.resolve(index)
         if obj is None:

@@ -42,14 +42,14 @@ def _sep_cavity_id(id_: str) -> str:
         while not id_[-1].isdigit():
             res = id_[-1] + res
             id_ = id_[:-1]
-        res = (id_, res)
+        result = (id_, res)
     else:
         while not id_[0].isdigit():
             res += id_[0]
             id_ = id_[1:]
-        res = (res, id_)
+        result = (res, id_)
 
-    return res
+    return result
 
 
 @_check_types.do

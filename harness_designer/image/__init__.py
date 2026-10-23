@@ -33,7 +33,7 @@ class Image:
     """
 
     @_check_types.do
-    def __init__(self, name: str, path: str | None = None, png_data: bytes | None = None) -> None:
+    def __init__(self, name: str, path: str | None = None, png_data: bytes | None = None):
         """Initialize an image wrapper.
 
         :param name: Logical asset name.
@@ -314,7 +314,7 @@ class ImageLoader:
     """
 
     @_check_types.do
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str):
         """Initialize the lazy image loader.
 
         When ``path`` matches :data:`BASE_PATH`, the loader replaces the module

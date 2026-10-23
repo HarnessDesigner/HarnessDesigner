@@ -32,7 +32,7 @@ class Renderer:
     """Compile the OpenCL kernel and execute chunked ray-tracing work for a prepared :class:`Scene`.
     """
     @_check_types.do
-    def __init__(self, scene: "_scene.Scene", callback: Callable[..., None]) -> None:
+    def __init__(self, scene: "_scene.Scene", callback: Callable[..., None]):
         """Initialize the object and capture the state required for later interaction.
 
         :param scene: Prepared scene description to render.

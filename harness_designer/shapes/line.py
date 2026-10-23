@@ -30,7 +30,7 @@ class Line:
 
     @_check_types.do
     def __init__(self, p1: _point.Point, p2: _point.Point, width: _decimal,
-                 color: _color.Color, stripe_color: _color.Color | None) -> None:
+                 color: _color.Color, stripe_color: _color.Color | None):
         """Initialize the drawable line.
 
         :param p1: Start point of the line.

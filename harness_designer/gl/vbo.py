@@ -49,7 +49,7 @@ class _ArenaAllocation:
 class _MeshArena:
 
     @_check_types.do
-    def __init__(self, capacity_vertices: int) -> None:
+    def __init__(self, capacity_vertices: int):
         self.capacity_vertices = int(capacity_vertices)
         self._allocations: dict[str, _ArenaAllocation] = {}
         self._free_ranges: list[tuple[int, int]] = [(0, self.capacity_vertices)]
@@ -325,6 +325,7 @@ class VBOSingleton(type):
     # and drops <id>_new, and the old one's later callback only drops its own key.
 
     @classmethod
+    @_check_types.do
     def _live(cls, key: str) -> _Union["VBOHandlerBase", None]:
         """The VBO stored under *key*, or ``None`` -- dereferenced ONCE and
         returned as a strong reference. Checking that a reference is alive and
@@ -374,6 +375,7 @@ class VBOSingleton(type):
 
             del cls._instances[key]
 
+    @_check_types.do
     def get(cls, id_: str) -> _Union["VBOHandlerBase", None]:
         """The VBO with id *id_*, or ``None`` if there isn't a live one -- in one
         step, as a strong reference. ``id_ in cls`` followed by ``cls(id_)`` is
@@ -474,7 +476,7 @@ class VBOHandlerBase:
                  count: int = 0,
                  aabb: np.ndarray | None = None,
                  obb: np.ndarray | None = None,
-                 *, endpoint: _point.Point | None = None) -> None:
+                 *, endpoint: _point.Point | None = None):
         _ = self.ctx
 
         if data is None:
@@ -762,7 +764,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
                  count: int = 0,
                  aabb: np.ndarray | None = None,
                  obb: np.ndarray | None = None,
-                 *, endpoint: _point.Point | None = None) -> None:
+                 *, endpoint: _point.Point | None = None):
 
         super().__init__(data, count, aabb, obb, endpoint=endpoint)
         self._vbo = self._create_vbo(self._data)
@@ -895,7 +897,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                  aabb: np.ndarray | None = None,
                  obb: np.ndarray | None = None,
                  *, endpoint: _point.Point | None = None,
-                 arena_kind: int = VBO_TYPE_MODEL) -> None:
+                 arena_kind: int = VBO_TYPE_MODEL):
 
         super().__init__(data, count, aabb, obb, endpoint=endpoint)
 

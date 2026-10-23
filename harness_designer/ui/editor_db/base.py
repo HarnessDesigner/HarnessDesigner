@@ -28,7 +28,7 @@ class _HeaderSearchPopup(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, initial_text: str,
-                 on_ok: Callable[[str], None]) -> None:
+                 on_ok: Callable[[str], None]):
         """Initialise the :class:`_HeaderSearchPopup` instance.
 
         :param parent: Parent widget the popup is anchored near.
@@ -96,7 +96,7 @@ class ScrollTracker:
     max_buffer = 500
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialise the :class:`ScrollTracker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -163,7 +163,7 @@ class _EditorModel(QtCore.QAbstractTableModel):
     """
 
     @_check_types.do
-    def __init__(self, editor_list: "EditorList") -> None:
+    def __init__(self, editor_list: "EditorList"):
         """Initialise the :class:`_EditorModel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -208,8 +208,13 @@ class _EditorModel(QtCore.QAbstractTableModel):
         return len(self._list.column_mapping) + 1
 
     @_check_types.do
-    def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
-                   role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole) -> str | None:
+    def headerData(
+        self,
+        section: int,
+        orientation: QtCore.Qt.Orientation,
+        role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+    ) -> str | None:
+
         """Execute the header data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -251,6 +256,7 @@ class _EditorModel(QtCore.QAbstractTableModel):
                 # ASC = A at top, Z at bottom → triangle points down ▼
                 # DESC = Z at top, A at bottom → triangle points up ▲
                 triangle = '▼' if direction == 'ASC' else '▲'
+
                 if len(self._list.sort_columns) > 1:
                     return f'{label} {triangle}({priority})'
 
@@ -259,8 +265,12 @@ class _EditorModel(QtCore.QAbstractTableModel):
         return label
 
     @_check_types.do
-    def data(self, index: QtCore.QModelIndex,
-             role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole) -> QtGui.QIcon | str | QtCore.Qt.AlignmentFlag | None:
+    def data(
+        self,
+        index: QtCore.QModelIndex,
+        role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+    ) -> QtGui.QIcon | str | QtCore.Qt.AlignmentFlag | None:
+
         """Execute the data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -297,6 +307,7 @@ class _EditorModel(QtCore.QAbstractTableModel):
                         return QtCore.Qt.AlignmentFlag.AlignCenter
 
                 return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
+
         except:  # NOQA
             import traceback
             traceback.print_exc()
@@ -317,7 +328,8 @@ class _EditorModel(QtCore.QAbstractTableModel):
     @_check_types.do
     def invalidate_icon(self, row_id: int) -> None:
         idx = self.index(row_id, 0)
-        self.dataChanged.emit(idx, idx, [QtCore.Qt.ItemDataRole.DecorationRole])
+        self.dataChanged.emit(
+            idx, idx, [QtCore.Qt.ItemDataRole.DecorationRole])
 
     @_check_types.do
     def reset_all(self) -> None:
@@ -385,7 +397,7 @@ class EditorList(QtWidgets.QTableView):
         return self._label
 
     @_check_types.do
-    def GetSelection(self) -> int | None:
+    def GetSelection(self) -> bytes | None:
         """Execute the get selection operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -412,6 +424,7 @@ class EditorList(QtWidgets.QTableView):
     @_check_types.do
     def set_filter(self, where_clause: str = '',
                    where_params: list | None = None) -> None:
+
         """Replace the active WHERE clause and refresh the list."""
 
         self._where_clause = where_clause or ''
@@ -554,10 +567,10 @@ class EditorList(QtWidgets.QTableView):
 
             if 'ref_table' in info:
                 select_cols.append(f'{alias}.{info["ref_field"]} AS {alias}')
-                joins.append(
-                    f'LEFT JOIN {info["ref_table"]} AS {alias}'
-                    f' ON {alias}.id = t.{field_name}'
-                )
+
+                joins.append(f'LEFT JOIN {info["ref_table"]} AS {alias}'
+                             f' ON {alias}.id = t.{field_name}')
+
             else:
                 select_cols.append(f't.{field_name} AS {alias}')
 
@@ -591,6 +604,7 @@ class EditorList(QtWidgets.QTableView):
             self.table.execute(sql + ';', params)
         else:
             self.table.execute(sql + ';')
+
         return self.table.fetchall()[0][0]
 
     # ------------------------------------------------------------------
@@ -674,15 +688,16 @@ class EditorList(QtWidgets.QTableView):
         the label string itself, e.g. ``"Part Number ↓2"``.
         """
 
-        self._model.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0,
-                                           self._model.columnCount() - 1)
+        self._model.headerDataChanged.emit(
+            QtCore.Qt.Orientation.Horizontal, 0,
+            self._model.columnCount() - 1)
 
     # ------------------------------------------------------------------
     # DB helpers
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def get_obj_id(self, row: int) -> int | None:
+    def get_obj_id(self, row: int) -> bytes | None:
         """Return the obj ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -833,13 +848,16 @@ class EditorList(QtWidgets.QTableView):
             self.downloading_images[db_id][0] = EditorList._no_image
         else:
             self.downloading_images[db_id][0] = (
-            self._download_0, self._download_1, self._download_2,
-            self._download_3, self._download_4, self._download_5)[step]
+                self._download_0, self._download_1, self._download_2,
+                self._download_3, self._download_4, self._download_5)[step]
 
-        QtCore.QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
+        QtCore.QTimer.singleShot(
+            0, lambda row=row_id: self._model.invalidate_icon(row))
 
     @_check_types.do
-    def _load_icon(self, image: "_global_image.Image", pixmap: QtGui.QPixmap) -> None:
+    def _load_icon(self, image: "_global_image.Image",
+                   pixmap: QtGui.QPixmap) -> None:
+
         db_id = image.db_id
         pixmap = pixmap.scaled(64, 64, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                                QtCore.Qt.TransformationMode.SmoothTransformation)
@@ -848,7 +866,8 @@ class EditorList(QtWidgets.QTableView):
         row_id = self.downloading_images[db_id][1]
         del self.downloading_images[db_id]
 
-        QtCore.QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
+        QtCore.QTimer.singleShot(
+            0, lambda row=row_id: self._model.invalidate_icon(row))
 
         # from ... import app
         # app.CallAfter(self._model.invalidate_row, row_id)
@@ -882,11 +901,13 @@ class EditorList(QtWidgets.QTableView):
 
         if not self._has_image:
             self.bitmap_indexes[db_id] = EditorList._no_image
+
             return EditorList._no_image
 
         image_id = row[-1]
         if image_id is None:
             self.bitmap_indexes[db_id] = EditorList._no_image
+
             return EditorList._no_image
 
         if image_id not in self.downloading_images:
@@ -899,7 +920,8 @@ class EditorList(QtWidgets.QTableView):
             self.downloading_images[image_id] = [self._download_0, row_id]
             image.load(row[4], row[2], self._load_icon, self._update_progress)
 
-        return self.downloading_images.get(image_id, [self.bitmap_indexes.get(image_id, EditorList._no_image)])[0]
+        return self.downloading_images.get(
+            image_id, [self.bitmap_indexes.get(image_id, EditorList._no_image)])[0]
 
     # ------------------------------------------------------------------
     # Qt event overrides
@@ -1062,8 +1084,7 @@ class EditorList(QtWidgets.QTableView):
             return os_interval
 
         return int(min(os_interval,
-                       max(self._DESELECT_MIN_MS,
-                           avg * self._DESELECT_MARGIN)))
+                       max(self._DESELECT_MIN_MS, avg * self._DESELECT_MARGIN)))
 
     @_check_types.do
     def _on_deselect_timeout(self) -> None:
@@ -1089,6 +1110,7 @@ class EditorList(QtWidgets.QTableView):
         ):
             self.clearSelection()
             event.accept()
+
             return
 
         super().keyPressEvent(event)
@@ -1213,8 +1235,10 @@ class EditorList(QtWidgets.QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, mainframe: "_mainframe.MainFrame",
-                 label: str, table) -> None:
+    def __init__(self, parent: QtWidgets.QWidget,
+                 mainframe: "_mainframe.MainFrame",
+                 label: str, table):
+
         """Initialise the :class:`EditorList` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1257,11 +1281,17 @@ class EditorList(QtWidgets.QTableView):
         self._model = _EditorModel(self)
         self.setModel(self._model)
 
-        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+        self.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+
+        self.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+
         self.setShowGrid(True)
         self.setAlternatingRowColors(True)
-        self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+
+        self.setEditTriggers(
+            QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
 
         # manual sort via header click
         self.setSortingEnabled(False)
@@ -1277,8 +1307,11 @@ class EditorList(QtWidgets.QTableView):
         header.setSortIndicatorShown(False)
 
         # Right-click a header section for a per-column search popup.
-        header.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-        header.customContextMenuRequested.connect(self._on_header_context_menu)  # NOQA
+        header.setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+
+        header.customContextMenuRequested.connect(
+            self._on_header_context_menu)  # NOQA
 
         self.column_lookup = {}
 
@@ -1296,9 +1329,11 @@ class EditorList(QtWidgets.QTableView):
             self.column_lookup[logical] = column_name
 
             if column_name == 'model3d_id':
-                header.setSectionResizeMode(logical, QtWidgets.QHeaderView.ResizeMode.Fixed)
+                header.setSectionResizeMode(
+                    logical, QtWidgets.QHeaderView.ResizeMode.Fixed)
             else:
-                header.setSectionResizeMode(logical, QtWidgets.QHeaderView.ResizeMode.Interactive)
+                header.setSectionResizeMode(
+                    logical, QtWidgets.QHeaderView.ResizeMode.Interactive)
 
             offset = 100 if label_text == 'Description' else 25
             self.setColumnWidth(
@@ -1307,7 +1342,9 @@ class EditorList(QtWidgets.QTableView):
         self.max_column_count = len(self.column_mapping)
         self.buffer_size = self.rowsPerPage()
 
-        self.selectionModel().selectionChanged.connect(self._on_selection_changed)
+        self.selectionModel().selectionChanged.connect(
+            self._on_selection_changed)
+
         self.activated.connect(self._on_activated)
         header.sectionClicked.connect(self._on_header_clicked)
 

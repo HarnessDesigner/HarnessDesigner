@@ -30,7 +30,7 @@ class WrapLabel(QtWidgets.QLabel):
     """
 
     @_check_types.do
-    def __init__(self, text: str = '', parent: QtWidgets.QWidget | None = None, wrap: bool = True) -> None:
+    def __init__(self, text: str = '', parent: QtWidgets.QWidget | None = None, wrap: bool = True):
         """
         :param text: What to show to begin with.
         :param wrap: Wrap at spaces (``True``) or keep to one line.

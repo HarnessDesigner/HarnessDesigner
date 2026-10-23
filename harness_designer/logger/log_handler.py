@@ -7,6 +7,7 @@ from collections.abc import Callable
 import platform
 import datetime
 import io
+import multiprocessing
 import re
 import sys
 import threading
@@ -18,6 +19,7 @@ import pandas as pd
 
 from .. import config as _config
 from .. import __version__
+from .. import utils as _utils
 from . import redirect
 
 
@@ -142,7 +144,7 @@ class LogHandler(threading.Thread):
         """
         pass
 
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialize log file rotation state and open the current CSV file."""
         super().__init__(daemon=True)
 
@@ -486,11 +488,47 @@ class LogHandler(threading.Thread):
             self._logfile.flush()
 
 
+class NullLogHandler(object):
+    """Stands in for :class:`LogHandler` inside PyCharm's skeleton generator.
+
+    ``LogHandler.__init__`` creates the log folder, finalizes leftover
+    "pending" log files and opens a new one, and its ``flush()`` waits on a
+    barrier only the (started) worker thread releases -- so merely not
+    starting the thread would hang the first ``error()`` call. This class
+    has none of that: every method is a no-op, and nothing touches disk.
+    """
+
+    def write(self, log_entry: dict) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+    def bind(self, callback: Callable[..., None]) -> None:
+        pass
+
+
 class Log(object):
     """Application logger that routes messages to CSV logs and stream wrappers."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialize logging, stream redirection, and startup environment logging."""
+        # PyCharm builds stubs for compiled modules by importing each one in a
+        # worker process (see ``utils.SKELETON_WORKER_NAME``). Don't write to
+        # the application's log files there, and leave sys.stdout/sys.stderr
+        # alone (the generator reports through them).
+        if multiprocessing.current_process().name == _utils.SKELETON_WORKER_NAME:
+            self.log_handler = NullLogHandler()
+            self._stdout = None
+            self._stderr = None
+            return
+
         self.log_handler = LogHandler()
         self.log_handler.start()
 

@@ -43,7 +43,7 @@ class CPALock(_base_3d.Base3D):
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     @_check_types.do
-    def __init__(self, parent: "_cpa_lock.CPALock", db_obj: "_pjt_cpa_lock.PJTCPALock") -> None:
+    def __init__(self, parent: "_cpa_lock.CPALock", db_obj: "_pjt_cpa_lock.PJTCPALock"):
         """Initialise the :class:`CPALock` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -93,7 +93,7 @@ class CPALock(_base_3d.Base3D):
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.CoversPage, mainframe.global_db.cpa_locks_table,
+                mainframe, _editor_db.CPALocksPage, mainframe.global_db.cpa_locks_table,
                 'Add CPA Lock',
                 initial_params=_part_search.SearchParameters.from_part_numbers(compat_cpa_locks))
 
@@ -227,7 +227,7 @@ class CPALockMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "CPALock") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "CPALock"):
         """Initialise the :class:`CPALockMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

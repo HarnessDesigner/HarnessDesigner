@@ -28,7 +28,7 @@ class FocalTarget(_ObjectBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas") -> None:
+    def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`FocalPoint` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +68,7 @@ class FocalTarget3D(_generic_3d.Generic):
     _pick_priority = -1
 
     @_check_types.do
-    def __init__(self, parent: FocalTarget) -> None:
+    def __init__(self, parent: FocalTarget):
         """Initialise the :class:`FocalPoint3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

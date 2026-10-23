@@ -48,7 +48,7 @@ class BundleLayout(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout") -> None:
+                 db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         """Initialise the :class:`BundleLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -224,7 +224,7 @@ class BundleLayoutMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "BundleLayout") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "BundleLayout"):
         """Initialise the :class:`BundleLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

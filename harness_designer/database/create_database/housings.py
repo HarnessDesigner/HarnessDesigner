@@ -269,13 +269,13 @@ def add_housing(con: "_connector_base.ConnectorBase", part_number: str, descript
 
         description += ' Housing'
 
-    compat_cpas = ', '.join(compat_cpas)
-    compat_tpas = ', '.join(compat_tpas)
-    compat_covers = ', '.join(compat_covers)
-    compat_terminals = ', '.join(compat_terminals)
-    compat_seals = ', '.join(compat_seals)
-    compat_housings = ', '.join(compat_housings)
-    compat_boots = ', '.join(compat_boots)
+    compat_cpas_str = ', '.join(compat_cpas)
+    compat_tpas_str = ', '.join(compat_tpas)
+    compat_covers_str = ', '.join(compat_covers)
+    compat_terminals_str = ', '.join(compat_terminals)
+    compat_seals_str = ', '.join(compat_seals)
+    compat_housings_str = ', '.join(compat_housings)
+    compat_boots_str = ', '.join(compat_boots)
 
     new_id = _id_generator.generate_global_row_id(con).bytes
     con.execute('INSERT INTO housings (id, part_number, description, mfg_id, family_id, '
@@ -293,9 +293,9 @@ def add_housing(con: "_connector_base.ConnectorBase", part_number: str, descript
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  direction_id, gender_id, cavity_lock_id, ip_rating_id, seal_type_id,
                  cpa_lock_type_id, sealing, rows, num_pins, str(terminal_sizes),
-                 str(terminal_size_counts), centerline, compat_cpas, compat_tpas,
-                 compat_covers, compat_terminals, compat_seals,
-                 compat_housings, compat_boots, length, width, height,
+                 str(terminal_size_counts), centerline, compat_cpas_str, compat_tpas_str,
+                 compat_covers_str, compat_terminals_str, compat_seals_str,
+                 compat_housings_str, compat_boots_str, length, width, height,
                  weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
                  str(tpa_lock_1_point3d), str(tpa_lock_2_point3d), str(cpa_lock_point3d)))
 

@@ -1,25 +1,30 @@
 #!/usr/bin/env bash
 # Harness Designer — macOS postinstall script
-# Runs after pkgbuild copies files to their destinations.
-# Invokes the dependency installer as the currently logged-in GUI user
-# so that the tkinter progress window can be displayed.
+# Runs after pkgbuild copies files to their destinations (see preinstall for
+# the running/already-installed checks, which run BEFORE that copy).
+# Invokes the dependency installer's --phase install as the currently
+# logged-in GUI user so the tkinter window can be displayed -- this shows
+# the PySide6 license Accept/Cancel screen and, on Accept, the actual pip
+# install, in the SAME window (one dialog, not two).
+#
+# Cancelling at the license screen happens after the app bundle has already
+# been copied to /Applications, so dep_installer exiting with code 3 means
+# "remove what was just installed" here, not just "don't proceed".
 
-set -euo pipefail
+set -uo pipefail
 
 INSTALL_DIR="/Applications/HarnessDesigner.app"
 DEPENDENCY_INSTALLER="$INSTALL_DIR/Contents/Resources/dep_installer"
 LIB_DIR="$INSTALL_DIR/Contents/MacOS"
 
-# Ensure the embedded installer is executable
 chmod +x "$DEPENDENCY_INSTALLER"
 
-# Identify the logged-in console user (may differ from the user running
-# the installer, which could be root via sudo or the Installer app).
 CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 
+rc=0
 if [[ -z "$CONSOLE_USER" || "$CONSOLE_USER" == "root" ]]; then
     # No GUI user at the console (headless install) — run silently as root.
-    "$DEPENDENCY_INSTALLER" "$LIB_DIR"
+    "$DEPENDENCY_INSTALLER" --phase install "$LIB_DIR" || rc=$?
 else
     CONSOLE_UID=$(id -u "$CONSOLE_USER")
 
@@ -27,7 +32,16 @@ else
     # tkinter GUI appears on the correct display.
     launchctl asuser "$CONSOLE_UID" \
         sudo -u "$CONSOLE_USER" \
-        "$DEPENDENCY_INSTALLER" "$LIB_DIR"
+        "$DEPENDENCY_INSTALLER" --phase install "$LIB_DIR" || rc=$?
+fi
+
+if [[ $rc -eq 3 ]]; then
+    echo "Setup was cancelled -- removing the application." >&2
+    rm -rf "$INSTALL_DIR"
+    exit 1
+elif [[ $rc -ne 0 ]]; then
+    echo "dep_installer failed (exit $rc)" >&2
+    exit "$rc"
 fi
 
 exit 0

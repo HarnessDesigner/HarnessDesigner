@@ -62,7 +62,7 @@ class Names:
     in the script (or with names this snippet handed out earlier)."""
 
     @_check_types.do
-    def __init__(self, taken: set[str] | None = None) -> None:
+    def __init__(self, taken: set[str] | None = None):
         self._taken: set[str] = set()
         if taken is not None:
             self._taken.update(taken)

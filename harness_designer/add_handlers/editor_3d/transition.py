@@ -89,7 +89,7 @@ class Transition(_base.AddHandlerBase):
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
                  part_id: bytes, part: "_glb_transition.Transition",
-                 highlight_material: "_materials.GLMaterial") -> None:
+                 highlight_material: "_materials.GLMaterial"):
 
         super().__init__(canvas, target)
 

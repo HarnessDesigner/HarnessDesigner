@@ -34,6 +34,7 @@ _debug_config = _config.Config.debug.rendering3d
 FOV_DEGREES = 65.0
 
 
+@_check_types.do
 def _build_perspective_matrix(fov_deg: float, aspect: float,
                               near: float, far: float) -> np.ndarray:
     """
@@ -84,7 +85,7 @@ class Canvas(_canvas_base.CanvasBase):
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_3d,
-                 size: QtCore.QSize | None = None) -> None:
+                 size: QtCore.QSize | None = None):
         """
         Initialise the :class:`Canvas` instance.
 
@@ -227,6 +228,7 @@ class Canvas(_canvas_base.CanvasBase):
         if self._focal_target is not None:
             self._focal_target.obj3d.is_visible = flag
 
+    @_check_types.do
     def _set_view(self) -> None:
         if self.size:
             w, h = self.size
@@ -255,9 +257,11 @@ class Canvas(_canvas_base.CanvasBase):
         self.camera.set_view(projection, modelview, fov_deg)
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_3d.Base3D":
         return obj.obj3d
 
+    @_check_types.do
     def _render_floor_after(self) -> None:
         try:
             self._floor.render(self._shaders)

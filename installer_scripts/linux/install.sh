@@ -59,7 +59,6 @@ else
 fi
 
 APP_DIR="$PREFIX/$APP_NAME"
-LIB_DIR="$APP_DIR"
 
 # ── Sudo wrapper ──────────────────────────────────────────────────────────────
 
@@ -95,10 +94,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="$REPO_ROOT/builder/scripts/dist"
 APP_SRC="$BUILD_DIR/$APP_NAME"
-INSTALLER_SRC="$BUILD_DIR/dep_installer"
 ICON_SRC="$REPO_ROOT/harness_designer/image/icon_256x256.png"
 
-for path in "$APP_SRC" "$INSTALLER_SRC" "$ICON_SRC"; do
+for path in "$APP_SRC" "$ICON_SRC"; do
     if [[ ! -e "$path" ]]; then
         echo "Error: expected build output not found: $path"
         echo "Run the builder first: python -m builder"
@@ -106,12 +104,35 @@ for path in "$APP_SRC" "$INSTALLER_SRC" "$ICON_SRC"; do
     fi
 done
 
+# ── Pre-install checks: running process, existing installation ────────────────
+# No separate GUI installer process on Linux -- these are plain terminal
+# prompts, run before anything on disk is touched. (The PySide6 license/
+# Accept-Cancel screen itself is shown by the app on first launch instead --
+# see builder/scripts/bootstrap.py.)
+
+if command -v pgrep &>/dev/null; then
+    while pgrep -x "$APP_BINARY" &>/dev/null; do
+        echo "$APP_DISPLAY_NAME is currently running."
+        read -r -p "Close it, then press Enter to retry (Ctrl-C to cancel): "
+    done
+fi
+
+if [[ -f "$APP_DIR/$APP_BINARY" ]]; then
+    echo "An existing installation of $APP_DISPLAY_NAME was found at $APP_DIR."
+    read -r -p "It will be removed (your user data is never touched). Continue? [y/N] " REPLY
+    case "$REPLY" in
+        [yY]*) ;;
+        *) echo "Aborted."; exit 1 ;;
+    esac
+fi
+
 # ── Install files ─────────────────────────────────────────────────────────────
 
 echo "Installing $APP_DISPLAY_NAME ${APP_VERSION}..."
 echo "  Destination: $APP_DIR"
 echo ""
 
+run rm -rf "$APP_DIR"
 run mkdir -p "$APP_DIR"
 run mkdir -p "$BIN_DIR"
 run mkdir -p "$DESKTOP_DIR"
@@ -150,53 +171,10 @@ if command -v gtk-update-icon-cache &>/dev/null; then
     run gtk-update-icon-cache -f -t "$(dirname "$ICON_DIR")" 2>/dev/null || true
 fi
 
-# ── Third-party license notice: PySide6/Qt (LGPLv3) ──────────────────────────
-# PySide6 itself gets pip-installed by dep_installer below; its own PyPI
-# package doesn't ship the actual LGPLv3/GPLv3 text (see harness_designer/
-# ui/dialogs/about_dialog.py for the same notice shown post-install), so this
-# project prints it here and ships the real text alongside the installed app
-# (harness_designer/licenses/, bundled automatically into $APP_DIR since it's
-# part of the harness_designer package).
-
-echo "This application uses PySide6, the official Python bindings for the"
-echo "Qt framework, provided by The Qt Company. PySide6 is used here under"
-echo "the GNU Lesser General Public License, Version 3 (LGPLv3), dynamically"
-echo "linked as a separate, independently replaceable component -- it is not"
-echo "compiled into this application's own code."
-echo ""
-echo "Copyright (C) The Qt Company Ltd. and contributors."
-echo ""
-echo "The full text of the LGPLv3 and the GPLv3 (which the LGPLv3 incorporates"
-echo "by reference) is installed with the application at:"
-echo "  $APP_DIR/licenses/LGPLv3.txt"
-echo "  $APP_DIR/licenses/GPLv3.txt"
-echo "and is also available from the app's Help -> About dialog."
-echo ""
-
-# ── Install dependencies ──────────────────────────────────────────────────────
-
-echo "Installing required Python components..."
-echo "  A component selection window will appear."
-echo ""
-
-INSTALLER_TMP="$(mktemp)"
-cp "$INSTALLER_SRC" "$INSTALLER_TMP"
-chmod +x "$INSTALLER_TMP"
-
-# Run as the current user (not root) so the GUI appears correctly.
-# If we are root (sudo), drop back to the original user.
-if [[ $NEED_SUDO -eq 1 && -n "${SUDO_USER:-}" ]]; then
-    run mkdir -p "$LIB_DIR"
-    run chown "$SUDO_USER:$(id -gn "$SUDO_USER")" "$LIB_DIR"
-    sudo -u "$SUDO_USER" "$INSTALLER_TMP" "$LIB_DIR"
-else
-    mkdir -p "$LIB_DIR"
-    "$INSTALLER_TMP" "$LIB_DIR"
-fi
-
-rm -f "$INSTALLER_TMP"
-
 # ── Done ──────────────────────────────────────────────────────────────────────
+# PySide6 (used under the LGPLv3 -- see harness_designer/licenses/) is
+# installed by the application itself, with a license Accept/Cancel screen,
+# the first time it's launched and finds PySide6 not already present.
 
 echo ""
 echo "$APP_DISPLAY_NAME ${APP_VERSION} installed successfully."
@@ -209,3 +187,6 @@ if [[ "$INSTALL_MODE" == "user" && ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 echo "  Launch: $APP_NAME"
 echo "  Or find '$APP_DISPLAY_NAME' in your application menu."
+echo ""
+echo "  Note: the first launch will install PySide6 (Qt) and show its"
+echo "  license for you to accept -- this needs network access."

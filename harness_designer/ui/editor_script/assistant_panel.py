@@ -52,7 +52,7 @@ class AssistantPanel(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, editor: "_script_editor.ScriptEditorPanel", client: _claude.ClaudeClient,
-                 parent: QtWidgets.QWidget | None = None) -> None:
+                 parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._editor = editor
         self._client = client

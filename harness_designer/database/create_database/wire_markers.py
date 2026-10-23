@@ -201,7 +201,7 @@ def add_wire_marker(con: "_connector_base.ConnectorBase", part_number: str, desc
 
 
 @_check_types.do
-def add_pjt_wire_marker(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, point3d_id: bytes | None = None, point2d_id: bytes | None = None,
+def add_pjt_wire_marker(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, point3d_id: bytes | None = None, point2d_id: bytes | None = None,
                         wire_id: bytes | None = None, name: str = '', notes: str = '', label: str = '', is_visible2d: int = 1,
                         is_visible3d: int = 1) -> None:
     """Add a PJT wire marker.

@@ -14,7 +14,7 @@ class LongStringDialog(QtWidgets.QDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, value: str, title: str = 'Enter Text') -> None:
+    def __init__(self, parent: QtWidgets.QWidget, value: str, title: str = 'Enter Text'):
         """Initialise the :class:`LongStringDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -74,7 +74,7 @@ class LongStringProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None):
         """Initialise the :class:`LongStringProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -38,7 +38,7 @@ class MessageDialog(_dialog_base.BaseDialog):
 
     @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", title: str, text: str, buttons: _Buttons = _Buttons.Ok,
-                 extra: str | None = None, size: tuple[int, int] = (560, 260)) -> None:
+                 extra: str | None = None, size: tuple[int, int] = (560, 260)):
         super().__init__(parent, title, size=size, button_ids=buttons)
         self.chosen: _Buttons | None = None
         self.extra_chosen = False

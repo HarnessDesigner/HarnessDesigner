@@ -5,9 +5,12 @@ rather than enumerated element by element.
 """
 from __future__ import annotations
 
+from ... import check_types as _check_types
+
 _MAX_PREVIEW_ITEMS = 20
 
 
+@_check_types.do
 def render(value):
     flat = value.ravel()
     preview = [item.item() for item in flat[:_MAX_PREVIEW_ITEMS]]

@@ -60,10 +60,15 @@ def _check_build_outputs():
         if not os.path.isdir(app):
             errors.append(f'  missing dir : {app}')
 
-        ext = '.exe' if sys.platform.startswith('win') else ''
-        binary = os.path.join(BUILD_DIR, f'dep_installer{ext}')
-        if not os.path.isfile(binary):
-            errors.append(f'  missing file: {binary}')
+        # Linux no longer uses a separate dep_installer process -- the main
+        # app's own bootstrap.py shows the PySide6 license screen itself on
+        # first launch instead (see builder/build.py's
+        # build_dependency_installer(), which is a no-op on Linux).
+        if not sys.platform.startswith('linux'):
+            ext = '.exe' if sys.platform.startswith('win') else ''
+            binary = os.path.join(BUILD_DIR, f'dep_installer{ext}')
+            if not os.path.isfile(binary):
+                errors.append(f'  missing file: {binary}')
 
     if not os.path.isfile(ICON_PNG):
         errors.append(f'  missing file: {ICON_PNG}')
@@ -180,10 +185,10 @@ def build_linux(version):
     The archive mirrors the relative directory structure that install.sh
     expects (it computes REPO_ROOT as two levels above its own location).
 
-    The archived copy of install.sh is patched so that INSTALLER_SRC points
-    to the executable inside the PyInstaller onedir rather than the directory
-    itself (build_dependency_installer() defaults to --onedir, not --onefile,
-    and the original install.sh tries to `cp` the path as a plain file).
+    No separate dep_installer binary is bundled -- Linux has no install-time
+    GUI step; the main app's own bootstrap.py shows the PySide6 license
+    screen itself (in process, via builder/scripts/license_screen.py) the
+    first time it finds PySide6 not importable at launch.
 
     Archive layout:
 
@@ -195,15 +200,12 @@ def build_linux(version):
         ├── builder/
         │   └── scripts/
         │       └── dist/
-        │           ├── harness_designer/       ← main app (PyInstaller onedir)
-        │           └── installer/              ← dep installer (PyInstaller onedir)
-        │               └── installer           ← dep installer binary
+        │           └── harness_designer/       ← main app (PyInstaller onedir)
         └── harness_designer/
             └── image/
                 └── icon_256x256.png
     """
     app_src = os.path.join(BUILD_DIR, 'harness_designer')
-    installer_src = os.path.join(BUILD_DIR, 'dep_installer')
     install_sh_path = os.path.join(INSTALLER_SCRIPTS_DIR, 'linux', 'install.sh')
 
     machine = platform.machine().lower()
@@ -254,14 +256,6 @@ exec "$DIR/installer_scripts/linux/install.sh" "$@"
         for fpath, arcname in _walk_dir(app_src, f'{stem}/builder/scripts/dist'):
             tar.add(fpath, arcname=arcname)
 
-        # Dependency installer (PyInstaller --onefile single binary)
-        print('   Adding dependency installer ...')
-        ti = tarfile.TarInfo(name=f'{stem}/builder/scripts/dist/dep_installer')
-        ti.size = os.path.getsize(installer_src)
-        ti.mode = 0o755
-        with open(installer_src, 'rb') as fh:
-            tar.addfile(ti, fh)
-
         # Application icon
         tar.add(
             ICON_PNG,
@@ -307,25 +301,40 @@ _DEB_DEPENDS = [
     'ocl-icd-libopencl1',
 ]
 
-# dep_installer needs a GUI and network access to pip-install PySide6 itself
-# (see builder/scripts/dep_installer.py) -- Debian policy forbids interactive/
-# GUI work in maintainer scripts, and postinst runs as root with no
-# guaranteed DISPLAY, so it can't be run from postinst the way install.sh
-# runs it during a normal (non-package) install. Instead this wrapper runs it
-# once, under the invoking user's own session, the first time the app is
-# actually launched.
+# No separate dep_installer process on Linux -- the main binary's own
+# bootstrap.py (see builder/scripts/bootstrap.py) shows the PySide6 license
+# Accept/Cancel screen itself, in process, the first time it finds PySide6
+# not importable, so this is a plain launcher again.
 _LAUNCHER_SH = '''\
 #!/bin/sh
 set -e
-APP_DIR="/opt/harness_designer"
-MARKER="$APP_DIR/.deps_installed"
+exec "/opt/harness_designer/HD" "$@"
+'''
 
-if [ ! -f "$MARKER" ]; then
-    "$APP_DIR/dep_installer" "$APP_DIR"
-    touch "$MARKER"
+# Debian policy forbids interactive/GUI work in maintainer scripts (preinst
+# can run headless -- unattended-upgrades, CI, etc.), so this only does a
+# plain-text check for the one thing dpkg itself can't: whether the app is
+# currently running (dpkg's own file-replacement already handles "is this an
+# upgrade" correctly and never touches a user's $HOME, so no separate
+# already-installed check is needed here the way install.sh's raw `cp -r`
+# needs one).
+_PREINST_SH = '''\
+#!/bin/sh
+set -e
+
+if command -v pgrep >/dev/null 2>&1; then
+    while pgrep -x HD >/dev/null 2>&1; do
+        if [ -t 0 ] && [ -t 1 ]; then
+            printf 'Harness Designer is currently running. Close it, then press Enter to retry (Ctrl-C to cancel): '
+            read -r _
+        else
+            echo 'Harness Designer is currently running and this is a non-interactive install -- aborting.' >&2
+            exit 1
+        fi
+    done
 fi
 
-exec "$APP_DIR/HD" "$@"
+exit 0
 '''
 
 _DESKTOP_ENTRY = '''\
@@ -390,9 +399,10 @@ def _control_file(pkg_version, arch):
         ' Harness Designer is a desktop application for designing and\n'
         ' documenting electrical wire harnesses.\n'
         ' .\n'
-        ' NOTE: on first launch, /opt/harness_designer/dep_installer installs\n'
-        ' the PySide6 (Qt) runtime and a few platform-specific components --\n'
-        ' this requires network access the first time the application runs.\n'
+        ' NOTE: on first launch, Harness Designer itself installs the\n'
+        ' PySide6 (Qt) runtime and a few platform-specific components,\n'
+        ' after showing its license -- this requires network access the\n'
+        ' first time the application runs.\n'
     )
 
 
@@ -413,7 +423,6 @@ def build_deb(version):
     container format) does not.
     """
     app_src = os.path.join(BUILD_DIR, 'harness_designer')
-    installer_src = os.path.join(BUILD_DIR, 'dep_installer')
 
     machine = platform.machine().lower()
     arch = _DEB_ARCH.get(machine)
@@ -444,9 +453,6 @@ def build_deb(version):
         print('   Copying application files ...')
         shutil.copytree(app_src, app_dir, dirs_exist_ok=True)
 
-        installer_dst = os.path.join(app_dir, 'dep_installer')
-        shutil.copy2(installer_src, installer_dst)
-        os.chmod(installer_dst, 0o755)
         os.chmod(os.path.join(app_dir, 'HD'), 0o755)
 
         icon_dst = os.path.join(icon_dir, 'harness_designer.png')
@@ -464,6 +470,7 @@ def build_deb(version):
             _control_file(pkg_version, arch),
             0o644,
         )
+        _write_text(os.path.join(debian_dir, 'preinst'), _PREINST_SH, 0o755)
         _write_text(os.path.join(debian_dir, 'postinst'), _POSTINST_SH, 0o755)
         _write_text(os.path.join(debian_dir, 'postrm'), _POSTRM_SH, 0o755)
 

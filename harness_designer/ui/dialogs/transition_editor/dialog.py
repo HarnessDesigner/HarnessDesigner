@@ -112,7 +112,7 @@ class TransitionEditorDialog(_dialog_base.BaseDialog):
     config = _Config
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Transition Editor', size=(1500, 900),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Close)

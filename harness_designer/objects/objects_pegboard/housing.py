@@ -45,7 +45,7 @@ class Housing(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
-                 db_obj: "_pjt_housing.PJTHousing") -> None:
+                 db_obj: "_pjt_housing.PJTHousing"):
         """Initialise the :class:`Housing` instance.
 
         :param parent: Parent object.
@@ -193,6 +193,7 @@ class Housing(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -213,7 +214,7 @@ class HousingMenu(QtWidgets.QMenu):
     """Right-click menu for a pegboard Housing."""
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Housing") -> None:
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Housing"):
         QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected

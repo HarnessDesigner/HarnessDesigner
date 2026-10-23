@@ -50,7 +50,7 @@ class OutputBuffer:
     thread writes, the GUI takes."""
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         self._lock = threading.Lock()
         self._chunks: deque[str] = deque()
         self._chars = 0
@@ -95,7 +95,7 @@ class ScriptRun(threading.Thread):
     """
 
     @_check_types.do
-    def __init__(self, number: int, source: str, label: str, path: str | None = None) -> None:
+    def __init__(self, number: int, source: str, label: str, path: str | None = None):
         super().__init__(name=f'script-{number}', daemon=True)
         self.number = number
         self.label = label
@@ -259,7 +259,7 @@ class Runner:
     """The scripts that have been started in this process, newest last."""
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         self._lock = threading.Lock()
         self._runs: list[ScriptRun] = []
         self._counter = 0

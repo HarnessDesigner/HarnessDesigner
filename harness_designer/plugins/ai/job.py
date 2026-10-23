@@ -28,7 +28,7 @@ class Job:
     """
 
     @_check_types.do
-    def __init__(self, *, name: str = '') -> None:
+    def __init__(self, *, name: str = ''):
         self.name = name
 
     @_check_types.do

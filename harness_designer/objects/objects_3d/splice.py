@@ -82,7 +82,7 @@ class Splice(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_splice.Splice",
-                 db_obj: "_pjt_splice.PJTSplice") -> None:
+                 db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -121,16 +121,16 @@ class Splice(_base_3d.Base3D):
                 area = math.pi * ((dia / 2.0) ** 2.0)
                 area2.append(area)
 
-            area1 = sum(area1)
-            area2 = sum(area2)
+            area1_total = sum(area1)
+            area2_total = sum(area2)
 
-            if area1:
-                dia1 = 2.0 * math.sqrt(area1 / math.pi)
+            if area1_total:
+                dia1 = 2.0 * math.sqrt(area1_total / math.pi)
             else:
                 dia1 = 0.0
 
-            if area2:
-                dia2 = 2.0 * math.sqrt(area2 / math.pi)
+            if area2_total:
+                dia2 = 2.0 * math.sqrt(area2_total / math.pi)
             else:
                 dia2 = 0.0
 
@@ -338,7 +338,7 @@ class SpliceMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Splice") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Splice"):
         """Initialise the :class:`SpliceMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

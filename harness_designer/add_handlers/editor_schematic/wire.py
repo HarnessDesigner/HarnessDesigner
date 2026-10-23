@@ -88,7 +88,7 @@ class Wire(_base.AddHandlerBase):
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part: "_glb_wire.Wire",
         stop_point2d: "_pjt_point2d.PJTPoint2D", start_obj: _terminal.Terminal | _splice.Splice
-    ) -> None:
+    ):
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -132,6 +132,7 @@ class Wire(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_schematic.BaseSchematic":
         return obj.objschematic
 
@@ -188,21 +189,25 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @property
+    @_check_types.do
     def _start_xz(self) -> tuple[float, float]:
         start = self.target.db_obj.start_position2d
         return float(start.x), float(start.z)
 
     @property
+    @_check_types.do
     def _last_xz(self) -> tuple[float, float]:
         if self._placed:
             return self._placed[-1]
 
         return self._start_xz
 
+    @_check_types.do
     def _own_segments(self) -> list[tuple[tuple[float, float], tuple[float, float]]]:
         path = [self._start_xz] + self._placed
         return list(zip(path, path[1:]))
 
+    @_check_types.do
     def _cursor_xz(self, mouse_pos: _point.Point) -> tuple[float, float]:
         """Where the next waypoint would go for a cursor at *mouse_pos*: the
         cursor's position squared onto a horizontal or vertical run from the
@@ -235,6 +240,7 @@ class Wire(_base.AddHandlerBase):
 
         return last_x, cz
 
+    @_check_types.do
     def _blocked(self, xz: tuple[float, float]) -> str | None:
         """Why a segment from the last waypoint to *xz* isn't allowed
         (``'housing'`` / ``'wire'``), or ``None`` if it is."""
@@ -242,6 +248,7 @@ class Wire(_base.AddHandlerBase):
             self.mainframe.project, self._last_xz, xz, ignore_wire=self.target,
             own_segments=self._own_segments())
 
+    @_check_types.do
     def _too_short(self, xz: tuple[float, float]) -> bool:
         last = self._last_xz
         return math.hypot(xz[0] - last[0], xz[1] - last[1]) < _routing._lane_spacing() / 2.0  # NOQA
@@ -297,6 +304,7 @@ class Wire(_base.AddHandlerBase):
         self.mainframe.editor2d.Refresh(False)
 
     @staticmethod
+    @_check_types.do
     def _snap_point(picked: _terminal.Terminal | _splice.Splice) -> tuple[float, float]:
         """Where a wire actually attaches on *picked* -- a terminal's own
         ``wire_position2d`` (the far end of its exit-stub cylinder; its name
@@ -383,6 +391,7 @@ class Wire(_base.AddHandlerBase):
         self.target.objschematic.refresh_waypoints()
 
     @staticmethod
+    @_check_types.do
     def _straight(a: tuple[float, float], b: tuple[float, float], c: tuple[float, float]) -> bool:
         """Whether ``a -> b -> c`` is one straight horizontal or vertical run,
         so that *b* is not a bend."""

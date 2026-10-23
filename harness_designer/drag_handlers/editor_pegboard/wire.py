@@ -61,56 +61,68 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
     _SnapProbeSet = _wire_snap.SnapProbeSet
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_wire_object.Wire") -> "_base_pegboard.BasePegboard":
         return obj.objpegboard
 
     @staticmethod
+    @_check_types.do
     def _get_editor(mainframe: "_ui.MainFrame") -> "_canvas.Canvas":
         return mainframe.editor_pegboard.editor._canvas  # NOQA
 
     @staticmethod
+    @_check_types.do
     def _points_table(project: "_project.Project") -> "_pjt_point_pegboard.PJTPointsPegboardTable":
         return project.ptables.pjt_points_pegboard_table
 
     @staticmethod
+    @_check_types.do
     def _waypoints(wire_db_obj: "_pjt_wire.PJTWire") -> list["_pjt_point_pegboard.PJTPointPegboard"]:
         return wire_db_obj.waypoints_pegboard
 
     @staticmethod
+    @_check_types.do
     def _wire_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
         return obj.wire_position_pegboard_id_raw
 
     @staticmethod
+    @_check_types.do
     def _attach_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
         return obj.attach_position_pegboard_id_raw
 
     @staticmethod
+    @_check_types.do
     def _get_start_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         return wire_db_obj.start_position_pegboard_id
 
     @staticmethod
+    @_check_types.do
     def _set_start_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         wire_db_obj.start_position_pegboard_id = value
 
     @staticmethod
+    @_check_types.do
     def _get_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         return wire_db_obj.stop_position_pegboard_id
 
     @staticmethod
+    @_check_types.do
     def _set_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         wire_db_obj.stop_position_pegboard_id = value
 
     @staticmethod
+    @_check_types.do
     def _layout_position_id(layout_db_obj: "_pjt_wire_layout.PJTWireLayout") -> bytes | None:
         return layout_db_obj.position_pegboard_id
 
     @staticmethod
+    @_check_types.do
     def _is_in_view(obj: "_wire_object.Wire") -> bool:
         return obj.is_in_pegboardview
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
-                 plan: _wire_drag_base.WireDragPlan) -> None:
+                 plan: _wire_drag_base.WireDragPlan):
         # Explicit, never super() -- see handlers.wire_drag_base's own
         # module docstring on why: a bare super() call here would only
         # stay correct for as long as DragHandlerPegboard and

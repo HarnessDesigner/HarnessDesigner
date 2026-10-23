@@ -131,7 +131,7 @@ class MouseHandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
+    def __init__(self, canvas: "_canvas_base.CanvasBase"):
         """Initialise the :class:`MouseHandler` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -361,7 +361,7 @@ class MouseHandlerBase:
         return target.handle_wheel(mouse_pos, qt_wheel_event, clicked_object)
 
     @_check_types.do
-    def _process_mouse(self, code: str) -> None:
+    def _process_mouse(self, code: int) -> None:
         """
         Execute the process mouse operation.
 
@@ -373,6 +373,7 @@ class MouseHandlerBase:
             self.config.truck_pedestal.mouse & code
         ):
 
+            @_check_types.do
             def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.truck_pedestal.mouse & MOUSE_SWAP_AXIS:
@@ -395,6 +396,7 @@ class MouseHandlerBase:
             self.config.rotate.mouse & code
         ):
 
+            @_check_types.do
             def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.rotate.mouse & MOUSE_SWAP_AXIS:
@@ -416,6 +418,7 @@ class MouseHandlerBase:
             self.config.pan_tilt.mouse & code
         ):
 
+            @_check_types.do
             def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.pan_tilt.mouse & MOUSE_SWAP_AXIS:
@@ -441,6 +444,7 @@ class MouseHandlerBase:
                 self.config.walk.mouse is not None and
                 self.config.walk.mouse & code
             ):
+                @_check_types.do
                 def _wrapper(dx: float, dy: float) -> None:
 
                     if dy == 0.0:
@@ -523,6 +527,7 @@ class MouseHandlerBase:
                 return _wrapper
 
             else:
+                @_check_types.do
                 def _wrapper(dx: float, dy: float) -> None:
 
                     if self.config.dolly.mouse & MOUSE_SWAP_AXIS:
@@ -538,6 +543,7 @@ class MouseHandlerBase:
             self.config.reset.mouse & code
         ):
 
+            @_check_types.do
             def _wrapper(_: float, __: float) -> None:
                 self.canvas.camera.Reset()
 
@@ -547,6 +553,7 @@ class MouseHandlerBase:
             self.config.walk.mouse is not None and
             self.config.walk.mouse & code
         ):
+            @_check_types.do
             def _wrapper(dx: float, dy: float) -> None:
                 if dy == 0.0:
                     self.canvas.PanTilt(dx * 6.0, 0.0)
@@ -574,6 +581,7 @@ class MouseHandlerBase:
             self.config.zoom.mouse is not None and
             self.config.zoom.mouse & code
         ):
+            @_check_types.do
             def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.zoom.mouse & MOUSE_SWAP_AXIS:
@@ -604,6 +612,7 @@ class MouseHandlerBase:
 
             return _wrapper
 
+        @_check_types.do
         def _do_nothing_func(_: float, __: float) -> None:
             pass
 
@@ -1161,6 +1170,7 @@ class MouseHandlerBase:
     def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point,
                                         wheel_delta: float) -> None:
 
+        @_check_types.do
         def _norm(values: Iterable[float]) -> float:
             return math.sqrt(sum(v * v for v in values))
 
@@ -1434,6 +1444,7 @@ class MouseHandlerBase:
                 self._send_event(event, evt)
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":  # NOQA
         # this function needs to be overridden to return the correct view object
         raise NotImplementedError

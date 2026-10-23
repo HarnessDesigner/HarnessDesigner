@@ -77,7 +77,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`MaterialControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -44,8 +44,6 @@ class SealTypesTable(TableBase):
         from ..create_database import seal_types
 
         seal_types.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-        seal_types.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:

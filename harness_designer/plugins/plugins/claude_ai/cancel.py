@@ -20,7 +20,7 @@ class CancelToken:
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         self._event = threading.Event()
         self._lock = threading.Lock()
         self._callbacks: list[Callable[[], None]] = []

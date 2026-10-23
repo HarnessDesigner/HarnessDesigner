@@ -36,7 +36,7 @@ class DockBase:
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame", title: str,
                  name: str, area: QtCore.Qt.DockWidgetArea = None,
-                 features: QtWidgets.QDockWidget.DockWidgetFeature = _DefaultFeatures) -> None:
+                 features: QtWidgets.QDockWidget.DockWidgetFeature = _DefaultFeatures):
 
         self.mainframe = mainframe
 

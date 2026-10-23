@@ -22,7 +22,7 @@ class NetworkModel(QtCore.QAbstractTableModel):
     """The captured requests, oldest first."""
 
     @_check_types.do
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent)
         self._requests: list[_capture_model.CapturedRequest] = []
 
@@ -48,18 +48,21 @@ class NetworkModel(QtCore.QAbstractTableModel):
     def request_at(self, row: int) -> _capture_model.CapturedRequest:
         return self._requests[row]
 
+    @_check_types.do
     def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:  # NOQA -- Qt override
         if parent.isValid():
             return 0
 
         return len(self._requests)
 
+    @_check_types.do
     def columnCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:  # NOQA -- Qt override
         if parent.isValid():
             return 0
 
         return len(_COLUMNS)
 
+    @_check_types.do
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,  # NOQA -- Qt override
                    role: int = QtCore.Qt.ItemDataRole.DisplayRole) -> object:
         if orientation == QtCore.Qt.Orientation.Horizontal and role == QtCore.Qt.ItemDataRole.DisplayRole:
@@ -67,6 +70,7 @@ class NetworkModel(QtCore.QAbstractTableModel):
 
         return None
 
+    @_check_types.do
     def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole) -> object:  # NOQA
         if not index.isValid():
             return None
@@ -126,7 +130,7 @@ class _FilterModel(QtCore.QSortFilterProxyModel):
     JSON responses."""
 
     @_check_types.do
-    def __init__(self, parent: QtCore.QObject | None = None) -> None:
+    def __init__(self, parent: QtCore.QObject | None = None):
         super().__init__(parent)
         self._text = ''
         self._json_only = False
@@ -143,6 +147,7 @@ class _FilterModel(QtCore.QSortFilterProxyModel):
         self._json_only = json_only
         self.endFilterChange(QtCore.QSortFilterProxyModel.Direction.Rows)
 
+    @_check_types.do
     def filterAcceptsRow(self, source_row: int, source_parent: QtCore.QModelIndex) -> bool:  # NOQA -- Qt override
         model = self.sourceModel()
         request = model.request_at(source_row)
@@ -166,7 +171,7 @@ class NetworkPanel(QtWidgets.QWidget):
     requestsCleared = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._model = NetworkModel(self)
         self._filter = _FilterModel(self)

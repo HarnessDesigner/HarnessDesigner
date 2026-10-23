@@ -14,7 +14,7 @@ class CriticalErrorDialog(QtWidgets.QDialog):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None, err: BaseException,
-                 title: str = 'Critical Error', context: str | None = None) -> None:
+                 title: str = 'Critical Error', context: str | None = None):
         """Build the critical error dialog.
 
         :param parent: Parent widget for the dialog.

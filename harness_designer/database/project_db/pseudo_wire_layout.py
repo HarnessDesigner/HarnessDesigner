@@ -49,6 +49,7 @@ from typing import TYPE_CHECKING, Union as _Union
 
 from .pjt_wire_layout import PJTWireLayout
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -69,7 +70,8 @@ class _PseudoAttachedWire:
     """
     __slots__ = ('part', 'part_id')
 
-    def __init__(self, part: "_global_wire.Wire") -> None:
+    @_check_types.do
+    def __init__(self, part: "_global_wire.Wire"):
         self.part = part
         self.part_id = part.db_id
 
@@ -138,6 +140,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
     _position_pegboard: _point.Point | None = None
     _wire_part: _Union["_global_wire.Wire", None] = None
 
+    @_check_types.do
     def configure(
         self,
         wire_part: "_global_wire.Wire",
@@ -161,6 +164,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         self.snap_splice = splice
 
     @property
+    @_check_types.do
     def attached_wires(self) -> list["_pjt_wire.PJTWire"]:
         if self._wire_part is None:
             return []
@@ -168,39 +172,48 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return [_PseudoAttachedWire(self._wire_part)]
 
     @property
+    @_check_types.do
     def table(self) -> None:
         return None
 
+    @_check_types.do
     def delete(self) -> None:
         # No real row backs this instance -- see wire_snap.SnapProbeSet.close,
         # which tears probes down directly instead of ever calling this.
         pass
 
     @property
+    @_check_types.do
     def smooth(self) -> bool | None:
         return True
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         pass
 
     @property
+    @_check_types.do
     def is_visible2d(self) -> bool:
         return False
 
     @is_visible2d.setter
+    @_check_types.do
     def is_visible2d(self, value: bool) -> None:
         pass
 
     @property
+    @_check_types.do
     def is_visible3d(self) -> bool:
         return False
 
     @is_visible3d.setter
+    @_check_types.do
     def is_visible3d(self, value: bool) -> None:
         pass
 
     @property
+    @_check_types.do
     def is_visible_pegboard(self) -> bool:
         # False (invisible, same as is_visible3d/is_visible2d) unless a
         # real peg-board position was actually configured -- a probe
@@ -210,10 +223,12 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return False
 
     @is_visible_pegboard.setter
+    @_check_types.do
     def is_visible_pegboard(self, value: bool) -> None:
         pass
 
     @property
+    @_check_types.do
     def position_pegboard(self) -> _point.Point | None:
         # Real, configured position now (mirrors position3d) when this
         # probe was built for a peg-board session -- see configure()'s
@@ -226,10 +241,12 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return self._position_pegboard
 
     @position_pegboard.setter
+    @_check_types.do
     def position_pegboard(self, value: _point.Point | None) -> None:
         pass
 
     @property
+    @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         if self._position_pegboard is None:
             return None
@@ -238,16 +255,19 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position_pegboard_id.setter
+    @_check_types.do
     def position_pegboard_id(self, value: bytes) -> None:
         pass
 
     _position2d: _point.Point | None = None
 
     @property
+    @_check_types.do
     def position2d(self) -> _point.Point | None:
         return self._position2d
 
     @property
+    @_check_types.do
     def position2d_id(self) -> bytes | None:
         if self._position2d is None:
             return None
@@ -256,16 +276,19 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position2d_id.setter
+    @_check_types.do
     def position2d_id(self, value: bytes) -> None:
         pass
 
     _position3d: _point.Point | None = None
 
     @property
+    @_check_types.do
     def position3d(self) -> _point.Point | None:
         return self._position3d
 
     @property
+    @_check_types.do
     def position3d_id(self) -> bytes | None:
         if self._position3d is None:
             return None
@@ -274,6 +297,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position3d_id.setter
+    @_check_types.do
     def position3d_id(self, value: bytes) -> None:
         pass
 

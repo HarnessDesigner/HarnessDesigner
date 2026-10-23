@@ -141,7 +141,7 @@ class PJTSealsTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, position3d_id: bytes, housing_id: bytes | None,
-               terminal_id: bytes | None, cavity_id: bytes = None) -> "PJTSeal":
+               terminal_id: bytes | None, cavity_id: bytes | None = None) -> "PJTSeal":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -401,7 +401,7 @@ class PJTSealControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTSealControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

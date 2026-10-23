@@ -19,7 +19,7 @@ class SettingsMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         """Initialise the :class:`SettingsMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

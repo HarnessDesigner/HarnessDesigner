@@ -26,7 +26,7 @@ class ProjectModel(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project",
-                 vbo: _vbo.PooledVBOHandler) -> None:
+                 vbo: _vbo.PooledVBOHandler):
         with parent.mainframe.editor3d.context:
             color = db_obj.color.ui
             scale = _point.Point(10.0, 10.0, 10.0)

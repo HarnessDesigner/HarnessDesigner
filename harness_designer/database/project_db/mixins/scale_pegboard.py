@@ -85,7 +85,7 @@ class ScalePegboardControl(_prop_ctrls.ScaleProperty):
     """Represent a scale pegboard control in :mod:`harness_designer.database.project_db.mixins.scale_pegboard`."""
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`ScalePegboardControl` instance.
 
         :param parent: Parent object.

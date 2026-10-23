@@ -19,7 +19,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', choices: list[str] | None = None,
-                 process_enter: bool = False) -> None:
+                 process_enter: bool = False):
         """Initialise the :class:`ComboBoxCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

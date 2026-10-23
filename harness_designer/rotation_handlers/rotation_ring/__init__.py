@@ -154,7 +154,7 @@ class RotationRing:
                  outer_color: _color.Color, label_size: float, context: "_gl_context.GLContext",
                  mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar],
                  camera: "_camera_base.CameraBase" = None, local_tilt: _angle.Angle | None = None,
-                 has_torus: bool = True) -> None:
+                 has_torus: bool = True):
 
         self.axis = axis
         self.center = center

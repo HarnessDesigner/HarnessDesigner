@@ -71,7 +71,7 @@ class Angle3DLockControl(_prop_ctrls.BoolProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`Angle3DLockControl` instance.
 
         :param parent: Parent widget.

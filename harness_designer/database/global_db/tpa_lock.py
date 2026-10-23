@@ -54,20 +54,6 @@ class TPALocksTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash: "_splash.Splash") -> None:
-        """Load the database.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param splash: Value for ``splash``.
-        :type splash: UNKNOWN
-        """
-        from ..create_database import tpa_locks
-
-        data_path = self._con.db_data.open(splash)
-        tpa_locks.add_records(self._con, splash, data_path)
-
-    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -92,9 +78,6 @@ class TPALocksTable(TableBase):
         from ..create_database import tpa_locks
 
         tpa_locks.table.add_to_db(self)
-        data_path = self._con.db_data.open(splash)
-
-        tpa_locks.add_records(self._con, splash, data_path)
 
     @_check_types.do
     def _update_table_in_db(self) -> None:
@@ -145,7 +128,7 @@ class TPALocksTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_compat(self, housing: str = None) -> list[bytes]:
+    def get_compat(self, housing: str | None = None) -> list[bytes]:
         """Return the compat.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -427,7 +410,7 @@ class TPALockControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`TPALockControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

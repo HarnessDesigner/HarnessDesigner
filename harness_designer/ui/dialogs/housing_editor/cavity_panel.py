@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class CavityGeneral(QtWidgets.QWidget):
 
     @_check_types.do
-    def __init__(self, parent: "CavityTab", cavity3d: _cavity_obj.Cavity3D) -> None:
+    def __init__(self, parent: "CavityTab", cavity3d: _cavity_obj.Cavity3D):
         self._cavity_tab = parent
         self.cavity3d = cavity3d
         super().__init__(parent)
@@ -221,7 +221,7 @@ class CavityGeneral(QtWidgets.QWidget):
 class CavityTab(QtWidgets.QTabWidget):
 
     @_check_types.do
-    def __init__(self, parent: "CavityPanel", cavity: "_cavity.Cavity") -> None:
+    def __init__(self, parent: "CavityPanel", cavity: "_cavity.Cavity"):
         super().__init__(parent)
 
         self._panel = parent   # direct reference to the owning CavityPanel
@@ -332,7 +332,7 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
     @_check_types.do
     def __init__(self, dialog: "_housing_editor.HousingEditorDialog",
                  panel: QtWidgets.QTabWidget,
-                 housing: "_housing_obj.Housing3D") -> None:
+                 housing: "_housing_obj.Housing3D"):
         super().__init__(panel)
 
         self.__hold_change = False

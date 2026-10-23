@@ -214,7 +214,7 @@ class _LocalMonotonicClock:
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         self._lock = threading.Lock()
         self._last_issued = 0
 

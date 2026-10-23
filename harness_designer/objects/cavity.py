@@ -31,7 +31,7 @@ class Cavity(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cavity.PJTCavity", project_load: bool = False) -> None:
+                 db_obj: "_pjt_cavity.PJTCavity", project_load: bool = False):
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

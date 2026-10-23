@@ -27,7 +27,7 @@ class Editor3D(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
+    def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`Editor3D` instance.
 
@@ -159,7 +159,7 @@ class Editor3DPanel(_canvas3d.Canvas3D):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame") -> None:
+    def __init__(self, parent: "_mainframe.MainFrame"):
         """Initialise the :class:`Editor3DPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

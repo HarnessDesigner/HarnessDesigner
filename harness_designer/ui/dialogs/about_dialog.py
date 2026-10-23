@@ -58,7 +58,7 @@ class _PackageInfo:
 
     @_check_types.do
     def __init__(self, name: str, version: str, summary: str,
-                 author: str, homepage: str, license_text: str) -> None:
+                 author: str, homepage: str, license_text: str):
         self.name = name
         self.version = version
         self.summary = summary
@@ -250,7 +250,7 @@ class AboutDialog(_dialog_base.BaseDialog):
     """About box: application info, update check, and third-party package credits."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         """Initialise the :class:`AboutDialog` instance.
 
         :param parent: Main application frame.

@@ -67,7 +67,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     db_obj: "_pjt_wire.PJTWire" = None
 
     @_check_types.do
-    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire") -> None:
+    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1253,7 +1253,7 @@ class WireStripe(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", wire: Wire, color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point) -> None:
+                 angle: _angle.Angle, position: _point.Point):
         """Initialise the :class:`WireStripe` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1499,7 +1499,7 @@ class WireMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: Wire) -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: Wire):
         """Initialise the :class:`WireMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

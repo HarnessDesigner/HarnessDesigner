@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Harness Designer — macOS preinstall script
+# Runs BEFORE pkgbuild copies the app bundle into place. Handles, via
+# dep_installer's --phase pre: is the app currently running (Retry/Cancel),
+# and is a previous installation already present (prompt + optional backup
+# + removal). The PySide6/Qt license itself is NOT shown here -- see
+# postinstall, which shows it in the same window as the actual PySide6
+# install, not a separate dialog ahead of it.
+#
+# dep_installer is staged alongside this script (see build_pkg.sh) rather
+# than read from the app bundle's own Contents/Resources/, since the bundle
+# doesn't exist on disk yet at this point.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="/Applications/HarnessDesigner.app"
+DEPENDENCY_INSTALLER="$SCRIPT_DIR/dep_installer"
+
+chmod +x "$DEPENDENCY_INSTALLER"
+
+CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+
+if [[ -z "$CONSOLE_USER" || "$CONSOLE_USER" == "root" ]]; then
+    # No GUI user at the console (headless install) — nothing to show a
+    # dialog to; run silently as root rather than hang waiting on a window
+    # that can never appear.
+    "$DEPENDENCY_INSTALLER" --phase pre "$INSTALL_DIR"
+else
+    CONSOLE_UID=$(id -u "$CONSOLE_USER")
+    launchctl asuser "$CONSOLE_UID" \
+        sudo -u "$CONSOLE_USER" \
+        "$DEPENDENCY_INSTALLER" --phase pre "$INSTALL_DIR"
+fi
+
+exit 0

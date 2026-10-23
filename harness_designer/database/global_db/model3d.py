@@ -760,8 +760,11 @@ class Model3D(EntryBase):
         # The conversion ran in a child process on a separate DB connection,
         # so uuid/path/vertex_count/file_type_id may already be cached stale
         # (None) on this instance from a pre-conversion read (e.g. `load()`'s
-        # `self.data_path` check). Force a fresh DB read. (aabb/obb/angle3d
-        # are no longer cached at all, so they don't need resetting here.)
+        # `self.data_path` check), and in the table's row cache too, which
+        # is what `select()` answers from. Force a fresh DB read at both
+        # levels. (aabb/obb/angle3d are no longer cached at all on the
+        # instance, so they don't need resetting here.)
+        self._table.reload_row(self.db_id)
         self._stored_uuid = DefaultStoredValue
         self._stored_path = DefaultStoredValue
         self._stored_vertex_count = DefaultStoredValue

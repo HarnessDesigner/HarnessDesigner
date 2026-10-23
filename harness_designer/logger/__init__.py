@@ -14,10 +14,11 @@ from . import log_handler as _log_handler
 
 Log = _log_handler.Log
 LogHandler = _log_handler.LogHandler
+NullLogHandler = _log_handler.NullLogHandler
 
 _log = Log()
 
-log_handler: LogHandler = _log.log_handler
+log_handler: LogHandler | NullLogHandler = _log.log_handler
 startup = _log.startup
 flush = _log.flush
 print = _log.print  # NOQA - shadows the builtin; matches Log.print's public name

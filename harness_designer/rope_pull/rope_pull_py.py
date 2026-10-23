@@ -101,6 +101,8 @@ import enum
 import math
 from typing import NamedTuple
 
+from .. import check_types as _check_types
+
 
 _EPS = 1e-9
 
@@ -138,6 +140,7 @@ class ChainResult(NamedTuple):
     points: list[tuple[float, float]]
 
 
+@_check_types.do
 def solve_chain(
     start: tuple[float, float],
     stop: tuple[float, float],
@@ -208,6 +211,7 @@ def solve_chain(
     return ChainResult(True, points)
 
 
+@_check_types.do
 def _polyline_length(points: list[tuple[float, float]]) -> float:
     """Sum of consecutive distances along *points*."""
     total = 0.0
@@ -220,6 +224,7 @@ def _polyline_length(points: list[tuple[float, float]]) -> float:
     return total
 
 
+@_check_types.do
 def _solve_span(
     a: tuple[float, float],
     b: tuple[float, float],

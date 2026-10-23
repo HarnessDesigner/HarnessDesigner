@@ -155,8 +155,8 @@ def add_seal(con: "_connector_base.ConnectorBase", part_number: str, description
 
         description += ' Seal'
 
-    compat_housings = ', '.join(compat_housings)
-    compat_terminals = ', '.join(compat_terminals)
+    compat_housings_str = ', '.join(compat_housings)
+    compat_terminals_str = ', '.join(compat_terminals)
 
     _logger.database(f'adding seal {part_number}, {description}')
     new_id = _id_generator.generate_global_row_id(con).bytes
@@ -172,7 +172,7 @@ def add_seal(con: "_connector_base.ConnectorBase", part_number: str, description
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  type_id, hardness, lubricant, length, width, height, weight, o_dia,
                  i_dia, wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, wire_size_cross_max,
-                 wire_size_awg_min, wire_size_awg_max, compat_housings, compat_terminals))
+                 wire_size_awg_min, wire_size_awg_max, compat_housings_str, compat_terminals_str))
 
     _logger.database(f'seal added "{part_number}"')
 
@@ -182,7 +182,7 @@ def add_seal(con: "_connector_base.ConnectorBase", part_number: str, description
 
 
 @_check_types.do
-def add_pjt_seal(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, point3d_id: bytes | None = None, housing_id: bytes | None = None,
+def add_pjt_seal(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, point3d_id: bytes | None = None, housing_id: bytes | None = None,
                  terminal_id: bytes | None = None, name: str = '', notes: str = '', quat3d: list[float] | None = None, angle3d: list[float] | None = None,
                  is_visible3d: int = 0) -> None:
     """Add a PJT seal.

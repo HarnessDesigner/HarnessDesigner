@@ -210,7 +210,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
 class ProcessWorker:
 
     def __init__(self, manager: "_manager.ProcessManager",
-                 print_lock: "multiprocessing.synchronize.Lock") -> None:
+                 print_lock: "multiprocessing.synchronize.Lock"):
 
         self.manager = manager
         self.exit_event = multiprocessing.Event()
@@ -219,7 +219,7 @@ class ProcessWorker:
         self.queue = {}
 
         self.queue_lock = threading.Lock()
-        self.running: dict = None
+        self.running: dict | None = None
 
         from .. import app
 

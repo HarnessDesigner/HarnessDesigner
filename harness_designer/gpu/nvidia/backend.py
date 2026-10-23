@@ -20,7 +20,7 @@ class NvidiaBackend(GPUBackend):
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         import nvapi
 
         gpus = nvapi.GPUs()

@@ -18,7 +18,7 @@ class Model3DProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`Model3DProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -47,12 +47,12 @@ class Model3DProperty(QtWidgets.QWidget):
         self._ctrl.pathChanged.connect(self._on_path_changed)
 
     @_check_types.do
-    def SetFileTypes(self, file_types: str) -> None:
+    def SetFileTypes(self, file_types: dict[str, str]) -> None:
         """
         Execute the set file types operation.
 
         :param file_types: Value for ``file_types``.
-        :type file_types: `str`
+        :type file_types: `dict[str, str]`
         """
 
         self._file_types = file_types

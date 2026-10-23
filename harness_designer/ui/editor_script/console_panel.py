@@ -47,7 +47,7 @@ class ConsolePanel(QtWidgets.QWidget):
     messageRaised = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, runner: _runner.Runner, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, runner: _runner.Runner, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
         self._runner = runner
         self._texts: dict[int, str] = {}

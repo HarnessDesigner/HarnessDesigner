@@ -45,7 +45,7 @@ class _EntrySingleton(type):
     _instances_lock = threading.RLock()
 
     @_check_types.do
-    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> None:
+    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict[str, Any]):
         """Initialise the :class:`_EntrySingleton` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -158,7 +158,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
     """
 
     @_check_types.do
-    def __init__(self, table: "TableBase", db_id: int | bytes) -> None:
+    def __init__(self, table: "TableBase", db_id: int | bytes):
         """Initialise the :class:`EntryBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -244,7 +244,7 @@ class TableBase:
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    __table_name__: str = None
+    __table_name__: str | None = None
 
     # True for every global_db table that should use this base class's
     # generic client-generated-id insert() path. False only for
@@ -254,7 +254,7 @@ class TableBase:
     __uses_uuid_id__: bool = True
 
     @_check_types.do
-    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool) -> None:
+    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool):
         """Initialise the :class:`TableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -598,6 +598,21 @@ class TableBase:
         self._row_cache.pop(db_id, None)
 
     @_check_types.do
+    def reload_row(self, db_id: int | bytes) -> None:
+        """Re-read one row from the database into the row cache.
+
+        For a row that something other than this table wrote to -- e.g. an
+        image/model worker process updating ``uuid`` on its own database
+        connection -- so the cached copy is stale and ``select()`` would keep
+        serving the old values.
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        """
+        self._evict_row(db_id)
+        self._cache_row(db_id)
+
+    @_check_types.do
     def select(self, *args: str, **kwargs: Any) -> list[tuple]:
         """Execute the select operation.
 
@@ -622,7 +637,7 @@ class TableBase:
             if cached is not None:
                 return [tuple(cached[field] for field in args)]
 
-        args = ', '.join(args)
+        args_sql = ', '.join(args)
 
         if kwargs:
             clauses = []
@@ -639,7 +654,7 @@ class TableBase:
             where = ''
             params = []
 
-        self._con.execute(f'SELECT {args} FROM {self.__table_name__}{where};', params)
+        self._con.execute(f'SELECT {args_sql} FROM {self.__table_name__}{where};', params)
         res = self._con.fetchall()
         return res
 
@@ -684,7 +699,7 @@ class TableBase:
             cached.update(kwargs)
 
     @_check_types.do
-    def execute(self, cmd: str, params: tuple | None = None) -> _Generator | None:
+    def execute(self, cmd: str, params: tuple | list | None = None) -> _Generator | None:
         """Execute the execute operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -947,7 +962,7 @@ class GLBTables:
     """
 
     @_check_types.do
-    def __init__(self, splash: "_splash.Splash", mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, splash: "_splash.Splash", mainframe: "_ui.MainFrame"):
         """Initialise the :class:`GLBTables` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1009,8 +1024,6 @@ class GLBTables:
         self._wires_table = WiresTable(self, tables, splash, load_database)
         self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
         self._app_users_table = AppUsersTable(self, tables, splash, load_database)
-
-        self.connector.db_data = None
 
     @property
     @_check_types.do

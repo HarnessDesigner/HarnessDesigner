@@ -30,7 +30,7 @@ class Cavity(_objects.ObjectBase):
     obj3d: "Cavity3D" = None
 
     @_check_types.do
-    def __init__(self, parent: "_housing_editor.HousingEditorDialog", cavity: "_cavity.Cavity") -> None:
+    def __init__(self, parent: "_housing_editor.HousingEditorDialog", cavity: "_cavity.Cavity"):
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -56,7 +56,7 @@ class Cavity3D(_base_3d.Base3D):
     db_obj: "_cavity.Cavity" = None
 
     @_check_types.do
-    def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity") -> None:
+    def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity"):
         """Initialise the :class:`Cavity3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

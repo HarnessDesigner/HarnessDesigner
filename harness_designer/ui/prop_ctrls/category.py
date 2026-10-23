@@ -12,7 +12,7 @@ class Category(QtWidgets.QScrollArea):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`Category` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

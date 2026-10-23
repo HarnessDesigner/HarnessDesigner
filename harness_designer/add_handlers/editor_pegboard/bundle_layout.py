@@ -74,7 +74,7 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-                 bundle: "_bundle.Bundle") -> None:
+                 bundle: "_bundle.Bundle"):
 
         super().__init__(canvas, target)
 

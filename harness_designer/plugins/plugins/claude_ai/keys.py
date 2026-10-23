@@ -26,7 +26,7 @@ class MemoryKeyring:
     settings dialog test a key the user has typed but not yet saved."""
 
     @_check_types.do
-    def __init__(self, key: str = '') -> None:
+    def __init__(self, key: str = ''):
         self._key = key
 
     @_check_types.do
@@ -52,7 +52,7 @@ class ApiKeyStore:
     """
 
     @_check_types.do
-    def __init__(self, backend: Any = None, service: str = SERVICE, username: str = USERNAME) -> None:
+    def __init__(self, backend: Any = None, service: str = SERVICE, username: str = USERNAME):
         self._backend = backend
         self._service = service
         self._username = username

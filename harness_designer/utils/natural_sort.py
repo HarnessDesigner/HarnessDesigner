@@ -2,9 +2,12 @@
 
 import re
 
+from .. import check_types as _check_types
+
 _DIGIT_RUN = re.compile(r'(\d+)')
 
 
+@_check_types.do
 def natural_sort_key(name: str) -> tuple:
     """Split *name* into alternating text/number chunks (numeric chunks
     compared as ints) so ``"2"`` sorts before ``"10"`` -- a plain string

@@ -17,7 +17,7 @@ class HelpMenu(QtWidgets.QMenu):
     Represent a help menu in :mod:`harness_designer.ui.system_menu.help`.
     """
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialise the :class:`HelpMenu` instance.
 

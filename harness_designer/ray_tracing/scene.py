@@ -41,7 +41,7 @@ class Scene:
     """Collect camera state, scene objects, materials, and lighting for the ray-tracing renderer.
     """
     @_check_types.do
-    def __init__(self, width: int, height: int, camera: "_camera.Camera") -> None:
+    def __init__(self, width: int, height: int, camera: "_camera.Camera"):
         """Initialize the object and capture the state required for later interaction.
 
         :param width: Target render width in pixels.

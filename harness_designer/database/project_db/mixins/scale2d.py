@@ -97,7 +97,7 @@ class Scale2DControl(_prop_ctrls.ScaleProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """
         Initialise the :class:`Scale2DControl` instance.
 

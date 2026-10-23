@@ -49,7 +49,7 @@ class WireLayout(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
-                 db_obj: "_pjt_wire_layout.PJTWireLayout") -> None:
+                 db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.
 
         :param parent: Parent object.
@@ -177,6 +177,7 @@ class WireLayout(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
@@ -193,7 +194,7 @@ class WireLayoutMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "WireLayout") -> None:
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "WireLayout"):
         """Initialise the :class:`WireLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

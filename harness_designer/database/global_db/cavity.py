@@ -480,11 +480,11 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     @aabb.setter
     @_check_types.do
     def aabb(self, value: np.ndarray) -> None:
-        value = [[float(str(item)) for item in items]
+        value_list = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
-        self._stored_aabb = value
-        self._table.update(self._db_id, aabb=str(value))
+        self._stored_aabb = value_list
+        self._table.update(self._db_id, aabb=str(value_list))
 
     _stored_obb: DefaultStoredValueType | np.ndarray | None = DefaultStoredValue
 
@@ -515,11 +515,11 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     @obb.setter
     @_check_types.do
     def obb(self, value: np.ndarray) -> None:
-        value = [[float(str(item)) for item in items]
+        value_list = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
-        self._stored_obb = value
-        self._table.update(self._db_id, obb=str(value))
+        self._stored_obb = value_list
+        self._table.update(self._db_id, obb=str(value_list))
 
     _stored_round_terminal: DefaultStoredValueType | bool = DefaultStoredValue
 
@@ -1014,7 +1014,7 @@ class CavityControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.db_obj.idx = value
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`CavityControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -53,7 +53,7 @@ class Rings3D(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_rotation_rings.RotationRings", selected: "_objects.ObjectBase",
-                 mainframe: "_ui.MainFrame") -> None:
+                 mainframe: "_ui.MainFrame"):
         """Initialise the :class:`Rings3D` instance.
 
         :param parent: Parent :class:`~..rotation_rings.RotationRings` wrapper.

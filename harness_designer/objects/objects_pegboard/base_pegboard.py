@@ -140,7 +140,7 @@ class BasePegboard(_objectsvar.BaseVar):
         position: _point.Point | None = None,
         scale: _point.Point | None = None,
         material: _materials.GLMaterial | None = None
-    ) -> None:
+    ):
         """
         Initialise the :class:`BasePegboard` instance.
 

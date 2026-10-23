@@ -86,7 +86,7 @@ class Wire(_base.AddHandlerBase):
                  part_id: bytes, phase: int = 0, growing_point: _point.Point | None = None,
                  preexisting_wire: bool = False, start_circuit_id: bytes | None = None,
                  extension_mode: bool = False, source_wire: _Union["_wire.Wire", None] = None,
-                 source_point: _point.Point | None = None) -> None:
+                 source_point: _point.Point | None = None):
 
         super().__init__(canvas, target)
 
@@ -143,6 +143,7 @@ class Wire(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
+    @_check_types.do
     def _get_view_object(
         obj: "_objects.ObjectBase"
     ) -> "_base_pegboard.BasePegboard":

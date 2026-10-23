@@ -22,7 +22,7 @@ class WireServiceLoop(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop") -> None:
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
         """Initialise the :class:`WireServiceLoop` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -36,5 +36,6 @@ class WireServiceLoop(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

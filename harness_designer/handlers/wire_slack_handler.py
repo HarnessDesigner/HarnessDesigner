@@ -61,7 +61,7 @@ class WireSlackHandler:
     _reconciling_any = False
 
     @_check_types.do
-    def __init__(self, wire: "_wire_obj.Wire") -> None:
+    def __init__(self, wire: "_wire_obj.Wire"):
         self._wire = wire
 
         # What register_3d()/register_pegboard() bound LAST time, as weak

@@ -115,7 +115,7 @@ class CaptionBarStyle:
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialise the :class:`CaptionBarStyle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -340,7 +340,7 @@ class CaptionBar(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  rightIndent: int = FPB_BMP_RIGHTSPACE,
-                 collapsed: bool = False) -> None:
+                 collapsed: bool = False):
         """Initialise the :class:`CaptionBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -752,7 +752,7 @@ class FoldWindowItem:
     """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
     @_check_types.do
-    def __init__(self, parent: "FoldPanelItem", window: QtWidgets.QWidget | None, **kw) -> None:
+    def __init__(self, parent: "FoldPanelItem", window: QtWidgets.QWidget | None, **kw):
         """Initialise the :class:`FoldWindowItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -915,7 +915,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
-                 collapsed: bool = False) -> None:
+                 collapsed: bool = False):
         """Initialise the :class:`FoldPanelItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1183,7 +1183,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         self.ResizePanel()
 
     @_check_types.do
-    def AddSeparator(self, colour: QtGui.QColor = None, spacing: int = FPB_DEFAULT_SPACING,
+    def AddSeparator(self, colour: QtGui.QColor | None = None, spacing: int = FPB_DEFAULT_SPACING,
                      leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
                      rightSpacing: int = FPB_DEFAULT_RIGHTSPACING) -> None:
         """Execute the add separator operation.
@@ -1301,7 +1301,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, agwStyle: int = 0) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, agwStyle: int = 0):
         """Initialise the :class:`FoldPanelBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

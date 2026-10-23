@@ -45,7 +45,7 @@ class Cover(_base_3d.Base3D):
     db_obj: "_pjt_cover.PJTCover" = None
 
     @_check_types.do
-    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover") -> None:
+    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
         """Initialise the :class:`Cover` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -265,7 +265,7 @@ class CoverMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Cover") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Cover"):
         """Initialise the :class:`CoverMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

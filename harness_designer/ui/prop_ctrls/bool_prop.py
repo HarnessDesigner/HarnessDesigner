@@ -16,7 +16,7 @@ class BoolProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
+    def __init__(self, parent: QtWidgets.QWidget, label: str):
         """Initialise the :class:`BoolProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

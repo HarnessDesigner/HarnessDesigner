@@ -22,7 +22,7 @@ class Bundle(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
-                 db_obj: "_pjt_bundle.PJTBundle") -> None:
+                 db_obj: "_pjt_bundle.PJTBundle"):
         """Initialise the :class:`Bundle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -36,5 +36,6 @@ class Bundle(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

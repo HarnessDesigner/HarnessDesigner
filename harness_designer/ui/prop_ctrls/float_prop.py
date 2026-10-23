@@ -19,7 +19,7 @@ class FloatProperty(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, min_value: float, max_value: float,
-                 increment: float, units: str | None = None) -> None:
+                 increment: float, units: str | None = None):
         """Initialise the :class:`FloatProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

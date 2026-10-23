@@ -52,7 +52,7 @@ class NameControl(_prop_ctrls.StringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent: "QtWidgets.QWidget") -> None:
+    def __init__(self, parent: "QtWidgets.QWidget"):
         """Initialise the :class:`NameControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

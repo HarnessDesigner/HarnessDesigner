@@ -153,10 +153,12 @@ def _walk_bundle_chain(bundle_db_obj: "_pjt_bundle.PJTBundle", ptables: "_pjt_ba
         [end_A_id, layout_id, ..., end_B_id]
     """
 
+    @_check_types.do
     def _has_layout(point_id: bytes) -> bool:
         return bool(ptables.pjt_bundle_layouts_table.select(
             'id', position3d_id=point_id))
 
+    @_check_types.do
     def _next_section(current_id: bytes, from_point_id: bytes, visited: set[bytes]) -> bytes | None:
         rows = (ptables.pjt_bundles_table.select(
             'id', start_point3d_id=from_point_id) +
@@ -170,6 +172,7 @@ def _walk_bundle_chain(bundle_db_obj: "_pjt_bundle.PJTBundle", ptables: "_pjt_ba
 
         return None
 
+    @_check_types.do
     def _walk_direction(start_section_id: bytes, leaving_point_id: bytes) -> list[bytes]:
         pts, current_id, current_pt = [], start_section_id, leaving_point_id
         visited = {start_section_id}
@@ -626,7 +629,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", target: _Union[_wire.Wire, _bundle.Bundle],
-                 is_start: bool) -> None:
+                 is_start: bool):
         super().__init__(mainframe, None)
         self.target = target
         self.is_start = is_start
@@ -736,7 +739,7 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 target: _wire.Wire, is_start: bool) -> None:
+                 target: _wire.Wire, is_start: bool):
 
         super().__init__(mainframe, None)
         self.target = target
@@ -824,7 +827,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
     _IN_TRANS = 'in_transition'
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes) -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes):
         super().__init__(mainframe, part_id)
         self._state = self._IDLE
         self._segments = []

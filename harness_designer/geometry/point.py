@@ -3,7 +3,7 @@
 """Reactive point primitives shared across the geometry subsystem."""
 
 from typing import TYPE_CHECKING
-from typing import Self, Any, Union as _Union
+from typing import Self as _Self, Any, Union as _Union
 from collections.abc import Iterable
 
 import threading
@@ -305,18 +305,18 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
                 if out is None:
                     return inputs @ self._data
                 else:
-                    out = out[0]
-                    shape = out.shape
+                    out_arr = out[0]
+                    shape = out_arr.shape
 
                     if len(shape) == 1:
-                        out = out.reshape(-1, 3)
+                        out_arr = out_arr.reshape(-1, 3)
 
-                    out @= self._data
+                    out_arr @= self._data
 
                     if len(shape) == 1:
-                        out = out.reshape(-1)
+                        out_arr = out_arr.reshape(-1)
 
-                    return out
+                    return out_arr
 
             # class instance is left hand and numpy array is right hand
             # this should not happen because of __imatmul__ and __matmul__
@@ -331,18 +331,18 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
                 if out is None:
                     return inputs + self._data
                 else:
-                    out = out[0]
-                    shape = out.shape
+                    out_arr = out[0]
+                    shape = out_arr.shape
 
                     if len(shape) == 1:
-                        out = out.reshape(-1, 3)
+                        out_arr = out_arr.reshape(-1, 3)
 
-                    out += self._data
+                    out_arr += self._data
 
                     if len(shape) == 1:
-                        out = out.reshape(-1)
+                        out_arr = out_arr.reshape(-1)
 
-                    return out
+                    return out_arr
 
             # class instance is left hand and numpy array is right hand
             # this should not happen because of __iadd__ and __add__
@@ -357,18 +357,18 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
                 if out is None:
                     return inputs - self._data
                 else:
-                    out = out[0]
-                    shape = out.shape
+                    out_arr = out[0]
+                    shape = out_arr.shape
 
                     if len(shape) == 1:
-                        out = out.reshape(-1, 3)
+                        out_arr = out_arr.reshape(-1, 3)
 
-                    out -= self._data
+                    out_arr -= self._data
 
                     if len(shape) == 1:
-                        out = out.reshape(-1)
+                        out_arr = out_arr.reshape(-1)
 
-                    return out
+                    return out_arr
 
             # class instance is left hand and numpy array is right hand
             # this should not happen because of __isub__ and __sub__
@@ -383,18 +383,18 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
                 if out is None:
                     return inputs * self._data
                 else:
-                    out = out[0]
-                    shape = out.shape
+                    out_arr = out[0]
+                    shape = out_arr.shape
 
                     if len(shape) == 1:
-                        out = out.reshape(-1, 3)
+                        out_arr = out_arr.reshape(-1, 3)
 
-                    out *= self._data
+                    out_arr *= self._data
 
                     if len(shape) == 1:
-                        out = out.reshape(-1)
+                        out_arr = out_arr.reshape(-1)
 
-                    return out
+                    return out_arr
 
             # class instance is left hand and numpy array is right hand
             # this should not happen because of __imul__ and __mul__
@@ -407,7 +407,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @_check_types.do
     def __init__(self, x: float | _d | np.float32, y: float | _d | np.float32,
-                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None) -> None:
+                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None):
         """
         Construct a Point.
 
@@ -473,7 +473,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self._db_id = value
 
     @_check_types.do
-    def __enter__(self) -> Self:
+    def __enter__(self) -> _Self:
         if self._root is None:
             self.__ref_count__ += 1
         else:
@@ -616,7 +616,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return x, y, z
 
     @_check_types.do
-    def __iadd__(self, other: _Union["Point", np.ndarray, float]) -> Self:
+    def __iadd__(self, other: _Union["Point", np.ndarray, float]) -> _Self:
         """
         In-place add.
 
@@ -661,7 +661,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 + x2, y1 + y2, z1 + z2)
 
     @_check_types.do
-    def __isub__(self, other: _Union["Point", np.ndarray, float, _d]) -> Self:
+    def __isub__(self, other: _Union["Point", np.ndarray, float, _d]) -> _Self:
         """
         In-place subtract.
 
@@ -693,7 +693,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 - x2, y1 - y2, z1 - z2)
 
     @_check_types.do
-    def __imul__(self, other: _Union[float, "Point", np.ndarray, _d]) -> Self:
+    def __imul__(self, other: _Union[float, "Point", np.ndarray, _d]) -> _Self:
         """
         In-place component-wise multiply.
 
@@ -730,7 +730,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 * x2, y1 * y2, z1 * z2)
 
     @_check_types.do
-    def __itruediv__(self, other: _Union[float, "Point", np.ndarray, _d]) -> Self:
+    def __itruediv__(self, other: _Union[float, "Point", np.ndarray, _d]) -> _Self:
         """In-place component-wise divide.  Fires callbacks after the operation."""
 
         if self._root is not None:
@@ -783,9 +783,9 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         p = self.as_numpy
         p @= angle._q  # NOQA
 
-        p = Point(*[float(str(item)) for item in p.tolist()])
+        rotated = Point(*[float(str(item)) for item in p.tolist()])
 
-        return p
+        return rotated
 
     @_check_types.do
     def __imatmul__(self, other: _Union[np.ndarray, "_angle.Angle"]) -> "Point":

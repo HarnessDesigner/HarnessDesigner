@@ -43,7 +43,7 @@ class TPALock(_base_3d.Base3D):
     db_obj: "_pjt_tpa_lock.PJTTPALock" = None
 
     @_check_types.do
-    def __init__(self, parent: "_tpa_lock.TPALock", db_obj: "_pjt_tpa_lock.PJTTPALock") -> None:
+    def __init__(self, parent: "_tpa_lock.TPALock", db_obj: "_pjt_tpa_lock.PJTTPALock"):
         """Initialise the :class:`TPALock` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +94,7 @@ class TPALock(_base_3d.Base3D):
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.CoversPage, mainframe.global_db.tpa_locks_table,
+                mainframe, _editor_db.TPALocksPage, mainframe.global_db.tpa_locks_table,
                 'Add TPA Lock',
                 initial_params=_part_search.SearchParameters.from_part_numbers(compat_tpa_locks))
 
@@ -234,7 +234,7 @@ class TPALockMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "TPALock") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "TPALock"):
         """Initialise the :class:`TPALockMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

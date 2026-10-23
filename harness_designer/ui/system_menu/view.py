@@ -16,7 +16,7 @@ class ViewMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame") -> None:
+    def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialise the :class:`ViewMenu` instance.
 

@@ -1,8 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from .. import check_types as _check_types
+
+
 _registering = None
 
 
+@_check_types.do
 def start_registration(instance):
     global _registering
 
@@ -14,6 +18,7 @@ def start_registration(instance):
 
 class _PluginMeta(type):
 
+    @_check_types.do
     def __init__(cls, name, bases, dct):
         super().__init__(name, bases, dct)
 

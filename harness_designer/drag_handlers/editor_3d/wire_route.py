@@ -47,7 +47,7 @@ class WireRoute(_wire.Wire, _wire_routing_drag.WireRouteMixin):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
-                 plan: _wire_drag_base.WireDragPlan) -> None:
+                 plan: _wire_drag_base.WireDragPlan):
         _wire.Wire.__init__(self, canvas, target, plan)
         self._arm_routing()
 

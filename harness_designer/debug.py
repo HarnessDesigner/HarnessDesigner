@@ -19,7 +19,7 @@ self time, which is where time is actually spent. A recursive function's
 inclusive time counts once per level, so use the self columns for totals.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar, cast
 from collections.abc import Callable
 
 import threading
@@ -43,7 +43,7 @@ class DebugPrinter:
     """Route debug output either to stdout or the application logger."""
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         """Initialise the fallback debug printer.
 
         """
@@ -98,7 +98,7 @@ class _Record:
 
     __slots__ = ('qualname', 'depth', 'label', 'duration', 'self_time')
 
-    def __init__(self, qualname: str, depth: int, label: str) -> None:
+    def __init__(self, qualname: str, depth: int, label: str):
         self.qualname = qualname
         self.depth = depth
         self.label = label
@@ -109,7 +109,7 @@ class _Record:
 class _ThreadState(threading.local):
     """Per-thread stack of child-time accumulators, one entry per open call."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.stack: list[int] = []
 
 
@@ -130,8 +130,14 @@ def _format_label(qualname: str, args: tuple[Any], kwargs: dict[str, Any]) -> st
     return f'{qualname}({", ".join(parts)})'
 
 
+_P = ParamSpec('_P')
+_R = TypeVar('_R')
+
+
+# Typed with a ParamSpec so type checkers keep the real signature of every function it decorates (a bare
+# `-> Callable` hides it). The body is in _logfunc, deliberately unannotated, so it is not held to those types.
 @_check_types.do
-def logfunc(func: Callable) -> Callable:
+def logfunc(func: Callable[_P, _R]) -> Callable[_P, _R]:
     """Decorate a callable so it is timed while a capture is running.
 
     :param func: Callable to wrap.
@@ -139,6 +145,12 @@ def logfunc(func: Callable) -> Callable:
     :returns: Either the original callable or a timing wrapper.
     :rtype: collections.abc.Callable
     """
+
+    return cast(Callable[_P, _R], _logfunc(func))
+
+
+def _logfunc(func):
+    """The body of :func:`logfunc`, kept free of annotations."""
 
     if True not in (Config.log_args, Config.log_duration):
         return func
@@ -157,7 +169,7 @@ def logfunc(func: Callable) -> Callable:
             is_static_method = True
 
     @functools.wraps(func)
-    def _wrapper(*args: tuple[Any], **kwargs: dict[str, Any]) -> object:
+    def _wrapper(*args, **kwargs):
         """Invoke ``func``, recording its timing when a capture is running.
 
         :param args: Positional arguments for ``func``.
@@ -169,19 +181,22 @@ def logfunc(func: Callable) -> Callable:
         """
 
         if is_static_method:
-            args = list(args[1:])
+            # a tuple, not a list: _format_label's `tuple` hint is an exact-type check in the compiled build
+            positional_args = tuple(args[1:])
+        else:
+            positional_args = args
 
         if _records is None:
-            return func(*args, **kwargs)
+            return func(*positional_args, **kwargs)
 
         record = _Record(func.__qualname__, len(_state.stack),
-                         _format_label(func.__qualname__, args, kwargs))
+                         _format_label(func.__qualname__, positional_args, kwargs))
         _records.append(record)
         _state.stack.append(0)
 
         start = time.perf_counter_ns()
         try:
-            return func(*args, **kwargs)
+            return func(*positional_args, **kwargs)
         finally:
             # Runs on an exception too, so the stack depth always stays right.
             duration = time.perf_counter_ns() - start

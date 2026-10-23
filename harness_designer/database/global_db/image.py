@@ -127,7 +127,10 @@ class Image(EntryBase):
         # The download ran in a child process on a separate DB connection,
         # so uuid/path/file_type_id may already be cached stale (None) on
         # this instance from a pre-download read (e.g. `load()`'s
-        # `self.data_path` check). Force a fresh DB read.
+        # `self.data_path` check), and in the table's row cache too, which
+        # is what `select()` answers from. Force a fresh DB read at both
+        # levels.
+        self._table.reload_row(self.db_id)
         self._stored_uuid = DefaultStoredValue
         self._stored_path = DefaultStoredValue
         self._stored_file_type_id = DefaultStoredValue

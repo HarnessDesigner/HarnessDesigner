@@ -23,7 +23,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", config: "_config.Config.editor_3d",
-                 size: tuple[int, int], axis_overlay: bool = False) -> None:
+                 size: tuple[int, int], axis_overlay: bool = False):
         """Initialise the :class:`Canvas3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

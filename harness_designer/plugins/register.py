@@ -1,5 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from .. import check_types as _check_types
+
+
 PLUGIN_TYPE_MISC = 0x00
 PLUGIN_TYPE_DATABASE = 0x01
 PLUGIN_TYPE_SCRAPER = 0x02
@@ -11,6 +14,7 @@ PLUGIN_TYPE_AI = 0x20
 
 class RegisterPlugin:
 
+    @_check_types.do
     def __init__(
         self,
         *,
@@ -21,7 +25,7 @@ class RegisterPlugin:
         author: str,
         email: str,
         support_url: str,
-        icon: str = None
+        icon: str | None = None
     ):
 
         self.name = name

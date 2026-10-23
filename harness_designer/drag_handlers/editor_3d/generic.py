@@ -67,7 +67,7 @@ class Generic(_editor_3d.DragHandler3D):
     """Generic single-position drag -- moves ``obj3d.position`` directly."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
         super().__init__(canvas, target)
 
         # Last object world Point used for incremental moves.

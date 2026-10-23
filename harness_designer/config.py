@@ -9,6 +9,7 @@ from collections.abc import Callable
 
 import inspect
 import binascii
+import multiprocessing
 import sqlite3
 import weakref
 import threading
@@ -48,7 +49,7 @@ class _ConfigTable:
     """
 
     @_check_types.do
-    def __init__(self, con: sqlite3.Connection, name: str) -> None:
+    def __init__(self, con: sqlite3.Connection, name: str):
         """
         Initialise a table wrapper.
 
@@ -193,7 +194,7 @@ class _ConfigDB:
     """
 
     @_check_types.do
-    def __init__(self) -> None:
+    def __init__(self):
         """
         Initialise the backing database wrapper.
         """
@@ -210,6 +211,17 @@ class _ConfigDB:
 
         if self._con is not None:
             raise RuntimeError('The config database is already open')
+
+        # PyCharm builds stubs for compiled modules by importing each one in a
+        # worker process (see ``utils.SKELETON_WORKER_NAME``), and
+        # ``Config.open()`` runs at import time. Use a throwaway in-memory
+        # database there so the real config.db is neither created, read nor
+        # written, and every assignment to a ``Config`` setting still has
+        # somewhere to land. ``save_all`` is True because the database starts
+        # empty.
+        if multiprocessing.current_process().name == _utils.SKELETON_WORKER_NAME:
+            self._con = sqlite3.connect(':memory:', check_same_thread=False)
+            return True
 
         path = os.path.join(_utils.get_appdata(), 'config.db')
 
@@ -307,7 +319,7 @@ class ConfigDB(type):
     __callbacks__ = {}
 
     @_check_types.do
-    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict) -> None:
+    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict):
         """
         Register a configuration class with the metaclass registry.
 

@@ -8,7 +8,7 @@ from PySide6 import QtWidgets
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import cpa_lock as _cpa_lock
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -218,7 +218,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
         """
         return self._table
 
-    _stored_part: _cpa_lock.CPALock | None | DefaultStoredValue = DefaultStoredValue
+    _stored_part: _cpa_lock.CPALock | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @dump_property(severity=2)
@@ -282,7 +282,7 @@ class PJTCPALockControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget) -> None:
+    def __init__(self, parent: QtWidgets.QWidget):
         """Initialise the :class:`PJTCPALockControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -77,7 +77,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
     """Transparent child widget that projects selected surfaces as 2D highlights."""
 
     @_check_types.do
-    def __init__(self, gl_widget: QtWidgets.QWidget, dialog: "HousingEditorDialog") -> None:
+    def __init__(self, gl_widget: QtWidgets.QWidget, dialog: "HousingEditorDialog"):
         super().__init__(gl_widget)
         self._dialog = dialog
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -288,7 +288,7 @@ class _SurfaceSelectFilter(QtCore.QObject):
     """
 
     @_check_types.do
-    def __init__(self, dialog: "HousingEditorDialog") -> None:
+    def __init__(self, dialog: "HousingEditorDialog"):
         super().__init__(dialog.canvas._canvas)  # NOQA
         self._dialog = dialog
         self._is_moved = False
@@ -479,7 +479,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame") -> None:
+    def __init__(self, parent: "_ui.MainFrame"):
         self.db_obj = None
 
         _dialog_base.BaseDialog.__init__(

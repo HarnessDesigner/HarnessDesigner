@@ -27,14 +27,17 @@ import os
 import numpy as np
 
 from .. import utils as _utils
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def path(name: str) -> str:
     """Return the on-disk path for cache *name* (no extension needed --
     always ``<appdata>/<name>.npz``)."""
     return os.path.join(_utils.get_appdata(), f'{name}.npz')
 
 
+@_check_types.do
 def load(name: str, version: int) -> tuple[np.ndarray, int, np.ndarray, np.ndarray, np.ndarray | None] | None:
     """Return ``(packed, count, aabb, obb, extra)`` cached on disk for
     *name*, or ``None`` if there's no cache file yet, it's unreadable,
@@ -63,6 +66,7 @@ def load(name: str, version: int) -> tuple[np.ndarray, int, np.ndarray, np.ndarr
         return None
 
 
+@_check_types.do
 def save(name: str, version: int, packed: np.ndarray, count: int,
          aabb: np.ndarray, obb: np.ndarray, extra: np.ndarray | None = None) -> None:
     """Write *packed*/*count*/*aabb*/*obb* (plus optional small *extra*
