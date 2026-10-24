@@ -164,6 +164,21 @@ class Splice(_ObjectBase):
                 return
 
     @_check_types.do
+    def remove_wire(self, wire: "_wire_obj.Wire") -> None:
+        """Forget *wire* wherever it sits (start, stop or branch) --
+        called when the wire is deleted, so start_sibling, stop_sibling,
+        branch_wires and wires never return a deleted wire (the references
+        are weak, and only die once the wire is garbage collected).
+        """
+        if self._start_sibling_ref is not None and self._start_sibling_ref() is wire:
+            self._start_sibling_ref = None
+
+        if self._stop_sibling_ref is not None and self._stop_sibling_ref() is wire:
+            self._stop_sibling_ref = None
+
+        self._branch_wire_refs = [ref for ref in self._branch_wire_refs if ref() is not wire]
+
+    @_check_types.do
     def delete(self) -> None:
         """Reconnect the through-pair back into a single wire (undoing
         the fork handlers.splice_handler made when this splice was

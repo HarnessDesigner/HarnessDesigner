@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from ..objects import project as _project
     from ..objects import wire as _wire_obj
     from .. import objects as _objects
+    from ..objects.objects_schematic import terminal as _terminal_schematic
 
 
 try:
@@ -104,7 +105,7 @@ def _lane_spacing() -> float:
 
 
 @_check_types.do
-def _terminal_cylinder_rect(term2d: "_objects.ObjectBase") -> tuple[float, float, float, float] | None:
+def _terminal_cylinder_rect(term2d: "_terminal_schematic.Terminal") -> tuple[float, float, float, float] | None:
     """
     One ``objects_schematic/terminal.py`` ``Terminal``'s own rendered
     wire-stub cylinder (``_cylinder_start`` -> ``_wire_position``, the same

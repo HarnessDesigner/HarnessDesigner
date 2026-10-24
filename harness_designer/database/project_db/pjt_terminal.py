@@ -544,7 +544,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def circuit(self) -> _pjt_circuit.PJTCircuit:
+    def circuit(self) -> _pjt_circuit.PJTCircuit | None:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -565,7 +565,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @property
     @_check_types.do
-    def circuit_id(self) -> bytes:
+    def circuit_id(self) -> bytes | None:
         """Return the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -593,7 +593,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def seal(self) -> _pjt_seal.PJTSeal:
+    def seal(self) -> _pjt_seal.PJTSeal | None:
         """Return the seal.
 
         UNKNOWN details are inferred from the callable name and signature.

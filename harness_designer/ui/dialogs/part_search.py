@@ -2418,7 +2418,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         super().done(result)
 
     @_check_types.do
-    def GetValue(self) -> int | None:
+    def GetValue(self) -> bytes | None:
         sel = self.results.selected
         if sel is None:
             return None

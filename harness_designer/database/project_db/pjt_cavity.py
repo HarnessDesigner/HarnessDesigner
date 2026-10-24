@@ -332,11 +332,22 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         cavity/terminal delete, dangling; see the design spec's own
         "Housing delete cascade, wires survive" worked example).
         """
+        # Read before the row goes: the housing caches its cavity and
+        # terminal lists (PJTHousing.cavities/.terminals), and a deleted
+        # cavity has to come out of them. Without that, PJTHousing.delete()
+        # -- which runs after Housing.delete() has already deleted every
+        # cavity through its own facades -- walked the stale list and deleted
+        # each cavity a second time (RowDeletedError).
+        housing = self.housing
+
         terminal = self.terminal
         if terminal is not None:
             terminal.delete()
 
         super().delete()
+
+        housing._stored_cavities = None  # NOQA
+        housing._stored_terminals = None  # NOQA
 
     @_check_types.do
     def get_object(self) -> "_cavity_obj.Cavity":
@@ -438,7 +449,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def terminal(self) -> "_pjt_terminal.PJTTerminal":
+    def terminal(self) -> _Union["_pjt_terminal.PJTTerminal", None]:
         """
         Return the terminal.
 
@@ -830,7 +841,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def seal(self) -> "_pjt_seal.PJTSeal":
+    def seal(self) -> _Union["_pjt_seal.PJTSeal", None]:
         """
         Return the seal.
 

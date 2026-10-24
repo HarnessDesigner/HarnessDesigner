@@ -29,6 +29,9 @@ from . import mouse_handler_base as _mouse_handler_base
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui.dialogs import part_orientation as _part_orientation
+    from ...ui.dialogs.housing_editor import housing_editor as _housing_editor
+    from ...ui.dialogs.transition_editor import dialog as _transition_editor
     from ... import objects as _objects
     from ...objects.objectsvar import base_var as _base_var
 
@@ -365,7 +368,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # (it rejects any `type` subclass) the moment a real config section is
     # passed in. Keep this `object`, not `type`.
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", config: object, size: QtCore.QSize | None = None):
+    def __init__(self, mainframe: _Union["_ui.MainFrame", "_part_orientation.PartOrientationDialog", "_housing_editor.HousingEditorDialog", "_transition_editor.TransitionEditorDialog"], config: _config.ConfigEditorBaseType, size: QtCore.QSize | None = None):
         """
         Initialise the :class:`CanvasBase` instance.
 
@@ -790,7 +793,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             dy = -dy
 
         sens = self.config.input.truck_pedestal.sensitivity
-        self.camera.TruckPedestal(dx * sens, dy * sens, self.config.truck_pedestal.speed)
+        self.camera.TruckPedestal(dx * sens, dy * sens, self.config.input.truck_pedestal.speed)
 
     @_debug.logfunc
     @_check_types.do
@@ -1053,7 +1056,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     @_check_types.do
-    def _draw_scene(self, obj_data: np.ndarray) -> None:
+    def _draw_scene(self, obj_data: np.ndarray | list[list[int | np.ndarray]]) -> None:
         removed_objects = []
         objects_in_view = []
 

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from ... import ui as _ui
     from ...ui import editor_schematic as _editor_schematic
     from ...database import project_db as _project_db
+    from ...database.global_db import bases as _glb_bases
     from ...gl import vbo as _vbo
     from ...gl import shaders as _shaders
 
@@ -92,7 +93,7 @@ class BaseSchematic(_objectsvar.BaseVar):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
+    def __init__(self, parent: "_ObjectBase", db_obj: _Union["_glb_bases.EntryBase", "_project_db.PJTEntryBase", None],
                  vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
                  material: _materials.GLMaterial | None):
@@ -160,7 +161,7 @@ class BaseSchematic(_objectsvar.BaseVar):
 
     @_check_types.do
     def handle_interaction(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        self, last_pos: _point.Point | None, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Generic locked-X/Z drag arming/dispatch, plus rotation-gizmo

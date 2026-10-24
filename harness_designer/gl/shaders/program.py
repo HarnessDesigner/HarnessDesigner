@@ -211,7 +211,7 @@ class FacesProgram(Program):
 
     @material_diffuse.setter
     @_check_types.do
-    def material_diffuse(self, value: np.ndarray) -> None:
+    def material_diffuse(self, value: np.ndarray | list[float]) -> None:
         GL.glUniform4fv(self._material_diffuse, 1, value)
 
     @property
@@ -241,7 +241,7 @@ class FacesProgram(Program):
 
     @material_emissive.setter
     @_check_types.do
-    def material_emissive(self, value: np.ndarray) -> None:
+    def material_emissive(self, value: np.ndarray | list[float]) -> None:
         GL.glUniform4fv(self._material_emissive, 1, value)
 
     @property
@@ -321,7 +321,7 @@ class FacesProgram(Program):
 
     @headlight_direction.setter
     @_check_types.do
-    def headlight_direction(self, value: np.ndarray) -> None:
+    def headlight_direction(self, value: np.ndarray | list[float]) -> None:
         GL.glUniform3fv(self._headlight_direction, 1, value)
 
     @property

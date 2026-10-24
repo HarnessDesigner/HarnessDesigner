@@ -22,7 +22,7 @@ class FamilyMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def family(self) -> _Union["_family.Family", None]:
+    def family(self) -> "_family.Family":
         """Return the family.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,12 +33,9 @@ class FamilyMixin(BaseMixin):
         if self._stored_family is DefaultStoredValue:
             from .. import family as _family  # NOQA
 
-            family_id = self._table.select('family_id', id=self._db_id)[0][0]
-
-            if family_id == NIL_ID:
-                self._stored_family = None
-            else:
-                self._stored_family = _family.Family(self._table.db.families_table, family_id)
+            # A part with no family has the nil id (see family_id), which is
+            # the real "No Family" row -- not None.
+            self._stored_family = _family.Family(self._table.db.families_table, self.family_id)
 
         return self._stored_family
 
@@ -55,7 +52,14 @@ class FamilyMixin(BaseMixin):
         :rtype: bytes
         """
         if self._stored_family_id is DefaultStoredValue:
-            self._stored_family_id = self._table.select('family_id', id=self._db_id)[0][0]
+            family_id = self._table.select('family_id', id=self._db_id)[0][0]
+
+            # None is not NIL: a column that reads back as None means
+            # "not set", which is the nil id.
+            if family_id is None:
+                family_id = NIL_ID
+
+            self._stored_family_id = family_id
 
         return self._stored_family_id
 
@@ -129,10 +133,9 @@ class FamilyControl(_prop_ctrls.Category):
             self.mfg_ctrl.setEnabled(False)
             self.desc_ctrl.setEnabled(False)
         else:
-            family = db_obj.family
-
-            if family is None:
-                # Nothing set for this part -- the name choices depend on
+            if db_obj.family_id == NIL_ID:
+                # Nothing set for this part (it points at the "No Family"
+                # row) -- the name choices depend on
                 # the manufacturer, which there is none to go by.
                 self.choices = []
 
@@ -145,6 +148,7 @@ class FamilyControl(_prop_ctrls.Category):
                 self.desc_ctrl.setEnabled(False)
                 return
 
+            family = db_obj.family
             manufacturer = family.manufacturer
 
             if manufacturer is None:

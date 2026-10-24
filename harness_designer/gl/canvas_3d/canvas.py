@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from OpenGL import GL
 import math
@@ -23,6 +23,9 @@ from ..canvas_base import canvas_base as _canvas_base
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui.dialogs import part_orientation as _part_orientation
+    from ...ui.dialogs.housing_editor import housing_editor as _housing_editor
+    from ...ui.dialogs.transition_editor import dialog as _transition_editor
     from ...objects.objects_3d import base_3d as _base_3d
     from ... import objects as _objects
 
@@ -83,8 +86,8 @@ class Canvas(_canvas_base.CanvasBase):
     _editor_name = 'editor3d'
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame",
-                 config: _config.Config.editor_3d,
+    def __init__(self, mainframe: _Union["_ui.MainFrame", "_part_orientation.PartOrientationDialog", "_housing_editor.HousingEditorDialog", "_transition_editor.TransitionEditorDialog"],
+                 config: _config.ConfigEditor3DType,
                  size: QtCore.QSize | None = None):
         """
         Initialise the :class:`Canvas` instance.
@@ -111,7 +114,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     @property
     @_check_types.do
-    def axis_overlay(self) -> _axis_overlay.Overlay:
+    def axis_overlay(self) -> _axis_overlay.Overlay | None:
         """
         Return the axis overlay.
 

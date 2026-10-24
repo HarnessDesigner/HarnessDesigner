@@ -678,7 +678,7 @@ class VBOHandlerBase:
         return None
 
     @_check_types.do
-    def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
+    def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram", "_shader_program.TextureProgram"],
                position: _point.Point, angle: _angle.Angle, scale: _point.Point,
                smooth: bool | None) -> None:
         """Set this mesh's own per-draw transform uniforms, then draw it.

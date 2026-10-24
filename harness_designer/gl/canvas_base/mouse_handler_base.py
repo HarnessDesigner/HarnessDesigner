@@ -17,7 +17,7 @@ declined to arm one) falls through unchanged to the existing behavior.
 """
 
 from typing import Union as _Union
-from collections.abc import Iterable
+from collections.abc import Iterable, Callable
 from typing import TYPE_CHECKING
 
 import math
@@ -92,7 +92,7 @@ _WHEEL_IDLE_MS = 500
 
 
 @_check_types.do
-def _qt_pos(qt_event: QtGui.QMouseEvent) -> _point.Point:
+def _qt_pos(qt_event: QtGui.QMouseEvent | QtGui.QWheelEvent) -> _point.Point:
     """Execute the qt pos operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -173,7 +173,7 @@ class MouseHandlerBase:
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def handle_event(self, event: QtGui.QMouseEvent) -> bool:
+    def handle_event(self, event: QtGui.QMouseEvent | QtGui.QWheelEvent) -> bool:
         """
         Handle the event.
 
@@ -361,7 +361,7 @@ class MouseHandlerBase:
         return target.handle_wheel(mouse_pos, qt_wheel_event, clicked_object)
 
     @_check_types.do
-    def _process_mouse(self, code: int) -> None:
+    def _process_mouse(self, code: int) -> Callable[[float, float], None]:
         """
         Execute the process mouse operation.
 

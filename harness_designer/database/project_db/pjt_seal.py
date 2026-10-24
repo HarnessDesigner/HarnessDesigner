@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
 from PySide6 import QtWidgets
@@ -319,7 +319,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def cavity(self) -> "_pjt_cavity.PJTCavity":
+    def cavity(self) -> _Union["_pjt_cavity.PJTCavity", None]:
         """Return the cavity.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -340,7 +340,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
 
     @property
     @_check_types.do
-    def cavity_id(self) -> bytes:
+    def cavity_id(self) -> bytes | None:
         """Return the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.

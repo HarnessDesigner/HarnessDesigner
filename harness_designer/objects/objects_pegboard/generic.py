@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from . import base_pegboard as _base_pegboard
 from ... import check_types as _check_types
@@ -9,6 +9,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl import shaders as _shaders
     from .. import generic as _generic
+    from ...gl.canvas_3d import focal_target as _focal_target
 
 
 class Generic(_base_pegboard.BasePegboard):
@@ -17,7 +18,7 @@ class Generic(_base_pegboard.BasePegboard):
     _parent: "_generic.Generic" = None
 
     @_check_types.do
-    def __init__(self, parent: "_generic.Generic"):
+    def __init__(self, parent: _Union["_generic.Generic", "_focal_target.FocalTarget"]):
         """Initialise the :class:`Generic` instance.
 
         :param parent: Parent object.

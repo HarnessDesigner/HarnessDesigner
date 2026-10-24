@@ -1,9 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import threading
 import os
+import types
 import pandas as pd
 
 from PySide6 import QtWidgets
@@ -184,7 +185,7 @@ class _LogModel(QtCore.QAbstractTableModel):
         return 3
 
     @_check_types.do
-    def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole) -> str | None:
+    def headerData(self, section: int, orientation: QtCore.Qt.Orientation, role: int = QtCore.Qt.ItemDataRole.DisplayRole) -> str | None:
         """
         Execute the header data operation.
 
@@ -207,7 +208,7 @@ class _LogModel(QtCore.QAbstractTableModel):
             return self._HEADERS[section]
 
     @_check_types.do
-    def data(self, index: QtCore.QModelIndex, role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole) -> str | QtGui.QColor | None:
+    def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole) -> str | QtGui.QColor | None:
         row = index.row()
         if not index.isValid() or row >= len(self._data):
             return None
@@ -428,7 +429,7 @@ class ViewerPanel(QtWidgets.QSplitter):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None, logger: "_logger.Log"):
+    def __init__(self, parent: QtWidgets.QWidget | None, logger: _Union["_logger.Log", types.ModuleType]):
         """
         Initialise the :class:`LogViewerPanel` instance.
 

@@ -15,7 +15,7 @@ about this axis, replacing the old fixed-handle drag in
 ``rotation_handlers/rotation_rings.py``'s retired ``DragRotate``.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
 import numpy as np
@@ -62,7 +62,7 @@ class InnerRing(ProtractorRingBase):
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material: "_material.GLMaterial", label_size: float,
-                 obj_angle: _angle.Angle, context: "_gl_context.GLContext", camera: "_camera_base.CameraBase" = None,
+                 obj_angle: _angle.Angle, context: "_gl_context.GLContext", camera: _Union["_camera_base.CameraBase", None] = None,
                  local_tilt: _angle.Angle | None = None):
 
         self._obj_angle = obj_angle

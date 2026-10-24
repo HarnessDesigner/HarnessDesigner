@@ -54,8 +54,11 @@ from . import wire_snap as _wire_snap
 
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
+    from ...gl.canvas_3d import canvas_window as _canvas_window
     from ...objects import project as _project
     from ...objects import wire as _wire_object
+    from ...database.project_db import pjt_cavity as _pjt_cavity
+    from ...database.project_db import pjt_terminal as _pjt_terminal
     from ...objects import terminal as _terminal
     from ...objects import splice as _splice
     from ...database.project_db import pjt_wire as _pjt_wire
@@ -102,12 +105,12 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
 
     @staticmethod
     @_check_types.do
-    def _wire_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
+    def _wire_position_id_raw(obj: _Union["_wire_object.Wire", "_pjt_cavity.PJTCavity", "_pjt_terminal.PJTTerminal"]) -> bytes | None:
         return obj.wire_position3d_id_raw
 
     @staticmethod
     @_check_types.do
-    def _attach_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
+    def _attach_position_id_raw(obj: _Union["_wire_object.Wire", "_pjt_cavity.PJTCavity", "_pjt_terminal.PJTTerminal"]) -> bytes | None:
         return obj.attach_position3d_id_raw
 
     @staticmethod
@@ -141,7 +144,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         return obj.is_in_3dview
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_wire_object.Wire",
                  plan: _wire_drag_base.WireDragPlan):
         # Explicit, never super() -- see handlers.wire_drag_base's own
         # module docstring on why: a bare super() call here would only

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...geometry import point as _point
 from ...handlers import snap_probe_set as _snap_probe_set
@@ -9,6 +9,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
+    from ...database.project_db import pjt_cavity as _pjt_cavity
     from ...objects import project as _project
     from ...objects import wire as _wire_object
     from ...objects.objects_3d import base_3d as _base_3d
@@ -33,7 +34,7 @@ class SnapProbeSet(_snap_probe_set.SnapProbeSet):
 
     @staticmethod
     @_check_types.do
-    def _get_wire_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
+    def _get_wire_position(db_obj: _Union["_pjt_wire.PJTWire", "_pjt_cavity.PJTCavity"]) -> dict[str, _point.Point]:
         return dict(position3d=db_obj.wire_position3d)
 
     @staticmethod

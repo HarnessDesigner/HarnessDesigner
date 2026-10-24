@@ -165,7 +165,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     @property
     @_check_types.do
-    def attached_wires(self) -> list["_pjt_wire.PJTWire"]:
+    def attached_wires(self) -> list[_PseudoAttachedWire]:
         if self._wire_part is None:
             return []
 

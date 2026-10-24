@@ -4,7 +4,7 @@
 Persistent application configuration backed by SQLite tables.
 """
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from collections.abc import Callable
 
 import inspect
@@ -382,6 +382,9 @@ class ConfigDB(type):
         Load persisted values back onto the configuration class
         """
 
+        if not cls.__persisted__:
+            return
+
         for key in dir(cls):
             if key.startswith('_'):
                 continue
@@ -403,6 +406,9 @@ class ConfigDB(type):
         """
         Persist current class attributes to the database.
         """
+
+        if not cls.__persisted__:
+            return
 
         for key in dir(cls):
             if key.startswith('_'):
@@ -459,6 +465,27 @@ class ConfigDB(type):
 
         return ConfigDB.__db__[cls.__table_name__]
 
+    @property
+    @_check_types.do
+    def __persisted__(cls) -> bool:
+        """
+        Return whether this configuration class is stored in the database.
+
+        The ``__qualname__`` is split on the periods and every section of it is checked. If any
+        section starts with an underscore (the placeholder base classes that only exist for type
+        inference, and anything nested inside one) the whole class is skipped everywhere: no
+        table and no rows are made for it.
+
+        :returns: ``False`` when any section of the qualified name starts with an underscore.
+        :rtype: bool
+        """
+
+        for section in cls.__qualname__.split('.'):
+            if section.startswith('_'):
+                return False
+
+        return True
+
     @_check_types.do
     def __getitem__(cls, item: str) -> object:
         """
@@ -500,7 +527,7 @@ class ConfigDB(type):
         except AttributeError:
             pass
 
-        if item in cls.__table__:
+        if cls.__persisted__ and item in cls.__table__:
             value = cls.__table__[item]
             DEBUG('__getattribute__:', cls.__table_name__, cls.__name__, item, repr(value), '\n')
 
@@ -543,7 +570,9 @@ class ConfigDB(type):
             DEBUG('__setattr__:', cls.__table_name__, cls.__name__, key, repr(value), '\n')
             type.__setattr__(cls, key, value)
 
-            cls.__table__[key] = value
+            if cls.__persisted__:
+                cls.__table__[key] = value
+
             cls._process_change(key)
 
     @_check_types.do
@@ -566,7 +595,7 @@ class ConfigDB(type):
         :type item: str
         """
 
-        if item in cls.__table__:
+        if cls.__persisted__ and item in cls.__table__:
             del cls.__table__[item]
 
         type.__delattr__(cls, item)
@@ -608,6 +637,137 @@ MOUSE_REVERSE_X_AXIS = 0x80000000
 MOUSE_REVERSE_Y_AXIS = 0x40000000
 MOUSE_REVERSE_WHEEL_AXIS = 0x20000000
 MOUSE_SWAP_AXIS = 0x10000000
+
+
+class _ConfigEditorBase(metaclass=ConfigDB):
+    """
+    Everything the editor settings classes have in common.
+
+    These are placeholders. They are only here so type inference knows what each setting is
+    (and which sections and sub-sections every editor has); every editor class below overrides
+    them with its own values, and its sections and sub-sections build on the ones in here.
+    Nothing in this class is persisted.
+    """
+
+    background_color: list[float] = [0.0, 0.0, 0.0, 0.0]
+    selected_color: list[float] = [0.0, 0.0, 0.0, 0.0]
+
+    class lighting(metaclass=ConfigDB):
+        """
+        Placeholder for the lighting settings every editor has.
+        """
+
+        position: list[float] = [0.0, 0.0, 0.0]
+        ambient: list[float] = [0.0, 0.0, 0.0, 0.0]
+        diffuse: list[float] = [0.0, 0.0, 0.0, 0.0]
+        specular: list[float] = [0.0, 0.0, 0.0, 0.0]
+
+    class renderer(metaclass=ConfigDB):
+        """
+        Placeholder for the renderer settings every editor has.
+        """
+
+        smooth_housings: bool = False
+        smooth_wires: bool = False
+        smooth_terminals: bool = False
+        smooth_notes: bool = False
+        smooth_transitions: bool = False
+        smooth_splices: bool = False
+        smooth_wire_markers: bool = False
+
+    class drag_handler(metaclass=ConfigDB):
+        """
+        Placeholder for the drag_handler settings every editor has.
+        """
+
+        mode: str = ''
+
+    class rotation_handler(metaclass=ConfigDB):
+        """
+        Placeholder for the rotation_handler settings every editor has.
+        """
+
+        diameter_scale: float = 0.0
+        tube_diameter_scale: float = 0.00
+        y_color: list[float] = [0.0, 0.0, 0.0, 0.0]
+        outer_ring_color: list[float] = [0.0, 0.0, 0.0, 0.0]
+
+    class virtual_canvas(metaclass=ConfigDB):
+        width: int = 0
+        height: int = 0
+
+    class floor(metaclass=ConfigDB):
+        enable: bool = False
+        ground_height: float = 0.0
+        enable_floor_lock: bool = False
+
+        class reflections:
+            enable: bool = False
+            strength: float = 0.0
+
+    class keyboard_settings(metaclass=ConfigDB):
+        # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
+        # key_handler.KeyHandler._key_loop's own tick interval going
+        # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
+        # max speed and time-to-reach-max-speed as before, just spread
+        # across more, smaller per-tick steps so held-key camera
+        # movement (dolly/zoom/rotate/pan-tilt/truck-pedestal/walk --
+        # all share this one loop) reads as smooth motion instead of
+        # visibly-discrete jumps.
+        max_speed_factor: float = 0.0
+        speed_factor_increment: float = 0.0
+        start_speed_factor: float = 0.0
+
+    class input(metaclass=ConfigDB):
+        class rotate:
+            mouse: int | None = MOUSE_NONE
+            up_key: int | None = None
+            down_key: int | None = None
+            left_key: int | None = None
+            right_key: int | None = None
+            sensitivity: float = 0.0
+
+        class pan_tilt:
+            mouse: int | None = MOUSE_NONE
+            up_key: int | None = None
+            down_key: int | None = None
+            left_key: int | None = None
+            right_key: int | None = None
+            sensitivity: float = 0.0
+
+        class truck_pedestal:
+            mouse: int | None = MOUSE_NONE
+            up_key: int | None = None
+            down_key: int | None = None
+            left_key: int | None = None
+            right_key: int | None = None
+            sensitivity: float = 0.0
+            speed: float = 0.0
+
+        class walk:
+            mouse: int | None = MOUSE_NONE
+            forward_key: int | None = None
+            backward_key: int | None = None
+            left_key: int | None = None
+            right_key: int | None = None
+            sensitivity: float = 0.0
+            speed: float = 0.0
+
+        class dolly:
+            mouse: int | None = MOUSE_NONE
+            in_key: int | None = None
+            out_key: int | None = None
+            sensitivity: float = 0.0
+
+        class zoom:
+            mouse: int | None = MOUSE_NONE
+            in_key: int | None = None
+            out_key: int | None = None
+            sensitivity: float = 0.0
+
+        class reset:
+            key: int | None = None
+            mouse: int | None = MOUSE_NONE
 
 
 class Config(metaclass=ConfigDB):
@@ -718,19 +878,19 @@ class Config(metaclass=ConfigDB):
                 }
             ]
 
-    class editor_schematic(metaclass=ConfigDB):
+    class editor_schematic(_ConfigEditorBase):
         # Selection highlight material color -- mirrors
         # Config.editor_3d.selected_color's role exactly.
         background_color = [0.60, 0.60, 0.60, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.25]
 
-        class lighting(metaclass=ConfigDB):
+        class lighting(_ConfigEditorBase.lighting):
             position = [100.0, 100.0, 100.0]
             ambient = [0.6, 0.6, 0.6, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
-        class renderer(metaclass=ConfigDB):
+        class renderer(_ConfigEditorBase.renderer):
             smooth_housings = False
             smooth_wires = True
             smooth_terminals = False
@@ -766,10 +926,10 @@ class Config(metaclass=ConfigDB):
             # splice has no fixed exit direction of its own).
             terminal_stub_length = 2.0
 
-        class drag_handler(metaclass=ConfigDB):
+        class drag_handler(_ConfigEditorBase.drag_handler):
             mode = ''
 
-        class rotation_handler(metaclass=ConfigDB):
+        class rotation_handler(_ConfigEditorBase.rotation_handler):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box).
             # Needs enough headroom above the protractor gizmo's own inner
@@ -816,11 +976,11 @@ class Config(metaclass=ConfigDB):
             # inner ring and the click-a-tick outer ring alike.
             snap_angle = 90.0
 
-        class virtual_canvas(metaclass=ConfigDB):
+        class virtual_canvas(_ConfigEditorBase.virtual_canvas):
             width = 1920
             height = 1080
 
-        class floor(metaclass=ConfigDB):
+        class floor(_ConfigEditorBase.floor):
             enable = True
             ground_height = 0.0
             enable_floor_lock = True
@@ -832,11 +992,11 @@ class Config(metaclass=ConfigDB):
 
             manual_snap_spacing = None
 
-            class reflections:
+            class reflections(_ConfigEditorBase.floor.reflections):
                 enable = False
                 strength = 50.0
 
-        class keyboard_settings(metaclass=ConfigDB):
+        class keyboard_settings(_ConfigEditorBase.keyboard_settings):
             # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
             # key_handler.KeyHandler._key_loop's own tick interval going
             # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
@@ -849,24 +1009,24 @@ class Config(metaclass=ConfigDB):
             speed_factor_increment = 0.04
             start_speed_factor = 0.4
 
-        class input(metaclass=ConfigDB):
-            class rotate:
+        class input(_ConfigEditorBase.input):
+            class rotate(_ConfigEditorBase.input.rotate):
                 mouse = None
                 up_key = None
                 down_key = None
                 left_key = None
                 right_key = None
-                sensitivity = None
+                sensitivity = 0.0
 
-            class pan_tilt:
+            class pan_tilt(_ConfigEditorBase.input.pan_tilt):
                 mouse = None
                 up_key = None
                 down_key = None
                 left_key = None
                 right_key = None
-                sensitivity = None
+                sensitivity = 0.0
 
-            class truck_pedestal(metaclass=ConfigDB):
+            class truck_pedestal(_ConfigEditorBase.input.truck_pedestal, metaclass=ConfigDB):
                 mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS
                 up_key = ord('8')
                 down_key = ord('2')
@@ -875,28 +1035,28 @@ class Config(metaclass=ConfigDB):
                 sensitivity = 0.2
                 speed = 1.0
 
-            class walk:
+            class walk(_ConfigEditorBase.input.walk):
                 mouse = None
                 forward_key = None
                 backward_key = None
                 left_key = None
                 right_key = None
-                sensitivity = None
-                speed = None
+                sensitivity = 0.0
+                speed = 0.0
 
-            class dolly(metaclass=ConfigDB):
+            class dolly(_ConfigEditorBase.input.dolly):
                 mouse = None
                 in_key = None
                 out_key = None
-                sensitivity = None
+                sensitivity = 0.0
 
-            class zoom:
+            class zoom(_ConfigEditorBase.input.zoom, metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
                 in_key = 16777235
                 out_key = 16777237
                 sensitivity = 8.0
 
-            class reset(metaclass=ConfigDB):
+            class reset(_ConfigEditorBase.input.reset, metaclass=ConfigDB):
                 key = 16777232
                 mouse = MOUSE_NONE
 
@@ -1001,7 +1161,7 @@ class Config(metaclass=ConfigDB):
                 # housing's own name/part number/manufacturer block
                 font_size = 1.5
 
-    class editor_pegboard(metaclass=ConfigDB):
+    class editor_pegboard(_ConfigEditorBase):
 
         # Selection highlight material color -- mirrors
         # Config.editor_3d.selected_color's role exactly.
@@ -1012,13 +1172,13 @@ class Config(metaclass=ConfigDB):
         # touches (objects_pegboard/wire_highlight.py).
         wire_highlight_color = [0.2, 0.5, 1.0, 1.0]
 
-        class lighting(metaclass=ConfigDB):
+        class lighting(_ConfigEditorBase.lighting):
             position = [100.0, 100.0, 100.0]
             ambient = [0.6, 0.6, 0.6, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
-        class renderer(metaclass=ConfigDB):
+        class renderer(_ConfigEditorBase.renderer):
             smooth_boots = True
             smooth_housings = True
             smooth_wires = True
@@ -1030,7 +1190,7 @@ class Config(metaclass=ConfigDB):
             smooth_splices = True
             smooth_wire_markers = True
 
-        class drag_handler(metaclass=ConfigDB):
+        class drag_handler(_ConfigEditorBase.drag_handler):
             mode = ''
 
         class rope_pull(metaclass=ConfigDB):
@@ -1051,7 +1211,7 @@ class Config(metaclass=ConfigDB):
             # not tuned.
             threshold_factor = 1.0
 
-        class rotation_handler(metaclass=ConfigDB):
+        class rotation_handler(_ConfigEditorBase.rotation_handler):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box).
             # Needs enough headroom above the protractor gizmo's own inner
@@ -1079,11 +1239,11 @@ class Config(metaclass=ConfigDB):
             # locked top-down and flat).
             ring_height = 50.0
 
-        class virtual_canvas(metaclass=ConfigDB):
+        class virtual_canvas(_ConfigEditorBase.virtual_canvas):
             width = 1920
             height = 1080
 
-        class floor(metaclass=ConfigDB):
+        class floor(_ConfigEditorBase.floor):
             enable = True
             ground_height = 0.0
             enable_floor_lock = True
@@ -1095,11 +1255,11 @@ class Config(metaclass=ConfigDB):
 
             manual_snap_spacing = None
 
-            class reflections:
+            class reflections(_ConfigEditorBase.floor.reflections):
                 enable = False
                 strength = 50.0
 
-        class keyboard_settings(metaclass=ConfigDB):
+        class keyboard_settings(_ConfigEditorBase.keyboard_settings):
             # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
             # key_handler.KeyHandler._key_loop's own tick interval going
             # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
@@ -1112,25 +1272,25 @@ class Config(metaclass=ConfigDB):
             speed_factor_increment = 0.04
             start_speed_factor = 0.4
 
-        class input(metaclass=ConfigDB):
+        class input(_ConfigEditorBase.input):
 
-            class rotate:
+            class rotate(_ConfigEditorBase.input.rotate):
                 mouse = None
                 up_key = None
                 down_key = None
                 left_key = None
                 right_key = None
-                sensitivity = None
+                sensitivity = 0.0
 
-            class pan_tilt:
+            class pan_tilt(_ConfigEditorBase.input.pan_tilt):
                 mouse = None
                 up_key = None
                 down_key = None
                 left_key = None
                 right_key = None
-                sensitivity = None
+                sensitivity = 0.0
 
-            class truck_pedestal(metaclass=ConfigDB):
+            class truck_pedestal(_ConfigEditorBase.input.truck_pedestal, metaclass=ConfigDB):
                 mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS
                 up_key = ord('8')
                 down_key = ord('2')
@@ -1139,28 +1299,28 @@ class Config(metaclass=ConfigDB):
                 sensitivity = 0.2
                 speed = 1.0
 
-            class walk:
+            class walk(_ConfigEditorBase.input.walk):
                 mouse = None
                 forward_key = None
                 backward_key = None
                 left_key = None
                 right_key = None
-                sensitivity = None
-                speed = None
+                sensitivity = 0.0
+                speed = 0.0
 
-            class dolly(metaclass=ConfigDB):
+            class dolly(_ConfigEditorBase.input.dolly):
                 mouse = None
                 in_key = None
                 out_key = None
-                sensitivity = None
+                sensitivity = 0.0
 
-            class zoom:
+            class zoom(_ConfigEditorBase.input.zoom, metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
                 in_key = 16777235
                 out_key = 16777237
                 sensitivity = 8.0
 
-            class reset(metaclass=ConfigDB):
+            class reset(_ConfigEditorBase.input.reset, metaclass=ConfigDB):
                 key = 16777232
                 mouse = MOUSE_NONE
 
@@ -1181,17 +1341,17 @@ class Config(metaclass=ConfigDB):
             min_font_px = 6
             max_font_px = 48
 
-    class editor_3d(metaclass=ConfigDB):
+    class editor_3d(_ConfigEditorBase):
         background_color = [0.20, 0.20, 0.20, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.25]
 
-        class lighting(metaclass=ConfigDB):
+        class lighting(_ConfigEditorBase.lighting):
             position = [100.0, 100.0, 100.0]
             ambient = [0.4, 0.4, 0.4, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
-        class renderer(metaclass=ConfigDB):
+        class renderer(_ConfigEditorBase.renderer):
             smooth_covers = True
             smooth_boots = True
             smooth_housings = True
@@ -1211,10 +1371,10 @@ class Config(metaclass=ConfigDB):
             color = [1.0, 0.4, 0.4, 1.0]
             radius = 0.5
 
-        class drag_handler(metaclass=ConfigDB):
+        class drag_handler(_ConfigEditorBase.drag_handler):
             mode = ''
 
-        class rotation_handler(metaclass=ConfigDB):
+        class rotation_handler(_ConfigEditorBase.rotation_handler):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box).
             # Needs enough headroom above the protractor gizmo's own inner
@@ -1245,11 +1405,11 @@ class Config(metaclass=ConfigDB):
             # 0.45, ...) -- invalid values disable snapping
             snap_angle = 15.0
 
-        class virtual_canvas(metaclass=ConfigDB):
+        class virtual_canvas(_ConfigEditorBase.virtual_canvas):
             width = 1920
             height = 1080
 
-        class floor(metaclass=ConfigDB):
+        class floor(_ConfigEditorBase.floor):
             enable = True
             ground_height = 0.0
             size = 2000
@@ -1273,11 +1433,11 @@ class Config(metaclass=ConfigDB):
                 size = 80
                 enable = True
 
-            class reflections(metaclass=ConfigDB):
+            class reflections(_ConfigEditorBase.floor.reflections, metaclass=ConfigDB):
                 enable = True
                 strength = 50.0
 
-        class keyboard_settings(metaclass=ConfigDB):
+        class keyboard_settings(_ConfigEditorBase.keyboard_settings):
             # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
             # key_handler.KeyHandler._key_loop's own tick interval going
             # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
@@ -1290,9 +1450,9 @@ class Config(metaclass=ConfigDB):
             speed_factor_increment = 0.04
             start_speed_factor = 0.4
 
-        class input(metaclass=ConfigDB):
+        class input(_ConfigEditorBase.input):
 
-            class rotate(metaclass=ConfigDB):
+            class rotate(_ConfigEditorBase.input.rotate, metaclass=ConfigDB):
                 mouse = MOUSE_MIDDLE
                 up_key = ord('w')
                 down_key = ord('s')
@@ -1300,7 +1460,7 @@ class Config(metaclass=ConfigDB):
                 right_key = ord('d')
                 sensitivity = 0.4
 
-            class pan_tilt(metaclass=ConfigDB):
+            class pan_tilt(_ConfigEditorBase.input.pan_tilt, metaclass=ConfigDB):
                 mouse = MOUSE_LEFT
                 up_key = ord('o')
                 down_key = ord('l')
@@ -1308,7 +1468,7 @@ class Config(metaclass=ConfigDB):
                 right_key = ord(';')
                 sensitivity = 0.2
 
-            class truck_pedestal(metaclass=ConfigDB):
+            class truck_pedestal(_ConfigEditorBase.input.truck_pedestal, metaclass=ConfigDB):
                 mouse = MOUSE_RIGHT
                 up_key = ord('8')
                 down_key = ord('2')
@@ -1317,7 +1477,7 @@ class Config(metaclass=ConfigDB):
                 sensitivity = 0.2
                 speed = 1.0
 
-            class walk(metaclass=ConfigDB):
+            class walk(_ConfigEditorBase.input.walk, metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL | MOUSE_REVERSE_X_AXIS | MOUSE_REVERSE_Y_AXIS
                 forward_key = 16777235
                 backward_key = 16777237
@@ -1326,19 +1486,19 @@ class Config(metaclass=ConfigDB):
                 sensitivity = 1.0
                 speed = 5.0
 
-            class dolly:
+            class dolly(_ConfigEditorBase.input.dolly, metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL
                 in_key = None
                 out_key = None
                 sensitivity = 5.0
 
-            class zoom(metaclass=ConfigDB):
+            class zoom(_ConfigEditorBase.input.zoom, metaclass=ConfigDB):
                 mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
                 in_key = 43
                 out_key = 45
                 sensitivity = 5.0
 
-            class reset(metaclass=ConfigDB):
+            class reset(_ConfigEditorBase.input.reset, metaclass=ConfigDB):
                 key = 16777232
                 mouse = MOUSE_NONE
 
@@ -1723,5 +1883,21 @@ class Config(metaclass=ConfigDB):
         loose_is_relative = False
         loose_ang_deflection = 0.5
 
+
+if TYPE_CHECKING:
+    ConfigType = Config
+    ConfigEditorBaseType = _ConfigEditorBase
+    ConfigAxisOverlayType = Config.editor_3d.axis_overlay
+    ConfigEditor3DType = Config.editor_3d
+    ConfigEditorSchematicType = Config.editor_schematic
+    ConfigEditorPegboardType = Config.editor_pegboard
+
+else:
+    ConfigType = ConfigDB
+    ConfigEditorBaseType = ConfigDB
+    ConfigAxisOverlayType = ConfigDB
+    ConfigEditor3DType = ConfigDB
+    ConfigEditorSchematicType = ConfigDB
+    ConfigEditorPegboardType = ConfigDB
 
 Config.open()

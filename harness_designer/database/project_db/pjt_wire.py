@@ -433,7 +433,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
     @property
     @_check_types.do
-    def layer_view_position_id(self) -> bytes:
+    def layer_view_position_id(self) -> bytes | None:
         """Return the layer view position ID.
 
         UNKNOWN details are inferred from the callable name and signature.

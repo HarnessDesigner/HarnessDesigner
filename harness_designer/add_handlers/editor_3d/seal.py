@@ -52,7 +52,7 @@ from ... import utils as _utils
 
 
 if TYPE_CHECKING:
-    from ...gl.canvas_3d import canvas as _canvas
+    from ...gl.canvas_3d import canvas_window as _canvas_window
     from ... import objects as _objects
     from ...objects import cavity as _cavity
     from ...database.project_db import pjt_cavity as _pjt_cavity
@@ -139,7 +139,7 @@ class Seal(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase",
                  housing: _housing.Housing | None, terminal: _terminal.Terminal | None,
                  cavity: _Union["_cavity.Cavity", None], is_instant: bool,
                  snap_targets: list[_Union[_housing.Housing, _terminal.Terminal, "_cavity.Cavity"]],

@@ -15,6 +15,10 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui.dialogs import part_orientation as _part_orientation
+    from ...ui.dialogs.housing_editor import housing_editor as _housing_editor
+    from ...ui.dialogs.transition_editor import dialog as _transition_editor
+    from ... import config as _config
     from ...ui.prop_ctrls import events as _prop_events
     from .. import context as _gl_context
     from . import camera_base as _camera_base
@@ -49,7 +53,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
     # (it rejects any `type` subclass) the moment a real config section is
     # passed in. Keep this `object`, not `type`.
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", config: object, size: tuple[int, int]):
+    def __init__(self, parent: _Union["_ui.MainFrame", "_part_orientation.PartOrientationDialog", "_housing_editor.HousingEditorDialog", "_transition_editor.TransitionEditorDialog"], config: "_config.ConfigEditorBaseType", size: tuple[int, int]):
         """
         Initialise the :class:`Canvas3D` instance.
 
@@ -475,7 +479,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
 
     @property
     @_check_types.do
-    def bounds_manager(self) -> "_bounds_manager.Manager":
+    def bounds_manager(self) -> _Union["_bounds_manager.Manager", "_bounds_manager.View"]:
         """Forwarded from the inner canvas. ``gl.object_picker.find_object``
         picks through it, and many handlers hand it this wrapper (their
         ``self.canvas``) rather than the inner canvas."""

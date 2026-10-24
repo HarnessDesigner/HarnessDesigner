@@ -227,7 +227,7 @@ class ResourceMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def datasheet_id(self) -> bytes:
+    def datasheet_id(self) -> bytes | None:
         """Return the datasheet ID.
 
         UNKNOWN details are inferred from the callable name and signature.

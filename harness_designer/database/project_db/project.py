@@ -362,7 +362,7 @@ class Project(PJTEntryBase, ColorMixin):
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def model(self) -> "_model3d.Model3D":
+    def model(self) -> _Union["_model3d.Model3D", None]:
         if self._stored_model is DefaultStoredValue:
             model_id = self.model_id
             if model_id is None:

@@ -46,10 +46,14 @@ if TYPE_CHECKING:
 _NIL_ID = b'\x00' * 16
 
 
-class _Config:
+class _Config(metaclass=_config.ConfigDB):
     """Minimal config for this dialog's own canvas -- copied from
     ``part_orientation.py``'s own ``_Config`` (a self-contained scene, not
-    a view into the mainframe's live editor3d)."""
+    a view into the mainframe's live editor3d).
+
+    A ``ConfigDB`` class, because that is what the canvas's ``config`` is checked against, but the name
+    starts with an underscore so it is never stored: no table and no rows.
+    """
     lighting = _config.Config.editor_3d.lighting
     keyboard_settings = _config.Config.editor_3d.keyboard_settings
     input = _config.Config.editor_3d.input

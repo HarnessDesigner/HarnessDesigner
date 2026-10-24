@@ -123,7 +123,7 @@ _FONT_METRICS: dict = {}
 
 
 @_check_types.do
-def _font_metrics(style: int) -> tuple[dict[str, float], dict[tuple[str, str], float]]:
+def _font_metrics(style: int) -> tuple[dict[str, float], dict[tuple[str, str], float]] | None:
     """
     Return (building it first if needed) *style*'s own
     ``(advance, kern)`` pair -- ``advance[char]`` is that character's
@@ -385,7 +385,7 @@ def _word_id(word: str, style: int) -> str:
 
 @_check_types.do
 def _build_char(char: str, depth: float, style: build123d.FontStyle,
-                tessellated: tuple | None = None) -> tuple["_vbo_handler.VBOHandlerBase", "_point.Point", float]:
+                tessellated: tuple | None = None) -> tuple[_Union["_vbo_handler.VBOHandlerBase", None], "_point.Point", float]:
     """Return this character's ``(vbo, dims, center_y)`` glyph entry.
 
     *tessellated* -- if given (a disk-cache hit, or already computed by
@@ -1268,7 +1268,7 @@ class Text:
         return base + kern.get((char, next_char), 0.0)
 
     @_check_types.do
-    def _entry(self, char: str) -> tuple["_vbo_handler.VBOHandlerBase", "_point.Point", float]:
+    def _entry(self, char: str) -> tuple[_Union["_vbo_handler.VBOHandlerBase", None], "_point.Point", float]:
         entry = _CHARS.get(char)
 
         if entry is None or entry[self._style] is None:
@@ -1290,7 +1290,7 @@ class Text:
         return cy
 
     @_check_types.do
-    def _get(self, char: str) -> tuple[_vbo_handler.NonPooledVBOHandler, _point.Point]:
+    def _get(self, char: str) -> tuple[_Union["_vbo_handler.VBOHandlerBase", None], _point.Point]:
         vbo, dims, _center_y = self._entry(char)
         return vbo, dims
 

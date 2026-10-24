@@ -27,7 +27,7 @@ class Overlay(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, config: _config.Config.editor_3d.axis_overlay):
+    def __init__(self, parent: QtWidgets.QWidget, config: _config.ConfigAxisOverlayType):
         """
         Initialise the :class:`Overlay` instance.
 

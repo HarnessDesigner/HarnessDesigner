@@ -16,7 +16,7 @@ since dimming a sibling is inherently a cross-axis decision this class
 can't make on its own.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from .torus_ring import TorusRing
 from .inner_ring import InnerRing
@@ -153,7 +153,7 @@ class RotationRing:
                  tube_diameter_scale: float, color: _color.Color,
                  outer_color: _color.Color, label_size: float, context: "_gl_context.GLContext",
                  mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar],
-                 camera: "_camera_base.CameraBase" = None, local_tilt: _angle.Angle | None = None,
+                 camera: _Union["_camera_base.CameraBase", None] = None, local_tilt: _angle.Angle | None = None,
                  has_torus: bool = True):
 
         self.axis = axis

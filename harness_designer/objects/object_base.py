@@ -11,10 +11,14 @@ from ..crash_dump import Attr, capturable
 
 if TYPE_CHECKING:
     from .. import ui as _ui
+    from ..ui.dialogs import part_orientation as _part_orientation
+    from ..ui.dialogs.housing_editor import housing_editor as _housing_editor
+    from ..ui.dialogs.transition_editor import dialog as _transition_editor
     from .objects_3d import base_3d as _base_3d
     from .objects_schematic import base_schematic as _base_schematic
     from .objects_pegboard import base_pegboard as _base_pegboard
     from ..database import project_db as _project_db
+    from ..database.global_db import bases as _glb_bases
     from ..ui.object_browser import objectbrowser as _objectbrowser
 
 
@@ -53,7 +57,7 @@ class ObjectBase:
         """Unlock this object's angle. A no-op for objects without a lockable angle."""
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase"):
+    def __init__(self, mainframe: _Union["_ui.MainFrame", "_part_orientation.PartOrientationDialog", "_housing_editor.HousingEditorDialog", "_transition_editor.TransitionEditorDialog"], db_obj: _Union["_glb_bases.EntryBase", "_project_db.PJTEntryBase", None]):
         """Initialise the :class:`ObjectBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

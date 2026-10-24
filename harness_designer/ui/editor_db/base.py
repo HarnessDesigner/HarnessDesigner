@@ -212,7 +212,7 @@ class _EditorModel(QtCore.QAbstractTableModel):
         self,
         section: int,
         orientation: QtCore.Qt.Orientation,
-        role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+        role: int = QtCore.Qt.ItemDataRole.DisplayRole
     ) -> str | None:
 
         """Execute the header data operation.
@@ -268,7 +268,7 @@ class _EditorModel(QtCore.QAbstractTableModel):
     def data(
         self,
         index: QtCore.QModelIndex,
-        role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+        role: int = QtCore.Qt.ItemDataRole.DisplayRole
     ) -> QtGui.QIcon | str | QtCore.Qt.AlignmentFlag | None:
 
         """Execute the data operation.
@@ -1235,7 +1235,7 @@ class EditorList(QtWidgets.QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget,
+    def __init__(self, parent: QtWidgets.QWidget | None,
                  mainframe: "_mainframe.MainFrame",
                  label: str, table):
 

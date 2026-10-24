@@ -114,9 +114,11 @@ if TYPE_CHECKING:
     from ..database.project_db import pjt_terminal as _pjt_terminal
     from ..database.project_db import pjt_cavity as _pjt_cavity
     from ..database.project_db import pjt_wire_layout as _pjt_wire_layout
+    from ..database.project_db import pjt_wire_path as _pjt_wire_path
     from ..database.project_db import pjt_point3d as _pjt_point3d
     from ..database.project_db import pjt_point_pegboard as _pjt_point_pegboard
     from ..gl.canvas_base import canvas_base as _canvas_base
+    from ..gl.canvas_base import canvas_window_base as _canvas_window_base
     from .. import objects as _objects
     from .. import ui as _ui
     from ..objects import project as _project
@@ -582,44 +584,90 @@ class WireDragMixin:
 
     @staticmethod
     @_check_types.do
-    def _view_merge_geometry(get_view_object: Callable, get_waypoints: Callable, wire_obj: "_wire_object.Wire",
-                             other_wire: "_wire_object.Wire", own_end: str,
-                             other_end: str) -> tuple[bytes, list, list, bytes, bytes]:
+    def _view_extension_geometry(
+            get_view_object: Callable, get_waypoints: Callable, wire_obj: "_wire_object.Wire",
+            other_wire: "_wire_object.Wire", own_end: str,
+            other_end: str) -> tuple[bytes, bytes, list[bytes], bytes]:
 
         """
-        This view's own seam point id, reindexed own/other waypoint
-        chains, and this view's own start/stop ids for the merged wire --
+        This view's own ids for extending *other_wire* with *wire_obj*,
         identical bookkeeping regardless of which view, just fed that
         view's own :meth:`_get_view_object`/:meth:`_waypoints` pair (see
-        :meth:`merge_wire_into`).
+        :meth:`merge_wire_into`):
+
+        - the seam id: *other_wire*'s current end point at the seam. It stops
+          being an end and becomes an interior waypoint.
+        - the discard id: *wire_obj*'s own point at the seam. *other_wire*'s
+          point already sits there, so this one is dropped.
+        - the chain: *wire_obj*'s waypoints ordered from the seam outward.
+          They continue *other_wire*'s route.
+        - the far id: *wire_obj*'s far end. It becomes *other_wire*'s new end.
         """
 
         own_view = get_view_object(wire_obj)
         other_view = get_view_object(other_wire)
 
-        if own_end == 'start':
-            # Mirror image of the 'stop' case below: wire_obj's own far/
-            # outer end is now its stop (own_end is the seam), so its own
-            # waypoints need reversing to still walk outer-end-toward-seam
-            # in the merged wire's own start->stop order.
-            seam_point_id = own_view.start_position.db_id[:-2]
-            own_waypoints = list(reversed(get_waypoints(wire_obj.db_obj)))
-            start_id = own_view.stop_position.db_id[:-2]
-        else:
-            seam_point_id = own_view.stop_position.db_id[:-2]
-            own_waypoints = list(get_waypoints(wire_obj.db_obj))
-            start_id = own_view.start_position.db_id[:-2]
-
         if other_end == 'start':
-            stop_id = other_view.stop_position.db_id[:-2]
-
-            # already start->stop order
-            other_waypoints = list(get_waypoints(other_wire.db_obj))
+            seam_id = other_view.start_position.db_id[:-2]
         else:
-            stop_id = other_view.start_position.db_id[:-2]
-            other_waypoints = list(reversed(get_waypoints(other_wire.db_obj)))
+            seam_id = other_view.stop_position.db_id[:-2]
 
-        return seam_point_id, own_waypoints, other_waypoints, start_id, stop_id
+        chain = [wp.db_id for wp in get_waypoints(wire_obj.db_obj)]
+
+        if own_end == 'stop':
+            # wire_obj's waypoints are stored start->stop and its seam is the
+            # stop, so walking away from the seam is walking back toward its
+            # start.
+            chain.reverse()
+            discard_id = own_view.stop_position.db_id[:-2]
+            far_id = own_view.start_position.db_id[:-2]
+        else:
+            discard_id = own_view.start_position.db_id[:-2]
+            far_id = own_view.stop_position.db_id[:-2]
+
+        return seam_id, discard_id, chain, far_id
+
+    @staticmethod
+    @_check_types.do
+    def _extend_route(paths_table: "_pjt_wire_path.PJTWirePathsTable", wire_id: bytes, view: str,
+                      other_end: str, seam_id: bytes, chain: list[bytes]) -> None:
+
+        """
+        Continue *wire_id*'s *view* route past its *other_end*: the old end
+        point (*seam_id*) becomes an interior waypoint and *chain* (ordered
+        from the seam outward) follows it. Existing route rows, and any tags
+        on them, are left exactly as they are.
+        """
+
+        if other_end == 'stop':
+            for point_id in [seam_id] + chain:
+                paths_table.append(wire_id, view, point_id)
+        else:
+            # Routes are stored start->stop, so a start-side extension is
+            # walked outermost point first.
+            for offset, point_id in enumerate(list(reversed(chain)) + [seam_id]):
+                paths_table.add(wire_id, view, offset, point_id)
+
+    @staticmethod
+    @_check_types.do
+    def _ensure_layout(project: "_project.Project", id_field: str, point_id: bytes) -> None:
+
+        """
+        Make sure *point_id* is marked by a WireLayout (*id_field* is
+        ``point3d_id`` or ``point_pegboard_id``): the one already there if
+        there is one, otherwise a new one.
+        """
+
+        from ..objects import wire_layout as _wire_layout_mod  # NOQA
+
+        layouts_table = project.ptables.pjt_wire_layouts_table
+
+        if layouts_table.select('id', **{id_field: point_id}):
+            return
+
+        layout_db = layouts_table.insert(**{id_field: point_id})
+        layout_obj = _wire_layout_mod.WireLayout(project.mainframe, layout_db)
+        project.add_wire_layout(layout_obj)
 
     @classmethod
     @_check_types.do
@@ -629,71 +677,65 @@ class WireDragMixin:
                         other_end: str, own_end: str = 'stop') -> "_wire_object.Wire":
 
         """
-        Join *wire_obj*'s own dangling *own_end* ('start' or 'stop';
-        default 'stop' -- the two-click preview flow's own always-growing
-        end, the only case that existed before this took an own_end
-        parameter) to *other_wire*'s dangling *other_end*, merging them
-        into a single row -- part_id must already match (checked by the
-        caller). Also the commit path for a snapped wire-to-wire endpoint
-        drag (see handlers.wire_snap.commit_snap) -- own_end there is
-        whichever end was actually dragged, which can be either one.
+        Absorb *wire_obj* into *other_wire* and return *other_wire*. No new
+        wire is created: *other_wire* is extended in place and *wire_obj*
+        (the preview wire, or the dragged wire) is deleted.
 
-        Every view a wire has geometry in gets merged together, not just
-        the view this call happened to be reached through -- a wire's own
-        3D and peg-board points are independent, parallel geometry for
-        the SAME logical connection (see ``StartStopPosition3DMixin``/
+        *wire_obj*'s *own_end* ('start' or 'stop'; default 'stop' -- the
+        two-click preview flow's own always-growing end) meets *other_wire*'s
+        dangling *other_end* at the seam -- part_id must already match
+        (checked by the caller). The seam end is dropped. *other_wire*'s
+        old end point at the seam becomes a permanent interior waypoint
+        (a WireLayout marks it, same as any other bend), *wire_obj*'s
+        waypoints follow it in order, and *other_wire*'s *other_end* now
+        ends where *wire_obj*'s far end was, taking over whatever that end
+        was attached to (its sibling).
+
+        Every view a wire has geometry in is extended, not just the view this
+        call happened to be reached through -- a wire's own 3D and
+        peg-board points are independent, parallel geometry for the SAME
+        logical connection (see ``StartStopPosition3DMixin``/
         ``StartStopPositionPegboardMixin`` both living on ``PJTWire`` at
-        once), so a merged wire must keep all of them, not just whichever
-        one the triggering click/drag happened to be in. 3D is always
-        present (every wire has 3D geometry) and is the one view
-        ``pjt_wires_table.insert`` itself accepts columns for; peg-board
-        is merged the same way -- full interior-waypoint reindexing, not
-        just a start/stop id carryover -- whenever both wires actually
-        have peg-board geometry (confirmed 2026-09-13: peg-board wires
-        support user-placed interior waypoints the same way 3D does, so a
-        merge should treat them the same way, not like 2D's current
-        lighter start/stop-only treatment, which this leaves unchanged).
+        once). 3D is always present (every wire has 3D geometry). Peg-board is
+        extended the same way -- full interior-waypoint reindexing, not just a
+        start/stop id carryover -- whenever both wires actually have
+        peg-board geometry (confirmed 2026-09-13: peg-board wires support
+        user-placed interior waypoints the same way 3D does). The
+        schematic only takes the new end point, and is re-routed once the wire
+        is connected at both ends.
 
-        *wire_obj*'s own current *own_end* point becomes a permanent
-        interior waypoint marking the seam (a WireLayout is dropped there
-        for each view that got merged), same as an ordinary bend;
-        *other_wire*'s own waypoints follow, reversed first if joining to
-        its start (so the merged chain still reads start->stop in one
-        consistent direction), renumbered to continue. circuit_id is
-        inherited from whichever of the two already had one set, not
-        required to match. Both original rows are deleted; returns the
-        new merged wire.
+        circuit_id is inherited from *wire_obj* only if *other_wire* has
+        none. *other_wire*'s own part, name and every other field are
+        kept.
         """
 
+        from ..database.project_db.pjt_wire import delete_layouts_at  # NOQA
         from ..drag_handlers.editor_3d import wire as _wire_3d  # NOQA
         from ..drag_handlers.editor_pegboard import wire as _wire_pegboard  # NOQA
-        from ..objects import wire as _wire_object_mod  # NOQA
-        from ..objects import wire_layout as _wire_layout_mod  # NOQA
+        from ..wire_routing import reroute as _wire_reroute  # NOQA
 
         ptables = project.ptables
         mainframe = project.mainframe
+        paths_table = ptables.pjt_wire_paths_table
+        layouts_table = ptables.pjt_wire_layouts_table
 
-        (seam_id_3d, own_wp_3d,
-         other_wp_3d, start_id_3d,
-         stop_id_3d) = cls._view_merge_geometry(_wire_3d.Wire._get_view_object,  # NOQA
+        own_id = wire_obj.db_obj.db_id
+        other_id = other_wire.db_obj.db_id
+
+        (seam_3d, discard_3d, chain_3d,
+         far_3d) = cls._view_extension_geometry(_wire_3d.Wire._get_view_object,  # NOQA
                                                 _wire_3d.Wire._waypoints,  # NOQA
                                                 wire_obj, other_wire,
                                                 own_end, other_end)
 
         if own_end == 'start':
-            start_id_2d = wire_obj.db_obj.stop_position2d_id
-
+            far_2d = wire_obj.db_obj.stop_position2d_id
         else:
-            start_id_2d = wire_obj.db_obj.start_position2d_id
-
-        if other_end == 'start':
-            stop_id_2d = other_wire.db_obj.stop_position2d_id
-        else:
-            stop_id_2d = other_wire.db_obj.start_position2d_id
+            far_2d = wire_obj.db_obj.start_position2d_id
 
         # Both wires need COMPLETE peg-board geometry (both ends), not
         # just one end on one side -- a wire only partly present in
-        # peg-board has nothing coherent there to merge.
+        # peg-board has nothing coherent there to extend.
         pegboard_present = (
             _wire_pegboard.Wire._get_start_position_id(wire_obj.db_obj) is not None and  # NOQA
             _wire_pegboard.Wire._get_stop_position_id(wire_obj.db_obj) is not None and  # NOQA
@@ -701,109 +743,110 @@ class WireDragMixin:
             _wire_pegboard.Wire._get_stop_position_id(other_wire.db_obj) is not None)  # NOQA
 
         if pegboard_present:
-            (seam_id_pegboard, own_wp_pegboard,
-             other_wp_pegboard, start_id_pegboard,
-             stop_id_pegboard) = cls._view_merge_geometry(_wire_pegboard.Wire._get_view_object,  # NOQA
+            (seam_pegboard, discard_pegboard, chain_pegboard,
+             far_pegboard) = cls._view_extension_geometry(_wire_pegboard.Wire._get_view_object,  # NOQA
                                                           _wire_pegboard.Wire._waypoints,  # NOQA
                                                           wire_obj, other_wire,
                                                           own_end, other_end)
-        else:
-            seam_id_pegboard = own_wp_pegboard = other_wp_pegboard = None
-            start_id_pegboard = stop_id_pegboard = None
 
-        part_id = wire_obj.db_obj.part_id
-        name = wire_obj.db_obj.name
-
-        circuit_id = wire_obj.db_obj.circuit_id
-        if circuit_id is None:
-            circuit_id = other_wire.db_obj.circuit_id
-
-        layer_id = wire_obj.db_obj.layer_id
-        layer_view_point_id = wire_obj.db_obj.layer_view_position_id
-        is_filler_wire = wire_obj.db_obj.is_filler_wire
-        is_visible3d = wire_obj.db_obj.is_visible3d
-        is_visible2d = wire_obj.db_obj.is_visible2d
-
+        # Whatever wire_obj's far end is attached to takes over other_wire's
+        # new end instead.
         if own_end == 'start':
-            orig_start_sibling = wire_obj.stop_sibling
+            far_sibling = wire_obj.stop_sibling
         else:
-            orig_start_sibling = wire_obj.start_sibling
+            far_sibling = wire_obj.start_sibling
+
+        far_point_3d = ptables.pjt_points3d_table[far_3d].point
+
+        # wire_obj's waypoint points now belong to other_wire's route; take
+        # them out of wire_obj's own so its delete() finds nothing of its own
+        # to clean up (see PJTWire.delete's WireLayout sweep).
+        paths_table.delete_for_wire(own_id)
+
+        cls._extend_route(paths_table, other_id, '3d', other_end, seam_3d, chain_3d)
 
         if other_end == 'start':
-            other_stop_sibling = other_wire.stop_sibling
+            other_wire.db_obj.start_position3d_id = far_3d
+            other_wire.obj3d.set_start_position(far_point_3d)
         else:
-            other_stop_sibling = other_wire.start_sibling
-
-        merged_db = ptables.pjt_wires_table.insert(
-            part_id, name, circuit_id,
-            start_id_3d, stop_id_3d,
-            start_id_2d, stop_id_2d,
-            is_visible3d, is_visible2d,
-            layer_view_point_id, layer_id, is_filler_wire)
-
-        # The seam point becomes an interior waypoint between the two
-        # wires' own waypoints.
-        paths_table = ptables.pjt_wire_paths_table
-        paths_table.set_route(
-            merged_db.db_id, '3d',
-            [wp.db_id for wp in own_wp_3d] + [seam_id_3d] +
-            [wp.db_id for wp in other_wp_3d])
+            other_wire.db_obj.stop_position3d_id = far_3d
+            other_wire.obj3d.set_stop_position(far_point_3d)
 
         if pegboard_present:
-            _wire_pegboard.Wire._set_start_position_id(merged_db, start_id_pegboard)  # NOQA
-            _wire_pegboard.Wire._set_stop_position_id(merged_db, stop_id_pegboard)  # NOQA
-            merged_db.is_visible_pegboard = wire_obj.db_obj.is_visible_pegboard
+            far_point_pegboard = ptables.pjt_points_pegboard_table[far_pegboard].point
 
-            paths_table.set_route(
-                merged_db.db_id, 'pegboard',
-                [wp.db_id for wp in own_wp_pegboard] + [seam_id_pegboard] +
-                [wp.db_id for wp in other_wp_pegboard])
+            cls._extend_route(
+                paths_table, other_id, 'pegboard', other_end, seam_pegboard, chain_pegboard)
 
-        # The waypoints now belong to the merged wire; take them out of
-        # both originals' routes so their delete() finds nothing of its
-        # own to clean up (see PJTWire.delete's WireLayout sweep).
-        paths_table.delete_for_wire(wire_obj.db_obj.db_id)
-        paths_table.delete_for_wire(other_wire.db_obj.db_id)
+            if other_end == 'start':
+                other_wire.db_obj.start_position_pegboard_id = far_pegboard
+                other_wire.objpegboard.set_start_position(far_point_pegboard)
+            else:
+                other_wire.db_obj.stop_position_pegboard_id = far_pegboard
+                other_wire.objpegboard.set_stop_position(far_point_pegboard)
 
-        merged_obj = _wire_object_mod.Wire(mainframe, merged_db)
+        # A free far end has no schematic point; a dangling end never has
+        # one either, so there is nothing to change then.
+        if far_2d is not None:
+            far_point_2d = ptables.pjt_points2d_table[far_2d].point
 
-        layout_db = ptables.pjt_wire_layouts_table.insert(seam_id_3d)
-        layout_obj = _wire_layout_mod.WireLayout(mainframe, layout_db)
-        project.add_wire_layout(layout_obj)
+            if other_end == 'start':
+                other_wire.db_obj.start_position2d_id = far_2d
+                other_wire.objschematic.set_start_position(far_point_2d)
+            else:
+                other_wire.db_obj.stop_position2d_id = far_2d
+                other_wire.objschematic.set_stop_position(far_point_2d)
+
+        # The seam point is interior now, so it needs its marker.
+        cls._ensure_layout(project, 'point3d_id', seam_3d)
 
         if pegboard_present:
-            layout_db = ptables.pjt_wire_layouts_table.insert(
-                point_pegboard_id=seam_id_pegboard)
+            cls._ensure_layout(project, 'point_pegboard_id', seam_pegboard)
 
-            layout_obj = _wire_layout_mod.WireLayout(mainframe, layout_db)
-            project.add_wire_layout(layout_obj)
+        if far_sibling is not None:
+            if other_end == 'start':
+                other_end_point = other_wire.obj3d.start_position
+            else:
+                other_end_point = other_wire.obj3d.stop_position
 
-        if orig_start_sibling is not None:
-            merged_obj.set_sibling(orig_start_sibling, merged_obj.obj3d.start_position)
-            orig_start_sibling.replace_wire(wire_obj, merged_obj)
+            other_wire.set_sibling(far_sibling, other_end_point)
+            far_sibling.replace_wire(wire_obj, other_wire)
 
-        if other_stop_sibling is not None:
-            merged_obj.set_sibling(other_stop_sibling, merged_obj.obj3d.stop_position)
-            other_stop_sibling.replace_wire(other_wire, merged_obj)
+        if other_wire.db_obj.circuit_id is None:
+            other_wire.db_obj.circuit_id = wire_obj.db_obj.circuit_id
 
-        project.add_wire(merged_obj)
-
-        # wire_markers remain 3D-only, unchanged -- a separate,
-        # not-yet-view-agnostic feature (see objects.objects_3d.
-        # wire_marker), out of scope for this pass.
-        old_ids = (wire_obj.db_obj.db_id, other_wire.db_obj.db_id)
+        # wire_markers remain 3D-only -- a separate, not-yet-view-agnostic
+        # feature (see objects.objects_3d.wire_marker), out of scope for
+        # this pass.
         for marker in project.wire_markers:
-            if marker.db_obj.wire_id in old_ids:
-                marker.db_obj.wire_id = merged_db.db_id
-                marker.obj3d.rebind_wire(merged_db)
+            if marker.db_obj.wire_id == own_id:
+                marker.db_obj.wire_id = other_id
+                marker.obj3d.rebind_wire(other_wire.db_obj)
 
-        for w in (wire_obj, other_wire):
-            if mainframe.get_selected() is w:
-                w.set_selected(False)
+        if mainframe.get_selected() is wire_obj:
+            wire_obj.set_selected(False)
 
-            w.delete()
+        wire_obj.delete()
 
-        return merged_obj
+        # wire_obj's own seam points are dropped now that nothing refers to
+        # them -- unless it shared the other wire's point, in which case
+        # there is nothing separate to drop.
+        if discard_3d != seam_3d:
+            delete_layouts_at(layouts_table, 'point3d_id', discard_3d)
+            ptables.pjt_points3d_table[discard_3d].delete()
+
+        if pegboard_present and discard_pegboard != seam_pegboard:
+            delete_layouts_at(layouts_table, 'point_pegboard_id', discard_pegboard)
+            ptables.pjt_points_pegboard_table[discard_pegboard].delete()
+
+        other_wire.obj3d.refresh_waypoints()
+
+        if pegboard_present:
+            other_wire.objpegboard.refresh_waypoints()
+
+        _wire_reroute.on_wire_attached(project, other_wire)
+
+        return other_wire
 
     @_check_types.do
     def _raw_move_delta(self, anchor: _point.Point,
@@ -885,7 +928,7 @@ class WireDragMixin:
         return delta
 
     @_check_types.do
-    def _arm_drag(self, canvas: "_canvas_base.CanvasBase",
+    def _arm_drag(self, canvas: "_canvas_window_base.CanvasWindowBase",
                   target: "_wire_object.Wire",  plan: WireDragPlan) -> None:
 
         """

@@ -32,7 +32,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ...gl.canvas_pegboard import canvas as _canvas
+    from ...gl.canvas_pegboard import canvas_window as _canvas_window
     from ... import objects as _objects
 
 
@@ -43,7 +43,7 @@ class DragHandlerPegboard(_base.DragHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase"):
         super().__init__(canvas, target)
 
         # Cached once at drag-arm, never rebuilt per move -- recomputing

@@ -19,7 +19,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 config: "_config.Config.editor_schematic", size: tuple[int, int] | None = None):
+                 config: "_config.ConfigEditorSchematicType", size: tuple[int, int] | None = None):
         """
         Initialise the :class:`Canvas2D` instance.
 

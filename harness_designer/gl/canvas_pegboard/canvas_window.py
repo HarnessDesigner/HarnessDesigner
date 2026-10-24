@@ -18,7 +18,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 config: "_config.Config.editor_pegboard", size: tuple[int, int] | None = None):
+                 config: "_config.ConfigEditorPegboardType", size: tuple[int, int] | None = None):
         """
         Initialise the :class:`CanvasWindow` instance.
 

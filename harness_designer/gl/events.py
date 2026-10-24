@@ -690,7 +690,7 @@ class GLObjectEvent(_GLEventBase):
         return self._gl_object
 
     @_check_types.do
-    def SetGLObject(self, obj: "_objects.ObjectBase") -> None:
+    def SetGLObject(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """Execute the set GL object operation.
 
         UNKNOWN details are inferred from the callable name and signature.

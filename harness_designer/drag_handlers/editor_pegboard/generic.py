@@ -67,7 +67,7 @@ from ...utils import paths as _paths
 
 
 if TYPE_CHECKING:
-    from ...gl.canvas_pegboard import canvas as _canvas
+    from ...gl.canvas_pegboard import canvas_window as _canvas_window
     from ... import objects as _objects
 
 
@@ -101,7 +101,7 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
     """Generic locked-X/Z drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase"):
         _base.DragHandlerBase.__init__(self, canvas, target)
 
         # Every real peg-board point this drag could ever move, each at ITS

@@ -125,6 +125,19 @@ class WireServiceLoop(_ObjectBase):
             self._stop_sibling_ref = weakref.ref(new_wire)
 
     @_check_types.do
+    def remove_wire(self, wire: "_wire_obj.Wire") -> None:
+        """Forget *wire* on whichever side it is on -- called when the
+        wire is deleted, so start_sibling and stop_sibling never return a
+        deleted wire (the references are weak, and only die once the wire
+        is garbage collected).
+        """
+        if self._start_sibling_ref is not None and self._start_sibling_ref() is wire:
+            self._start_sibling_ref = None
+
+        if self._stop_sibling_ref is not None and self._stop_sibling_ref() is wire:
+            self._stop_sibling_ref = None
+
+    @_check_types.do
     def delete(self) -> None:
         """Reconnect the two wires this loop sits between (undoing the
         fork handlers.wire_service_loop_handler made when it was placed)

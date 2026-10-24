@@ -543,7 +543,7 @@ class CameraBase:
         self._send_event(_events.EVT_GL_CAMERA_RESET)
 
     @_check_types.do
-    def _update_camera(self, _: None = None) -> None:
+    def _update_camera(self, _: _point.Point | None = None) -> None:
         """
         Update the camera.
 
@@ -1126,7 +1126,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point | None:
+    def ProjectPoint(self, point: _point.Point | np.ndarray | tuple[float, float, float]) -> _point.Point | None:
         """
         Projects a 3D world coordinate to a 2D screen coordinate.
 
@@ -1262,7 +1262,7 @@ class CameraBase:
         return _point.Point(*(origin + t * direction))
 
     @_check_types.do
-    def closest_point(self, points: np.ndarray | list["_point.Point"]) -> tuple[int, np.ndarray] | tuple[None, None]:
+    def closest_point(self, points: np.ndarray | list["_point.Point"] | list[np.ndarray]) -> tuple[int, np.ndarray] | tuple[None, None]:
         """Return (index, point) of whichever of *points* is nearest this
         camera's own eye position -- i.e. whichever one the camera would
         actually see first if the others were occluding candidates at the

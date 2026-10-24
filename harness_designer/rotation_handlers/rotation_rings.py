@@ -54,6 +54,7 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..gl.canvas_3d import canvas as _canvas
+    from ..gl.canvas_base import canvas_window_base as _canvas_window_base
     from .. import objects as _objects
     from ..gl import shaders as _shaders
     from ..geometry import angle as _angle
@@ -90,7 +91,7 @@ class RotationRings(_object_base.ObjectBase):
     _angle_lock_snapshot: tuple | None = None
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_window_base.CanvasWindowBase", selected: "_objects.ObjectBase"):
         """Initialise the :class:`RotationRings` instance.
 
         :param canvas: Canvas instance.

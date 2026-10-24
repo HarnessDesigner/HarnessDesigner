@@ -36,7 +36,7 @@ from . import wire as _wire
 
 
 if TYPE_CHECKING:
-    from ...gl.canvas_3d import canvas as _canvas
+    from ...gl.canvas_3d import canvas_window as _canvas_window
     from ...objects import wire as _wire_object
 
 
@@ -46,7 +46,7 @@ class WireRoute(_wire.Wire, _wire_routing_drag.WireRouteMixin):
     _view = '3d'
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_wire_object.Wire",
                  plan: _wire_drag_base.WireDragPlan):
         _wire.Wire.__init__(self, canvas, target, plan)
         self._arm_routing()

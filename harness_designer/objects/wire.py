@@ -248,5 +248,13 @@ class Wire(_ObjectBase):
         #       then the layouts at the ends that are attached shuld also be
         #       deleted.
         super().delete()
+
+        # Leave whatever each end is attached to. Their wire lists hold weak
+        # references, which only die at garbage collection, so without this a
+        # deleted wire stays in Terminal.wires/Splice.wires until then.
+        for sibling in (self.start_sibling, self.stop_sibling):
+            if sibling is not None:
+                sibling.remove_wire(self)
+
         self.mainframe.project.delete_wire(self.db_obj.db_id)
         self.db_obj.delete()

@@ -392,7 +392,7 @@ RESOURCE_TYPE_MODEL = 4
 
 
 @_check_types.do
-def collect_resource(con: object, image_type: int, in_path: str | None) -> tuple[str, int] | None:
+def collect_resource(con: object, image_type: int, in_path: str | None) -> tuple[str, bytes] | None:
     """
     Collect a local or remote resource into managed storage.
 
@@ -404,7 +404,7 @@ def collect_resource(con: object, image_type: int, in_path: str | None) -> tuple
     :type in_path: str | None
     :returns: Resource UUID and file-type identifier, or ``None`` when the input
         cannot be collected.
-    :rtype: tuple[str, int] | None
+    :rtype: tuple[str, bytes] | None
     :raises RuntimeError: If a referenced local file does not exist.
     """
 

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 # from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
@@ -13,6 +13,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import generic as _generic
+    from ...gl.canvas_3d import focal_target as _focal_target
 
 
 class Generic(_base_3d.Base3D):
@@ -23,7 +24,7 @@ class Generic(_base_3d.Base3D):
     parent: "_generic.Generic" = None
 
     @_check_types.do
-    def __init__(self, parent: "_generic.Generic", vbo: _vbo.PooledVBOHandler | None,
+    def __init__(self, parent: _Union["_generic.Generic", "_focal_target.FocalTarget"], vbo: _vbo.PooledVBOHandler | None,
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial):
 

@@ -723,7 +723,7 @@ class Housing(_base_3d.Base3D):
 
     @_check_types.do
     def _draw_overlay_faces(self, shaders: "_shaders.ShaderProgram", key: tuple[str, int],
-                            positions_world: np.ndarray, color: tuple[float, float, float, float]) -> None:
+                            positions_world: np.ndarray, color: tuple[float, float, float, float] | np.ndarray) -> None:
         """Draw a translucent decal directly on top of already-rendered
         geometry, through the same modern faces shader pipeline every
         other mesh face in the scene renders through.
@@ -819,7 +819,7 @@ class Housing(_base_3d.Base3D):
     @_check_types.do
     def render_surface_overlay(
             self, shaders: "_shaders.ShaderProgram", surf_idx: int,
-            color: tuple[float, float, float, float]) -> None:
+            color: tuple[float, float, float, float] | np.ndarray) -> None:
         """Draw an overlay on one of this housing's mesh surfaces.
 
         *color* is an RGBA sequence with components in the 0.0-1.0 range
@@ -852,7 +852,7 @@ class Housing(_base_3d.Base3D):
     @_check_types.do
     def render_marker_overlay(
             self, shaders: "_shaders.ShaderProgram", marker: _CavityMarker,
-            color: tuple[float, float, float, float]) -> None:
+            color: tuple[float, float, float, float] | np.ndarray) -> None:
         """Draw an override-color overlay on one synthetic cavity marker --
         the marker equivalent of ``render_surface_overlay``. Used by a
         placed terminal to color-match its cavity's synthetic wire-side
@@ -1018,7 +1018,7 @@ class Housing(_base_3d.Base3D):
 
     @_check_types.do
     def handle_interaction(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        self, last_pos: _point.Point | None, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add) the same way

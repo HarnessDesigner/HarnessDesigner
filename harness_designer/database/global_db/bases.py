@@ -1,12 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Any, Iterable as _Iterable, TYPE_CHECKING, IO, Union as _Union
-from collections.abc import Generator as _Generator
 
 import weakref
 import json
 import threading
 import functools
+import sqlite3
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from PySide6 import QtWidgets
     from ... import ui as _ui
     from ... import splash as _splash
+    from ... import objects as _objects
 
 
 # These next 2 classes are for cached values.
@@ -208,7 +209,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
             pass
 
     @_check_types.do
-    def add_object(self, obj: "EntryBase") -> None:
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         """Add an object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -699,7 +700,7 @@ class TableBase:
             cached.update(kwargs)
 
     @_check_types.do
-    def execute(self, cmd: str, params: tuple | list | None = None) -> _Generator | None:
+    def execute(self, cmd: str, params: tuple | list | None = None) -> sqlite3.Cursor | None:
         """Execute the execute operation.
 
         UNKNOWN details are inferred from the callable name and signature.

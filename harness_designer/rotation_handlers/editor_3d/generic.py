@@ -8,7 +8,7 @@ gizmo's full visual/interaction design; this is the piece
 ``Base3D.handle_interaction``) holds as its own ``obj3d``.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -485,7 +485,7 @@ class Rings3D(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def _on_obj_angle(self, _: "_angle.Angle") -> None:
+    def _on_obj_angle(self, _: _Union["_angle.Angle", None]) -> None:
         """Update every ring's orientation when the tracked object rotates.
 
         The rings' own sizes/offsets are fixed for this gizmo's whole

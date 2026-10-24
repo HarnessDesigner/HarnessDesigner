@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Union as _Union
 from collections.abc import Callable
 
 import gc
+import types
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
@@ -103,7 +104,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.editor3d.editor.camera.position.x += 0.000001
 
     @_check_types.do
-    def __init__(self, splash: "_splash.Splash", logger: "_logger.Log"):
+    def __init__(self, splash: "_splash.Splash", logger: _Union["_logger.Log", types.ModuleType]):
         """
         Initialise the :class:`MainFrame` instance.
 
@@ -1040,7 +1041,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._status_z.setText(f'Z: {round(float(z), 4)}')
 
     @_check_types.do
-    def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent) -> None:
+    def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent | _gl.GLObjectEvent) -> None:
         """
         Execute the set 3dcoordinates operation.
 
@@ -3067,7 +3068,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor_pegboard.remove_object(obj)
 
     @_check_types.do
-    def _set_selected(self, obj: "_objects.ObjectBase") -> None:
+    def _set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the selected.
 
@@ -3144,7 +3145,7 @@ class MainFrame(QtWidgets.QMainWindow):
             obj.set_selected(True)
 
     @_check_types.do
-    def get_selected(self) -> "_objects.ObjectBase":
+    def get_selected(self) -> _Union["_objects.ObjectBase", None]:
         """
         Return the selected.
 

@@ -103,7 +103,7 @@ import typing
 
 
 # HARNESS_TYPE_AUDIT
-_ENABLED = 1
+_ENABLED = 0
 
 # HARNESS_TYPE_AUDIT_FULL
 _FULL_CALLS = 1000
@@ -398,7 +398,8 @@ def _render(key):
 #
 #   any  none  unknown  ellipsis  callable  type
 #   cls    .cls = a class; takes subclasses, registered virtual subclasses, int for float ...
-#   name   .name = a quoted name that could not be imported at run time: matched by class name against the bases
+#   name   .name = a quoted name that could not be imported at run time: matched by class name against the bases, then
+#          against every class a loaded module has under that name (so an alias such as `ConfigEditor3DType = ConfigDB` works)
 #   alias  .name = a bare `_Name` that could not be imported: an import alias (`ObjectBase as _ObjectBase`), so it is matched
 #          as `Name`, and anything that does not match is left alone because what the alias stands for is not known
 #   union  .args = the members
@@ -711,6 +712,26 @@ def _accepts_contents(origin, args, t, shape):
     return _worst(tree, shape)
 
 
+def _named_classes(name):
+    """Every class a loaded module has under `name`: how a name from a TYPE_CHECKING-only import is found at run time.
+
+    `ConfigEditor3DType = ConfigDB` at run time has a different name from the class it stands for, so matching the name
+    against the bases of what arrived is not enough.
+    """
+
+    found = []
+    for module in list(sys.modules.values()):
+        try:
+            item = vars(module).get(name)
+        except Exception:
+            continue
+
+        if isinstance(item, type) and item not in found:
+            found.append(item)
+
+    return found
+
+
 def _accepts(tree, key):
     """2: what arrived fits the hint. 1: cannot tell. 0: it does not fit."""
 
@@ -749,19 +770,19 @@ def _accepts(tree, key):
     if kind == 'cls':
         return _accepts_class(tree.cls, t)
 
-    if kind == 'name':
+    if kind == 'name' or kind == 'alias':
         for base in t.__mro__:
             if base.__name__ == tree.name:
                 return 2
+
+        for candidate in _named_classes(tree.name):
+            if _accepts_class(candidate, t) == 2:
+                return 2
+
+        if kind == 'alias':
+            return 1
 
         return 0
-
-    if kind == 'alias':
-        for base in t.__mro__:
-            if base.__name__ == tree.name:
-                return 2
-
-        return 1
 
     if kind == 'callable':
         if _call_mark(t) == '__call__':

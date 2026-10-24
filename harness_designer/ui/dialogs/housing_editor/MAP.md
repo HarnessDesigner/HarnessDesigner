@@ -26,7 +26,7 @@ Re-exports the module as `_housing_editor` only; no public symbols of its own.
 
 #### config.py
 
-`Config` -- this dialog's own self-contained canvas/scene configuration, mirroring the pattern `ui/dialogs/part_orientation.py` and `ui/dialogs/transition_editor/dialog.py` each use for their own standalone preview scenes.
+`_Config` (also exported as `Config`, the name `housing_editor.py` imports) -- this dialog's own self-contained canvas/scene configuration, mirroring the pattern `ui/dialogs/part_orientation.py` and `ui/dialogs/transition_editor/dialog.py` each use for their own standalone preview scenes. Its `editor_3d` is a `ConfigDB` class (that is what the canvas's `config` is checked against), and the outer name keeps its leading underscore on purpose: `ConfigDB.__persisted__` then never stores it. Renaming it to `Config` would make its `editor_3d` share the real editor's `editor_3d` table and overwrite the user's settings at exit.
 
 #### connector_analysis.py
 

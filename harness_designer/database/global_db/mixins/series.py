@@ -22,7 +22,7 @@ class SeriesMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def series(self) -> _Union["_series.Series", None]:
+    def series(self) -> "_series.Series":
         """Return the series.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,12 +33,9 @@ class SeriesMixin(BaseMixin):
         if self._stored_series is DefaultStoredValue:
             from .. import series as _series  # NOQA
 
-            series_id = self._table.select('series_id', id=self._db_id)[0][0]
-
-            if series_id == NIL_ID:
-                self._stored_series = None
-            else:
-                self._stored_series = _series.Series(self._table.db.series_table, series_id)
+            # A part with no series has the nil id (see series_id), which is
+            # the real "No Series" row -- not None.
+            self._stored_series = _series.Series(self._table.db.series_table, self.series_id)
 
         return self._stored_series
 
@@ -55,7 +52,14 @@ class SeriesMixin(BaseMixin):
         :rtype: bytes
         """
         if self._stored_series_id is DefaultStoredValue:
-            self._stored_series_id = self._table.select('series_id', id=self._db_id)[0][0]
+            series_id = self._table.select('series_id', id=self._db_id)[0][0]
+
+            # None is not NIL: a column that reads back as None means
+            # "not set", which is the nil id.
+            if series_id is None:
+                series_id = NIL_ID
+
+            self._stored_series_id = series_id
 
         return self._stored_series_id
 
@@ -129,10 +133,9 @@ class SeriesControl(_prop_ctrls.Category):
             self.mfg_ctrl.setEnabled(False)
             self.desc_ctrl.setEnabled(False)
         else:
-            series = db_obj.series
-
-            if series is None:
-                # Nothing set for this part -- the name choices depend on
+            if db_obj.series_id == NIL_ID:
+                # Nothing set for this part (it points at the "No Series"
+                # row) -- the name choices depend on
                 # the manufacturer, which there is none to go by.
                 self.choices = []
 
@@ -145,6 +148,7 @@ class SeriesControl(_prop_ctrls.Category):
                 self.desc_ctrl.setEnabled(False)
                 return
 
+            series = db_obj.series
             manufacturer = series.manufacturer
 
             if manufacturer is None:

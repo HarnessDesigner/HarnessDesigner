@@ -55,7 +55,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 config: _config.Config.editor_schematic,
+                 config: _config.ConfigEditorSchematicType,
                  size: QtCore.QSize | None = None):
         """
         Initialise the :class:`Canvas` instance.

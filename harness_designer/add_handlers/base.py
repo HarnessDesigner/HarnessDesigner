@@ -31,6 +31,7 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from ..geometry import point as _point
     from ..gl.canvas_base import canvas_base as _canvas_base
+    from ..gl.canvas_base import canvas_window_base as _canvas_window_base
     from .. import objects as _objects
     from ..gl import shaders as _shaders
     from ..objectsvar import base_var as _base_var
@@ -43,7 +44,7 @@ class AddHandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_window_base.CanvasWindowBase", target: "_objects.ObjectBase"):
         """Initialise the :class:`AddHandlerBase` instance.
 
         :param canvas: The canvas this add session is happening on.

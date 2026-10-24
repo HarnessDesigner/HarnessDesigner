@@ -168,6 +168,17 @@ class Terminal(_ObjectBase):
                 return
 
     @_check_types.do
+    def remove_wire(self, wire: "_wire_obj.Wire") -> None:
+        """Forget *wire* -- called when the wire is deleted.
+
+        The list holds weak references, and those only die once the wire
+        is garbage collected, which can be long after its delete() (a
+        wire and its views reference each other). Until then wires would
+        keep returning the deleted wire.
+        """
+        self._wire_refs = [ref for ref in self._wire_refs if ref() is not wire]
+
+    @_check_types.do
     def add_wire(self, wire: "_wire_obj.Wire", end: str) -> bool:
         """Attach *wire*'s *end* ('start' or 'stop') to this terminal.
 

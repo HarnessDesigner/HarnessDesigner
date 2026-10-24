@@ -813,7 +813,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
 
     @_check_types.do
-    def get_object(self) -> "_housing_obj.Housing":
+    def get_object(self) -> _Union["_housing_obj.Housing", None]:
         """Return the object.
 
         UNKNOWN details are inferred from the callable name and signature.

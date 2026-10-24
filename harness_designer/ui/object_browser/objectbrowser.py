@@ -552,6 +552,18 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._treectrl.setSelectionMode(
             QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
+        # Set when Qt destroys the tree widget, so a weakref callback (see
+        # __remove_refs) knows it can no longer walk the tree. A plain
+        # function, not a method of this class: when the whole panel is
+        # deleted its own connections are dropped before its child widgets
+        # are destroyed, so a method of this class would never be called.
+        self._tree_destroyed = False
+
+        def on_tree_destroyed(*_args: tuple[Any]) -> None:
+            self._tree_destroyed = True
+
+        self._treectrl.destroyed.connect(on_tree_destroyed)  # NOQA
+
         self._search_edit = QtWidgets.QLineEdit(self)
         self._search_edit.setPlaceholderText('Search...')
         self._search_edit.textChanged.connect(self._reset_search)  # NOQA
@@ -730,6 +742,14 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         """
         Remove a weakref.
         """
+
+        # This runs whenever any tracked object dies, shutdown included,
+        # and by then Qt may have destroyed the tree widget (see
+        # _tree_destroyed). A weakref callback that raises can't be handled
+        # by anything -- Python just prints "Exception ignored" -- so there
+        # is nothing left to clean up once the widget is gone.
+        if self._tree_destroyed:
+            return
 
         @_check_types.do
         def iter_tree(parent: QtWidgets.QTreeWidgetItem) -> None:
@@ -1749,7 +1769,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def set_selected(self, obj: "_object_base.ObjectBase") -> None:
+    def set_selected(self, obj: _Union["_object_base.ObjectBase", None]) -> None:
         """
         Reflect a selection made in one of the editors: expand the tree
         down to the object's item, highlight it, and scroll it into view.

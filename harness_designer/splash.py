@@ -2,10 +2,11 @@
 
 """Splash screen rendering used during application startup."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import os
 import threading
+import types
 from PIL import Image
 from PySide6 import QtWidgets
 from PySide6 import QtGui
@@ -41,7 +42,7 @@ class Splash:
     """
 
     @_check_types.do
-    def __init__(self, args: list[str], logger: "_logger.Log"):
+    def __init__(self, args: list[str], logger: _Union["_logger.Log", types.ModuleType]):
         """
         Create and display the splash screen.
 

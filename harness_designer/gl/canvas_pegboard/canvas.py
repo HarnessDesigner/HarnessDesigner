@@ -49,7 +49,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 config: _config.Config.editor_pegboard = None,
+                 config: _config.ConfigEditorPegboardType = None,
                  size: QtCore.QSize | None = None):
 
         """

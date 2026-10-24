@@ -2,7 +2,7 @@
 
 """SQLite-flavored SQL table and field definition helpers."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....import logger as _logger
 from .... import check_types as _check_types
@@ -10,6 +10,8 @@ from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import base as _connector_base
+    from ...global_db import bases as _glb_bases
+    from ...project_db import pjt_bases as _pjt_bases
 
 FIELD_TYPE_REAL = 'REAL'
 FIELD_TYPE_TEXT = 'TEXT'
@@ -64,7 +66,7 @@ class SQLTable:
         return self.name in table_names
 
     @_check_types.do
-    def is_ok(self, db_cursor: "_connector_base.ConnectorBase") -> bool:
+    def is_ok(self, db_cursor: _Union["_connector_base.ConnectorBase", "_glb_bases.TableBase", "_pjt_bases.PJTTableBase"]) -> bool:
         """Return whether the existing table still needs field updates.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -85,7 +87,7 @@ class SQLTable:
         return False
 
     @_check_types.do
-    def update_fields(self, db_cursor: "_connector_base.ConnectorBase") -> None:
+    def update_fields(self, db_cursor: _Union["_connector_base.ConnectorBase", "_glb_bases.TableBase", "_pjt_bases.PJTTableBase"]) -> None:
 
         """Add any missing fields to an existing table.
 
@@ -105,7 +107,7 @@ class SQLTable:
                 field.add_to_table(db_cursor, self.name)
 
     @_check_types.do
-    def add_to_db(self, db_cursor: "_connector_base.ConnectorBase") -> None:
+    def add_to_db(self, db_cursor: _Union["_connector_base.ConnectorBase", "_glb_bases.TableBase", "_pjt_bases.PJTTableBase"]) -> None:
         """Create the table in the database.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.

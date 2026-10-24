@@ -62,8 +62,12 @@ def _obb_face_for_direction(
     return best_idx
 
 
-class _Config:
-    """Minimal config for the part orientation canvas."""
+class _Config(metaclass=_config.ConfigDB):
+    """Minimal config for the part orientation canvas.
+
+    A ``ConfigDB`` class, because that is what the canvas's ``config`` is checked against, but the name
+    starts with an underscore so it is never stored: no table and no rows.
+    """
     lighting = _config.Config.editor_3d.lighting
     keyboard_settings = _config.Config.editor_3d.keyboard_settings
     input = _config.Config.editor_3d.input

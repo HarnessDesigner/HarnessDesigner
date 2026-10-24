@@ -352,11 +352,11 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
     had to handle a preview wire's fixed stop end.
     """
     if kind == 'wire_end':
-        # merge_wire_into deletes both original wire rows itself (including
-        # wire_obj's own now-seam point, kept alive as an interior waypoint
-        # on the merged row) -- none of the shared stale-point cleanup
-        # below applies here, and running it anyway would wrongly delete
-        # that seam point right back out from under the merge.
+        # merge_wire_into absorbs wire_obj into other_wire (other_wire's row
+        # survives, wire_obj's row is deleted) and drops wire_obj's own seam
+        # point itself -- none of the shared stale-point cleanup below
+        # applies here, and running it anyway would delete a point out from
+        # under the merge.
         from ..drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
         other_wire, other_point = target

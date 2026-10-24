@@ -26,9 +26,13 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
+    from ...database.global_db import bases as _glb_bases
     from ...database.global_db import model3d as _model3d
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
+    from ...ui.dialogs import part_orientation as _part_orientation
+    from ...ui.dialogs.housing_editor import housing_editor as _housing_editor
+    from ...ui.dialogs.transition_editor import dialog as _transition_editor
     from ...gl import shaders as _shaders
     from ...bounds import aabb as _aabb
     from ...bounds import obb as _obb
@@ -73,7 +77,7 @@ class Base3D(_objectsvar.BaseVar):
     _context_menu_click_pos: _point.Point | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
+    def __init__(self, parent: "_ObjectBase", db_obj: _Union["_glb_bases.EntryBase", "_project_db.PJTEntryBase", None],
                  vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
                  material: _materials.GLMaterial | None):
@@ -136,7 +140,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @property
     @_check_types.do
-    def editor(self) -> "_editor_3d.Editor3D":
+    def editor(self) -> _Union["_editor_3d.Editor3D", "_part_orientation.PartOrientationDialog", "_housing_editor.HousingEditorDialog", "_transition_editor.TransitionEditorDialog"]:
         return self.editor3d
 
     @_check_types.do
@@ -333,7 +337,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def handle_interaction(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        self, last_pos: _point.Point | None, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Generic single-position drag arming/dispatch, plus rotation-

@@ -88,7 +88,7 @@ _info = None
 
 
 @_check_types.do
-def get(parent: _Union["QtWidgets.QWidget", None] = None) -> None:
+def get(parent: _Union["QtWidgets.QWidget", None] = None) -> dict[str, dict[str, np.intc] | np.intc | str] | None:
     """
     Get or collect OpenGL information.
 

@@ -3,13 +3,17 @@
 from .... import config as _config
 
 
-class Config:
+class _Config:
     """Represent a config in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
+
+    ``editor_3d`` is a ``ConfigDB`` class, because that is what the canvas's ``config`` is checked against.
+    The outer name starts with an underscore so it is never stored (a stored ``editor_3d`` would share the
+    real editor's table); ``Config``, below the class, is the name the dialog imports.
     """
 
-    class editor_3d:
+    class editor_3d(metaclass=_config.ConfigDB):
         """Represent an editor 3D in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
 
         UNKNOWN details are inferred from the class name and surrounding code.
@@ -102,3 +106,6 @@ class Config:
             is_visible = False
             size = (35, 35)
             position = (0, 0)
+
+
+Config = _Config

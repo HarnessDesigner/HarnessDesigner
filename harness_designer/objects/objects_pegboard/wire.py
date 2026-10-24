@@ -1487,7 +1487,7 @@ class WireStripe(_base_pegboard.BasePegboard):
 
     @_obb.setter
     @_check_types.do
-    def _obb(self, value: np.ndarray) -> None:
+    def _obb(self, value: np.ndarray | None) -> None:
         # Base3D.__init__ assigns this once before calling _compute_obb();
         # the wire is the source of truth, so the write is discarded.
         pass

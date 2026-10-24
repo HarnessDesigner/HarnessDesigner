@@ -172,8 +172,8 @@ class Quaternion:
         self.__normalize()
 
     @_check_types.do
-    def __init__(self, w: float | None = None, x: float | None = None, y: float | None = None,
-                 z: float | None = None, q: np.ndarray | None = None):
+    def __init__(self, w: float | _d | None = None, x: float | _d | None = None, y: float | _d | None = None,
+                 z: float | _d | None = None, q: np.ndarray | None = None):
         """
         Create and normalize a quaternion.
 

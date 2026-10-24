@@ -12,5 +12,5 @@ Loops over every cavity (line 336) and every terminal (line 340) in the project,
 ## Line 872-934 (`_arm_drag`, `_disarm_drag`, `__call__`) — the drag hook
 `__call__` runs on every mouse move during a drag. It computes the move delta, the budget clamp, and applies the points to each moving point (line 994 loop). The loop is linear in the number of moving points. Acceptable.
 
-## Line 569-790 (`_view_merge_geometry`, `merge_wire_into`) — database writes on drop
-Creates one merged row and rewrites route sets, then loops over `project.wire_markers` (line 779). Runs once on a wire-to-wire join. Fine.
+## Line 587-860 (`_view_extension_geometry`, `_extend_route`, `_ensure_layout`, `merge_wire_into`) — database writes on drop
+Extends the surviving wire's routes in place (the seam point and the absorbed wire's waypoints are appended or prepended one row at a time), deletes the absorbed wire, then loops over `project.wire_markers` (line 831). Runs once on a wire-to-wire join. Fine.

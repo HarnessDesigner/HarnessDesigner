@@ -397,7 +397,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 
     @_check_types.do
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
-                   role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+                   role: int = QtCore.Qt.ItemDataRole.DisplayRole
                    ) -> str | QtGui.QFont | None:
         """Execute the header data operation.
 

@@ -8,7 +8,7 @@ locked top-down, so only a rotation about world Y is ever meaningful,
 and with one axis there's nothing to pick between via a torus).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -375,7 +375,7 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         return True
 
     @_check_types.do
-    def _on_obj_angle(self, _: "_angle.Angle") -> None:
+    def _on_obj_angle(self, _: _Union["_angle.Angle", None]) -> None:
         """Update every ring's orientation when the tracked object rotates.
 
         The rings' own sizes/offsets are fixed for this gizmo's whole

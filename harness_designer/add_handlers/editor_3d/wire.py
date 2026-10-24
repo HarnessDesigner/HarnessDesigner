@@ -58,6 +58,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
+    from ...gl.canvas_3d import canvas_window as _canvas_window
     from ... import objects as _objects
     from ... import ui as _ui
     from ...objects.objects_3d import base_3d as _base_3d
@@ -74,7 +75,7 @@ class Wire(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase",
                  part_id: bytes, phase: int, growing_point: _point.Point | None = None,
                  preexisting_wire: bool = False, start_circuit_id: bytes | None = None,
                  extension_mode: bool = False, source_wire: _wire.Wire | None = None,
@@ -784,6 +785,11 @@ class Wire(_base.AddHandlerBase):
                 own_end = (
                     'start' if self._growing_point is self.target.obj3d.start_position
                     else 'stop')
+                # The merge deletes this session's own preview wire. Mark the
+                # session finalized first, or that delete takes delete()'s
+                # cancel path, which deletes self.target a second time.
+                self._finalized = True
+
                 merged = _wire_3d.Wire.merge_wire_into(
                     project, self.target, end_wire,
                     other_end, own_end=own_end)
@@ -792,7 +798,6 @@ class Wire(_base.AddHandlerBase):
                 self.target.identify(None)
                 self._cleanup()
                 self._destroy_overlay()
-                self._finalized = True
 
                 return
             # else: mid-wire or mismatched part -- preview stop already at world pos; keep as-is
@@ -862,6 +867,10 @@ class Wire(_base.AddHandlerBase):
             own_end = (
                 'start' if self._growing_point is self.target.obj3d.start_position else 'stop')
 
+            # Same reason as the layout branch above: finalize before the
+            # merge deletes this session's own preview wire.
+            self._finalized = True
+
             merged = _wire_3d.Wire.merge_wire_into(
                 project, self.target, picked,
                 other_end, own_end=own_end)
@@ -871,7 +880,6 @@ class Wire(_base.AddHandlerBase):
             self.target.identify(None)
             self._cleanup()
             self._destroy_overlay()
-            self._finalized = True
 
             return
 

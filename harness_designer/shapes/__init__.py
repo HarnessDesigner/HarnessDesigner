@@ -32,7 +32,7 @@ _sphere_vbo = None
 
 
 @_check_types.do
-def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash", None] = None) -> dict[str, Any]:
+def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash", None] = None) -> dict[str, Any] | None:
     """Build every non-pooled primitive VBO (arrow/box/cylinder/sphere/etc.)
     plus the full text-glyph set, using *mainframe*'s already-current GL
     context. Called once, right after the mainframe first becomes visible

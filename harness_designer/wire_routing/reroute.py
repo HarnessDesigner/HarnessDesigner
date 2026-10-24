@@ -211,7 +211,7 @@ def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_rout
 
 @_check_types.do
 def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
-                pack_with: list["_wire_obj.Wire"] = []) -> "_wire_routing.RoutingFrame":
+                pack_with: list["_wire_obj.Wire"] = []) -> _Union["_wire_routing.RoutingFrame", None]:
     """One shared routing grid for *wires* (see
     :class:`~.routing.RoutingFrame`), to pass to :func:`reroute_wire` as
     ``frame`` for each of them -- or ``None`` if it can't be built (nothing
@@ -391,7 +391,7 @@ def _skipped_stub_segments(skip_wires: Iterable["_wire_obj.Wire"]) -> list[tuple
 
 
 @_check_types.do
-def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int) -> None:
+def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int) -> _pjt_point2d.PJTPoint2D:
     """Append a new interior 2D waypoint at ``(x, z)`` as index *idx* of
     *wire*'s path, with its own WireLayout handle -- every interior bend has
     one, so it is a real selectable/draggable object. Returns the new point
@@ -505,7 +505,7 @@ def _axis_aligned(a: tuple[float, float], b: tuple[float, float]) -> bool:
 
 @_check_types.do
 def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
-                 skip_wires: frozenset["_wire_obj.Wire"] = frozenset(), frame: _Union["_wire_routing.RoutingFrame", None] = None, fixed_prefix: list[tuple[float, float]] | None = None) -> None:
+                 skip_wires: frozenset["_wire_obj.Wire"] | set["_wire_obj.Wire"] = frozenset(), frame: _Union["_wire_routing.RoutingFrame", None] = None, fixed_prefix: list[tuple[float, float]] | None = None) -> None:
     """Recompute *wire*'s orthogonal 2D path and reconcile its interior
     waypoint rows against the result -- moves whatever old waypoints can
     be reused (one DB write per point moved, no delete/insert at all)

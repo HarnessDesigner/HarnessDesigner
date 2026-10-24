@@ -68,7 +68,7 @@ class Editor3D(_dock_base.DockBase):
 
     @property
     @_check_types.do
-    def config(self) -> _config.Config.editor_3d:
+    def config(self) -> _config.ConfigEditor3DType:
         """
         Return the config.
 

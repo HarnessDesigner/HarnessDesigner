@@ -20,7 +20,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ...gl.canvas_3d import canvas as _canvas
+    from ...gl.canvas_3d import canvas_window as _canvas_window
     from ... import objects as _objects
     from ...objects import wire as _wire
 
@@ -29,7 +29,7 @@ class WireLayout(_base.AddHandlerBase):
     """Interactive wire-waypoint placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase",
                  wire: "_wire.Wire"):
 
         super().__init__(canvas, target)

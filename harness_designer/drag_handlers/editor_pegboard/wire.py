@@ -29,7 +29,7 @@ builds probes at ``*_position_pegboard``); only committing a
 terminal/splice snap on release does not yet.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -42,9 +42,12 @@ from . import wire_snap as _wire_snap
 if TYPE_CHECKING:
     from ...objects import project as _project
     from ...objects import wire as _wire_object
+    from ...database.project_db import pjt_cavity as _pjt_cavity
+    from ...database.project_db import pjt_terminal as _pjt_terminal
     from ...geometry import point as _point
     from ...database.project_db import pjt_wire as _pjt_wire
     from ...gl.canvas_pegboard import canvas as _canvas
+    from ...gl.canvas_pegboard import canvas_window as _canvas_window
     from ... import ui as _ui
     from ...objects.objects_pegboard import base_pegboard as _base_pegboard
     from ...database.project_db import pjt_point_pegboard as _pjt_point_pegboard
@@ -82,12 +85,12 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
 
     @staticmethod
     @_check_types.do
-    def _wire_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
+    def _wire_position_id_raw(obj: _Union["_wire_object.Wire", "_pjt_cavity.PJTCavity", "_pjt_terminal.PJTTerminal"]) -> bytes | None:
         return obj.wire_position_pegboard_id_raw
 
     @staticmethod
     @_check_types.do
-    def _attach_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
+    def _attach_position_id_raw(obj: _Union["_wire_object.Wire", "_pjt_cavity.PJTCavity", "_pjt_terminal.PJTTerminal"]) -> bytes | None:
         return obj.attach_position_pegboard_id_raw
 
     @staticmethod
@@ -121,7 +124,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         return obj.is_in_pegboardview
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_wire_object.Wire",
                  plan: _wire_drag_base.WireDragPlan):
         # Explicit, never super() -- see handlers.wire_drag_base's own
         # module docstring on why: a bare super() call here would only

@@ -25,7 +25,7 @@ class LazyTabMixin:
 
     @_check_types.do
     def _lazy_set_obj(
-        self, db_obj: _Union["_glb_bases.EntryBase", "_pjt_bases.PJTEntryBase"]
+        self, db_obj: _Union["_glb_bases.EntryBase", "_pjt_bases.PJTEntryBase", None]
     ) -> None:
         self.db_obj = db_obj
         self._tab_loaded = [False] * self.count()

@@ -24,7 +24,7 @@ class Model3DMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def model3d(self) -> "_model3d.Model3D":
+    def model3d(self) -> _Union["_model3d.Model3D", None]:
         """Return the model 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +46,7 @@ class Model3DMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def model3d_id(self) -> bytes:
+    def model3d_id(self) -> bytes | None:
         """Return the model 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.

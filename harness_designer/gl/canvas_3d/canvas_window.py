@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
 import numpy as np
@@ -12,6 +12,9 @@ from ..canvas_base import canvas_window_base as _canvas_window_base
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui.dialogs import part_orientation as _part_orientation
+    from ...ui.dialogs.housing_editor import housing_editor as _housing_editor
+    from ...ui.dialogs.transition_editor import dialog as _transition_editor
     from ... import config as _config
 
 
@@ -22,7 +25,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", config: "_config.Config.editor_3d",
+    def __init__(self, mainframe: _Union["_ui.MainFrame", "_part_orientation.PartOrientationDialog", "_housing_editor.HousingEditorDialog", "_transition_editor.TransitionEditorDialog"], config: "_config.ConfigEditor3DType",
                  size: tuple[int, int], axis_overlay: bool = False):
         """Initialise the :class:`Canvas3D` instance.
 

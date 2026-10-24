@@ -19,7 +19,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ...gl.canvas_3d import canvas as _canvas
+    from ...gl.canvas_3d import canvas_window as _canvas_window
     from ... import objects as _objects
 
 
@@ -29,7 +29,7 @@ class Housing(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow",
                  target: "_objects.ObjectBase"):
 
         super().__init__(canvas, target)
@@ -44,7 +44,7 @@ class Housing(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+    def __call__(self, last_pos: _point.Point | None, current_pos: _point.Point,
                  had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 

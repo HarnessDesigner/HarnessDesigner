@@ -1,13 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import Any, Iterable as _Iterable, TYPE_CHECKING, Union as _Union
-from collections.abc import Callable, Generator as _Generator
+from collections.abc import Callable
 
 import weakref
 import threading
 import functools
 import pkgutil
 import importlib
+import sqlite3
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -210,7 +211,7 @@ class _PJTEntrySingleton(type):
         return db_id in cls._instances and cls._instances[db_id]() is not None
 
     @_check_types.do
-    def __call__(cls, table: "PJTTableBase", db_id: int | bytes) -> "PJTEntryBase":
+    def __call__(cls, table: _Union["PJTTableBase", None], db_id: int | bytes) -> "PJTEntryBase":
         """Call the instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -250,7 +251,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
     """
 
     @_check_types.do
-    def __init__(self, table: "PJTTableBase", db_id: int | bytes):
+    def __init__(self, table: _Union["PJTTableBase", None], db_id: int | bytes):
         """Initialise the :class:`PJTEntryBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -319,7 +320,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
             pass
 
     @_check_types.do
-    def add_object(self, obj: "PJTEntryBase") -> None:
+    def add_object(self, obj: "_object_base.ObjectBase") -> None:
         """Add an object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -455,7 +456,7 @@ class PJTTableBase:
     __uses_uuid_id__: bool = True
 
     @_check_types.do
-    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: "_splash.Splash"):
+    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: _Union["_splash.Splash", type]):
         """Initialise the :class:`PJTTableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -639,7 +640,7 @@ class PJTTableBase:
             return line
 
     @_check_types.do
-    def __iter__(self) -> _Iterable[int]:
+    def __iter__(self) -> _Iterable[int | bytes]:
         """Iterate over the available items.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1143,7 +1144,7 @@ class PJTTableBase:
         return list(ret)
 
     @_check_types.do
-    def execute(self, cmd: str, params: tuple | list | None = None) -> _Generator | None:
+    def execute(self, cmd: str, params: tuple | list | None = None) -> sqlite3.Cursor | None:
         """Execute the execute operation.
 
         UNKNOWN details are inferred from the callable name and signature.

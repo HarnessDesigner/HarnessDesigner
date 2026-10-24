@@ -19,6 +19,7 @@ from ...crash_dump import Attr, capturable
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
+    from ...database.global_db import bases as _glb_bases
     from ..objects_3d import cavity as _cavity3d
     from ...ui.editor_3d import editor_3d as _editor_3d
     from ...ui.editor_schematic import editor_schematic as _editor_schematic
@@ -82,7 +83,7 @@ class BaseVar:
     _is_deleted: bool = False
 
     @_check_types.do
-    def __init__(self, parent: "_ObjectBase", db_obj: _Union["_project_db.PJTEntryBase", None],
+    def __init__(self, parent: "_ObjectBase", db_obj: _Union["_glb_bases.EntryBase", "_project_db.PJTEntryBase", None],
                  vbo: _vbo_base.VBOHandlerBase | _text.Text | None,
                  angle: _angle.Angle | None, position: _point.Point | None,
                  scale: _point.Point | None, material: _materials.GLMaterial | None):
@@ -568,7 +569,7 @@ class BaseVar:
 
     @property
     @_check_types.do
-    def position(self) -> _point.Point:
+    def position(self) -> _point.Point | None:
         """
         Get the position.
 
@@ -1033,7 +1034,7 @@ class BaseVar:
         return self._active_handler is not None
 
     @_check_types.do
-    def _render_geometry(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"]) -> None:
+    def _render_geometry(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram", "_shader_program.TextureProgram"]) -> None:
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).

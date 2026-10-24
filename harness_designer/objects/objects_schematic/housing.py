@@ -434,7 +434,7 @@ class Housing(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def handle_interaction(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        self, last_pos: _point.Point | None, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """

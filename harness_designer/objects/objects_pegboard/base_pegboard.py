@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
     from ...ui import editor_pegboard as _editor_pegboard
     from ...database import project_db as _project_db
+    from ...database.global_db import bases as _glb_bases
     from ...database.global_db import model3d as _model3d
     from ...database.project_db import pjt_pegboard_table as _pjt_pegboard_table
     from ...gl import shaders as _shaders
@@ -134,7 +135,7 @@ class BasePegboard(_objectsvar.BaseVar):
     def __init__(
         self,
         parent: "_ObjectBase",
-        db_obj: "_project_db.PJTEntryBase",
+        db_obj: _Union["_glb_bases.EntryBase", "_project_db.PJTEntryBase", None],
         vbo: _vbo.VBOHandlerBase | _text.Text | None = None,
         angle: _angle.Angle | None = None,
         position: _point.Point | None = None,
@@ -515,7 +516,7 @@ class BasePegboard(_objectsvar.BaseVar):
 
     @_check_types.do
     def handle_interaction(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        self, last_pos: _point.Point | None, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Generic locked-X/Z drag arming/dispatch, plus rotation-gizmo

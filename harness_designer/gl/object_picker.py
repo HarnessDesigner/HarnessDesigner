@@ -16,13 +16,14 @@ if TYPE_CHECKING:
     from .canvas_3d import camera as _camera3d
     from .canvas_schematic import camera as _camera2d
     from .canvas_base import canvas_base as _canvas_base
+    from .canvas_base import canvas_window_base as _canvas_window_base
     from .. import objects as _objects
     from ..bounds import array_pool as _array_pool
     from ...objects.objectsvar import base_var as _base_var
 
 
 @_check_types.do
-def _unproject_from_ndc(ndc: np.ndarray, inv_mvp: np.ndarray) -> np.ndarray | None:
+def _unproject_from_ndc(ndc: np.ndarray | tuple[float, float, float], inv_mvp: np.ndarray) -> np.ndarray | None:
     """
     ndc: (x,y,z) in [-1,1]
     inv_mvp: inverse of P*MV (row-major)
@@ -150,7 +151,7 @@ def _render_id_of(wrapped: "_base_var.BaseVar") -> int:
 @_debug.logfunc
 @_check_types.do
 def find_object(mouse_pos: "_point.Point", camera: _Union["_camera3d.Camera", "_camera2d.Camera"],
-                canvas: "_canvas_base.CanvasBase", current_selection: _Union["_objects.ObjectBase", None] = None) -> _Union["_objects.ObjectBase", None]:
+                canvas: "_canvas_window_base.CanvasWindowBase", current_selection: _Union["_objects.ObjectBase", None] = None) -> _Union["_objects.ObjectBase", None]:
     """Ray-cast from *mouse_pos* against every object registered with
     *canvas*'s own :class:`~harness_designer.bounds.Manager` view (see
     ``canvas.bounds_manager.aabb``/``canvas.bounds_manager.obb`` --
