@@ -286,9 +286,9 @@ class MainFrame(QtWidgets.QMainWindow):
         splash.SetText('Creating circuit editor...')
         splash.flush()
 
-        from . import editor_ciruit
+        from . import editor_circuit
 
-        self.editor_circuit = editor_ciruit.EditorCircuit(self)
+        self.editor_circuit = editor_circuit.EditorCircuit(self)
 
         splash.SetText('Creating object editor...')
         splash.flush()
@@ -3128,7 +3128,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         if (
             source_editor != 'editor_pegboard' and
-            obj not in self.editor_pegboard.editor.objects_in_window()
+            obj.objpegboard is not None and obj not in self.editor_pegboard.editor.objects_in_window()
         ):
             self.editor_pegboard.editor.center_on_object(obj)
 
@@ -3428,6 +3428,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.clear()
         self.editor_pegboard.clear()
         self.object_browser.reset()
+        self.editor_circuit.editor.load_project(None)
 
         old_project.close()
 

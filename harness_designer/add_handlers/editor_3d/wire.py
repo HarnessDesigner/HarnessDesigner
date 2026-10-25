@@ -47,6 +47,7 @@ from ...objects import terminal as _terminal
 from ...objects import splice as _splice
 from ...objects import wire as _wire
 from ...handlers import wire_snap as _wire_snap
+from ...handlers import wire_circuit as _wire_circuit
 from ...drag_handlers.editor_3d import wire_snap as _wire_snap_3d
 from ...wire_routing import reroute as _wire_reroute
 from ...gl import materials as _materials
@@ -896,6 +897,8 @@ class Wire(_base.AddHandlerBase):
         if not self._preexisting_wire:
             project.add_wire(self.target)
 
+        _wire_circuit.reconcile_wire_circuit(project, self.target)
+
         self._cleanup()
         self._destroy_overlay()
         self._finalized = True
@@ -963,6 +966,8 @@ class Wire(_base.AddHandlerBase):
 
         if not self._preexisting_wire:
             self.mainframe.project.add_wire(self.target)
+
+        _wire_circuit.reconcile_wire_circuit(self.mainframe.project, self.target)
 
         self._cleanup()
         self._destroy_overlay()

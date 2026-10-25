@@ -53,6 +53,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
 from ...gl import materials as _materials
 from ...handlers import wire_snap as _wire_snap
+from ...handlers import wire_circuit as _wire_circuit
 from ...geometry import point as _point
 from ...objects import terminal as _terminal
 from ...objects import splice as _splice
@@ -552,6 +553,8 @@ class Wire(_base.AddHandlerBase):
         self._cleanup()
         self.target.identify(None)
         project.add_wire(self.target)
+
+        _wire_circuit.reconcile_wire_circuit(project, self.target)
 
         self._finalized = True
 

@@ -105,6 +105,7 @@ from ..gl import object_picker as _object_picker
 from .. import debug as _debug
 from .. import check_types as _check_types
 from . import wire_snap as _wire_snap
+from . import wire_circuit as _wire_circuit
 from . import snap_probe_set as _snap_probe_set
 
 
@@ -845,6 +846,8 @@ class WireDragMixin:
             other_wire.objpegboard.refresh_waypoints()
 
         _wire_reroute.on_wire_attached(project, other_wire)
+
+        _wire_circuit.reconcile_wire_circuit(project, other_wire)
 
         return other_wire
 

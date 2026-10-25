@@ -30,7 +30,7 @@ Own `_update_angle_pegboard` mirrors the 3D version minus aabb/obb rotation (no 
 
 #### circuit.py
 
-Peg-board-only part type (no 3D or schematic view).
+The peg-board editor's view of a circuit: an inert placeholder (`BasePegboard` built with no vbo/angle/position/scale/material, never visible, `obb` None), built like a `Note` that was never placed in this editor. A circuit has nothing to draw; the view exists so the canvas can hold the circuit as its one selected object (see `objects/circuit.py`). The mouse can not pick it. Added 2026-10-25. Its `set_selected` is overridden (2026-10-25): deselecting also calls `Circuit.deselect_in_editor()`, so the circuit editor stops showing the circuit's row as selected (it clears the row only when that row is the selected one, otherwise it does nothing).
 
 #### cover.py
 

@@ -46,7 +46,7 @@ DDL/seed for the `cavity_locks` global-catalog table.
 
 #### circuits.py
 
-DDL/seed for `pjt_circuits`, per-project circuit records.
+DDL/seed for `pjt_circuits`, per-project circuit records. `return_type` (int, default 0) holds `circuit_solver.ReturnType`: 0 = chassis return (not modelled), 1 = mirrored.
 
 #### colors.py
 
@@ -79,6 +79,10 @@ DDL/seed for the `cpa_locks` global-catalog table.
 #### datasheets.py
 
 DDL/seed for the `datasheets` file/resource table.
+
+#### deratings.py
+
+DDL for the `deratings` global-catalog table (NEW 2026-10-24): a manufacturer's derating table for one terminal, wire or splice, one row per row of that table. Exactly one of `terminal_id`/`wire_id`/`splice_id` is set (enforced in `DeratingsTable.insert`, not in SQL), `idx` is the row's place in its part's table, and the rest are the table's own columns, each NULL when unused: `ambient_temp_c`, `conductor_count` (a bundling row), `max_amps`, `derating_factor` (a row needs one of the last two). `add_indexes(table)` indexes the three part columns on SQLite (a foreign key is not indexed there; MySQL's is); it is safe to run on every start and quiet on a database that cannot be written to. The COLUMNS ARE A PROPOSAL the user has not confirmed. Mirrored 2026-10-24 in the sibling `harness_designer_database` repo (`builder/create_database/deratings.py`, in `TABLE_MODULES` of `builder/build_database.py`, with its own `add_indexes(con)`); keep the two aligned. Nothing populates the table (there is no source data), so a built database has it empty, and a database built before this has no such table until the app creates it at start. Importing this module imports the schema of terminals, wires and splices, and `transitions`/`transition_branches` here only import cleanly when `transition_branches` goes first (an existing cycle), so import it late, after the part tables exist, the way `global_db/derating.py` does.
 
 #### directions.py
 
@@ -194,7 +198,7 @@ DDL/seed for the `splice_types` global lookup table.
 
 #### splices.py
 
-DDL/seed for the `splices` global-catalog table.
+DDL/seed for the `splices` global-catalog table. Its project table `pjt_splices` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed.
 
 #### temperatures.py
 
@@ -202,7 +206,7 @@ DDL/seed for the `temperatures` global lookup table — converted to the NIL-id 
 
 #### terminals.py
 
-DDL/seed for the `terminals` global-catalog table.
+DDL/seed for the `terminals` global-catalog table. Its project table `pjt_terminals` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed. It also has `load_type` (int, default 0 = resistive).
 
 #### tpa_locks.py
 
@@ -238,7 +242,7 @@ Schema for `pjt_wire_paths` — one row per interior waypoint per wire per view 
 
 #### wire_service_loops.py
 
-DDL/seed for the `wire_service_loops` global-catalog table.
+DDL/seed for the `wire_service_loops` global-catalog table. Its project table `pjt_wire_service_loops` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed.
 
 #### wire_types.py
 
@@ -246,4 +250,4 @@ Schema, default rows ("Wire" is the nil-UUID default row, plus "Coaxial"/"Ribbon
 
 #### wires.py
 
-DDL/seed for the `wires` global-catalog table; has the `wire_type_id` column matching `wire_types.py` and `add_wire(wire_type=...)`.
+DDL/seed for the `wires` global-catalog table; has the `wire_type_id` column matching `wire_types.py` and `add_wire(wire_type=...)`. Its project table `pjt_wires` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed.

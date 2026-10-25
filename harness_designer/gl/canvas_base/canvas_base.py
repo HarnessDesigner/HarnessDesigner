@@ -1122,8 +1122,15 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         # translucent shell and its debug overlay once per OTHER object in
         # the scene, compounding into exactly the over-darkened "muted"
         # look reported earlier.
-        if self._selected is not None:
-            view_obj = self._get_view_object(self._selected)
+        selected_view = (None if self._selected is None
+                         else self._get_view_object(self._selected))
+
+        if selected_view is None and self._selected is not None:
+            # Skipped, not dereferenced: an exception escaping paintGL ends the whole process in this build.
+            self._report_view_less_selection()
+
+        if selected_view is not None:
+            view_obj = selected_view
 
             # The selected object's own active handler (drag arrows /
             # rotation gizmo, whichever is armed) -- rendered here,
@@ -1225,6 +1232,27 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     @_check_types.do
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         raise NotImplementedError
+
+    # (editor name, object class name) pairs already reported by _report_view_less_selection
+    _reported_view_less: set[tuple[str, str]] = set()
+
+    @_check_types.do
+    def _report_view_less_selection(self) -> None:
+        """The selected object has no view in this canvas, so there is nothing to draw for it.
+
+        Every object that can be selected is supposed to have a view in every canvas, an inert placeholder if it has nothing
+        to show (see ``objects.objects_3d.circuit``). The missing view is reported once per canvas and object class, not
+        every frame.
+        """
+        key = (str(self._editor_name), type(self._selected).__name__)
+
+        if key in self._reported_view_less:
+            return
+
+        self._reported_view_less.add(key)
+        _logger.error(
+            f'the selected {key[1]} has no view in the {key[0]} canvas; every selectable object needs one '
+            f'(an inert placeholder if it has nothing to draw)')
 
     @_check_types.do
     def _set_view(self) -> None:
@@ -1342,6 +1370,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             return
 
         view_obj = self._get_view_object(self._selected)
+        if view_obj is None:
+            # _draw_scene already reported it this frame
+            return
 
         try:
             view_obj.render_selected_overlay(self._shaders)

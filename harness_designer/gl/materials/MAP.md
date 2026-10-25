@@ -6,7 +6,11 @@ Re-exports `generic`/`material`/`metallic`/`plastic`/`polished`/`rubber`/`glowin
 constructors — `materials.Plastic(color)`/`.Metallic(color)`/`.Polished(color)`/`.Rubber(color)`/
 `.Generic(color)`/`.Glowing(color)`, each a single-`Color`-arg constructor — are unchanged across
 the 2026-09-15 rewrite and are exactly what all 61 existing call sites already used (confirmed via
-`dep_trace.py --imported-by`); none of those call sites needed changes.
+`dep_trace.py --imported-by`); none of those call sites needed changes. `materials.Circuit` (2026-10-25) is `circuit.CircuitMaterial`, built with no argument.
+
+#### circuit.py
+
+`CircuitMaterial(GlowingMaterial)` -- what every member of a selected circuit is shown with (`materials.Circuit()`: emissive amber, `COLOR`). `objects.circuit.Circuit.highlight` hands it to `identify()` on each member, and `identify(None)` restores the member's own material. The colour is a class constant, not a `Config.colors` entry. Added 2026-10-25.
 
 #### generic.py
 

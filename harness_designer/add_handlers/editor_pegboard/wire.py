@@ -57,6 +57,7 @@ from ...objects import terminal as _terminal
 from ...objects import splice as _splice
 from ...objects import wire_layout as _wire_layout
 from ...handlers import wire_snap as _wire_snap
+from ...handlers import wire_circuit as _wire_circuit
 from ...handlers import wire_slack as _wire_slack
 from ...wire_routing import reroute as _wire_reroute
 from ...gl import materials as _materials
@@ -397,6 +398,8 @@ class Wire(_base.AddHandlerBase):
         if not self._preexisting_wire:
             self.mainframe.project.add_wire(self.target)
 
+        _wire_circuit.reconcile_wire_circuit(self.mainframe.project, self.target)
+
         self._finalized = True
 
     @_check_types.do
@@ -414,6 +417,8 @@ class Wire(_base.AddHandlerBase):
                 'start' if is_start else 'stop', self._hover_kind, self._hover_obj)
 
         _wire_slack.reconcile(self.mainframe, self.target)
+
+        _wire_circuit.reconcile_wire_circuit(self.mainframe.project, self.target)
 
         self._clear_hover()
         self.target.identify(None)

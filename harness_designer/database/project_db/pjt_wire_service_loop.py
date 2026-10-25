@@ -13,6 +13,7 @@ from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultSt
 from . import pjt_circuit as _pjt_circuit
 from ..global_db import wire as _wire
 from .mixins import (
+    WireOperatingTempMixin,
     Angle3DMixin, Angle3DControl,
     AnglePegboardMixin, AnglePegboardControl,
     StartStopPosition3DMixin, StartStopPosition3DControl,
@@ -141,7 +142,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, start_point3d_id: bytes, stop_point3d_id: bytes,
-               circuit_id: bytes, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
+               circuit_id: bytes | None, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -168,7 +169,10 @@ class PJTWireServiceLoopsTable(PJTTableBase):
             quat3d=str([float(str(v)) for v in quat.tolist()]), is_visible3d=int(is_visible),
             start_point_pegboard_id=None, stop_point_pegboard_id=None, notes='',
             angle3d='[0.0, 0.0, 0.0]', quat_pegboard='[1.0, 0.0, 0.0, 0.0]',
-            angle_pegboard='[0.0, 0.0, 0.0]', is_visible_pegboard=1, smooth=None)
+            angle_pegboard='[0.0, 0.0, 0.0]', is_visible_pegboard=1, smooth=None,
+            operating_temp=None)
+
+        self.db.pjt_circuits_table.members_changed(circuit_id)
 
         return PJTWireServiceLoop(self, db_id)
 
@@ -176,13 +180,25 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 @capturable()
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartStopPosition3DMixin,
                          StartStopPositionPegboardMixin,
-                         PartMixin, Visible3DMixin, VisiblePegboardMixin, NotesMixin, NameMixin, SmoothMixin):
+                         PartMixin, Visible3DMixin, VisiblePegboardMixin, NotesMixin, NameMixin, SmoothMixin,
+                         WireOperatingTempMixin):
     """Represent a PJT wire service loop in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     _table: PJTWireServiceLoopsTable = None
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this service loop row, then tell its circuit its member
+        list changed.
+        """
+        circuit_id = self.circuit_id
+
+        super().delete()
+
+        self._table.db.pjt_circuits_table.members_changed(circuit_id)
 
     @_check_types.do
     def get_object(self) -> "_wire_service_loop_obj.WireServiceLoop":
@@ -279,23 +295,30 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
     @property
     @_check_types.do
     def length_mm(self) -> float:
-        """Return the length mm.
+        """Return the length of wire in the loop, in millimeters.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        The length of the loop that is drawn (``shapes/cylinder_helix.create_vbo``), measured along the wire's centre line: a
+        straight lead-in and lead-out of one wire diameter each, and one turn of a helix whose centre track is two wire diameters
+        across (the coil's inside diameter is one wire diameter, its outside diameter three) with a pitch of 1.15 wire diameters.
+        Every figure scales with the wire's outside diameter.
 
-        :returns: Property value. UNKNOWN details.
+        :returns: The length in millimeters.
         :rtype: float
         """
-        diameter = self.part.od_mm
-        pitch = diameter + diameter * 0.15
-        height = diameter + diameter * 0.15
+        diameter = float(self.part.od_mm)
 
-        length = ((height / pitch) *
-                  math.sqrt(math.pow(math.pi * diameter, 2.0) +
-                            math.pow(pitch, 2.0)))
-        length += diameter
+        # create_vbo sweeps the wire along Helix(radius=diameter, pitch=height=diameter + diameter * 0.15), so the helix's
+        # radius is one wire diameter: the centre line is a circle two wire diameters across
+        radius = diameter
+        pitch = height = diameter + diameter * 0.15
+        num_turns = height / pitch
 
-        return length
+        total_circumference = 2 * math.pi * radius * num_turns
+
+        length = math.sqrt(total_circumference ** 2 + height ** 2)
+
+        # plus the two straight tails, a wire diameter each
+        return length + diameter * 2.0
 
     @property
     @_check_types.do
@@ -355,12 +378,45 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        resistance = self.part.resistance_1km
+        return self._resistance_over(self.length_mm)
 
+    @_check_types.do
+    def _resistance_over(self, length_mm: float) -> float:
+        """The resistance, in ohms, of *length_mm* of this wire service loop.
+
+        :attr:`resistance` for a length the caller already has: working out
+        ``length_mm`` can mean walking the whole route, so ``part_data()`` does it
+        once and hands the number to everything that needs it.
+
+        :param length_mm: The length in millimeters.
+        :type length_mm: float
+        :returns: The resistance in ohms.
+        :rtype: float
+        """
+        resistance = self.part.resistance_1km
         # resistance per millimeter
         resistance /= 1000000.0
 
-        return resistance * self.length_mm
+        return resistance * length_mm
+
+    @property
+    @_check_types.do
+    def load(self) -> float:
+        """The current, in amps, that flows through this wire service loop: what every
+        load terminal beyond it draws, at the voltage that actually reaches
+        them (the voltage terminal's voltage less the drop up to here).
+        Everything between the voltage terminal and this wire service loop is not part of
+        the number. ``0.0`` when it is in no circuit, or its circuit has no
+        voltage terminal.
+
+        :returns: The current in amps.
+        :rtype: float
+        """
+        circuit_id = self.circuit_id
+        if circuit_id is None:
+            return 0.0
+
+        return self._table.db.pjt_circuits_table[circuit_id].load_at(self)
 
     @property
     @_check_types.do
@@ -411,8 +467,17 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :param value: Value to store or process.
         :type value: bytes | None
         """
+        old_circuit_id = self.circuit_id
+
         self._table.update(self._db_id, circuit_id=value)
+
+        circuits_table = self._table.db.pjt_circuits_table
+        circuits_table.members_changed(old_circuit_id, value)
         self._populate('circuit_id')
+
+        # a circuit that is added or changes reaches every connected object
+        if value != old_circuit_id:
+            circuits_table.propagate(self, value)
 
     @property
     @dump_property(severity=2)
@@ -501,7 +566,7 @@ class PJTWireServiceLoopControl(QtWidgets.QTabWidget, LazyTabMixin):
         elif page is self._visible_page:
             self.visible3d_ctrl.set_obj(self.db_obj)
         elif page is self._circuit_page:
-            self.circuit_ctrl.set_obj(None if self.db_obj is None else self.db_obj.circuit)
+            self.circuit_ctrl.set_obj(self.db_obj)
         elif page is self._part_page:
             self.wire_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True

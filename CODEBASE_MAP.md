@@ -126,6 +126,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - cpa_lock_types.py
       - cpa_locks.py
       - datasheets.py
+      - deratings.py
       - directions.py
       - families.py
       - file_types.py
@@ -199,6 +200,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - cpa_lock.py
       - cpa_lock_type.py
       - datasheet.py
+      - derating.py
       - direction.py
       - family.py
       - file_types.py
@@ -241,6 +243,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
         - compat_housings.py
         - compat_seals.py
         - compat_terminals.py
+        - derating.py
         - description.py
         - dimension.py
         - direction.py
@@ -409,6 +412,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - culling.pyx
     - materials/
       - __init__.py
+      - circuit.py
       - generic.py
       - glowing.py
       - material.py
@@ -734,6 +738,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - bundle.py
       - bundle_layout.py
       - cavity.py
+      - circuit.py
       - cover.py
       - cpa_lock.py
       - generic.py
@@ -790,6 +795,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - bundle.py
       - bundle_layout.py
       - cavity.py
+      - circuit.py
       - cover.py
       - cpa_lock.py
       - generic.py
@@ -876,6 +882,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - editor_3d/
       - __init__.py
       - generic.py
+      - wire_roll.py
     - editor_pegboard/
       - __init__.py
       - generic.py
@@ -1403,7 +1410,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - editor_assembly/
       - __init__.py
       - editor_assembly.py
-    - editor_ciruit/
+    - editor_circuit/
       - __init__.py
       - bitmaps.py
       - design_rules.py

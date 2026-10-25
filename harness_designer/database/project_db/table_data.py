@@ -7,6 +7,7 @@ Only project tables (``pjt_*``) use this. Global tables are not cached here.
 See WRITE_DESIGN.md sections 4.1-4.8 for the flow this implements.
 """
 
+import threading
 from typing import Any
 
 from ... import check_types as _check_types
@@ -22,6 +23,13 @@ _Row = dict[str, _CellValue]
 #   True  -- removed as soon as delete() is called. Reads raise RowDeletedError.
 #   False -- kept until the flush commits. Reads still succeed; changes are ignored.
 RAW_DELETE_IMMEDIATE = True
+
+
+# A table with fewer rows than this is scanned: a scan that short costs about what keeping an index current does.
+_INDEX_MIN_ROWS = 32
+
+# An index entry that holds more than this share of the table narrows nothing, so the table is scanned instead.
+_INDEX_MAX_SHARE = 0.5
 
 
 class RowDeletedError(Exception):
@@ -72,7 +80,15 @@ def _row_matches(row: _Row, where: dict[str, _CellValue], use_or: bool) -> bool:
 
 @capturable(severity=1)
 class TableData:
-    """Raw row data and pending writes for one project table."""
+    """Raw row data and pending writes for one project table.
+
+    A ``select`` that names columns (anything but a lone ``id``) is answered from an index on one of them, not by
+    looking at every row: the first time a column is asked about, its values are mapped to the ids of the rows that
+    hold them, and from then on every write that reaches ``_rows`` keeps that map current (``_store``, ``_remove``
+    and ``_revalue`` are the only places that touch it). The rows an index finds are put back in the order a scan
+    would have returned them, and each is checked against the whole ``where`` again, so the result is exactly what
+    the scan gave. The index is a shortcut, never the source of truth: ``_rows`` is.
+    """
 
     __dump_schema__ = (
         Attr('table_name', severity=1),
@@ -100,6 +116,17 @@ class TableData:
         self._field_set = frozenset(field_names)
 
         self._rows: dict[bytes, _Row] = {}
+
+        # Where each row sits in _rows, counted up as rows arrive, so rows an index finds can be handed back in
+        # the order a scan would have found them.
+        self._order: dict[bytes, int] = {}
+        self._next_order = 0
+
+        # column name -> {value -> ids of the rows holding it}, each built the first time the column is asked about.
+        # The lock keeps a build, and a write that has to update the indexes, from running at the same time as
+        # another thread reading through them (the circuit dock reads from a worker thread).
+        self._indexes: dict[str, dict[_CellValue, set[bytes]]] = {}
+        self._lock = threading.RLock()
         self._inserts: set[bytes] = set()
         self._updates: dict[bytes, dict[str, _CellValue]] = {}
         self._deletes: set[bytes] = set()
@@ -120,8 +147,17 @@ class TableData:
             'WHERE id >= ? AND id <= ?;',
             (low, high))
 
-        for row in connector.fetchall():
-            self._rows[row[0]] = dict(zip(self.field_names, row))
+        with self._lock:
+            for row in connector.fetchall():
+                row_id = row[0]
+                self._rows[row_id] = dict(zip(self.field_names, row))
+
+                if row_id not in self._order:
+                    self._next_order += 1
+                    self._order[row_id] = self._next_order
+
+            # whatever was indexed is built again, from these rows, the next time it is asked for
+            self._indexes.clear()
 
     @_check_types.do
     def select(self, *fields: tuple[str], OR: bool = False,
@@ -155,7 +191,7 @@ class TableData:
             rows = [self._rows[id]]
 
         else:
-            rows = list(self._rows.values())
+            rows = self._candidates(where, OR)
 
         results = []
         for row in rows:
@@ -163,6 +199,159 @@ class TableData:
                 results.append(tuple(row[field] for field in fields))
 
         return results
+
+    @_check_types.do
+    def _candidates(self, where: dict[str, _CellValue], use_or: bool) -> list[_Row]:
+        """The cached rows a select has to look at, in the order a scan would have found them.
+
+        Every row when an index cannot narrow the search: the table is short, the conditions are alternatives,
+        there are none or they are all NULL tests, a value cannot be hashed, or the narrowest index entry still
+        holds most of the table. Otherwise only the rows the narrowest index entry names; the caller still checks
+        each against the whole ``where``.
+
+        :param where: Column names and the values to match.
+        :type where: dict[str, _CellValue]
+        :param use_or: ``True`` when matching any condition rather than all of them.
+        :type use_or: bool
+        :returns: The rows to test.
+        :rtype: list[_Row]
+        :raises KeyError: A named column does not exist (once the table is long enough to be indexed; a shorter
+            table raises it from the scan, as it always did, once it holds a row).
+        """
+        rows = self._rows
+
+        if use_or or not where or len(rows) < _INDEX_MIN_ROWS:
+            return list(rows.values())
+
+        unknown = set(where) - self._field_set
+        if unknown:
+            raise KeyError(sorted(unknown)[0])
+
+        with self._lock:
+            indexed = [column for column in where if column in self._indexes]
+
+            if not indexed:
+                # a NULL test alone is a poor thing to index: most rows usually share it
+                column = next((name for name, value in where.items() if value is not None), None)
+                if column is None:
+                    return list(rows.values())
+
+                self._build_index(column)
+                indexed = [column]
+
+            narrowest = None
+            for column in indexed:
+                try:
+                    found = self._indexes[column].get(where[column])
+                except TypeError:
+                    # a value that cannot be hashed; the scan can still compare it
+                    return list(rows.values())
+
+                if found is None:
+                    return []
+
+                if narrowest is None or len(found) < len(narrowest):
+                    narrowest = found
+
+            if len(narrowest) > len(rows) * _INDEX_MAX_SHARE:
+                return list(rows.values())
+
+            order = self._order
+            ids = sorted(narrowest, key=lambda row_id: order.get(row_id, 0))
+
+        found_rows = [rows.get(row_id) for row_id in ids]
+        return [row for row in found_rows if row is not None]
+
+    @_check_types.do
+    def _build_index(self, column: str) -> None:
+        """Map every value in *column* to the ids of the rows that hold it. Call with the lock held.
+
+        :param column: A column of this table.
+        :type column: str
+        """
+        index: dict[_CellValue, set[bytes]] = {}
+
+        for row_id, row in list(self._rows.items()):
+            index.setdefault(row[column], set()).add(row_id)
+
+        self._indexes[column] = index
+
+    @_check_types.do
+    def _store(self, row_id: bytes, row: _Row) -> None:
+        """Put a new row in the cache and in every index. The one way a row enters ``_rows``.
+
+        :param row_id: The row id.
+        :type row_id: bytes
+        :param row: The row, every column.
+        :type row: _Row
+        """
+        with self._lock:
+            self._rows[row_id] = row
+
+            self._next_order += 1
+            self._order[row_id] = self._next_order
+
+            for column, index in self._indexes.items():
+                index.setdefault(row[column], set()).add(row_id)
+
+    @_check_types.do
+    def _remove(self, row_id: bytes) -> None:
+        """Take a row out of the cache and out of every index. The one way a row leaves ``_rows``.
+
+        :param row_id: The row id. A row that is not cached is ignored.
+        :type row_id: bytes
+        """
+        with self._lock:
+            row = self._rows.pop(row_id, None)
+            self._order.pop(row_id, None)
+
+            if row is None:
+                return
+
+            for column, index in self._indexes.items():
+                found = index.get(row[column])
+
+                if found is not None:
+                    found.discard(row_id)
+
+                    if not found:
+                        del index[row[column]]
+
+    @_check_types.do
+    def _revalue(self, row_id: bytes, row: _Row, values: dict[str, _CellValue]) -> None:
+        """Give a cached row new values, moving it to its new place in every index that holds one of them.
+        The one way a cached row changes.
+
+        :param row_id: The row id.
+        :type row_id: bytes
+        :param row: The cached row.
+        :type row: _Row
+        :param values: Column names and their new values.
+        :type values: dict[str, _CellValue]
+        """
+        with self._lock:
+            for column, new in values.items():
+                index = self._indexes.get(column)
+
+                if index is None:
+                    continue
+
+                old = row[column]
+
+                if old is new or old == new:
+                    continue
+
+                found = index.get(old)
+
+                if found is not None:
+                    found.discard(row_id)
+
+                    if not found:
+                        del index[old]
+
+                index.setdefault(new, set()).add(row_id)
+
+            row.update(values)
 
     @_check_types.do
     def row(self, row_id: bytes) -> tuple[_CellValue, ...] | None:
@@ -240,7 +429,7 @@ class TableData:
         if row_id in self._deletes:
             return
 
-        row.update(values)
+        self._revalue(row_id, row, values)
 
         if row_id not in self._inserts:
             self._updates.setdefault(row_id, dict()).update(values)
@@ -264,7 +453,7 @@ class TableData:
         if row_id in self._rows:
             raise KeyError(f'{self.table_name} already has row {row_id!r}')
 
-        self._rows[row_id] = dict(values)
+        self._store(row_id, dict(values))
         self._inserts.add(row_id)
 
     @_check_types.do
@@ -288,14 +477,14 @@ class TableData:
 
         if row_id in self._inserts:
             self._inserts.discard(row_id)
-            self._rows.pop(row_id, None)
+            self._remove(row_id)
             return
 
         self._updates.pop(row_id, None)
         self._deletes.add(row_id)
 
         if RAW_DELETE_IMMEDIATE:
-            self._rows.pop(row_id)
+            self._remove(row_id)
 
     @_check_types.do
     def delete_statement(self) -> tuple[str, list[tuple[_CellValue, ...]]] | None:
@@ -358,7 +547,7 @@ class TableData:
         """
         if not RAW_DELETE_IMMEDIATE:
             for row_id in self._deletes:
-                self._rows.pop(row_id, None)
+                self._remove(row_id)
 
         self._inserts.clear()
         self._updates.clear()
@@ -381,7 +570,7 @@ class TableData:
         if row_id in self._rows:
             raise KeyError(f'{self.table_name} already has row {row_id!r}')
 
-        self._rows[row_id] = dict(values)
+        self._store(row_id, dict(values))
 
     @_check_types.do
     def mirror_update(self, row_id: bytes, **values: dict[str, _CellValue]) -> None:
@@ -402,7 +591,7 @@ class TableData:
         if unknown:
             raise KeyError(f'{sorted(unknown)} not columns of {self.table_name}')
 
-        row.update(values)
+        self._revalue(row_id, row, values)
 
     @_check_types.do
     def mirror_delete(self, row_id: bytes) -> None:
@@ -415,4 +604,4 @@ class TableData:
         if row_id not in self._rows:
             raise RowDeletedError(self.table_name, row_id)
 
-        del self._rows[row_id]
+        self._remove(row_id)

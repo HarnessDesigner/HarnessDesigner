@@ -306,7 +306,7 @@ that could bite a future `grep`/forward-reference:
   is; it reads like an accidental name reuse)
 - `ProcessWorker` — `process/image_process.py:210` vs `process/model_process.py:751` (likely a
   parallel-worker pattern, same shape as the fan-out, but not documented as such)
-- `EditorCircuitPanel` — `ui/editor_ciruit/editor_circuit.py:45` (a `class
+- `EditorCircuitPanel` — `ui/editor_circuit/editor_circuit.py:45` (a `class
   EditorCircuitPanel(EditorCircuitPanel)` self-import-and-subclass idiom used elsewhere in this
   codebase, e.g. `SnapProbeSet`) vs `editor_widget.py:1330`, which is a **wholly unrelated**
   `QDockWidget` subclass with the same name — this one pairing isn't the usual idiom, it's a

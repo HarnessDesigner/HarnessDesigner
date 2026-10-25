@@ -646,11 +646,11 @@ Top-level files (`harness_designer/*.py`) are listed last under `(root)`.
 - [ ] `ui/editor_3d/editor_3d.py`
 - [ ] `ui/editor_assembly/__init__.py`
 - [ ] `ui/editor_assembly/editor_assembly.py`
-- [ ] `ui/editor_ciruit/__init__.py`
-- [ ] `ui/editor_ciruit/bitmaps.py`
-- [ ] `ui/editor_ciruit/design_rules.py`
-- [ ] `ui/editor_ciruit/editor_circuit.py`
-- [ ] `ui/editor_ciruit/editor_widget.py`
+- [ ] `ui/editor_circuit/__init__.py`
+- [ ] `ui/editor_circuit/bitmaps.py`
+- [ ] `ui/editor_circuit/design_rules.py`
+- [ ] `ui/editor_circuit/editor_circuit.py`
+- [ ] `ui/editor_circuit/editor_widget.py`
 - [ ] `ui/editor_db/__init__.py`
 - [ ] `ui/editor_db/accessory.py`
 - [ ] `ui/editor_db/base.py`

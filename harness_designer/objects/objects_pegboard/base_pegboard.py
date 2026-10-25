@@ -592,7 +592,9 @@ class BasePegboard(_objectsvar.BaseVar):
         rotation_handlers.editor_pegboard.generic's own module
         docstring), so there is no "pick a torus to activate" state and
         no sibling axis to switch to -- a miss on both protractor bands
-        just leaves the gizmo exactly as it is.
+        is a click-off: the gizmo closes on the LEFT_UP if nothing moved
+        in between (see :attr:`_rotation_click_missed`), so a left-drag
+        on open space still pans the camera with the gizmo left up.
         """
         rings = self._active_handler
         camera = self.pegboard.editor.camera
@@ -627,15 +629,26 @@ class BasePegboard(_objectsvar.BaseVar):
                 rings.objpegboard.end_inner_drag()
                 return True
 
+            missed = self._rotation_click_missed
+            self._rotation_click_missed = False
+
+            if missed and not had_motion:
+                # See Base3D._handle_rotation_interaction's own LEFT_UP.
+                rings.delete()
+                self._active_handler = None
+
             return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
+            self._rotation_click_missed = False
+
             if rings.objpegboard.begin_inner_drag(current_pos, camera):
                 return True
 
             if rings.objpegboard.click_outer_snap():
                 return True
 
+            self._rotation_click_missed = True
             return False
 
         return False

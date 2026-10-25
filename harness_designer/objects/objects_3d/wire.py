@@ -471,30 +471,48 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._aabb[:] = aabb
 
     @_check_types.do
-    def _segment_world_corners(self) -> np.ndarray:
-        """World-space AABB corners (8 per segment) for every sub-segment,
-        stacked into one array -- the shared building block for both
-        _compute_obb and _compute_aabb's union-of-segments envelope."""
+    def segment_obbs(self) -> np.ndarray:
+        """(S, 8, 3) world-space oriented box of every sub-segment -- one per
+        wire section, S being 0 when every section is degenerate.
+
+        Corners are in the bounds pool's own OBB order (0 = min corner, 1
+        toggles x, 3 toggles y, 4 toggles z, see _compute_obb), so anything
+        built for a pool row works on one of these boxes unchanged. Unlike
+        self.obb -- the union envelope of every section, which has no useful
+        orientation once the wire bends -- each box is tight to its own
+        section's cylinder; this is what a collision test against a wire
+        needs (see objects_3d.wire_service_loop.WireServiceLoop).
+        """
         local_min = self._vbo.local_aabb[0]
         local_max = self._vbo.local_aabb[1]
         x1, y1, z1 = local_min
         x2, y2, z2 = local_max
 
         local_corners = np.array([
-            [x1, y1, z1], [x1, y1, z2],
-            [x1, y2, z1], [x1, y2, z2],
-            [x2, y1, z1], [x2, y1, z2],
-            [x2, y2, z1], [x2, y2, z2]
+            [x1, y1, z1], [x2, y1, z1], [x2, y2, z1], [x1, y2, z1],
+            [x1, y1, z2], [x2, y1, z2], [x2, y2, z2], [x1, y2, z2]
         ], dtype=np.float32)
 
-        all_corners = []
+        boxes = []
         for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
             corners = local_corners * seg_scale.as_numpy
             corners = corners @ seg_angle
             corners = corners + seg_position.as_numpy
-            all_corners.append(corners)
+            boxes.append(corners)
 
-        if not all_corners:
+        if not boxes:
+            return np.empty((0, 8, 3), dtype=np.float32)
+
+        return np.stack(boxes, axis=0)
+
+    @_check_types.do
+    def _segment_world_corners(self) -> np.ndarray:
+        """World-space AABB corners (8 per segment) for every sub-segment,
+        stacked into one array -- the shared building block for both
+        _compute_obb and _compute_aabb's union-of-segments envelope."""
+        boxes = self.segment_obbs()
+
+        if not len(boxes):
             # Every sub-segment is degenerate (start and stop, and any
             # waypoints between them, all coincide) -- a real state a
             # wire can transiently be in (e.g. a wire service loop's own
@@ -506,7 +524,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             point = self._p1.as_numpy
             return np.tile(point, (8, 1)).astype(np.float32)
 
-        return np.concatenate(all_corners, axis=0)
+        return boxes.reshape(-1, 3)
 
     @_check_types.do
     def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:

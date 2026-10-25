@@ -57,7 +57,7 @@ Not listed in CODEBASE_MAP.md's `shapes/` file list (stale). Its `create_vbo` re
 `NonPooledVBOHandler`, breaking the `PooledVBOHandler` pattern every other primitive in this
 package uses — noted but not investigated further; if extending it or copying its structure for a
 new shape, check whether that's because disc/ring instances are inherently non-poolable (e.g.
-per-instance dimensions too varied to pool) before assuming it's an oversight.
+per-instance dimensions too varied to pool) before assuming it's an oversight. `PJTWireServiceLoop.length_mm` is worked out from this module's loop numbers (the helix's radius, pitch and height and the two straight pieces in `create_vbo`): change one and change `length_mm` in `database/project_db/pjt_wire_service_loop.py` with it (it has no constants of its own: it works the helix out from the wire diameter, and adds the two tails as `diameter * 2.0`).
 
 #### helix.py
 

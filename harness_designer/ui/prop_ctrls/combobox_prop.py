@@ -54,7 +54,10 @@ class ComboBoxProperty(QtWidgets.QWidget):
 
         self.setLayout(sizer)
 
-        self._ctrl.currentTextChanged.connect(self._on_change)
+        # The value is committed when the user picks an entry from the list or presses Enter, never while typing. An editable
+        # combo box emits currentTextChanged for every keystroke, and the handlers behind these controls create a database
+        # row for a value they have not seen, so typing 'new' used to create the rows 'n', 'ne' and 'new'.
+        self._ctrl.textActivated.connect(self._on_change)
         self._ctrl.lineEdit().returnPressed.connect(self._on_change_from_enter)
 
     @_check_types.do
@@ -126,7 +129,7 @@ class ComboBoxProperty(QtWidgets.QWidget):
         """
 
         self._choices = []
-        self._ctrl.clear()
+        self._ctrl.Clear()
 
     @_check_types.do
     def GetItems(self) -> list[str]:
@@ -151,8 +154,8 @@ class ComboBoxProperty(QtWidgets.QWidget):
         self._choices = items
         self._ctrl.blockSignals(True)
 
-        self._ctrl.clear()
-        self._ctrl.addItems(items)
+        # AutoCompleteComboBox.SetItems also gives the list to the completer; clear()/addItems() would leave it empty.
+        self._ctrl.SetItems(items)
 
         self._ctrl.blockSignals(False)
 

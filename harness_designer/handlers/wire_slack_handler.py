@@ -51,6 +51,16 @@ class WireSlackHandler:
     (the owning ``Wire`` facade, as a plain attribute); once that's
     gone, every one of those weak references dies too, and the
     bindings quietly stop firing.
+
+    A DELETED wire is not gone yet, though: its facade and this handler
+    refer to each other, so both live on until the garbage collector
+    breaks the cycle, and until then this handler would keep answering
+    moves of the wire's points -- reconciling a wire whose row no
+    longer exists (``KeyError`` from the table, seen when a wire
+    service loop was added: it deletes the piece of wire it replaces,
+    then moves the very point that piece was bound to). So
+    ``Wire.delete`` calls :meth:`release`, after which this handler
+    does nothing.
     """
 
     # Shared by EVERY instance -- deliberately a class attribute, not
@@ -63,6 +73,7 @@ class WireSlackHandler:
     @_check_types.do
     def __init__(self, wire: "_wire_obj.Wire"):
         self._wire = wire
+        self._released = False
 
         # What register_3d()/register_pegboard() bound LAST time, as weak
         # refs -- not strong refs, so this still holds no Point reference
@@ -119,6 +130,9 @@ class WireSlackHandler:
         already re-binds that view's own ``_update_position`` callback
         whenever the route changes.
         """
+        if self._released:
+            return
+
         obj3d = self._wire.obj3d
         points = [obj3d.start_position, obj3d.stop_position]
         points.extend(waypoint.point for waypoint in self._wire.db_obj.waypoints3d)
@@ -159,6 +173,9 @@ class WireSlackHandler:
         solver CAN reposition independently) are still bound
         individually, same as before.
         """
+        if self._released:
+            return
+
         wire_db_obj = self._wire.db_obj
         ptables = self._wire.mainframe.project.ptables
         leading, trailing = _rope_pull_handler.stub_boundary_for_chain(ptables, wire_db_obj)
@@ -189,6 +206,26 @@ class WireSlackHandler:
             if point is not None:
                 point.unbind(self._on_pegboard_changed)
 
+        self._bound_pegboard_refs = []
+
+    @_check_types.do
+    def release(self) -> None:
+        """Stop answering point moves for good: the wire was deleted.
+
+        Unbinds from every point it is bound to and makes every later call a no-op (``register_3d``/``register_pegboard`` bind
+        nothing, ``_reconcile`` returns), so the deleted wire's row is never looked up again. Called by ``Wire.delete``.
+        """
+        self._released = True
+
+        for refs, callback in ((self._bound_3d_refs, self._on_3d_changed),
+                               (self._bound_pegboard_refs, self._on_pegboard_changed)):
+            for ref in refs:
+                point = ref()
+
+                if point is not None:
+                    point.unbind(callback)
+
+        self._bound_3d_refs = []
         self._bound_pegboard_refs = []
 
     @_check_types.do
@@ -254,6 +291,10 @@ class WireSlackHandler:
         creates/destroys a real ``WireLayout`` on every single frame a
         point happens to move.
         """
+        # The wire was deleted (see release): its row is gone, so there is nothing to reconcile and looking it up raises KeyError.
+        if self._released:
+            return
+
         # A commit (rope_pull_handler._commit_points) already reconciles
         # every chain its own cascade touched, and the points it moves
         # fire this very callback synchronously -- re-entering here ran a
@@ -275,5 +316,9 @@ class WireSlackHandler:
             _rope_pull_handler.realize_length_change(
                 mainframe, self._wire.db_obj, in_progress=in_progress)
         finally:
-            self.register_pegboard()
-            WireSlackHandler._reconciling_any = False
+            # The flag is cleared even when re-registering raises: left set, it would make every wire's reconcile return early for the
+            # rest of the session.
+            try:
+                self.register_pegboard()
+            finally:
+                WireSlackHandler._reconciling_any = False

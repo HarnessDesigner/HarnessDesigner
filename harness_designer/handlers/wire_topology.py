@@ -177,6 +177,12 @@ def split_wire_at_point(
         is_visible3d, is_visible2d,
         layer_view_point_id, layer_id, is_filler_wire)
 
+    # Both halves keep the temperature the wire worked in.
+    operating_temp = orig.operating_temp
+    if operating_temp is not None:
+        wire1_db.operating_temp = operating_temp
+        wire2_db.operating_temp = operating_temp
+
     paths_table = ptables.pjt_wire_paths_table
     paths_table.set_route(wire1_db.db_id, '3d', [wp.db_id for wp in before_3d])
     paths_table.set_route(wire2_db.db_id, '3d', [wp.db_id for wp in after_3d])
@@ -273,6 +279,15 @@ def merge_wires(
         start_id_2d, stop_id_2d,
         is_visible3d, is_visible2d,
         layer_view_point_id, layer_id, is_filler_wire)
+
+    # The merged wire works in the temperature the first half worked in, or
+    # else the second's.
+    operating_temp = wire_before.db_obj.operating_temp
+    if operating_temp is None:
+        operating_temp = wire_after.db_obj.operating_temp
+
+    if operating_temp is not None:
+        merged_db.operating_temp = operating_temp
 
     paths_table = ptables.pjt_wire_paths_table
     paths_table.set_route(

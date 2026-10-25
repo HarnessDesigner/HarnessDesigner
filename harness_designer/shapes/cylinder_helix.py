@@ -199,6 +199,9 @@ def create_vbo() -> "_vbo_handler.VBOHandlerBase":
     # Create the wire
     cyl = build123d.Cylinder(wire_r, diameter, align=build123d.Align.NONE)
 
+    # PJTWireServiceLoop.length_mm is worked out from THESE numbers (a lead-in and a lead-out of `diameter` each, and `height / pitch`
+    # turns of a helix of this radius and pitch): if the helix's radius, pitch or height, or either straight piece, changes here,
+    # change PJTWireServiceLoop.length_mm in database/project_db/pjt_wire_service_loop.py to match.
     # Create helix path (centered at origin, offsets along Z)
     loop_helix = build123d.Helix(
         radius=float(diameter),

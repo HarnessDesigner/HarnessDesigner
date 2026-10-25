@@ -546,6 +546,8 @@ class Project:
         if pegboard_bounds is None:
             mainframe.editor_pegboard.editor.request_fit_all()
 
+        mainframe.editor_circuit.editor.load_project(self.ptables)
+
     @_check_types.do
     def begin_gesture(self) -> None:
         """Open one move/rotate gesture -- see
@@ -668,6 +670,10 @@ class Project:
             obj.delete()
 
         for obj in list(self._wires.values()):
+            obj.delete()
+
+        # After every member is gone, so each circuit is already empty.
+        for obj in list(self._circuits.values()):
             obj.delete()
 
         for obj in list(self._notes.values()):
@@ -1153,6 +1159,88 @@ class Project:
         :rtype: list[_wire_service_loop.WireServiceLoop]
         """
         return list(self._wire_service_loops.values())
+
+    @_check_types.do
+    def delete_circuit(self, db_id: bytes) -> None:
+        """Remove a circuit from the registry.
+
+        Only drops the registry entry; the row and the object's own teardown
+        are :meth:`Circuit.delete`'s job.
+
+        :param db_id: Row id of the circuit.
+        :type db_id: bytes
+        """
+        if self._circuits.pop(db_id, None) is not None:
+            self.obj_count -= 1
+
+    @_check_types.do
+    def add_circuit(self, obj: _circuit.Circuit) -> None:
+        """Add a circuit to the registry.
+
+        :param obj: The circuit to register.
+        :type obj: :class:`_circuit.Circuit`
+        """
+        self._circuits[obj.db_obj.db_id] = obj
+        self.obj_count += 1
+
+    @_check_types.do
+    def get_circuit(self, db_id: bytes) -> _circuit.Circuit:
+        """Return the circuit with the given row id.
+
+        :param db_id: Row id of the circuit.
+        :type db_id: bytes
+        :returns: The circuit object.
+        :rtype: :class:`_circuit.Circuit`
+        """
+        db_obj = self.ptables.pjt_circuits_table[db_id]
+        return db_obj.get_object()
+
+    @_check_types.do
+    def create_circuit(self, circuit_num: int | None = None, name: str = '',
+                       description: str = '') -> _circuit.Circuit:
+        """Create a circuit: insert the row, wrap it and register it.
+
+        The one place a circuit comes into being after the project has
+        loaded, so the property panel, the wire handlers and the circuit
+        editor all end up with a registered object and an object-browser
+        node.
+
+        :param circuit_num: The circuit number. ``None`` takes the next free
+            number (:meth:`PJTCircuitsTable.next_circuit_num`).
+        :type circuit_num: int | None
+        :param name: The circuit's name.
+        :type name: str
+        :param description: The circuit's description.
+        :type description: str
+        :returns: The new circuit object.
+        :rtype: :class:`_circuit.Circuit`
+        """
+        table = self.ptables.pjt_circuits_table
+
+        if circuit_num is None:
+            circuit_num = table.next_circuit_num()
+
+        db_obj = table.insert(circuit_num, name, description)
+
+        obj = _circuit.Circuit(self.mainframe, db_obj)
+        self.add_circuit(obj)
+
+        return obj
+
+    @_check_types.do
+    def merge_circuits(self, keep_id: bytes, drop_id: bytes) -> None:
+        """Merge one circuit into another and delete the emptied one.
+
+        :param keep_id: Row id of the circuit that survives.
+        :type keep_id: bytes
+        :param drop_id: Row id of the circuit whose members move to *keep_id*
+            and which is then deleted (object, browser node and row).
+        :type drop_id: bytes
+        """
+        circuits_table = self.ptables.pjt_circuits_table
+        circuits_table[keep_id].merge_from(circuits_table[drop_id])
+
+        self.get_circuit(drop_id).delete()
 
     @property
     @_check_types.do

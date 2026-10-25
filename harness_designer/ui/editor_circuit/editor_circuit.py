@@ -44,7 +44,7 @@ class EditorCircuit(_dock_base.DockBase):
 
 class EditorCircuitPanel(_editor_widget.EditorCircuitPanel):
     """
-    Represent an editor circuit panel in :mod:`harness_designer.ui.editor_ciruit.editor_circuit`.
+    Represent an editor circuit panel in :mod:`harness_designer.ui.editor_circuit.editor_circuit`.
     """
 
     @_check_types.do

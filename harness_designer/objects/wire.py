@@ -247,6 +247,16 @@ class Wire(_ObjectBase):
         # TODO: If a wire segment is connected to other wire segments
         #       then the layouts at the ends that are attached shuld also be
         #       deleted.
+
+        # Stop the slack handler answering moves of this wire's points right now. This facade and the handler refer to each other, so
+        # both live on until the garbage collector runs, and until then the handler would reconcile a wire whose row is gone (a
+        # KeyError when a wire service loop was added: it deletes the piece of wire it replaces, then moves a point that piece was
+        # bound to).
+        slack_handler = getattr(self, '_slack_handler', None)
+
+        if slack_handler is not None:
+            slack_handler.release()
+
         super().delete()
 
         # Leave whatever each end is attached to. Their wire lists hold weak

@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import objects as _objects
     from ...gl import shaders as _shaders
+    from ...gl import materials as _materials
     from ...gl.canvas_base import camera_base as _camera_base
     from ...gl import context as _gl_context
     from .. import rotation_rings as _rotation_rings
@@ -50,6 +51,11 @@ class Rings3D(_base_3d.Base3D):
     _pick_priority = -1
 
     _rings: dict | None = None
+
+    # Whether each axis gets its own always-on, click-to-activate torus. The
+    # single ring of WireRollRings3D has nothing to pick between, so it comes
+    # up with its protractor already active instead.
+    _HAS_TORUS = True
 
     @_check_types.do
     def __init__(self, parent: "_rotation_rings.RotationRings", selected: "_objects.ObjectBase",
@@ -67,13 +73,26 @@ class Rings3D(_base_3d.Base3D):
         # Base3D doesn't keep its own mainframe reference.
         self.mainframe = mainframe
 
-        self._axes = AXES
+        self._axes = self._ring_axes()
         self._active_axis = None
 
         self._build_colors()
 
         self._obj3d = obj3d
         self._selected = selected
+
+        # A wire service loop turns about its CENTROID, not about its position
+        # (the start point, which WireServiceLoop._update_angle moves to keep
+        # the centroid still), so its rings are centered on the centroid.
+        # Centered on the position they wobbled round the centroid with
+        # every rotation, and their ticks stayed behind.
+        self._tracks_centroid = selected.is_wire_service_loop
+
+        # The Point every ring is centered on and the Angle every ring reads
+        # its orientation from -- see _make_center/_make_ring_angle.
+        self._center = self._make_center(obj3d)
+        self._ring_angle = self._make_ring_angle(obj3d)
+
         self._radius, self._object_radius = self._compute_radius_values()
 
         # Signature of the config values baked into materials/meshes —
@@ -86,14 +105,9 @@ class Rings3D(_base_3d.Base3D):
         # shares the object's own Point instance directly, so they are
         # always exactly centered on the object with no follow-the-leader
         # callback needed.
-        obj_angle = obj3d.angle
-        obj_scale = obj3d.scale
-
-        obj_angle.bind(self._on_obj_angle)
-        self._obj_angle = obj_angle
-
-        obj_scale.bind(self._on_obj_scale)
-        self._obj_scale = obj_scale
+        # (A wire service loop's rings are the exception: they hold their own
+        # centroid Point, kept current by _sync_center -- see above.)
+        self._bind_object(obj3d)
 
         scale = _point.Point(1.0, 1.0, 1.0)
         angle = _angle.Angle.from_euler(0, 0, 0)
@@ -106,11 +120,11 @@ class Rings3D(_base_3d.Base3D):
         with mainframe.editor3d.context:
             self._rings = {
                 axis: rotation_ring.RotationRing(
-                    axis, obj3d.position, obj_angle, self._radius, self._object_radius,
+                    axis, self._center, self._ring_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
                     self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
                     mainframe.editor3d.context, mainframe, _base_3d.Base3D,
-                    mainframe.editor3d.camera)
+                    mainframe.editor3d.camera, has_torus=self._HAS_TORUS)
                 for axis in self._axes
             }
 
@@ -118,9 +132,15 @@ class Rings3D(_base_3d.Base3D):
             # material is otherwise unused (render() never calls the base
             # implementation) -- reuse one axis's torus material rather
             # than plumb an Optional through Base3D's own type checks.
-            material = self._rings[self._axes[-1]].torus.material
+            material = self._ring_material()
             super().__init__(parent, None, None,
-                             angle, obj3d.position, scale, material)
+                             angle, self._center, scale, material)
+
+            # A ring with no torus has nothing to click to activate, so it
+            # comes up with its protractor already showing -- built here,
+            # inside the context, like the schematic and peg board gizmos.
+            if not self._HAS_TORUS:
+                self.activate(self._axes[0])
 
         self._floor_guard = False
         self._is_visible = True
@@ -158,7 +178,9 @@ class Rings3D(_base_3d.Base3D):
         old_sig = self._config_sig
         self._config_sig = self._current_config_sig()
 
-        if old_sig[1] != self._config_sig[1]:
+        # tube_diameter_scale only ever affects the torus, which a ring with
+        # none (the wire roll ring) does not have
+        if self._HAS_TORUS and old_sig[1] != self._config_sig[1]:
             for ring in self._rings.values():
                 ring.torus.rebuild(
                     float(Config.rotation_handler.tube_diameter_scale),
@@ -180,13 +202,21 @@ class Rings3D(_base_3d.Base3D):
         shifts ``_data`` by the position delta (the legacy world-space
         client-array semantics). The gizmo's mesh is local space with the
         transform done in uniforms, so neither applies. The sub-rings need
-        no update here — they all hold the same shared Point instance.
+        no update of their own position here — they all hold the same shared
+        Point instance and read it live. What they do need is a re-bake of
+        their ticks and labels, which are placed in world space from the
+        center when the ring's orientation changes (see
+        ``ProtractorRingBase.reposition_all``): a center that moves without
+        the orientation changing, as a wire service loop's does under a
+        collision roll, would otherwise leave them behind.
         """
         self._o_position = position.copy()
         self.numpy_position[:] = position.as_numpy
 
         self._compute_obb()
         self._compute_aabb()
+
+        self._refresh_rings()
 
     @_check_types.do
     def _compute_aabb(self) -> None:
@@ -221,8 +251,7 @@ class Rings3D(_base_3d.Base3D):
         # the position is the object's own Point instance — Base3D bound our
         # _update_position to it, so it must be released explicitly
         self._position.unbind(self._update_position)
-        self._obj_angle.unbind(self._on_obj_angle)
-        self._obj_scale.unbind(self._on_obj_scale)
+        self._unbind_object()
 
         try:
             with self.editor3d.context:
@@ -495,8 +524,10 @@ class Rings3D(_base_3d.Base3D):
         angle-dependent -- the object's own bounding box changes shape as
         it rotates -- so those still need refreshing here, every time.
         """
-        for ring in self._rings.values():
-            ring.on_object_angle_changed()
+        if self._tracks_centroid:
+            self._sync_center()
+
+        self._refresh_rings()
 
         self._compute_obb()
         self._compute_aabb()
@@ -509,6 +540,94 @@ class Rings3D(_base_3d.Base3D):
         has already been recomputed by the time this runs.
         """
         self._compute_size()
+
+    @_check_types.do
+    def _ring_axes(self) -> tuple:
+        """The axes this gizmo has a ring for."""
+        return AXES
+
+    @_check_types.do
+    def _make_center(self, obj3d: "_base_3d.Base3D") -> _point.Point:
+        """The Point every ring is centered on.
+
+        An ordinary object's own position Point, shared (never copied), so the
+        rings stay exactly on the object with nothing to keep in step. A wire
+        service loop turns about its centroid, which is not its position, so
+        it gets a Point of its own, kept on the centroid by
+        :meth:`_sync_center`.
+        """
+        if self._tracks_centroid:
+            return obj3d.centroid
+
+        return obj3d.position
+
+    @_check_types.do
+    def _make_ring_angle(self, obj3d: "_base_3d.Base3D") -> _angle.Angle:
+        """The Angle every ring reads its orientation from: the object's own,
+        shared (never copied).
+        """
+        return obj3d.angle
+
+    @_check_types.do
+    def _ring_material(self) -> "_materials.GLMaterial":
+        """The material Base3D.__init__ is handed. render() never uses it
+        (see __init__), so the first torus's will do.
+        """
+        return self._rings[self._axes[-1]].torus.material
+
+    @_check_types.do
+    def _bind_object(self, obj3d: "_base_3d.Base3D") -> None:
+        """Follow the tracked object's angle and scale (and, for a wire
+        service loop, its position, since its centroid moves with it).
+        """
+        obj_angle = obj3d.angle
+        obj_scale = obj3d.scale
+
+        obj_angle.bind(self._on_obj_angle)
+        self._obj_angle = obj_angle
+
+        obj_scale.bind(self._on_obj_scale)
+        self._obj_scale = obj_scale
+
+        if self._tracks_centroid:
+            obj3d.position.bind(self._on_loop_moved)
+
+    @_check_types.do
+    def _unbind_object(self) -> None:
+        """Undo :meth:`_bind_object`."""
+        self._obj_angle.unbind(self._on_obj_angle)
+        self._obj_scale.unbind(self._on_obj_scale)
+
+        if self._tracks_centroid:
+            self._obj3d.position.unbind(self._on_loop_moved)
+
+    @_check_types.do
+    def _sync_center(self) -> None:
+        """Move the centroid Point the rings are centered on to wherever the
+        wire service loop's centroid now is -- a no-op when it has not moved,
+        which is the case under every ordinary rotation (the loop turns about
+        the centroid, so the rings stay put, and only the rings' own plane
+        changes).
+        """
+        centroid = self._obj3d.centroid
+
+        if np.array_equal(centroid.as_numpy, self._center.as_numpy):
+            return
+
+        self._center += centroid - self._center
+
+    @_check_types.do
+    def _on_loop_moved(self, _: _point.Point) -> None:
+        """The loop's position moved: its centroid may have, so follow it."""
+        self._sync_center()
+
+    @_check_types.do
+    def _refresh_rings(self) -> None:
+        """Re-derive every ring's orientation, and re-bake its ticks and labels
+        around the current center, from the current angle and center.
+        """
+        for ring in self._rings.values():
+            ring.on_object_angle_changed()
 
     @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:

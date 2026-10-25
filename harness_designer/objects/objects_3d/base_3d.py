@@ -419,6 +419,10 @@ class Base3D(_objectsvar.BaseVar):
         that hits neither a torus ring nor (while an axis is active) the
         inner/outer protractor closes the gizmo too, but leaves the event
         unconsumed so normal selection handling still runs for that click.
+        That close waits for the LEFT_UP and only happens if there was no
+        motion in between (see :attr:`_rotation_click_missed`), whether
+        or not an axis is active, so a left-drag on open space still
+        pans/tilts the camera with the rings/protractor left up.
 
         Every branch below only ever consumes (returns True for) an event
         that actually did something to the gizmo -- everything else
@@ -468,9 +472,24 @@ class Base3D(_objectsvar.BaseVar):
                 rings.obj3d.end_inner_drag()
                 return True
 
+            missed = self._rotation_click_missed
+            self._rotation_click_missed = False
+
+            if missed and not had_motion:
+                # The press missed the whole gizmo and nothing moved before
+                # the release: a plain click-off, not a camera drag. Close
+                # the gizmo but leave the event unconsumed so the default
+                # select/deselect handling still runs for this click (with
+                # the gizmo gone, MouseHandlerBase._blocks_deselection no
+                # longer blocks it).
+                rings.delete()
+                self._active_handler = None
+
             return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
+            self._rotation_click_missed = False
+
             if rings.obj3d.active_axis is not None:
                 if rings.obj3d.begin_inner_drag(current_pos, camera):
                     return True
@@ -488,9 +507,11 @@ class Base3D(_objectsvar.BaseVar):
                     rings.obj3d.activate(axis)
                     return True
 
-                # Missed everything -- leave the gizmo exactly as it is
-                # (still active on this axis) and let the default
-                # click/drag behavior run.
+                # Missed everything -- leave the gizmo up for now and let
+                # the default click/drag behavior run. If this turns out
+                # to be a plain click rather than a camera drag, the
+                # LEFT_UP above closes it.
+                self._rotation_click_missed = True
                 return False
 
             axis = rings.obj3d.pick(current_pos, camera)
@@ -498,8 +519,9 @@ class Base3D(_objectsvar.BaseVar):
                 rings.obj3d.activate(axis)
                 return True
 
-            rings.delete()
-            self._active_handler = None
+            # Hit no torus ring either -- same as above: the rings stay up
+            # until the release, and only close then if nothing moved.
+            self._rotation_click_missed = True
             return False
 
         return False

@@ -248,6 +248,7 @@ class Splice(_base.AddHandlerBase):
         splice_stop_id = stop_p.db_id[:-2]
 
         circuit_id = wire.db_obj.circuit_id
+        operating_temp = wire.db_obj.operating_temp
         project = self.mainframe.project
 
         # Fork the wire around the splice's own body -- wire_before keeps
@@ -264,6 +265,10 @@ class Splice(_base.AddHandlerBase):
         wire_gap.delete()
 
         self.target.db_obj.circuit_id = circuit_id
+
+        if operating_temp is not None:
+            self.target.db_obj.operating_temp = operating_temp
+
         self.target.set_siblings(wire_before, wire_after)
         wire_before.set_sibling(self.target, wire_before.obj3d.stop_position)
         wire_after.set_sibling(self.target, wire_after.obj3d.start_position)

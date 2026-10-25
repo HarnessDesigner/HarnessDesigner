@@ -17,6 +17,7 @@ from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
+    OperatingTempMixin,
     PartMixin,
     Position2DMixin, Position2DControl,
     AnglePegboardMixin,
@@ -150,7 +151,7 @@ class PJTSplicesTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, start_point3d_id: bytes, stop_point3d_id: bytes,
-               branch_point3d_id: bytes, point2d_id: bytes, circuit_id: bytes) -> "PJTSplice":
+               branch_point3d_id: bytes, point2d_id: bytes, circuit_id: bytes | None) -> "PJTSplice":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -179,7 +180,10 @@ class PJTSplicesTable(PJTTableBase):
             branch_point_pegboard_id=None, table_point_peg_id=None,
             quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
             scale3d_id=None, scale_pegboard_id=None, notes='',
-            is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None)
+            is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None,
+            operating_temp=None)
+
+        self.db.pjt_circuits_table.members_changed(circuit_id)
 
         return PJTSplice(self, db_id)
 
@@ -188,7 +192,8 @@ class PJTSplicesTable(PJTTableBase):
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
                 StartStopPositionPegboardMixin, TablePositionPegMixin, AnglePegboardMixin,
                 Visible3DMixin, Visible2DMixin, VisiblePegboardMixin,
-                NameMixin, NotesMixin, SmoothMixin, Scale3DMixin, ScalePegboardMixin):
+                NameMixin, NotesMixin, SmoothMixin, Scale3DMixin, ScalePegboardMixin,
+                OperatingTempMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -203,9 +208,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         point-safety-check rollout, 2026-09-02, see TODO.md and
         ``TablePositionPegMixin.delete_table_overlay``'s own docstring).
         """
+        circuit_id = self.circuit_id
+
         self.delete_table_overlay()
 
         super().delete()
+
+        self._table.db.pjt_circuits_table.members_changed(circuit_id)
 
     @_check_types.do
     def get_object(self) -> "_splice_obj.Splice":
@@ -432,7 +441,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @property
     @_check_types.do
-    def circuit_id(self) -> bytes:
+    def circuit_id(self) -> bytes | None:
         """Return the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -444,7 +453,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes) -> None:
+    def circuit_id(self, value: bytes | None) -> None:
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -452,8 +461,17 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :param value: Value to store or process.
         :type value: bytes
         """
+        old_circuit_id = self.circuit_id
+
         self._table.update(self._db_id, circuit_id=value)
+
+        circuits_table = self._table.db.pjt_circuits_table
+        circuits_table.members_changed(old_circuit_id, value)
         self._populate('circuit_id')
+
+        # a circuit that is added or changes reaches every connected object
+        if value != old_circuit_id:
+            circuits_table.propagate(self, value)
 
     @property
     @_check_types.do
@@ -466,6 +484,25 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :rtype: float
         """
         return self.part.resistance
+
+    @property
+    @_check_types.do
+    def load(self) -> float:
+        """The current, in amps, that flows through this splice: what every
+        load terminal beyond it draws, at the voltage that actually reaches
+        them (the voltage terminal's voltage less the drop up to here).
+        Everything between the voltage terminal and this splice is not part of
+        the number. ``0.0`` when it is in no circuit, or its circuit has no
+        voltage terminal.
+
+        :returns: The current in amps.
+        :rtype: float
+        """
+        circuit_id = self.circuit_id
+        if circuit_id is None:
+            return 0.0
+
+        return self._table.db.pjt_circuits_table[circuit_id].load_at(self)
 
     _stored_part: _splice.Splice | None | DefaultStoredValueType = DefaultStoredValue
 
@@ -526,7 +563,7 @@ class PJTSpliceControl(QtWidgets.QTabWidget, LazyTabMixin):
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
         elif page is self._circuit_page:
-            self.circuit_ctrl.set_obj(None if self.db_obj is None else self.db_obj.circuit)
+            self.circuit_ctrl.set_obj(self.db_obj)
         elif page is self._part_page:
             self.splice_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True

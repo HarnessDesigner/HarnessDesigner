@@ -7,18 +7,14 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ...gl import shaders as _shaders
-    from ...database.project_db import pjt_circuit as _pjt_circuit
     from .. import circuit as _circuit
+    from ...database.project_db import pjt_circuit as _pjt_circuit
 
 
 class Circuit(_base_pegboard.BasePegboard):
-    """Peg-board representation of a circuit.
-
-    A circuit is a logical grouping (a traced signal path across wires,
-    splices, and terminals), not a placed physical part -- it has no
-    rendering presence on the board.
-    """
+    """The peg-board editor's view of a circuit: an inert placeholder, never drawn and never pickable with the mouse. See
+    ``objects.objects_3d.circuit.Circuit`` for why it exists and how it behaves."""
+    parent: "_circuit.Circuit" = None
     db_obj: "_pjt_circuit.PJTCircuit"
 
     @_check_types.do
@@ -30,10 +26,23 @@ class Circuit(_base_pegboard.BasePegboard):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_circuit.PJTCircuit`
         """
+        super().__init__(parent, db_obj)
 
-        super().__init__(parent, db_obj, None, None,
-                         None, None, None)
+        # a circuit row has no peg-board visibility column; say so directly, the same way an unplaced Note does
+        self._is_visible = False
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram") -> None:
-        pass
+    def set_selected(self, flag: bool) -> None:
+        """Select or deselect this view. Deselecting also tells the circuit editor, so its table stops showing the circuit's row as selected.
+
+        A click on another object, or on empty space, in an editor ends the circuit's selection through ``Circuit.set_selected(False)``, which
+        calls this on each of the circuit's views. The circuit editor does nothing when its selected row is not this circuit's, which is also
+        what ends the loop when it was the circuit editor that changed the selection.
+
+        :param flag: ``True`` to select, ``False`` to deselect.
+        :type flag: bool
+        """
+        super().set_selected(flag)
+
+        if not flag:
+            self.parent.deselect_in_editor()

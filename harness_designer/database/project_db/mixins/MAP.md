@@ -40,6 +40,10 @@ Shared base plumbing for this package's mixins (parallel to `global_db/mixins/ba
 
 `NotesMixin` — free-text notes column/property; also used by the concentric-cable row classes (`pjt_concentric.py`/`pjt_concentric_layer.py`/`pjt_concentric_wire.py`).
 
+#### operating_temp.py
+
+`OperatingTempMixin` / `WireOperatingTempMixin` -- for the four rows that carry heat (wire, wire service loop, splice, terminal). `operating_temp` is the user-settable column (NULL = not set); `ambient_c` is that or the default 20 C; `max_temp_c` parses the rated maximum out of the catalog part's `max_temp` name ("+105 °C"; "Unknown" is None, and an unrated part is never flagged); `temperature_c` and `over_temperature` ask the part's circuit (just the ambient when it is in none). `part_data()` is THE function the circuit solver calls to learn about a part: it builds a `circuit_solver.PartData` from `resistance`, a copper coefficient, the thermal resistance (`_thermal_resistance`: a wire's comes from its outside diameter and routed length, a terminal's or splice's is an assumed constant), the ambient and the rating. This is where the manufacturer's derating table is used: `_part_data` asks `_derating_limits()` (the part's `deratings` ambient rows as `(ambient, amps)` pairs; a factor row is scaled by `_rated_amps()`, which only `PJTTerminal` has) and, when `circuit_solver.calibrate_theta` can say, the part's thermal resistance comes from the table instead of the calculation. Bundling rows (`conductor_count`) are not used yet. The row classes need `part`, `resistance`, `circuit_id` (and, for the wire flavour, `length_mm` and `_resistance_over(length_mm)`). The wire flavour's `part_data()` reads `length_mm` ONCE (it walks the wire's whole route) and hands it to `_resistance_over` and to `_thermal_resistance(length_mm)`; `_part_data(resistance, thermal_resistance)` in the base builds the `PartData` around whatever a flavour worked out.
+
 #### part.py
 
 `PartMixin` — `part_id` FK column/property pointing at the matching `global_db` catalog part; the placed-instance side of the "same-name modules" pipeline's FK link (see `project_db/MAP.md`).

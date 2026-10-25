@@ -35,6 +35,8 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_bases as _pjt_bases
     from ...database.project_db import pjt_bundle as _pjt_bundle
     from ...database.project_db import pjt_cavity as _pjt_cavity
+    from ...database.common_db import callback as _callback
+    from ...database.project_db import pjt_circuit as _pjt_circuit
     from ...database.project_db import pjt_splice as _pjt_splice
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from ...database.project_db import pjt_transition as _pjt_transition
@@ -420,6 +422,30 @@ class _BrowserTree(QtWidgets.QTreeWidget):
             self._panel.open_properties(obj)
 
     @_check_types.do
+    def contextMenuEvent(self, event: QtGui.QContextMenuEvent) -> None:
+        """
+        Offer the circuit menu when a circuit's own tree item is right-clicked.
+        Every other item has no menu here.
+
+        :param event: Context menu event.
+        :type event: :class:`QtGui.QContextMenuEvent`
+        """
+
+        item = self.itemAt(event.pos())
+        if item is None:
+            return
+
+        ref = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+        if ref is None:
+            return
+
+        obj = self._panel._resolve_object(ref())  # NOQA
+        if obj is None or not obj.is_circuit:
+            return
+
+        self._panel.show_circuit_menu(obj, event.globalPos())
+
+    @_check_types.do
     def _fire_pending_select(self) -> None:
         """
         Run the deferred select once the double-click window has passed.
@@ -468,10 +494,38 @@ class TreeItem:
         self._obj = obj
         self._browser = browser
         self._treeitems = []
+        self._callbacks = []
 
     @_check_types.do
     def add_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
         self._treeitems.append(treeitem)
+
+    @_check_types.do
+    def discard_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
+        """
+        Forget a cross-reference item that was taken out of the tree, so
+        :meth:`delete` does not go looking for it later.
+
+        :param treeitem: Item previously given to :meth:`add_treeitem`.
+        :type treeitem: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        try:
+            self._treeitems.remove(treeitem)
+        except ValueError:
+            pass
+
+    @_check_types.do
+    def add_callback(self, callback: "_callback.Callback") -> None:
+        """
+        Tie a database-row callback binding to this item's lifetime: it is
+        unbound when the item is deleted.
+
+        :param callback: Binding returned by the row's ``bind``.
+        :type callback: :class:`_callback.Callback`
+        """
+
+        self._callbacks.append(callback)
 
     @property
     @_check_types.do
@@ -489,6 +543,11 @@ class TreeItem:
 
     @_check_types.do
     def delete(self) -> None:
+        for callback in self._callbacks:
+            callback.unbind()
+
+        self._callbacks = []
+
         self._browser.remove_object(self._obj)
 
         for treeitem in self._treeitems:
@@ -622,6 +681,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._wire_markers: QtWidgets.QTreeWidgetItem | None = None
         self._weakrefs = []
 
+        # Circuits whose member listing needs rebuilding, by circuit row id --
+        # see _on_circuit_members_changed.
+        self._dirty_circuits: dict[bytes, weakref.ref] = {}
+
     @_check_types.do
     def _append_item(self, parent: QtWidgets.QTreeWidgetItem, label: str,  # NOQA
                      has_children: bool = False) -> QtWidgets.QTreeWidgetItem:
@@ -713,6 +776,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._wire_markers = self._append_top_level_item('Wire Markers', True)
 
         self._weakrefs = []
+        self._dirty_circuits = {}
 
     @_check_types.do
     def remove_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
@@ -1105,7 +1169,9 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
     @_check_types.do
     def add_circuit(self, obj: _circuit.Circuit) -> None:
         """
-        Add a circuit.
+        Add a circuit. Its member listing is rebuilt whenever the circuit's
+        membership changes (see :meth:`_on_circuit_members_changed`), so a
+        circuit shown while it is still empty fills in as wires join it.
 
         :param obj: Object instance to operate on.
         :type obj: :class:`_circuit.Circuit`
@@ -1115,66 +1181,205 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._weakrefs.append(ref)
 
         treeitem = self._append_item(
-            self._circuits, obj.db_obj.name, True)
+            self._circuits, obj.db_obj.label, True)
 
         ti = TreeItem(self, treeitem, obj)
 
         self._set_data(treeitem, ref)
 
-        wire_treeitem = self._append_item(
-            treeitem, 'Wires', True)
-
-        for wire in obj.db_obj.wires:
-            ref2 = weakref.ref(wire, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            wireitem = self._append_item(
-                wire_treeitem, f'Wire: {wire.name}')
-
-            self._set_data(wireitem, ref2)
-
-            self._set_treeitem(wire, wireitem)
-
-        loop_treeitem = self._append_item(
-            treeitem, 'Wire Service Loops', True)
-
-        for wire in obj.db_obj.wire_service_loops:
-            ref2 = weakref.ref(wire, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            loopitem = self._append_item(
-                loop_treeitem, f'Wire Loop: {wire.name}')
-
-            self._set_data(loopitem, ref2)
-
-            self._set_treeitem(wire, loopitem)
-
-        terminal_treeitem = self._append_item(
-            treeitem, 'Terminals', True)
-
-        for terminal in obj.db_obj.terminals:
-            ref2 = weakref.ref(terminal, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            terminalitem = self._append_item(
-                terminal_treeitem, f'Terminal: {terminal.name}')
-
-            self._set_data(terminalitem, ref2)
-
-            self._set_treeitem(terminal, terminalitem)
-
-        splice_treeitem = self._append_item(
-            treeitem, 'Splices', True)
-
-        for splice in obj.db_obj.splices:
-            ref2 = weakref.ref(splice, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            spliceitem = self._append_item(
-                splice_treeitem, f'Splice: {splice.name}')
-
-            self._set_data(spliceitem, ref2)
-
-            self._set_treeitem(splice, spliceitem)
+        self._fill_circuit_children(obj, treeitem)
 
         self._mark_canonical(treeitem)
         obj.set_treeitem(ti)
+
+        ti.add_callback(
+            obj.db_obj.bind(self._on_circuit_members_changed, 'members'))
+
+    @_check_types.do
+    def _fill_circuit_children(self, obj: _circuit.Circuit, treeitem: QtWidgets.QTreeWidgetItem) -> None:
+        """
+        Add the Wires / Wire Service Loops / Terminals / Splices groups, and
+        an entry per member, under a circuit's tree item.
+
+        :param obj: The circuit.
+        :type obj: :class:`_circuit.Circuit`
+        :param treeitem: The circuit's tree item.
+        :type treeitem: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        db_obj = obj.db_obj
+
+        groups = (
+            ('Wires', 'Wire', db_obj.wires),
+            ('Wire Service Loops', 'Wire Loop', db_obj.wire_service_loops),
+            ('Terminals', 'Terminal', db_obj.terminals),
+            ('Splices', 'Splice', db_obj.splices),
+        )
+
+        for group_label, item_label, members in groups:
+            group_treeitem = self._append_item(treeitem, group_label, True)
+
+            for member in members:
+                member_ref = weakref.ref(member, self.__remove_refs)
+                self._weakrefs.append(member_ref)
+
+                member_item = self._append_item(
+                    group_treeitem, f'{item_label}: {member.name}')
+
+                self._set_data(member_item, member_ref)
+                self._set_treeitem(member, member_item)
+
+    @_check_types.do
+    def _clear_circuit_children(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
+        """
+        Remove every group and member entry under a circuit's tree item,
+        undoing what :meth:`_fill_circuit_children` registered for each one
+        (the weakref, and the member's own record of the cross-reference
+        item), so rebuilding does not pile up stale entries.
+
+        :param treeitem: The circuit's tree item.
+        :type treeitem: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        for i in range(treeitem.childCount() - 1, -1, -1):
+            group = treeitem.child(i)
+
+            for j in range(group.childCount() - 1, -1, -1):
+                member_item = group.child(j)
+                member_ref = member_item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+
+                if member_ref is None:
+                    continue
+
+                try:
+                    self._weakrefs.remove(member_ref)
+                except ValueError:
+                    pass
+
+                member = member_ref()
+                if member is None:
+                    continue
+
+                member_obj = member.get_object()
+                if member_obj is None:
+                    continue
+
+                member_ti = member_obj.get_treeitem()
+                if member_ti is not None:
+                    member_ti.discard_treeitem(member_item)
+
+            treeitem.removeChild(group)
+
+    @_check_types.do
+    def _on_circuit_members_changed(self, entry: "_pjt_circuit.PJTCircuit") -> None:
+        """
+        A circuit's membership changed (bound to its ``'members'`` tag).
+
+        One wire joining a circuit changes membership several times in a row
+        (the wire, the terminals at its ends, the start flag), and a merge
+        changes it once per member moved. Rebuilding the listing each time
+        would redo the same work over and over, so this only records the
+        circuit and arranges a single rebuild for when control returns to
+        the event loop.
+
+        :param entry: The circuit whose members changed.
+        :type entry: :class:`_pjt_circuit.PJTCircuit`
+        """
+
+        if not self._dirty_circuits:
+            QtCore.QTimer.singleShot(0, self._flush_circuit_rebuilds)
+
+        self._dirty_circuits[entry.db_id] = weakref.ref(entry)
+
+    @_check_types.do
+    def _flush_circuit_rebuilds(self) -> None:
+        """
+        Rebuild the member listing of every circuit recorded by
+        :meth:`_on_circuit_members_changed`, keeping whichever of its groups
+        the user had expanded.
+        """
+
+        dirty = self._dirty_circuits
+        self._dirty_circuits = {}
+
+        if self._tree_destroyed:
+            return
+
+        for entry_ref in dirty.values():
+            entry = entry_ref()
+            if entry is None:
+                continue
+
+            obj = entry.get_object()
+            if obj is None:
+                continue
+
+            ti = obj.get_treeitem()
+            if ti is None:
+                continue
+
+            treeitem = ti.treeitem
+
+            # Deleted (or the tree was reset) since the change was recorded.
+            if treeitem.treeWidget() is None:
+                continue
+
+            expanded = {
+                treeitem.child(i).text(0) for i in range(treeitem.childCount())
+                if treeitem.child(i).isExpanded()}
+
+            self._clear_circuit_children(treeitem)
+            self._fill_circuit_children(obj, treeitem)
+
+            for i in range(treeitem.childCount()):
+                group = treeitem.child(i)
+                group.setExpanded(group.text(0) in expanded)
+
+    @_check_types.do
+    def show_circuit_menu(self, obj: _circuit.Circuit, global_pos: QtCore.QPoint) -> None:
+        """
+        Show the right-click menu for a circuit's tree item.
+
+        :param obj: The circuit that was right-clicked.
+        :type obj: :class:`_circuit.Circuit`
+        :param global_pos: Where to show the menu, in screen coordinates.
+        :type global_pos: :class:`QtCore.QPoint`
+        """
+
+        menu = QtWidgets.QMenu(self)
+
+        delete_action = menu.addAction('Delete Circuit')
+
+        if menu.exec(global_pos) is delete_action:
+            self._delete_circuit(obj)
+
+    @_check_types.do
+    def _delete_circuit(self, obj: _circuit.Circuit) -> None:
+        """
+        Ask, then delete a circuit. Deleting a circuit detaches its members
+        (``PJTCircuit.delete``); it never deletes them.
+
+        :param obj: The circuit to delete.
+        :type obj: :class:`_circuit.Circuit`
+        """
+
+        button = QtWidgets.QMessageBox.question(
+            self.mainframe, 'Delete Circuit',
+            f'Delete circuit {obj.db_obj.label}?\n\nIts wires, splices, '
+            'terminals and wire service loops stay in the project, but no '
+            'longer belong to a circuit.')
+
+        if button == QtWidgets.QMessageBox.StandardButton.No:
+            return
+
+        # Either path clears the highlight a selected or traced circuit
+        # leaves on its members.
+        if self.mainframe.get_selected() is obj:
+            obj.set_selected(False)
+        else:
+            obj.highlight(False)
+
+        obj.delete()
 
     @_check_types.do
     def add_cover(self, obj: _cover.Cover) -> None:

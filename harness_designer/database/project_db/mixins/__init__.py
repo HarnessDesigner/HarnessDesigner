@@ -23,6 +23,7 @@ from . import smooth as _smooth
 from . import scale3d as _scale3d
 from . import scale_pegboard as _scale_pegboard
 from . import color as _color
+from . import operating_temp as _operating_temp
 
 
 Angle3DMixin = _angle3d.Angle3DMixin
@@ -89,6 +90,9 @@ ScalePegboardControl = _scale_pegboard.ScalePegboardControl
 ColorMixin = _color.ColorMixin
 ColorControl = _color.ColorControl
 
+OperatingTempMixin = _operating_temp.OperatingTempMixin
+WireOperatingTempMixin = _operating_temp.WireOperatingTempMixin
+
 
 del _angle3d
 del _angle3d_lock
@@ -113,3 +117,4 @@ del _smooth
 del _scale3d
 del _scale_pegboard
 del _color
+del _operating_temp

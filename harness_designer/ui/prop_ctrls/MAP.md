@@ -34,11 +34,11 @@ Imports every property-control module so each registers itself; no public symbol
 
 #### autocomplete_string_prop.py
 
-`AutocompleteStringProperty` -- a string property backed by the shared autocomplete engine (`ui/widgets/auto_complete.py`).
+`AutocompleteStringProperty` -- a string property over `AutoCompleteTextCtrl` (single-line, the default) or, with `multiline=True`, `AutoCompleteTextEdit`. Enter rules (user, 2026-10-24): single-line, ONE Enter commits; multi-line, THREE Enters in a row commit and the text keeps a single newline at the end; the committing Enter is never added to the text; NOTHING is stripped (spaces matter to the completer). Tooltips: "Press Enter to save" / "Press Enter 3 times to save". Every Enter that commits sends `propertyChanged` (no same-value check, unlike `StringProperty`). A committed single-line value joins the completion choices (once; the caller's list is copied, not changed); a multi-line text does not, because the completer matches one line at a time. Before 2026-10-24 it only committed when the text ended in two newlines, which a `QLineEdit` cannot hold, so it never committed at all. It has no callers yet.
 
 #### bitmap_combobox_prop.py
 
-`BitmapComboBoxProperty` -- a combobox property whose entries also carry an icon.
+`BitmapComboBoxProperty` -- a combobox property whose entries also carry an icon. No callers. Known, not fixed: it commits on every keystroke (`currentTextChanged`), and its `SetItems`/`Clear` use Qt's `clear()`/`addItems()`, so the completer gets no choices and the widget's own `GetItems` disagrees with what was set.
 
 #### bool_prop.py
 
@@ -54,11 +54,11 @@ A fixed-choice property control paired with `ui/widgets/choice_ctrl.py`.
 
 #### color_prop.py
 
-`ColorProperty` -- wraps `ui/widgets/color_ctrl.py`'s swatch-plus-picker; emits a `[name, Color]` pair on `propertyChanged` (see `events.PropertyValue`).
+`ColorProperty` -- wraps `ui/widgets/color_ctrl.py`'s swatch-plus-picker; emits a `[name, Color]` pair on `propertyChanged` (see `events.PropertyValue`). No callers. Known, not fixed: it has the same two faults as `BitmapComboBoxProperty` (per-keystroke commit, completer never fed).
 
 #### combobox_prop.py
 
-`ComboBoxProperty` -- a plain dropdown-backed property control.
+`ComboBoxProperty` -- an editable autocomplete dropdown (it owns an `AutoCompleteComboBox`) built at 14 places: circuit Name / Circuit Number / Return Path, manufacturer, family, series, plating, temperature, cavity lock, splice and terminal types, and others. **It commits on Enter (`returnPressed`) or on picking a list entry (`textActivated`), NEVER while typing** (fixed 2026-10-24): it used to listen to `currentTextChanged`, which an editable combo fires on every keystroke, and the handlers behind these controls create a row for a value they have not seen, so typing `new` created the circuits `n`, `ne` and `new`. A second fault: its `SetItems`/`Clear` used Qt's `clear()`/`addItems()`, so the completer never got the choices; they now call `AutoCompleteComboBox.SetItems`/`Clear`. The text is sent exactly as typed (never stripped). Enter on an unchanged value sends nothing (`_value` check). With the inline suggestion showing, Enter commits the suggestion (`new` shows `new circuit`); Delete drops it first.
 
 #### datasheet_cad_prop.py
 

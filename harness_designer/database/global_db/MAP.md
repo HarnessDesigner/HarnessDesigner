@@ -18,7 +18,7 @@ Unused.
 
 #### bases.py
 
-(~1300 lines) Table base classes — `EntryBase`/`TableBase`/`GLBTables`, plus `_EntrySingleton` (the per-row singleton metaclass) and `DefaultStoredValue`/`DefaultStoredValueType`. `TableBase._row_cache` is a per-row read/write-through cache (`db_id -> {column: value}`), NOT a per-table bulk load (see `WRITE_DESIGN.md` section 4.9 at the repo root for the full design) — populated once in `EntryBase.__init__` (every row is an `_EntrySingleton`, so this only runs once per row) and evicted by `_EntrySingleton`'s existing weakref cleanup once nothing references that row's wrapper anymore. `select()`/`update()`/`delete()`/`insert()` all read or write through it. **Pitfall:** a write made on another database connection (the image/model worker processes' `UPDATE ... SET uuid=...`) bypasses the cache, so `select()` keeps returning the old value for as long as that row's wrapper is alive -- resetting an entry's own `_stored_*` fields is not enough. Call `TableBase.reload_row(db_id)` first (what `Image.download_complete` and `Model3D.download_complete` do); without it a freshly downloaded image never appeared until the app restarted, and a freshly converted model's `uuid`, `file_type_id`, `vertex_count`, `aabb` and `obb` (the columns its worker's `UPDATE` writes, `model_process.py`) would be served stale from the row cache -- `aabb`/`obb` included, since `Model3D` re-reads those through `select()` instead of caching them on the instance.
+(~1300 lines) Table base classes — `EntryBase`/`TableBase`/`GLBTables`, plus `_EntrySingleton` (the per-row singleton metaclass) and `DefaultStoredValue`/`DefaultStoredValueType`. `TableBase._row_cache` is a per-row read/write-through cache (`db_id -> {column: value}`), NOT a per-table bulk load (see `WRITE_DESIGN.md` section 4.9 at the repo root for the full design) — populated once in `EntryBase.__init__` (every row is an `_EntrySingleton`, so this only runs once per row) and evicted by `_EntrySingleton`'s existing weakref cleanup once nothing references that row's wrapper anymore. `select()`/`update()`/`delete()`/`insert()` all read or write through it. **Pitfall:** a write made on another database connection (the image/model worker processes' `UPDATE ... SET uuid=...`) bypasses the cache, so `select()` keeps returning the old value for as long as that row's wrapper is alive -- resetting an entry's own `_stored_*` fields is not enough. Call `TableBase.reload_row(db_id)` first (what `Image.download_complete` and `Model3D.download_complete` do); without it a freshly downloaded image never appeared until the app restarted, and a freshly converted model's `uuid`, `file_type_id`, `vertex_count`, `aabb` and `obb` (the columns its worker's `UPDATE` writes, `model_process.py`) would be served stale from the row cache -- `aabb`/`obb` included, since `Model3D` re-reads those through `select()` instead of caching them on the instance. `GLBTables` also creates the `deratings` table (`deratings_table`) right after the wires table.
 
 #### boot.py
 
@@ -59,6 +59,10 @@ Unused.
 #### datasheet.py
 
 `Datasheet` row/table class for the `datasheets` file/resource table.
+
+#### derating.py
+
+`DeratingsTable` and `Derating` for the `deratings` table (NEW 2026-10-24; schema in `create_database/deratings.py`). `Derating` is a plain `NamedTuple` row (`id`, `idx`, the three part ids, `ambient_temp_c`, `conductor_count`, `max_amps`, `derating_factor`), not a cached row wrapper. THIS TABLE CLASS is the cache: `for_part(part_table_name, part_id)` reads a part's whole derating table in ONE query (`ORDER BY idx`) the first time and serves it from memory after (a part with no table is remembered as having none). The terminals, wires and splices tables call it, through `DeratingMixin.load_deratings()`, from their own `__getitem__` as they load a part, so the table is there before anything asks. `insert` (refuses a row that does not belong to exactly one part, or has neither `max_amps` nor `derating_factor`) and `forget` drop a part's entry; `__iter__`/`__getitem__` read straight from the database. The schema module is imported late (`_schema()`), like the other global tables' schema modules, because importing it at the top pulls `create_database.wires` into the import chain before an existing cycle there can resolve. Registered in `GLBTables` right after the wires table (its foreign keys point at terminals, wires and splices) as `deratings_table`.
 
 #### direction.py
 
@@ -130,7 +134,7 @@ Row/table class backing a settings entity (distinct from `database/config_db.py`
 
 #### splice.py
 
-`Splice` row/table class for the `splices` global-catalog table.
+`Splice` row/table class for the `splices` global-catalog table. Has `DeratingMixin`; the table's `__getitem__` calls `load_deratings()` on the part it hands back, so the part's manufacturer derating table (`deratings`) is read with the part. `SplicesTable.__getitem__` by a string looks the splice up in a `name` column that the `splices` table does not have (found 2026-10-24, not fixed; terminals and wires use `part_number`).
 
 #### splice_types.py
 
@@ -142,7 +146,7 @@ Row/table class backing a settings entity (distinct from `database/config_db.py`
 
 #### terminal.py
 
-`Terminal` row/table class for the `terminals` global-catalog table.
+`Terminal` row/table class for the `terminals` global-catalog table. Has `DeratingMixin`; the table's `__getitem__` calls `load_deratings()` on the part it hands back, so the part's manufacturer derating table (`deratings`) is read with the part.
 
 #### tpa_lock.py
 
@@ -162,7 +166,7 @@ Row/table class backing a settings entity (distinct from `database/config_db.py`
 
 #### wire.py
 
-`Wire` row/table class for the `wires` global-catalog table. Its `stripe_color` column is the precedent for the NIL-id → `None` convention used elsewhere (a reference "outside `mixins/`" that already returns `None` rather than crashing).
+`Wire` row/table class for the `wires` global-catalog table. Its `stripe_color` column is the precedent for the NIL-id → `None` convention used elsewhere (a reference "outside `mixins/`" that already returns `None` rather than crashing). Has `DeratingMixin`; the table's `__getitem__` calls `load_deratings()` on the part it hands back, so the part's manufacturer derating table (`deratings`) is read with the part.
 
 #### wire_marker.py
 

@@ -344,7 +344,57 @@ class ImageLoader:
         self.__base_path__ = path
         if self.__name__ == 'images':
             self.__wire_image_cache__ = {}
+            self.__wire_loop_image_cache__ = {}
+            self.build_wire_loop = self.__build_wire_loop
             self.build_wire = self.__build_wire
+
+    @_check_types.do
+    def __build_wire_loop(
+        self,
+        primary_color: "_color.Color",
+        stripe_color: _Union["_color.Color", None],
+    ) -> Image:
+        primary_name = primary_color.name
+
+        if stripe_color is None:
+            stripe_name = None
+        else:
+            stripe_name = stripe_color.name
+
+        key = (primary_name, stripe_name)
+        if key in self.__wire_loop_image_cache__:
+            return self.__wire_loop_image_cache__[key]
+
+        layer1 = self.loop_layer1
+        layer3 = self.loop_layer3
+        layer4 = self.loop_layer4
+        layer6 = self.loop_layer6
+        layer7 = self.loop_layer7
+        layer9 = self.loop_layer9
+
+        p_ui = primary_color.ui
+        layer1 = layer1.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
+        layer4 = layer4.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
+        layer7 = layer7.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
+
+        if stripe_color is not None:
+            layer2 = self.loop_layer2
+            layer5 = self.loop_layer5
+            layer8 = self.loop_layer8
+
+            s_ui = stripe_color.ui
+            layer2 = layer2.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
+            layer5 = layer5.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
+            layer8 = layer8.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
+
+            wire = (((((((layer1 + layer2) + layer3) + layer4) + layer5) + layer6) + layer8) + layer8) + layer9
+
+        else:
+            wire = ((((layer1 + layer3) + layer4) + layer6) + layer7) + layer9
+
+        self.__wire_image_cache__[key] = wire
+
+        return wire
 
     @_check_types.do
     def __build_wire(
@@ -565,5 +615,12 @@ if TYPE_CHECKING:
             primary_color: "_color.Color",  # NOQA
             stripe_color: _Union["_color.Color", None],  # NOQA
             conductor_color: "_color.Color"  # NOQA
+        ) -> Image:
+            pass
+
+        def build_wire_loop(
+            self,
+            primary_color: "_color.Color",
+            stripe_color: _Union["_color.Color", None],
         ) -> Image:
             pass

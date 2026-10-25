@@ -9,6 +9,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
+    DeratingMixin,
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
     DescriptionMixin, DescriptionControl,
@@ -119,15 +120,21 @@ class WiresTable(TableBase):
         """
         if isinstance(item, (int, bytes)):
             if item in Wire or item in self:
-                return Wire(self, item)
+                wire = Wire(self, item)
+            else:
+                raise IndexError(str(item))
 
-            raise IndexError(str(item))
+        else:
+            db_id = self.select('id', part_number=item)
+            if not db_id:
+                raise KeyError(item)
 
-        db_id = self.select('id', part_number=item)
-        if db_id:
-            return Wire(self, db_id[0][0])
+            wire = Wire(self, db_id[0][0])
 
-        raise KeyError(item)
+        # the part's whole derating table is read now, with the part
+        wire.load_deratings()
+
+        return wire
 
     @_check_types.do
     def insert(self, part_number: str, mfg_id: bytes, description: str, family_id: bytes, series_id: bytes,
@@ -315,7 +322,7 @@ class WiresTable(TableBase):
 
 class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
            FamilyMixin, SeriesMixin, ResourceMixin, ColorMixin, MaterialMixin,
-           TemperatureMixin, WireTypeMixin):
+           TemperatureMixin, WireTypeMixin, DeratingMixin):
     """Represent a wire in :mod:`harness_designer.database.global_db.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

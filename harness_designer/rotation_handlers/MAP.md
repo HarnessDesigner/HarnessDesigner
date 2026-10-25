@@ -14,7 +14,7 @@ Shared geometry helpers — per-axis ring-plane orientation math (`slot_ring_ang
 
 #### rotation_rings.py
 
-`RotationRings(ObjectBase)` — the facade tying one view-specific implementation per view together (mirrors every `objects.*` type's own facade/view-package split), built by `Base3D.handle_interaction`/the schematic and pegboard equivalents when a selected object enters angle mode. Only the one view matching whichever canvas armed it is actually constructed.
+`RotationRings(ObjectBase)` — the facade tying one view-specific implementation per view together (mirrors every `objects.*` type's own facade/view-package split), built by `Base3D.handle_interaction`/the schematic and pegboard equivalents when a selected object enters angle mode. Only the one view matching whichever canvas armed it is actually constructed. The 3D gizmo class is the class attribute `_rings_3d_class`; `WireRollRings(RotationRings)` (same file) overrides it with `editor_3d.wire_roll.WireRollRings3D`, so a wire service loop's "Rotate on Wire" ring is armed, dispatched and rendered through exactly the same `_active_handler` / `isinstance(..., RotationRings)` paths as the ordinary gizmo.
 
 ## FOLDERS
 

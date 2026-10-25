@@ -15,9 +15,11 @@ from . import pjt_point_pegboard as _pjt_point_pegboard
 from . import pjt_seal as _pjt_seal
 from ...geometry import point as _point
 from . import pjt_circuit as _pjt_circuit
+from . import circuit_solver as _circuit_solver
 from ..global_db import terminal as _terminal
 from ... import logger as _logger
 from .mixins import (
+    OperatingTempMixin,
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
     AnglePegboardMixin, AnglePegboardControl,
@@ -39,9 +41,18 @@ from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
+    from ...ui.prop_ctrls import events as _prop_events
     from . import pjt_cavity as _pjt_cavity
     from ...objects import terminal as _terminal_obj
     from ... import ui as _ui
+
+
+# What the Load Type field shows for each LoadType.
+_LOAD_TYPE_LABELS = {
+    _circuit_solver.LoadType.RESISTIVE: 'Resistive',
+    _circuit_solver.LoadType.CONSTANT_POWER: 'Constant Power',
+    _circuit_solver.LoadType.CONSTANT_CURRENT: 'Constant Current',
+}
 
 
 class PJTTerminalsTable(PJTTableBase):
@@ -185,7 +196,8 @@ class PJTTerminalsTable(PJTTableBase):
             quat2d='[1.0, 0.0, 0.0, 0.0]', angle2d='[0.0, 0.0, 0.0]',
             quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
             is_start=1, volts=0.0, load=0.0, voltage_drop=0.0,
-            is_visible3d=1, is_visible2d=1, is_visible_pegboard=1, smooth=None)
+            is_visible3d=1, is_visible2d=1, is_visible_pegboard=1, smooth=None,
+            operating_temp=None, load_type=0)
 
         terminal = PJTTerminal(self, db_id)
 
@@ -210,7 +222,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
                   Position3DMixin, NotesMixin,
                   Position2DMixin, PositionPegboardMixin, PartMixin, Visible3DMixin,
                   Visible2DMixin, VisiblePegboardMixin, NameMixin,
-                  SmoothMixin, Scale3DMixin, ScalePegboardMixin):
+                  SmoothMixin, Scale3DMixin, ScalePegboardMixin, OperatingTempMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -243,8 +255,11 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
             seal.delete()
 
         cavity_id = self.cavity_id
+        circuit_id = self.circuit_id
 
         PJTEntryBase.delete(self)
+
+        self._table.db.pjt_circuits_table.members_changed(circuit_id)
 
         if cavity_id is not None:
             cavity = self._table.db.pjt_cavities_table[cavity_id]
@@ -335,13 +350,22 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._table.update(self._db_id, is_start=int(value))
         self._populate('is_start')
 
+        self._table.db.pjt_circuits_table.members_changed(self.circuit_id)
+
     @_check_types.do
     def __check_for_other_starts(self) -> None:
         """Execute the check for other starts operation.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
-        db_ids = self._table.select('db_id', circuit_id=self.circuit_id, is_start=1)
+        circuit_id = self.circuit_id
+
+        # A terminal with no circuit has no other starts to clear: NULL
+        # circuit_id means "not in a circuit", not "in the same circuit".
+        if circuit_id is None:
+            return
+
+        db_ids = self._table.select('id', circuit_id=circuit_id, is_start=1)
         for db_id in db_ids:
             if db_id[0] != self.db_id:
                 _logger.warning('A circuit cannot have multiple start points. setting '
@@ -395,6 +419,17 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         """
         return self.part.resistance
 
+    @_check_types.do
+    def _rated_amps(self) -> float | None:
+        """The terminal's rated current, in amps, from its catalog part: what a derating factor
+        scales. ``None`` when the part gives none.
+
+        :rtype: float | None
+        """
+        milliamps = self.part.max_current_ma
+
+        return milliamps / 1000.0 if milliamps else None
+
     @property
     @dump_property(severity=1)
     @_check_types.do
@@ -422,12 +457,38 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         :type value: float
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
-        if self.is_start:
+        if not self.is_start:
             raise RuntimeError('volts can only be applied to the start terminal '
                                'not the end terminals of a circuit')
 
         self._table.update(self._db_id, volts=value)
         self._populate('volts')
+
+    @property
+    @_check_types.do
+    def load_type(self) -> _circuit_solver.LoadType:
+        """Return how the device on this terminal reacts to the voltage that
+        reaches it: as a resistor, drawing constant power, or drawing constant
+        current (see :class:`_circuit_solver.LoadType`). Only meaningful for a
+        terminal that has a load.
+
+        :rtype: :class:`_circuit_solver.LoadType`
+        :raises ValueError: The stored integer is not a load type.
+        """
+        return _circuit_solver.LoadType(
+            self._table.select('load_type', id=self._db_id)[0][0])
+
+    @load_type.setter
+    @_check_types.do
+    def load_type(self, value: _circuit_solver.LoadType) -> None:
+        """Set how the device on this terminal reacts to the voltage that
+        reaches it.
+
+        :param value: The load type.
+        :type value: :class:`_circuit_solver.LoadType`
+        """
+        self._table.update(self._db_id, load_type=int(value))
+        self._populate('load_type')
 
     @property
     @dump_property(severity=1)
@@ -577,7 +638,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes) -> None:
+    def circuit_id(self, value: bytes | None) -> None:
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -585,10 +646,19 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         :param value: Value to store or process.
         :type value: bytes
         """
+        old_circuit_id = self.circuit_id
+
         self._stored_circuit = None
 
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
+
+        circuits_table = self._table.db.pjt_circuits_table
+        circuits_table.members_changed(old_circuit_id, value)
+
+        # a circuit that is added or changes reaches every connected object
+        if value != old_circuit_id:
+            circuits_table.propagate(self, value)
 
     @property
     @dump_property(severity=2)
@@ -1321,38 +1391,126 @@ class PJTTerminalControl(QtWidgets.QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
+    def _load_electrical(self) -> None:
+        """Show the terminal's electrical settings.
+
+        A terminal has a voltage or a load, never both. The voltage terminal
+        of a circuit (``is_start``) has Volts and nothing else; every other
+        terminal has a Load and an Allowed Voltage Drop and no Volts.
+        """
+        if self.db_obj is None:
+            self.is_start_ctrl.SetValue(False)
+            self.voltage_drop_ctrl.SetValue(0.0)
+            self.volts_ctrl.SetValue(0.0)
+            self.load_ctrl.SetValue(0.0)
+            self.is_start_ctrl.setEnabled(False)
+            self.voltage_drop_ctrl.setEnabled(False)
+            self.volts_ctrl.setEnabled(False)
+            self.load_ctrl.setEnabled(False)
+            self.load_type_ctrl.SetValue('')
+            self.load_type_ctrl.setEnabled(False)
+            return
+
+        is_start = self.db_obj.is_start
+
+        self.is_start_ctrl.setEnabled(True)
+        self.is_start_ctrl.SetValue(is_start)
+
+        self.volts_ctrl.setEnabled(is_start)
+        self.voltage_drop_ctrl.setEnabled(not is_start)
+        self.load_ctrl.setEnabled(not is_start)
+        self.load_type_ctrl.setEnabled(not is_start)
+
+        # The row reads 0.0 for the fields that do not apply to its kind.
+        self.volts_ctrl.SetValue(self.db_obj.volts)
+        self.voltage_drop_ctrl.SetValue(self.db_obj.voltage_drop)
+        self.load_ctrl.SetValue(self.db_obj.load)
+        self.load_type_ctrl.SetValue(_LOAD_TYPE_LABELS[self.db_obj.load_type])
+
+    @_check_types.do
+    def _on_is_start(self, evt: "_prop_events.PropertyEvent") -> None:
+        """Make this terminal its circuit's voltage terminal, or stop it
+        being one. Refused while it has a load, as a terminal never has both.
+
+        :param evt: The property event.
+        :type evt: :class:`_prop_events.PropertyEvent`
+        """
+        try:
+            self.db_obj.is_start = evt.GetValue()
+        except RuntimeError as err:
+            QtWidgets.QMessageBox.warning(self, 'Terminal', str(err))
+
+        self._load_electrical()
+
+    @_check_types.do
+    def _on_volts(self, evt: "_prop_events.PropertyEvent") -> None:
+        """Store the voltage supplied at this (voltage) terminal.
+
+        :param evt: The property event.
+        :type evt: :class:`_prop_events.PropertyEvent`
+        """
+        try:
+            self.db_obj.volts = evt.GetValue()
+        except RuntimeError as err:
+            QtWidgets.QMessageBox.warning(self, 'Terminal', str(err))
+
+        self._load_electrical()
+
+    @_check_types.do
+    def _on_voltage_drop(self, evt: "_prop_events.PropertyEvent") -> None:
+        """Store the voltage drop this (load) terminal allows.
+
+        :param evt: The property event.
+        :type evt: :class:`_prop_events.PropertyEvent`
+        """
+        try:
+            self.db_obj.voltage_drop = evt.GetValue()
+        except RuntimeError as err:
+            QtWidgets.QMessageBox.warning(self, 'Terminal', str(err))
+
+        self._load_electrical()
+
+    @_check_types.do
+    def _on_load_type(self, evt: "_prop_events.PropertyEvent") -> None:
+        """Store how the device on this terminal reacts to the voltage that
+        reaches it. Anything typed that is not one of the three choices is
+        dropped.
+
+        :param evt: The property event.
+        :type evt: :class:`_prop_events.PropertyEvent`
+        """
+        label = evt.GetValue()
+
+        for load_type, name in _LOAD_TYPE_LABELS.items():
+            if name == label:
+                self.db_obj.load_type = load_type
+                break
+
+        self._load_electrical()
+
+    @_check_types.do
+    def _on_load(self, evt: "_prop_events.PropertyEvent") -> None:
+        """Store the load of this (non-voltage) terminal: the current, in
+        amps, its connected device is rated to draw.
+
+        :param evt: The property event.
+        :type evt: :class:`_prop_events.PropertyEvent`
+        """
+        try:
+            self.db_obj.load = evt.GetValue()
+        except RuntimeError as err:
+            QtWidgets.QMessageBox.warning(self, 'Terminal', str(err))
+
+        self._load_electrical()
+
+    @_check_types.do
     def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
             self.note_ctrl.set_obj(self.db_obj)
             self.smooth_ctrl.set_obj(self.db_obj)
-            if self.db_obj is None:
-                self.is_start_ctrl.SetValue(False)
-                self.voltage_drop_ctrl.SetValue(0.0)
-                self.volts_ctrl.SetValue(0.0)
-                self.load_ctrl.SetValue(0.0)
-                self.is_start_ctrl.setEnabled(False)
-                self.voltage_drop_ctrl.setEnabled(False)
-                self.volts_ctrl.setEnabled(False)
-                self.load_ctrl.setEnabled(False)
-            else:
-                is_start = self.db_obj.is_start
-                self.is_start_ctrl.SetValue(is_start)
-                if is_start:
-                    self.voltage_drop_ctrl.setEnabled(True)
-                    self.volts_ctrl.setEnabled(True)
-                    self.voltage_drop_ctrl.SetValue(self.db_obj.voltage_drop)
-                    self.volts_ctrl.SetValue(self.db_obj.volts)
-                    self.load_ctrl.setEnabled(False)
-                    self.load_ctrl.SetValue(0.0)
-                else:
-                    self.voltage_drop_ctrl.setEnabled(False)
-                    self.volts_ctrl.setEnabled(False)
-                    self.voltage_drop_ctrl.SetValue(0.0)
-                    self.volts_ctrl.SetValue(0.0)
-                    self.load_ctrl.setEnabled(True)
-                    self.load_ctrl.SetValue(self.db_obj.load)
+            self._load_electrical()
         elif page is self._angle_page:
             self.angle2d_ctrl.set_obj(self.db_obj)
             self.angle3d_ctrl.set_obj(self.db_obj)
@@ -1367,7 +1525,7 @@ class PJTTerminalControl(QtWidgets.QTabWidget, LazyTabMixin):
         elif page is self._seal_page:
             self.seal_ctrl.set_obj(None if self.db_obj is None else self.db_obj.seal)
         elif page is self._circuit_page:
-            self.circuit_ctrl.set_obj(None if self.db_obj is None else self.db_obj.circuit)
+            self.circuit_ctrl.set_obj(self.db_obj)
         elif page is self._part_page:
             self.terminal_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
@@ -1400,11 +1558,25 @@ class PJTTerminalControl(QtWidgets.QTabWidget, LazyTabMixin):
         self.voltage_drop_ctrl = _prop_ctrls.FloatProperty(general_page, 'Allowed Voltage Drop', min_value=0.0, max_value=9999.99, increment=0.01, units='VDC/VAC')
         self.volts_ctrl = _prop_ctrls.FloatProperty(general_page, 'Volts', min_value=0.0, max_value=44000.00, increment=0.01, units='VDC/VAC')
         self.load_ctrl = _prop_ctrls.FloatProperty(general_page, 'Load', min_value=0.0, max_value=9999.99, increment=0.01, units='A')
+        self.load_type_ctrl = _prop_ctrls.ComboBoxProperty(general_page, 'Load Type')
+        self.load_type_ctrl.SetItems(list(_LOAD_TYPE_LABELS.values()))
+        self.load_type_ctrl.setToolTip(
+            'How the device on this terminal reacts to the voltage that '
+            'reaches it.\nResistive: draws less as the voltage sags.\n'
+            'Constant Power: draws more as the voltage sags.\n'
+            'Constant Current: draws the same whatever the voltage.')
 
         general_page.addWidget(self.is_start_ctrl)
         general_page.addWidget(self.voltage_drop_ctrl)
         general_page.addWidget(self.volts_ctrl)
         general_page.addWidget(self.load_ctrl)
+        general_page.addWidget(self.load_type_ctrl)
+
+        self.is_start_ctrl.propertyChanged.connect(self._on_is_start)
+        self.voltage_drop_ctrl.propertyChanged.connect(self._on_voltage_drop)
+        self.volts_ctrl.propertyChanged.connect(self._on_volts)
+        self.load_ctrl.propertyChanged.connect(self._on_load)
+        self.load_type_ctrl.propertyChanged.connect(self._on_load_type)
 
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)

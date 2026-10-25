@@ -955,6 +955,14 @@ class BaseVar:
     # opened.
     _rotation_just_armed = False
 
+    # Set when a LEFT_DOWN lands on an armed RotationRings but misses every
+    # part of it (no torus, no protractor band, no outer tick), and read by
+    # the matching LEFT_UP: a plain click (no motion) on open space or on
+    # another object closes the gizmo, while a left-drag is the camera's own
+    # pan/tilt and has to leave it up. The decision can't be made on the
+    # press, since a press and the start of a drag look identical there.
+    _rotation_click_missed = False
+
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,

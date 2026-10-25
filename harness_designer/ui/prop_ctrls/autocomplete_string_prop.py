@@ -11,13 +11,17 @@ from ... import check_types as _check_types
 class AutocompleteStringProperty(QtWidgets.QWidget):
     """Represent an autocomplete string property in :mod:`harness_designer.ui.prop_ctrls.autocomplete_string_prop`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    Single-line (the default), ONE Enter commits and sends ``propertyChanged``. Constructed with ``multiline=True`` the first two
+    Enters type newlines and the THIRD Enter in a row commits (see :class:`AutoCompleteTextEdit`), leaving a single newline at the
+    end of the text. The Enter that commits is never added to the text, and no spaces are stripped: they matter to the completer.
+    Each control has a tooltip that says how to save.
     """
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None,
+                 multiline: bool = False):
         """
         Initialise the :class:`AutocompleteStringProperty` instance.
 
@@ -31,16 +35,25 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         :type style: UNKNOWN
         :param units: Value for ``units``.
         :type units: UNKNOWN
+        :param multiline: Build a multi-line control, which needs three Enters in a row to commit.
+        :type multiline: bool
         """
         self._choices = []
         self._value = ''
+        self._multiline = multiline
         self._units_st = None
         self._label = label
 
         super().__init__(parent)
 
         self._st = QtWidgets.QLabel(label + ':', self)
-        self._ctrl = _autocomplete_textctrl.AutoCompleteTextCtrl(self, choices=[])
+        if multiline:
+            self._ctrl = _autocomplete_textctrl.AutoCompleteTextEdit(self, choices=[])
+            self._ctrl.setToolTip(
+                f'Press Enter {_autocomplete_textctrl.AutoCompleteTextEdit.COMMIT_ENTERS} times to save')
+        else:
+            self._ctrl = _autocomplete_textctrl.AutoCompleteTextCtrl(self, choices=[])
+            self._ctrl.setToolTip('Press Enter to save')
 
         if units is not None:
             self._units_st = QtWidgets.QLabel(units, self)
@@ -82,11 +95,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         :type value: str
         """
         self._value = value
-        self._ctrl.blockSignals(True)
-
-        self._ctrl.setText(value)
-
-        self._ctrl.blockSignals(False)
+        self._ctrl.SetValue(value)
 
     @_check_types.do
     def SetItems(self, items: list) -> None:
@@ -97,33 +106,31 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         :param items: Collection of items to process.
         :type items: list
         """
-        self._choices = items
+        self._choices = list(items)
         if self._ctrl is not None:
-            self._ctrl.SetItems(items)
+            self._ctrl.SetItems(self._choices)
 
     @_check_types.do
     def _on_enter(self) -> None:
-        """Handle the enter event.
+        """Commit the text when the control reports its Enter.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        The control decides which Enter commits: the single-line control reports every Enter, the multi-line one only the
+        third in a row (and has already cut its trailing newlines to one). The text is sent exactly as the control holds it,
+        with no spaces stripped. A new single-line value is added to the choices; a multi-line text is not, because the completer
+        matches one line at a time and a whole earlier text is a bad completion for it.
         """
-        # Reproduce the original double-enter-to-commit multiline logic.
-        text = self._ctrl.text()
-        if text.endswith('\n\n') and self._value.endswith('\n'):
-            self._value = text.rstrip()
-            self._choices.append(self._value)
-            self._ctrl.SetItems(self._choices)
-            self._ctrl.blockSignals(True)
-            self._ctrl.setText(self._value)
-            self._ctrl.blockSignals(False)
+        text = self._ctrl.GetValue()
+        self._value = text
 
-            evt = _events.PropertyEvent()
-            evt.SetValue(self._value)
-            evt.SetPropertyType(str)
-            evt.SetProperty(self)
-            self.propertyChanged.emit(evt)
-        else:
-            self._value = text
+        if text and not self._multiline and text not in self._choices:
+            self._choices.append(text)
+            self._ctrl.SetItems(self._choices)
+
+        evt = _events.PropertyEvent()
+        evt.SetValue(self._value)
+        evt.SetPropertyType(str)
+        evt.SetProperty(self)
+        self.propertyChanged.emit(evt)
 
     @_check_types.do
     def SetLabel(self, value: str) -> None:

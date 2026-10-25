@@ -8,6 +8,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
+    DeratingMixin,
     PartNumberMixin, PartNumberControl,
     DescriptionMixin, DescriptionControl,
     ManufacturerMixin, ManufacturerControl,
@@ -119,15 +120,21 @@ class SplicesTable(TableBase):
         """
         if isinstance(item, (int, bytes)):
             if item in Splice or item in self:
-                return Splice(self, item)
+                splice = Splice(self, item)
+            else:
+                raise IndexError(str(item))
 
-            raise IndexError(str(item))
+        else:
+            db_id = self.select('id', name=item)
+            if not db_id:
+                raise KeyError(item)
 
-        db_id = self.select('id', name=item)
-        if db_id:
-            return Splice(self, db_id[0][0])
+            splice = Splice(self, db_id[0][0])
 
-        raise KeyError(item)
+        # the part's whole derating table is read now, with the part
+        splice.load_deratings()
+
+        return splice
 
     @_check_types.do
     def insert(self, part_number: str, description: str, mfg_id: bytes, family_id: bytes,
@@ -267,7 +274,7 @@ class SplicesTable(TableBase):
 class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
              FamilyMixin, SeriesMixin, MaterialMixin, ColorMixin, PlatingMixin,
              ResourceMixin, Model3DMixin, WeightMixin, TemperatureMixin,
-             DimensionMixin, WireSizeMixin):
+             DimensionMixin, WireSizeMixin, DeratingMixin):
     """Represent a splice in :mod:`harness_designer.database.global_db.splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

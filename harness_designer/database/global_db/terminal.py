@@ -11,6 +11,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
+    DeratingMixin,
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
     DescriptionMixin, DescriptionControl,
@@ -145,15 +146,21 @@ class TerminalsTable(TableBase):
         """
         if isinstance(item, (int, bytes)):
             if item in Terminal or item in self:
-                return Terminal(self, item)
+                terminal = Terminal(self, item)
+            else:
+                raise IndexError(str(item))
 
-            raise IndexError(str(item))
+        else:
+            db_id = self.select('id', part_number=item)
+            if not db_id:
+                raise KeyError(item)
 
-        db_id = self.select('id', part_number=item)
-        if db_id:
-            return Terminal(self, db_id[0][0])
+            terminal = Terminal(self, db_id[0][0])
 
-        raise KeyError(item)
+        # the part's whole derating table is read now, with the part
+        terminal.load_deratings()
+
+        return terminal
 
     @_check_types.do
     def get_compat(self, seal: str | None = None, housing: str | None = None) -> list[bytes]:
@@ -403,7 +410,7 @@ class TerminalsTable(TableBase):
 class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
                GenderMixin, SeriesMixin, FamilyMixin, ResourceMixin, TemperatureMixin,
                WeightMixin, CavityLockMixin, PlatingMixin, Model3DMixin, DimensionMixin,
-               CompatHousingsMixin, CompatSealsMixin, ColorMixin, WireSizeMixin):
+               CompatHousingsMixin, CompatSealsMixin, ColorMixin, WireSizeMixin, DeratingMixin):
     """Represent a terminal in :mod:`harness_designer.database.global_db.terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

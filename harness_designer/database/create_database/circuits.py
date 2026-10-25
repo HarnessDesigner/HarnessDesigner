@@ -12,5 +12,7 @@ pjt_table = _con.SQLTable(
     _con.IntField('circuit_num', no_null=True),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
-    _con.TextField('description', default='""', no_null=True)
+    _con.TextField('description', default='""', no_null=True),
+    # circuit_solver.ReturnType: 0 = chassis return (not modelled), 1 = mirrored
+    _con.IntField('return_type', default='0', no_null=True)
 )

@@ -20,7 +20,7 @@ MAX_VDROP_PCT = 5.0   # design-rule voltage-drop limit
 # DRT severity
 # ---------------------------------------------------------------------------
 class Severity(Enum):
-    """Represent a severity in :mod:`harness_designer.ui.editor_ciruit.design_rules`.
+    """Represent a severity in :mod:`harness_designer.ui.editor_circuit.design_rules`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -42,7 +42,7 @@ SEV_ICO = {Severity.OK: "✓", Severity.INFO: "ℹ",
 
 @dataclass
 class DRTIssue:
-    """Represent a drt issue in :mod:`harness_designer.ui.editor_ciruit.design_rules`.
+    """Represent a drt issue in :mod:`harness_designer.ui.editor_circuit.design_rules`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -53,7 +53,7 @@ class DRTIssue:
 
 @dataclass
 class SplitSuggestion:
-    """Represent a split suggestion in :mod:`harness_designer.ui.editor_ciruit.design_rules`.
+    """Represent a split suggestion in :mod:`harness_designer.ui.editor_circuit.design_rules`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -64,6 +64,31 @@ class SplitSuggestion:
     num_parallel: int
     combined_mm2: float
     reason:  str
+
+
+@dataclass
+class WireLoad:
+    """One wire of a circuit and the current the solver finds in it."""
+    name: str
+    awg: int | None
+    amps: float
+    bundled: bool
+
+
+@dataclass
+class HotPart:
+    """A part of a circuit that the solver finds hotter than it is rated for."""
+    name: str
+    temperature_c: float
+    rated_c: float
+
+
+@dataclass
+class DropCheck:
+    """The voltage drop the solver finds to a load terminal, and the drop the user allows there (0 = none set)."""
+    name: str
+    drop_v: float
+    allowed_v: float
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +244,43 @@ def worst_severity(issues: list[DRTIssue]) -> Severity:
 # DRT engine
 # ---------------------------------------------------------------------------
 @_check_types.do
+def _check_current(issues: list[DRTIssue], awg: int | None, amps: float, bundled: bool, label: str = "") -> None:
+    """Add an issue when *amps* is over what the ampacity table allows for *awg*, or close to it.
+
+    :param issues: The list to add to.
+    :type issues: list[DRTIssue]
+    :param awg: The wire's gauge; nothing is checked when it is unknown or not in the table.
+    :type awg: int | None
+    :param amps: The current in the wire.
+    :type amps: float
+    :param bundled: Whether the wire is in a bundle, which has the lower limit.
+    :type bundled: bool
+    :param label: The wire, named in the message; empty for the circuit as a whole.
+    :type label: str
+    """
+    amp = AWG_AMPACITY.get(awg) if awg is not None else None
+
+    if not amp or amps <= 0:
+        return
+
+    limit = amp[0] if bundled else amp[1]
+    kind = "bundled" if bundled else "open-air"
+    where = f" in {label}" if label else ""
+
+    if amps > limit:
+        pct = (amps - limit) / limit * 100
+        issues.append(DRTIssue(
+            Severity.ERROR, "OVERCURRENT",
+            f"Load {amps:.2f} A{where} exceeds {kind} ampacity {limit:.1f} A for {awg} AWG ({pct:.0f} % over)."))
+
+    elif amps > limit * 0.85:
+        issues.append(DRTIssue(
+            Severity.WARNING, "NEAR_LIMIT",
+            f"Load {amps:.2f} A{where} is {amps / limit * 100:.0f} % of {limit:.1f} A {kind} limit "
+            f"for {awg} AWG — consider upsizing."))
+
+
+@_check_types.do
 def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
     """Execute the run drt operation.
 
@@ -251,23 +313,13 @@ def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
             Severity.INFO, "NO_VOLTS",
             "System voltage not set — voltage-drop checking disabled."))
 
-    if awg is not None and load > 0:
-        amp = AWG_AMPACITY.get(awg)
-        if amp:
-            limit = amp[0] if in_bun else amp[1]
-            if load > limit:
-                pct = (load - limit) / limit * 100
-                issues.append(DRTIssue(
-                    Severity.ERROR, "OVERCURRENT",
-                    f"Load {load:.2f} A exceeds {'bundled' if in_bun else 'open-air'} "
-                    f"ampacity {limit:.1f} A for {awg} AWG ({pct:.0f} % over)."))
+    if row.wire_loads:
+        # the current the solver finds in each wire, against that wire's own gauge
+        for wire_load in row.wire_loads:
+            _check_current(issues, wire_load.awg, wire_load.amps, wire_load.bundled, wire_load.name)
 
-            elif load > limit * 0.85:
-                issues.append(DRTIssue(
-                    Severity.WARNING, "NEAR_LIMIT",
-                    f"Load {load:.2f} A is {load/limit*100:.0f} % of "
-                    f"{limit:.1f} A {'bundled' if in_bun else 'open-air'} limit "
-                    f"for {awg} AWG — consider upsizing."))
+    elif awg is not None and load > 0:
+        _check_current(issues, awg, load, in_bun)
 
     if row.volts > 0 and row.voltage_drop_pct > 0:
         if row.voltage_drop_pct > MAX_VDROP_PCT:
@@ -283,47 +335,40 @@ def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
                 f"Voltage drop {row.voltage_drop_pct:.1f} % approaching "
                 f"{MAX_VDROP_PCT:.0f} % limit."))
 
+    for check in row.drop_checks:
+        if check.allowed_v > 0 and check.drop_v > check.allowed_v:
+            issues.append(DRTIssue(
+                Severity.ERROR, "V_DROP_ALLOWED",
+                f"Voltage drop to {check.name} is {check.drop_v:.3f} V, more than the "
+                f"{check.allowed_v:.3f} V allowed there."))
+
+    for part in row.hot_parts:
+        issues.append(DRTIssue(
+            Severity.ERROR, "OVER_TEMP",
+            f"{part.name} runs at {part.temperature_c:.0f} °C, above its {part.rated_c:.0f} °C rating."))
+
     return issues
 
 
 
 @_check_types.do
-def find_bundle_by_name(db: "_project_db.PJTTables", name: str) -> _Union["_pjt_bundle.PJTBundle", None]:
-    """Find the bundle by name.
-
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param db: Database accessor or connection.
-    :type db: UNKNOWN
-    :param name: Name value.
-    :type name: str
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
-    """
-    try:
-        for b in db.pjt_bundles_table:
-            if (b.name or "") == name:
-                return b
-
-    except Exception:  # NOQA
-        pass
-
-
-@_check_types.do
 def bundle_wire_ods(bundle: "_pjt_bundle.PJTBundle") -> list[float]:
-    """Execute the bundle wire ods operation.
+    """The outside diameter, in millimetres, of every wire in *bundle*; a wire whose part has none is left out.
 
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param bundle: Value for ``bundle``.
-    :type bundle: UNKNOWN
-    :returns: Return value. UNKNOWN details.
+    :param bundle: The bundle.
+    :type bundle: :class:`_pjt_bundle.PJTBundle`
+    :returns: The diameters, one per wire.
     :rtype: list[float]
     """
-    # Bundle wires are PJTWire objects, which have no ``wire`` attribute, so the
-    # per-wire lookup never matched and this always returned []. Kept as a stub
-    # until the bug is decided (see performance_notes/ui/editor_ciruit).
-    return []
+    ods = []
+
+    for wire in bundle.wires:
+        od = wire.part.od_mm
+
+        if od:
+            ods.append(float(od))
+
+    return ods
 
 
 
@@ -353,9 +398,10 @@ def generate_suggestions(row: "_editor_circuit.CircuitRow",
 
     seen_splits: set[tuple[int, int]] = set()
 
-    for bname in row.bundle_names:
-        bundle = find_bundle_by_name(project_db, bname)
-        if bundle is None:
+    for bundle_id, bname in zip(row.bundle_db_ids, row.bundle_names):
+        try:
+            bundle = project_db.pjt_bundles_table[bundle_id]
+        except (KeyError, IndexError):
             continue
 
         all_ods = bundle_wire_ods(bundle)

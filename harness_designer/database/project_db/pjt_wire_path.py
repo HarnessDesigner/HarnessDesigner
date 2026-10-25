@@ -330,6 +330,11 @@ class PJTWirePathsTable(PJTTableBase):
         return self._distinct('wire_id', 'bundle_id', bundle_id)
 
     @_check_types.do
+    def bundle_ids_for_wire(self, wire_id: bytes) -> list[bytes]:
+        """Return the id of every bundle *wire_id* is routed through, by its route rows' ``bundle_id`` tag."""
+        return self._distinct('bundle_id', 'wire_id', wire_id)
+
+    @_check_types.do
     def wire_ids_for_transition(self, transition_id: bytes) -> list[bytes]:
         """Return the id of every wire routed through *transition_id*."""
         return self._distinct('wire_id', 'transition_id', transition_id)

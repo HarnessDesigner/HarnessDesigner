@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING
 # import weakref
 
 from . import ObjectBase as _ObjectBase
+from .objects_schematic import circuit as _circuit_schematic
+from .objects_3d import circuit as _circuit_3d
 from .objects_pegboard import circuit as _circuit_pegboard
+from ..gl import materials as _materials
 from .. import check_types as _check_types
 # from ..geometry.decimal import Decimal as _d
 # from .. import color as _color
@@ -17,6 +20,7 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     # from ..database.project_db import pjt_wire as _pjt_wire
     from ..database.project_db import pjt_circuit as _pjt_circuit
+
 
 #
 # class WireInfoMeta(type):
@@ -634,9 +638,14 @@ if TYPE_CHECKING:
 class Circuit(_ObjectBase):
     """Represent a circuit in :mod:`harness_designer.objects.circuit`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    A circuit is a logical grouping, not a placed part, but it has a view in every editor (``objects_3d/circuit.py``,
+    ``objects_schematic/circuit.py``, ``objects_pegboard/circuit.py``): inert placeholders that are never drawn and never
+    pickable with the mouse. They exist so each canvas can hold the circuit as its one selected object, which is what makes
+    selecting anything else in a view deselect the circuit and so clear its highlight.
     """
 
+    objschematic: _circuit_schematic.Circuit = None
+    obj3d: _circuit_3d.Circuit = None
     objpegboard: _circuit_pegboard.Circuit = None
     db_obj: "_pjt_circuit.PJTCircuit" = None
 
@@ -658,6 +667,80 @@ class Circuit(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
+        self.obj3d = _circuit_3d.Circuit(self, db_obj)
         self.objpegboard = _circuit_pegboard.Circuit(self, db_obj)
+        self.objschematic = _circuit_schematic.Circuit(self, db_obj)
 
         self.mainframe.add_object(self)
+
+    @_check_types.do
+    def highlight(self, flag: bool) -> None:
+        """Show every wire, service loop, splice and terminal in this circuit
+        in every editor with the circuit material, or put them back to normal.
+        The members are not selected: ``identify()`` only overrides their material.
+
+        :param flag: ``True`` to highlight the members, ``False`` to clear it.
+        :type flag: bool
+        """
+        if flag:
+            material = _materials.Circuit()
+        else:
+            material = None
+
+        db_obj = self.db_obj
+
+        for members in (db_obj.wires, db_obj.wire_service_loops,
+                        db_obj.splices, db_obj.terminals):
+            for member in members:
+                obj = member.get_object()
+
+                if obj is not None:
+                    obj.identify(material)
+
+        self.mainframe.editor2d.Refresh()
+        self.mainframe.editor3d.Refresh()
+        self.mainframe.editor_pegboard.Refresh()
+
+    @_check_types.do
+    def deselect_in_editor(self) -> None:
+        """Tell the circuit editor that this circuit was deselected, so its table stops showing the circuit's row as selected.
+
+        The circuit editor clears its selection only when the selected row is this circuit's, and otherwise does nothing. Called by the
+        circuit's three views when they are deselected (see ``objects_3d/circuit.py``).
+        """
+        editor = getattr(self.mainframe, 'editor_circuit', None)
+
+        if editor is not None:
+            editor.editor.deselect_circuit(self.db_obj.db_id)
+
+    @_check_types.do
+    def set_selected(self, flag: bool) -> None:
+        """Select or deselect this circuit. A selected circuit shows all of its
+        members highlighted (see :meth:`highlight`), so choosing one in the
+        object browser or the circuit editor traces it. The canvases hold this
+        circuit as their selected object (through its placeholder views), so
+        selecting anything else in a view calls ``set_selected(False)`` here and
+        clears the highlight.
+
+        :param flag: ``True`` to select, ``False`` to deselect.
+        :type flag: bool
+        """
+        super().set_selected(flag)
+
+        self.highlight(flag)
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this circuit.
+
+        ``PJTCircuit.delete`` clears ``circuit_id`` on every member first, so
+        deleting a circuit detaches its wires, splices, terminals and service
+        loops; it never deletes them.
+        """
+        if self.is_selected:
+            # clears the members' circuit material and the canvases' selection
+            self.set_selected(False)
+
+        super().delete()
+        self.mainframe.project.delete_circuit(self.db_obj.db_id)
+        self.db_obj.delete()

@@ -207,6 +207,10 @@ class ProtractorRingBase:
         # that drag, for no visible effect.
         self._last_ring_angle_quat: np.ndarray | None = None
 
+        # The center the ticks/labels were last baked around -- see
+        # reposition_all.
+        self._last_center: np.ndarray | None = None
+
         self._ticks: list[_Tick] = []
 
         # Bulk, vectorized per-tick LOCAL geometry -- row i corresponds
@@ -475,17 +479,26 @@ class ProtractorRingBase:
         """
 
         new_quat = ring_angle.as_quat_numpy
-        if (
-            self._last_ring_angle_quat is not None and
-            np.array_equal(new_quat, self._last_ring_angle_quat)
-        ):
-            return False
-
-        self._last_ring_angle_quat = new_quat
 
         center_np = np.array(
             [float(self.center.x), float(self.center.y), float(self.center.z)],
             dtype=np.float64)
+
+        # The ticks and labels below are baked in WORLD space from the
+        # center, while the washer and torus read the shared center Point
+        # live every frame -- so a center that moved with the orientation
+        # unchanged has to re-bake too, or the washer follows the center
+        # and its ticks stay behind (a wire service loop's gizmo did this).
+        if (
+            self._last_ring_angle_quat is not None and
+            self._last_center is not None and
+            np.array_equal(new_quat, self._last_ring_angle_quat) and
+            np.array_equal(center_np, self._last_center)
+        ):
+            return False
+
+        self._last_ring_angle_quat = new_quat
+        self._last_center = center_np
 
         ring_matrix = ring_angle.as_matrix_numpy
 

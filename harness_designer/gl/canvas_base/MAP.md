@@ -45,7 +45,7 @@ the view objects (`obj.obj3d`/`.objschematic`/`.objpegboard`, see
 `objectsvar.base_var.BaseVar.handle_interaction`) and in the top-level `drag_handlers/` package,
 not as a `CanvasBase`-declared handler-class hierarchy — MEMORY.md's note describing those two
 specific attributes at this file's old line 342-343 no longer matches current source and should be
-treated as superseded by this entry, not re-verified line-for-line.
+treated as superseded by this entry, not re-verified line-for-line. `_draw_scene` and `_render_selected_overlay` skip a selected object that has no view in that canvas, and `_report_view_less_selection` reports it once per canvas and object class, instead of dereferencing `None` (an exception escaping `paintGL` aborts the whole process in this PySide6 build; a selected circuit used to do exactly that, fixed 2026-10-25 by giving circuits placeholder views, with this guard as the safety net). Every selectable object needs a view in every canvas: `MouseHandlerBase.on_left_up` deselects through `canvas.get_selected()`, so a canvas that ignored a view-less selection would never deselect it (and a circuit's highlight would stay on).
 
 #### canvas_window_base.py
 

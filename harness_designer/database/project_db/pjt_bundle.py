@@ -10,6 +10,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import bundle_cover as _bundle_cover
 from ...geometry import line as _line
 from ...geometry import point as _point
+from . import circuit_solver as _circuit_solver
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartMixin,
@@ -474,6 +475,41 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         if concentric_id is not None:
             return self.table.db.pjt_concentrics_table[concentric_id]
         
+    @property
+    @_check_types.do
+    def bundle_type(self) -> "_circuit_solver.BundleType":
+        """How this bundle's wires are packed, derived from the data and never
+        stored: ``CONCENTRIC`` when it has a concentric row with layers,
+        ``UNORGANIZED`` otherwise (wires bundled without concentric rows). A
+        wire in no bundle is ``UNPACKED``, which is not any bundle's type.
+
+        :rtype: :class:`_circuit_solver.BundleType`
+        """
+        concentric = self.concentric
+
+        if concentric is not None and concentric.layers:
+            return _circuit_solver.BundleType.CONCENTRIC
+
+        return _circuit_solver.BundleType.UNORGANIZED
+
+    @_check_types.do
+    def thermal_data(self) -> "_circuit_solver.BundleData":
+        """What the circuit solver needs to know about this bundle: how it is
+        packed, its outside diameter in metres (the one the bundle diameter rule
+        works out from the wires, read without changing anything) and every wire
+        in it.
+
+        :rtype: :class:`_circuit_solver.BundleData`
+        """
+        from ...handlers import bundle_diameter as _bundle_diameter
+
+        diameter = _bundle_diameter.wires_diameter(self)
+
+        return _circuit_solver.BundleData(
+            kind=self.bundle_type,
+            diameter_m=(diameter or 0.0) / 1000.0,
+            wire_ids=tuple(wire.db_id for wire in self.wires))
+
     @property
     @_check_types.do
     def start_layout(self) -> _Union["_pjt_bundle_layout.PJTBundleLayout", None]:

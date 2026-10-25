@@ -953,6 +953,7 @@ from .datasheet import DatasheetsTable  # NOQA
 from .cpa_lock_type import CPALockTypesTable  # NOQA
 from .resource_state import ResourceStateTable  # NOQA
 from .used_part import UsedPartsTable  # NOQA
+from .derating import DeratingsTable  # NOQA
 from .app_users import AppUsersTable  # NOQA
 
 
@@ -1023,6 +1024,7 @@ class GLBTables:
         self._transitions_table = TransitionsTable(self, tables, splash, load_database)
         self._used_parts_table = UsedPartsTable(self, tables, splash, load_database)
         self._wires_table = WiresTable(self, tables, splash, load_database)
+        self._deratings_table = DeratingsTable(self, tables, splash, load_database)
         self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
         self._app_users_table = AppUsersTable(self, tables, splash, load_database)
 
@@ -1273,6 +1275,16 @@ class GLBTables:
         :rtype: :class:`WiresTable`
         """
         return self._wires_table
+
+    @property
+    @_check_types.do
+    def deratings_table(self) -> DeratingsTable:
+        """Return the deratings table: the manufacturers' derating tables of terminals, wires and splices.
+
+        :returns: The deratings table.
+        :rtype: :class:`DeratingsTable`
+        """
+        return self._deratings_table
 
     @property
     @_check_types.do

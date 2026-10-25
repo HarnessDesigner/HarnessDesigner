@@ -24,6 +24,7 @@ from . import plating as _plating
 from . import compat_housings as _compat_housings
 from . import compat_terminals as _compat_terminals
 from . import compat_seals as _compat_seals
+from . import derating as _derating
 
 
 ColorMixin = _color.ColorMixin
@@ -98,6 +99,7 @@ CompatTerminalsControl = _compat_terminals.CompatTerminalsControl
 CompatSealsMixin = _compat_seals.CompatSealsMixin
 CompatSealsControl = _compat_seals.CompatSealsControl
 
+DeratingMixin = _derating.DeratingMixin
 
 del _adhesive
 del _color
@@ -123,3 +125,4 @@ del _plating
 del _compat_housings
 del _compat_terminals
 del _compat_seals
+del _derating

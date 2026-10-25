@@ -247,12 +247,16 @@ class MouseHandlerBase:
     def _blocks_deselection(self, obj: _Union["_objects.ObjectBase", None]) -> bool:
         """
         Whether *obj* currently has its rotation gizmo up -- if so, a
-        click that misses everything (or lands back on the object
-        itself, which would normally toggle selection off) shouldn't
-        also drop the selection out from under it. Closing the gizmo
-        itself is still entirely ``_handle_rotation_interaction``'s own
-        call (see its own docstring) -- this only stops that same click
-        from *additionally* deselecting.
+        click that lands back on the object itself (which would
+        normally toggle selection off) or on open space shouldn't also
+        drop the selection out from under it. Closing the gizmo itself
+        is still entirely ``_handle_rotation_interaction``'s own call
+        (see its own docstring) -- this only stops a click the gizmo
+        *consumed the press of* (a torus pick, an outer-tick snap) from
+        additionally deselecting on its release. A click-off that
+        missed the gizmo has already closed it by the time this runs
+        (``_handle_rotation_interaction``'s LEFT_UP), so it deselects
+        like any other click on open space.
         """
 
         from ...rotation_handlers import rotation_rings as _rotation_rings

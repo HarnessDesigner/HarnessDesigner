@@ -12,6 +12,7 @@ from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import line as _line
 from .mixins import (
+    WireOperatingTempMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
     StartStopPosition2DMixin, StartStopPosition2DControl,
     StartStopPositionPegboardMixin, StartStopPositionPegboardControl,
@@ -28,6 +29,7 @@ from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
+    from . import pjt_bundle as _pjt_bundle
     from . import pjt_point2d as _pjt_point2d
     from . import pjt_point3d as _pjt_point3d
     from . import pjt_point_pegboard as _pjt_point_pegboard
@@ -205,7 +207,9 @@ class PJTWiresTable(PJTTableBase):
             layer_view_point_id=layer_view_point_id, layer_id=layer_id,
             is_filler_wire=int(is_filler_wire), bundle_id=None, transition_id=None,
             start_point_pegboard_id=None, stop_point_pegboard_id=None, notes='',
-            is_visible_pegboard=1, smooth=None)
+            is_visible_pegboard=1, smooth=None, operating_temp=None)
+
+        self.db.pjt_circuits_table.members_changed(circuit_id)
 
         return PJTWire(self, db_id)
 
@@ -245,7 +249,8 @@ class PJTWiresTable(PJTTableBase):
 @capturable()
 class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosition2DMixin,
               StartStopPositionPegboardMixin,
-              Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NameMixin, NotesMixin, SmoothMixin):
+              Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NameMixin, NotesMixin, SmoothMixin,
+              WireOperatingTempMixin):
     """Represent a PJT wire in :mod:`harness_designer.database.project_db.pjt_wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -339,6 +344,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         design (Phase 8 of the point-safety-check rollout, 2026-09-02,
         see TODO.md).
         """
+        circuit_id = self.circuit_id
         layouts_table = self._table.db.pjt_wire_layouts_table
 
         for point in self.waypoints3d:
@@ -356,6 +362,8 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._table.db.pjt_wire_paths_table.delete_for_wire(self.db_id)
 
         super().delete()
+
+        self._table.db.pjt_circuits_table.members_changed(circuit_id)
 
     @property
     @dump_property(severity=2)
@@ -547,6 +555,33 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
     @property
     @_check_types.do
+    def bundles(self) -> list["_pjt_bundle.PJTBundle"]:
+        """Every bundle this wire runs through, judged the way a bundle judges its own ``wires``: by the
+        ``bundle_id`` tag on the wire's route rows, or, for a bundle none of whose wires carry the tag,
+        by its concentric layers.
+
+        :returns: The bundles; empty for a wire that is in none (it hangs in free air).
+        :rtype: list[:class:`_pjt_bundle.PJTBundle`]
+        """
+        db = self._table.db
+        bundle_ids = list(db.pjt_wire_paths_table.bundle_ids_for_wire(self.db_id))
+
+        for row in db.pjt_concentric_wires_table.select('layer_id', wire_id=self.db_id):
+            concentric_id = db.pjt_concentric_layers_table.select('concentric_id', id=row[0])[0][0]
+
+            for found in db.pjt_concentrics_table.select('bundle_id', id=concentric_id):
+                bundle_id = found[0]
+
+                # a bundle whose wires carry the route tag lists only those (PJTBundle.wires), so the
+                # concentric layers only make a wire a member of a bundle nobody tagged
+                if (bundle_id is not None and bundle_id not in bundle_ids
+                        and not db.pjt_wire_paths_table.wire_ids_for_bundle(bundle_id)):
+                    bundle_ids.append(bundle_id)
+
+        return [db.pjt_bundles_table[bundle_id] for bundle_id in bundle_ids]
+
+    @property
+    @_check_types.do
     def length_mm(self) -> float:
         """Total physical length: the sum of every sub-segment from
         start, through each interior waypoint in order, to stop -- not
@@ -622,11 +657,47 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
+        # The routed length, through every waypoint -- not the straight line
+        # between the two ends, which is shorter for any wire with a bend.
+        return self._resistance_over(self.length_mm)
+
+    @_check_types.do
+    def _resistance_over(self, length_mm: float) -> float:
+        """The resistance, in ohms, of *length_mm* of this wire.
+
+        :attr:`resistance` for a length the caller already has: working out
+        ``length_mm`` can mean walking the whole route, so ``part_data()`` does it
+        once and hands the number to everything that needs it.
+
+        :param length_mm: The length in millimeters.
+        :type length_mm: float
+        :returns: The resistance in ohms.
+        :rtype: float
+        """
         resistance = self.part.resistance_1km
         # resistance per millimeter
         resistance /= 1000000.0
-        length = _line.Line(self.start_position3d, self.stop_position3d).length()
-        return resistance * length
+
+        return resistance * length_mm
+
+    @property
+    @_check_types.do
+    def load(self) -> float:
+        """The current, in amps, that flows through this wire: what every
+        load terminal beyond it draws, at the voltage that actually reaches
+        them (the voltage terminal's voltage less the drop up to here).
+        Everything between the voltage terminal and this wire is not part of
+        the number. ``0.0`` when it is in no circuit, or its circuit has no
+        voltage terminal.
+
+        :returns: The current in amps.
+        :rtype: float
+        """
+        circuit_id = self.circuit_id
+        if circuit_id is None:
+            return 0.0
+
+        return self._table.db.pjt_circuits_table[circuit_id].load_at(self)
 
     @property
     @_check_types.do
@@ -682,8 +753,17 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: bytes
         """
+        old_circuit_id = self.circuit_id
+
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
+
+        circuits_table = self._table.db.pjt_circuits_table
+        circuits_table.members_changed(old_circuit_id, value)
+
+        # a circuit that is added or changes reaches every connected object
+        if value != old_circuit_id:
+            circuits_table.propagate(self, value)
 
     _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
@@ -788,7 +868,7 @@ class PJTWireControl(QtWidgets.QTabWidget, LazyTabMixin):
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
         elif page is self._circuit_page:
-            self.circuit_ctrl.set_obj(None if self.db_obj is None else self.db_obj.circuit)
+            self.circuit_ctrl.set_obj(self.db_obj)
         elif page is self._part_page:
             self.wire_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True

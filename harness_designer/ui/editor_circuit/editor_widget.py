@@ -12,6 +12,8 @@
 #   • Housing thumbnail images in the From/To connector columns
 #
 
+import functools
+import traceback
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Union as _Union
 
@@ -20,6 +22,9 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from . import design_rules as _design_rules
 from . import bitmaps as _bitmaps
 from ... import check_types as _check_types
+from ... import logger as _logger
+from ... import image as _image
+from ...database import id_generator as _id_generator
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -30,9 +35,78 @@ if TYPE_CHECKING:
     from ...objects import wire as _wire
 
 
+# Errors already written to the log, so a failure that repeats (a paint, per cell) is reported once.
+_REPORTED: set[tuple[str, str]] = set()
+
+
+def _guarded(fallback: Any = None):
+    """For what Qt calls into the dock (slots, paint, data, sort and filter overrides).
+
+    An exception that escapes one of those reaches ``run.py``'s hook, and PySide6 in this build aborts the process
+    right after it (the hook's own comment says so). A table of circuits is not worth the user's unsaved work, so the
+    failure is written to the log, with its traceback and once per distinct failure, and *fallback* is returned (called,
+    when it is callable) so the dock carries on without that one thing.
+
+    :param fallback: What to return after a failure, or a callable that makes it.
+    """
+    def decorate(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except Exception as exc:  # NOQA
+                key = (func.__qualname__, repr(exc))
+
+                if key not in _REPORTED:
+                    _REPORTED.add(key)
+                    _logger.error(f"circuit editor: {func.__qualname__} failed: {exc!r}\n{traceback.format_exc()}")
+
+                return fallback() if callable(fallback) else fallback
+
+        return wrapper
+
+    return decorate
+
+
+# The size of a wire's picture in the table, and in the panel on the right.
+WIRE_TABLE_SIZE = (100, 25)
+WIRE_PANEL_SIZE = (200, 50)
+
+
+@dataclass
+class WireInfo:
+    """One distinct wire part used in a circuit.
+
+    A circuit does not use one wire throughout: where it branches off a splice or another terminal the wire can change gauge, colour or
+    construction. Wires and wire service loops made of the same part are one entry, in the order the circuit meets them, with what is
+    specific to that part and the totals of the members that use it.
+    """
+    part_db_id: bytes | None = None
+    part_number: str = ""
+    wires: int = 0
+    loops: int = 0
+    length_mm: float = 0.0
+    resistance: float = 0.0
+    weight_g: float = 0.0
+    max_amps: float = 0.0
+    bundled: bool = False
+    gauge_awg: Any = None
+    gauge_mm2: Any = None
+    od_mm: float | None = None
+    num_conductors: int = 1
+    shielded: bool = False
+    insulation: str | None = None
+    color_primary: str | None = None
+    color_stripe: str | None = None
+    conductor: str | None = None
+    # from images.build_wire, as QImage (drawn on the worker thread, where that is safe); _on_loaded and show_row make QPixmaps
+    table_image: QtGui.QImage | QtGui.QPixmap | None = None
+    panel_image: QtGui.QImage | QtGui.QPixmap | None = None
+
+
 @dataclass
 class CircuitRow:
-    """Represent a circuit row in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a circuit row in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -41,11 +115,13 @@ class CircuitRow:
     net_name: str = ""
     notes: str = ""
     from_connector: str = ""
-    from_connector_image: QtGui.QPixmap | None = None
+    # drawn on the worker thread as QImage, which is safe there; _on_loaded makes them QPixmap on the GUI thread
+    from_connector_image: QtGui.QImage | QtGui.QPixmap | None = None
     from_pin: str = ""
     to_connectors: str = ""
-    to_connector_images: list[QtGui.QPixmap] = field(default_factory=list)
+    to_connector_images: list[QtGui.QImage | QtGui.QPixmap] = field(default_factory=list)
     to_pins: str = ""
+    # the FIRST wire's description, which the design rules fall back on; every distinct wire is in ``wires``
     wire_color_primary: str | None = None
     wire_color_stripe: str | None = None
     wire_conductor_material: str | None = None
@@ -61,12 +137,22 @@ class CircuitRow:
     voltage_drop_v: float = 0.0
     voltage_drop_pct: float = 0.0
     bundle_names: list[str] = field(default_factory=list)
+    bundle_db_ids: list[bytes] = field(default_factory=list)
     issues: list[_design_rules.DRTIssue] = field(default_factory=list)
     worst_severity: _design_rules.Severity = _design_rules.Severity.OK
     suggestions: list[_design_rules.SplitSuggestion] = field(default_factory=list)
+    # what the solver finds, for the design rules (see _build_row)
+    wire_loads: list[_design_rules.WireLoad] = field(default_factory=list)
+    hot_parts: list[_design_rules.HotPart] = field(default_factory=list)
+    drop_checks: list[_design_rules.DropCheck] = field(default_factory=list)
+    max_wire_amps: float = 0.0
     wire_db_ids: list[bytes] = field(default_factory=list)
+    # every distinct wire part of the circuit (wires and wire service loops), see WireInfo
+    wires: list[WireInfo] = field(default_factory=list)
     start_terminal_db_id: bytes | None = None
     end_terminal_db_ids: list[bytes] = field(default_factory=list)
+    # set when the circuit could not be read: the row stands in for it, saying so
+    build_error: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -78,17 +164,18 @@ COL_NET_NAME = 2
 COL_FROM_CONN = 3
 COL_FROM_PIN = 4
 COL_TO_CONNS = 5
-COL_WIRE_COLOR = 6
-COL_GAUGE = 7
-COL_LENGTH_MM = 8
-COL_RESISTANCE = 9
-COL_LOAD_A = 10
-COL_V_DROP_PCT = 11
-COL_WEIGHT_G = 12
-COL_BUNDLES = 13
-COL_NOTES = 14
+COL_TO_PIN = 6
+COL_WIRE_COLOR = 7
+COL_GAUGE = 8
+COL_LENGTH_MM = 9
+COL_RESISTANCE = 10
+COL_LOAD_A = 11
+COL_V_DROP_PCT = 12
+COL_WEIGHT_G = 13
+COL_BUNDLES = 14
+COL_NOTES = 15
 
-COLUMNS = ["▲", "Circuit #", "Net Name", "From", "Pin", "To", "Wire",
+COLUMNS = ["▲", "Circuit #", "Net Name", "From", "From Pin", "To", "To Pin", "Wire",
            "Gauge", "Length (mm)", "Resistance (Ω)", "Load (A)",
            "V-Drop %", "Weight (g)", "Bundles", "Notes"]
 
@@ -97,11 +184,34 @@ NUMERIC_COLS = {COL_LENGTH_MM, COL_RESISTANCE, COL_LOAD_A,
                 COL_V_DROP_PCT, COL_WEIGHT_G}
 
 
+@_check_types.do
+def _number(value: Any) -> float:
+    """A cell's value as a number to sort by; 0.0 for anything that is not one."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+_SEVERITY_ORDER = {severity: place for place, severity in enumerate(_design_rules.Severity)}
+
+# What each sortable column is ordered by. The cells hold text, and as text "10" comes before "9".
+_SORT_KEYS = {
+    COL_STATUS: lambda row: _SEVERITY_ORDER[row.worst_severity],
+    COL_CIRCUIT_NUM: lambda row: _number(row.circuit_num),
+    COL_LENGTH_MM: lambda row: row.total_length_mm,
+    COL_RESISTANCE: lambda row: row.total_resistance,
+    COL_LOAD_A: lambda row: row.total_load_a,
+    COL_V_DROP_PCT: lambda row: row.voltage_drop_pct,
+    COL_WEIGHT_G: lambda row: row.total_weight_g
+}
+
+
 # ---------------------------------------------------------------------------
 # Async DB builder
 # ---------------------------------------------------------------------------
 class _BuildWorker(QtCore.QObject):
-    """Represent a build worker in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a build worker in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -130,30 +240,48 @@ class _BuildWorker(QtCore.QObject):
         UNKNOWN details are inferred from the callable name and signature.
         """
         rows: list[CircuitRow] = []
-        circuits = list(self._db.pjt_circuits_table)
-        n = max(len(circuits), 1)
 
-        for i, circuit in enumerate(circuits):
-            try:
-                row = _build_row(circuit, self._db)
-                rows.append(row)
-            except Exception:  # NOQA
-                pass
+        try:
+            circuits = list(self._db.pjt_circuits_table)
+            n = max(len(circuits), 1)
 
-            self.progress.emit(int((i + 1) / n * 100))
+            for i, circuit in enumerate(circuits):
+                try:
+                    rows.append(_build_row(circuit, self._db))
+                except Exception as exc:  # NOQA
+                    # a circuit that cannot be read gets a row that says so, not a silent gap in the table
+                    _logger.error(f"circuit editor: could not read circuit {circuit.db_id!r}: {exc!r}")
+                    rows.append(_failed_row(circuit, exc))
 
-        for row in rows:
-            row.issues = _design_rules.run_drt(row)
-            row.suggestions = _design_rules.generate_suggestions(row, self._db)
-            row.worst_severity = _design_rules.worst_severity(row.issues)
+                self.progress.emit(int((i + 1) / n * 100))
 
-        self.finished.emit(rows)
+            for row in rows:
+                if row.build_error:
+                    continue
+
+                try:
+                    row.issues = _design_rules.run_drt(row)
+                    row.suggestions = _design_rules.generate_suggestions(row, self._db)
+                except Exception as exc:  # NOQA
+                    _logger.error(f"circuit editor: design rules failed for circuit {row.circuit_db_id!r}: {exc!r}")
+                    row.issues = [_design_rules.DRTIssue(
+                        _design_rules.Severity.WARNING, "RULES_FAILED",
+                        f"The design rules could not be checked: {type(exc).__name__}: {exc}")]
+
+                row.worst_severity = _design_rules.worst_severity(row.issues)
+
+        except Exception as exc:  # NOQA
+            _logger.error(f"circuit editor: building the table failed: {exc!r}")
+
+        finally:
+            # always tell the dock: it will not start another build while it believes this one is still running
+            self.finished.emit(rows)
 
 
 @_check_types.do
-def _load_housing_pixmap(housing_obj: "_pjt_housing.PJTHousing") -> QtGui.QPixmap | None:
+def _load_housing_image(housing_obj: "_pjt_housing.PJTHousing") -> QtGui.QImage | None:
     """
-    Try to load a QPixmap from a housing database object.
+    Try to load a QImage from a housing database object (it runs on the worker thread, where a QPixmap is not safe).
     Looks for common attribute names used by harness tools:
       .image, .thumbnail, .photo, .picture, .icon
     Each may be a QPixmap, QImage, bytes (PNG/JPEG), or str (file path).
@@ -162,6 +290,286 @@ def _load_housing_pixmap(housing_obj: "_pjt_housing.PJTHousing") -> QtGui.QPixma
     # was ever found and this always returned None (see performance_notes).
     return None
 
+
+
+@_check_types.do
+def _unset(part: Any, id_attribute: str) -> bool:
+    """Whether a catalog reference of *part* is not set: no id, or the nil id the database uses for "none"."""
+    value = getattr(part, id_attribute, None)
+
+    return value is None or value == _id_generator.NIL_UUID.bytes
+
+
+def _log_once(key: tuple[str, str], message: str) -> None:
+    """Write *message* to the log the first time *key* is seen, so a failure that repeats for every circuit is reported once."""
+    if key not in _REPORTED:
+        _REPORTED.add(key)
+        _logger.error(message)
+
+
+# A wire part's pictures by (primary, stripe, conductor) colour name, as (table image, panel image). The generator keeps the full-size
+# image itself; this keeps the two sizes made from it. Reset by EditorCircuitPanel.refresh().
+_WIRE_IMAGES: dict[Any, tuple[QtGui.QImage, QtGui.QImage]] = {}
+
+
+@_check_types.do
+def _qimage(image: Any, size: tuple[int, int]) -> QtGui.QImage:
+    """A generated :class:`~harness_designer.image.Image` as a ``QImage`` that fits *size*, aspect kept. A ``QImage`` (not a ``QPixmap``)
+    because this runs on the worker thread."""
+    return QtGui.QImage.fromData(image.resize_keep_aspect(*size).png_data)
+
+
+@_check_types.do
+def _wire_part_images(part: Any) -> tuple[QtGui.QImage, QtGui.QImage]:
+    """A wire part's picture from the image module's generator, at the table size and at the panel size.
+
+    The generator draws only a single-conductor, unshielded wire whose insulation and conductor colours are set; the parts editor, the
+    peg-board table and the BOM make the same call under the same rule. Any other part, or one the generator fails on (logged once),
+    gets ``images.no_image``.
+
+    :param part: The catalog wire, or ``None`` for a member with no part.
+    :type part: Any
+    :returns: ``(table image, panel image)``.
+    :rtype: tuple[QtGui.QImage, QtGui.QImage]
+    """
+    images = _image.images
+    key = None
+    source = None
+
+    try:
+        if (part is not None and (part.num_conductors or 1) == 1 and not part.shielded
+                and not _unset(part, "color_id") and not _unset(part, "core_material_id")):
+            primary = part.color
+            stripe = None if _unset(part, "stripe_color_id") else part.stripe_color
+            conductor = part.core_material.color
+            key = (primary.name, None if stripe is None else stripe.name, conductor.name)
+
+            if key not in _WIRE_IMAGES:
+                source = images.build_wire(primary, stripe, conductor)
+
+    except Exception as exc:  # NOQA
+        _log_once(("wire image", repr(exc)), f"circuit editor: could not build a wire image: {exc!r}")
+        key = None
+        source = None
+
+    if key is None:
+        key = "no image"
+
+        if key not in _WIRE_IMAGES:
+            source = images.no_image
+
+    if key not in _WIRE_IMAGES:
+        _WIRE_IMAGES[key] = (_qimage(source, WIRE_TABLE_SIZE), _qimage(source, WIRE_PANEL_SIZE))
+
+    return _WIRE_IMAGES[key]
+
+
+@_check_types.do
+def _table_pixmap(info: WireInfo) -> QtGui.QPixmap | None:
+    """The table picture of *info* as a ``QPixmap`` (GUI thread only), converted once and kept."""
+    if isinstance(info.table_image, QtGui.QImage):
+        info.table_image = QtGui.QPixmap.fromImage(info.table_image)
+
+    return info.table_image
+
+
+@_check_types.do
+def _panel_pixmap(info: WireInfo) -> QtGui.QPixmap | None:
+    """The panel picture of *info* as a ``QPixmap`` (GUI thread only), converted once and kept."""
+    if isinstance(info.panel_image, QtGui.QImage):
+        info.panel_image = QtGui.QPixmap.fromImage(info.panel_image)
+
+    return info.panel_image
+
+
+@_check_types.do
+def _new_wire_info(part: Any) -> WireInfo:
+    """What is specific to a wire *part*: its description and its pictures. The members using it are added by :func:`_wire_infos`."""
+    info = WireInfo()
+    info.table_image, info.panel_image = _wire_part_images(part)
+
+    if part is None:
+        return info
+
+    info.part_db_id = part.db_id
+    info.part_number = part.part_number or ""
+    info.gauge_awg = part.size_awg
+    info.gauge_mm2 = part.size_mm2
+    info.od_mm = part.od_mm
+    info.num_conductors = part.num_conductors or 1
+    info.shielded = bool(part.shielded)
+
+    if not _unset(part, "color_id"):
+        info.color_primary = part.color.name or None
+
+    if not _unset(part, "stripe_color_id"):
+        info.color_stripe = part.stripe_color.name or None
+
+    # The insulation is the wire's MATERIAL (a Material row); the conductor is its CORE material (a Plating).
+    if not _unset(part, "material_id"):
+        info.insulation = part.material.name or None
+
+    if not _unset(part, "core_material_id"):
+        core = part.core_material
+        info.conductor = core.description or core.symbol or None
+
+    return info
+
+
+@_check_types.do
+def _wire_infos(circuit: "_pjt_circuit.PJTCircuit", solution: Any) -> list[WireInfo]:
+    """Every distinct wire part *circuit* uses, in the order it meets them, with the members that use each.
+
+    Wire service loops count as wires. Members of one part are one entry: its count, its total length, resistance and weight, the
+    most current any of them carries, and whether any is in a bundle.
+
+    :param circuit: The circuit to read.
+    :type circuit: :class:`_pjt_circuit.PJTCircuit`
+    :param solution: What ``circuit.solve()`` found, or ``None`` when nothing could be solved.
+    :type solution: Any
+    :returns: One :class:`WireInfo` per distinct part.
+    :rtype: list[WireInfo]
+    """
+    infos: dict[bytes | None, WireInfo] = {}
+
+    for is_loop, members in ((False, circuit.wires or []), (True, circuit.wire_service_loops or [])):
+        for member in members:
+            part = member.part
+            key = part.db_id if part is not None else None
+            info = infos.get(key)
+
+            if info is None:
+                info = infos[key] = _new_wire_info(part)
+
+            if is_loop:
+                info.loops += 1
+
+                # a loop knows nothing of bundles: it is taken to be in one when any wire of the circuit is (wires come first)
+                if any(other.bundled for other in infos.values()):
+                    info.bundled = True
+            else:
+                info.wires += 1
+
+                if member.bundles:
+                    info.bundled = True
+
+            info.length_mm += float(member.length_mm or 0)
+            info.resistance += float(member.resistance or 0)
+            info.weight_g += float(member.weight_g or 0)
+
+            if solution is not None:
+                info.max_amps = max(info.max_amps, abs(solution.amps.get(member.db_id, 0.0)))
+
+    for info in infos.values():
+        info.length_mm = round(info.length_mm, 2)
+        info.resistance = round(info.resistance, 6)
+        info.weight_g = round(info.weight_g, 4)
+        info.max_amps = round(info.max_amps, 3)
+
+    return list(infos.values())
+
+
+@_check_types.do
+def _wire_text(info: WireInfo) -> str:
+    """What is specific to one wire part of a circuit, as the text of its card in the detail panel."""
+    used = []
+
+    if info.wires:
+        used.append(f"{info.wires} wire{'' if info.wires == 1 else 's'}")
+
+    if info.loops:
+        used.append(f"{info.loops} wire service loop{'' if info.loops == 1 else 's'}")
+
+    colour = info.color_primary or "unknown"
+    if info.color_stripe:
+        colour += f", stripe {info.color_stripe}"
+
+    meters = info.length_mm / 1000
+    lines = [
+        ("Part:", info.part_number or "unknown"),
+        ("Used by:", ", ".join(used) or "nothing"),
+        ("Gauge:", _gauge_text(info.gauge_awg, info.gauge_mm2) or "unknown"),
+        ("Insulation:", info.insulation or "unknown"),
+        ("Color:", colour),
+        ("Conductor:", info.conductor or "unknown"),
+        ("OD:", f"{info.od_mm:.2f} mm" if info.od_mm is not None else "unknown"),
+        ("Conductors:", f"{info.num_conductors}" + (" (shielded)" if info.shielded else "")),
+        ("Length:", f"{info.length_mm:.1f} mm  /  {meters:.4f} m  /  {meters * 3.28084:.4f} ft"),
+        ("Resistance:", f"{info.resistance:.6f} \u03a9"),
+        ("Weight:", f"{info.weight_g:.4f} g"),
+        ("Max current:", f"{info.max_amps:.3f} A"),
+    ]
+
+    awg = _design_rules.resolve_awg(info.gauge_awg, info.gauge_mm2)
+    amp = None if awg is None else _design_rules.AWG_AMPACITY.get(awg)
+
+    if amp:
+        limit = amp[0] if info.bundled else amp[1]
+        lines.append((f"Ampacity ({'bundled' if info.bundled else 'open-air'}):",
+                      f"{limit:.1f} A   margin {limit - info.max_amps:+.2f} A"))
+
+    return "\n".join(f"{label:<21}{value}" for label, value in lines)
+
+
+@_check_types.do
+def _add_wire_totals(r: CircuitRow, member: Any, kind: str, solution: Any, bundled: bool) -> None:
+    """Count a wire, or a wire service loop, in the row: its length, resistance and weight go into the circuit's totals, and the current it
+    carries (what ``solution`` finds) into the inputs of the per-wire overcurrent rule.
+
+    :param r: The row being built.
+    :type r: CircuitRow
+    :param member: The wire or wire service loop.
+    :type member: Any
+    :param kind: ``Wire`` or ``Wire service loop``, for the rule's message.
+    :type kind: str
+    :param solution: What ``circuit.solve()`` found, or ``None``.
+    :type solution: Any
+    :param bundled: Whether it is in a bundle, which sets the ampacity it is checked against.
+    :type bundled: bool
+    """
+    r.total_length_mm += float(member.length_mm or 0)
+    r.total_resistance += float(member.resistance or 0)
+    r.total_weight_g += float(member.weight_g or 0)
+
+    if solution is not None:
+        part = member.part
+        amps = abs(solution.amps.get(member.db_id, 0.0))
+        r.max_wire_amps = max(r.max_wire_amps, amps)
+        r.wire_loads.append(_design_rules.WireLoad(
+            _member_name(member, kind),
+            _design_rules.resolve_awg(part.size_awg, part.size_mm2) if part else None,
+            amps, bundled))
+
+
+@_check_types.do
+def _member_name(member: Any, kind: str) -> str:
+    """How a part of a circuit is named in a message: its name, or its kind and the start of its id."""
+    try:
+        name = member.name
+    except Exception:  # NOQA
+        name = None
+
+    return name or f"{kind} {member.db_id.hex()[:8]}"
+
+
+@_check_types.do
+def _failed_row(circuit: "_pjt_circuit.PJTCircuit", error: Exception) -> CircuitRow:
+    """The row for a circuit that could not be read: it says so, instead of the circuit going missing."""
+    r = CircuitRow()
+
+    try:
+        r.circuit_db_id = circuit.db_id
+        r.circuit_num = circuit.circuit_num
+        r.net_name = circuit.name or ""
+    except Exception:  # NOQA
+        pass
+
+    r.build_error = f"{type(error).__name__}: {error}"
+    r.issues = [_design_rules.DRTIssue(
+        _design_rules.Severity.ERROR, "ROW_FAILED", f"This circuit could not be read: {r.build_error}")]
+    r.worst_severity = _design_rules.Severity.ERROR
+
+    return r
 
 
 @_check_types.do
@@ -184,6 +592,14 @@ def _build_row(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") 
     r.notes = circuit.notes or ""
     r.volts = float(circuit.volts or 0)
 
+    # What the circuit really does (the current in every wire, the voltage reaching every load, how hot every part
+    # runs), worked out once for this row. None when there is no voltage terminal, so nothing can be solved.
+    try:
+        solution = circuit.solve()
+    except Exception as exc:  # NOQA
+        _logger.error(f"circuit editor: could not solve circuit {circuit.db_id!r}: {exc!r}")
+        solution = None
+
     # Start terminal
     st = circuit.start_terminal
     r.start_terminal_db_id = st.db_id if st else None
@@ -196,13 +612,13 @@ def _build_row(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") 
             if h:
                 r.from_connector = h.name or ""
                 # ── housing image ──────────────────────────────────
-                raw_px = _load_housing_pixmap(h)
+                raw_px = _load_housing_image(h)
                 if raw_px:
-                    r.from_connector_image = _bitmaps.scale_housing_pixmap(
+                    r.from_connector_image = _bitmaps.scale_housing_image(
                         raw_px, _bitmaps.ROW_H)
 
                 else:
-                    r.from_connector_image = _bitmaps.placeholder_connector_pixmap(
+                    r.from_connector_image = _bitmaps.placeholder_connector_image(
                         r.from_connector, _bitmaps.ROW_H)
 
     # End terminals
@@ -212,11 +628,16 @@ def _build_row(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") 
     for et in circuit.load_terminals or []:
         r.end_terminal_db_ids.append(et.db_id)
 
-        r.total_load_a += float(et.load or 0)
+        # a terminal's voltage_drop is the drop the user ALLOWS at that load; what it really drops comes from the solver
+        allowed = float(et.voltage_drop or 0)
 
-        vd = float(et.voltage_drop or 0)
-        if vd > r.voltage_drop_v:
-            r.voltage_drop_v = vd
+        if solution is not None:
+            drop = max(0.0, r.volts - solution.volts.get(et.db_id, r.volts))
+            r.voltage_drop_v = max(r.voltage_drop_v, drop)
+            r.drop_checks.append(_design_rules.DropCheck(_member_name(et, "Terminal"), drop, allowed))
+        else:
+            # nothing is solved, so all there is to show is what the loads are rated for
+            r.total_load_a += float(et.load or 0)
 
         cav = et.cavity
         if cav:
@@ -231,92 +652,117 @@ def _build_row(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") 
                 if hname not in seen_housing_names:
                     seen_housing_names.add(hname)
 
-                    raw_px = _load_housing_pixmap(h)
+                    raw_px = _load_housing_image(h)
                     if raw_px:
                         r.to_connector_images.append(
-                            _bitmaps.scale_housing_pixmap(
+                            _bitmaps.scale_housing_image(
                                 raw_px, _bitmaps.ROW_H))
                     else:
                         r.to_connector_images.append(
-                            _bitmaps.placeholder_connector_pixmap(
+                            _bitmaps.placeholder_connector_image(
                                 hname, _bitmaps.ROW_H))
 
     r.to_connectors = ", ".join(dict.fromkeys(to_conns))
     r.to_pins = ", ".join(to_pins)
 
+    if solution is not None:
+        r.total_load_a = round(solution.total_amps, 3)
+
     if r.volts > 0 and r.voltage_drop_v > 0:
         r.voltage_drop_pct = round((r.voltage_drop_v / r.volts) * 100, 2)
 
-    # Wires — sum totals
-    wires = circuit.wires or []
-    for w in wires:
-        r.wire_db_ids.append(w.db_id)
-        r.total_length_mm += float(w.length_mm or 0)
+    # Wires and wire service loops. A loop is wire too (user, 2026-10-25): its length, resistance and weight count towards the
+    # totals, and the current it carries is checked like any wire's. A loop knows nothing of bundles, so it is taken to be in one
+    # when any of the circuit's wires is (the stricter bundled ampacity then applies).
+    wires_bundled = False
 
-        r.total_resistance += float(w.resistance or 0)
+    for member in circuit.wires or []:
+        r.wire_db_ids.append(member.db_id)
+        bundled = bool(member.bundles)
+        wires_bundled = wires_bundled or bundled
+        _add_wire_totals(r, member, "Wire", solution, bundled)
 
-        r.total_weight_g += float(w.weight_g or 0)
+    for member in circuit.wire_service_loops or []:
+        _add_wire_totals(r, member, "Wire service loop", solution, wires_bundled)
 
     r.total_length_mm = round(r.total_length_mm,  2)
     r.total_resistance = round(r.total_resistance, 6)
     r.total_weight_g = round(r.total_weight_g,   4)
 
-    # Wire part info from first wire
-    if wires:
-        part = wires[0].part
-        if part:
-            clr = part.color
-            if clr:
-                r.wire_color_primary = clr.name
+    # Every distinct wire the circuit uses, wires and wire service loops together. The wire changes where the circuit branches
+    # off a splice or another terminal, so one wire's description is not the circuit's.
+    r.wires = _wire_infos(circuit, solution)
 
-            sk = part.stripe_color
-            if sk:
-                r.wire_color_stripe = sk.name
-
-            # conductor material (e.g. "copper", "tinned_copper", "aluminium")
-            r.wire_conductor_material = part.material
-
-            r.wire_gauge_awg = part.size_awg
-            r.wire_gauge_mm2 = part.size_mm2
-            r.od_mm = part.od_mm
-            r.num_conductors = part.num_conductors or 1
+    # The first one's description, which the design rules fall back on.
+    if r.wires:
+        first = r.wires[0]
+        r.wire_color_primary = first.color_primary
+        r.wire_color_stripe = first.color_stripe
+        r.wire_conductor_material = first.conductor
+        r.wire_gauge_awg = first.gauge_awg
+        r.wire_gauge_mm2 = first.gauge_mm2
+        r.od_mm = first.od_mm
+        r.num_conductors = first.num_conductors
 
     # Bundle routing
-    r.bundle_names = _bundles_for_circuit(circuit, db)
+    bundles = _bundles_for_circuit(circuit)
+    r.bundle_db_ids = [bundle_id for bundle_id, _ in bundles]
+    r.bundle_names = [name for _, name in bundles]
+
+    # the parts the solver finds hotter than they are rated for, hottest first
+    if solution is not None and solution.over_temp:
+        members = {member.db_id: (kind, member)
+                   for kind, group in (("Wire", circuit.wires), ("Wire service loop", circuit.wire_service_loops),
+                                       ("Splice", circuit.splices), ("Terminal", circuit.terminals))
+                   for member in group}
+
+        for member_id in solution.over_temp:
+            kind, member = members.get(member_id, (None, None))
+
+            if member is not None and member.max_temp_c is not None:
+                r.hot_parts.append(_design_rules.HotPart(
+                    _member_name(member, kind), solution.temperature[member_id], member.max_temp_c))
+
+        r.hot_parts.sort(key=lambda part: part.temperature_c, reverse=True)
 
     return r
 
 
 
 @_check_types.do
-def _bundles_for_circuit(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") -> list[str]:
-    """Execute the bundles for circuit operation.
+def _bundles_for_circuit(circuit: "_pjt_circuit.PJTCircuit") -> list[tuple[bytes, str]]:
+    """Return every bundle one of the circuit's wires runs through, as ``(id, name)``.
 
-    UNKNOWN details are inferred from the callable name and signature.
+    A wire is in a bundle as ``PJTWire.bundles`` judges it: by the ``bundle_id`` tag on its route rows, or, for a
+    bundle none of whose wires carry the tag, by its concentric layers.
 
-    :param circuit: Value for ``circuit``.
-    :type circuit: UNKNOWN
-    :param db: Database accessor or connection.
-    :type db: UNKNOWN
-    :returns: Return value. UNKNOWN details.
-    :rtype: list[str]
+    :param circuit: The circuit to look at.
+    :type circuit: :class:`_pjt_circuit.PJTCircuit`
+    :returns: Each bundle once, in the order the circuit's wires meet them. A bundle with no name is called
+        ``Unnamed bundle``.
+    :rtype: list[tuple[bytes, str]]
     """
-    # Bundle wires are PJTWire objects, which have no ``wire`` attribute, so the
-    # per-wire match never succeeded and this always returned []. Kept as a stub
-    # until the bug is decided (see performance_notes/ui/editor_ciruit).
-    return []
+    found = {}
 
+    for wire in circuit.wires:
+        for bundle in wire.bundles:
+            if bundle.db_id not in found:
+                found[bundle.db_id] = bundle.name or "Unnamed bundle"
+
+    return list(found.items())
 
 
 # ---------------------------------------------------------------------------
 # Qt Model
 # ---------------------------------------------------------------------------
 class CircuitTableModel(QtCore.QAbstractTableModel):
-    """Represent a circuit table model in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a circuit table model in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    cell_edited: QtCore.SignalInstance = QtCore.Signal(int, int, object)
+    # (circuit id, column, new value). The id is bytes, so the first argument is `object`: declared as `int` the
+    # emit could not convert it, and the edit never reached _on_cell_edited.
+    cell_edited: QtCore.SignalInstance = QtCore.Signal(object, int, object)
 
     @_check_types.do
     def __init__(self, parent: QtCore.QObject | None = None):
@@ -427,6 +873,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
             return f
 
     @_check_types.do
+    @_guarded(None)
     def data(self, index: QtCore.QModelIndex,
              role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
              ) -> str | bytes | CircuitRow | QtGui.QBrush | QtCore.Qt.AlignmentFlag | None:
@@ -508,6 +955,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return None
 
     @_check_types.do
+    @_guarded(False)
     def setData(self, index: QtCore.QModelIndex, value: Any,
                 role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.EditRole) -> bool:
         """Execute the set data operation.
@@ -589,6 +1037,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return [self.MIME]
 
     @_check_types.do
+    @_guarded(QtCore.QMimeData)
     def mimeData(self, indexes: list[QtCore.QModelIndex]) -> QtCore.QMimeData:
         """Execute the mime data operation.
 
@@ -604,7 +1053,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
             r = idx.row()
             if r not in seen:
                 seen.add(r)
-                payload.append(f"{self._rows[r].circuit_db_id},{r}")
+                payload.append(f"{(self._rows[r].circuit_db_id or b'').hex()},{r}")
 
         m = QtCore.QMimeData()
         m.setData(self.MIME, QtCore.QByteArray(",".join(payload).encode()))
@@ -612,6 +1061,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return m
 
     @_check_types.do
+    @_guarded(False)
     def dropMimeData(self, data: QtCore.QMimeData, action: QtCore.Qt.DropAction,
                      row: int, col: int, parent: QtCore.QModelIndex) -> bool:
         """Execute the drop mime data operation.
@@ -634,21 +1084,26 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         if not data.hasFormat(self.MIME):
             return False
 
+        # "id,row,id,row,...": the ids are hex, so the rows are the odd tokens
         toks = bytes(data.data(self.MIME)).decode().split(",")
-        pairs = list(zip(toks[::2], toks[1::2]))
+        indexes = sorted({int(token) for token in toks[1::2] if token.isdigit()})
+        indexes = [i for i in indexes if 0 <= i < len(self._rows)]
 
-        if row >= 0:
-            target = row
-        else:
-            target = len(self._rows)
+        if not indexes:
+            return False
 
-        moved = [self._rows.pop(int(s)) for _, s in pairs]
+        target = row if row >= 0 else len(self._rows)
 
-        ins = min(target, len(self._rows))
-        for item in reversed(moved):
-            self._rows.insert(ins, item)
+        # the rows leaving from above the drop point move it up by that many places
+        target -= sum(1 for i in indexes if i < target)
 
         self.beginResetModel()
+        moved = [self._rows[i] for i in indexes]
+
+        for i in reversed(indexes):
+            del self._rows[i]
+
+        self._rows[target:target] = moved
         self.endResetModel()
 
         return True
@@ -658,7 +1113,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 # Filter proxy
 # ---------------------------------------------------------------------------
 class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
-    """Represent a circuit filter proxy in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a circuit filter proxy in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -701,6 +1156,31 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self.invalidateFilter()
 
     @_check_types.do
+    @_guarded(False)
+    def lessThan(self, left: QtCore.QModelIndex, right: QtCore.QModelIndex) -> bool:
+        """Order the numeric columns by their numbers (as text, 10 would come before 9) and the status column
+        by how bad it is.
+
+        :param left: One cell.
+        :type left: :class:`QtCore.QModelIndex`
+        :param right: The cell to compare it with.
+        :type right: :class:`QtCore.QModelIndex`
+        :rtype: bool
+        """
+        key = _SORT_KEYS.get(left.column())
+
+        if key is not None:
+            model = self.sourceModel()
+            first = model.data(left, QtCore.Qt.ItemDataRole.UserRole + 1)
+            second = model.data(right, QtCore.Qt.ItemDataRole.UserRole + 1)
+
+            if first is not None and second is not None:
+                return key(first) < key(second)
+
+        return super().lessThan(left, right)
+
+    @_check_types.do
+    @_guarded(True)
     def filterAcceptsRow(self, src_row: int, src_parent: QtCore.QModelIndex) -> bool:
         """Execute the filter accepts row operation.
 
@@ -748,27 +1228,34 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
 # ---------------------------------------------------------------------------
 
 class WireDelegate(QtWidgets.QStyledItemDelegate):
+    """Draws the Wire column: one picture for each distinct wire of the circuit (wires and wire service loops), stacked.
+
+    The pictures are the image module's generated wire (``images.build_wire``) at ``WIRE_TABLE_SIZE``. A circuit whose wires are all
+    the same part shows one; where it uses several (the wire changes when it branches off a splice or another terminal) the cell is
+    made taller and they are stacked in it: the table sizes the row to what :meth:`sizeHint` asks for.
     """
-    Renders a full wire visualisation in the Wire column:
-      • Coloured insulation with diagonal stripe bands
-      • Stripped end showing conductor metal colour
-      • Cylindrical 3-D shading
-    Falls back to a "—" label if no colour data is present.
-    """
-    _MARGIN = 4   # px padding top/bottom around the wire
+    _MARGIN = 4   # px above, below and beside the pictures
+    _GAP = 4      # px between two stacked pictures
+
+    @staticmethod
+    @_check_types.do
+    def _pixmaps(row: CircuitRow) -> list[QtGui.QPixmap]:
+        """The row's wire pictures that can be drawn."""
+        pixmaps = [_table_pixmap(info) for info in row.wires]
+
+        return [px for px in pixmaps if px is not None and not px.isNull()]
 
     @_check_types.do
+    @_guarded(None)
     def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionViewItem,
               index: QtCore.QModelIndex) -> None:
-        """Execute the paint operation.
+        """Draw the wire pictures, centred in the cell, or a dash when the circuit has no wires.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param painter: Value for ``painter``.
+        :param painter: The painter.
         :type painter: :class:`QtGui.QPainter`
-        :param option: Value for ``option``.
-        :type option: UNKNOWN
-        :param index: Index value.
+        :param option: The item's style options.
+        :type option: QtWidgets.QStyleOptionViewItem
+        :param index: The item.
         :type index: :class:`QtCore.QModelIndex`
         """
         self.initStyleOption(option, index)
@@ -780,8 +1267,6 @@ class WireDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.save()
 
-        # Cell background
-
         if option.state & QtWidgets.QStyle.StateFlag.State_Selected:
             bg = option.palette.highlight()
         else:
@@ -789,42 +1274,40 @@ class WireDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.fillRect(option.rect, bg)
 
-        if row.wire_color_primary:
-            cell_w = option.rect.width()
-            cell_h = option.rect.height()
-            wire_w = min(cell_w - self._MARGIN * 2, 180)
-            wire_h = cell_h - self._MARGIN * 2
+        pixmaps = self._pixmaps(row)
 
-            px = _bitmaps.cached_wire_pixmap(row.wire_color_primary,
-                                             row.wire_color_stripe,
-                                             row.wire_conductor_material,
-                                             wire_w, wire_h)
+        if pixmaps:
+            total = sum(px.height() for px in pixmaps) + self._GAP * (len(pixmaps) - 1)
+            y = option.rect.top() + max(self._MARGIN, (option.rect.height() - total) // 2)
 
-            # Centre pixmap vertically, left-aligned with margin
-            draw_x = option.rect.left() + self._MARGIN
-            draw_y = option.rect.top() + self._MARGIN
-            painter.drawPixmap(draw_x, draw_y, px)
+            for px in pixmaps:
+                x = option.rect.left() + max(0, (option.rect.width() - px.width()) // 2)
+                painter.drawPixmap(x, y, px)
+                y += px.height() + self._GAP
         else:
             painter.setPen(QtGui.QColor("#888"))
-            painter.drawText(
-                option.rect, QtCore.Qt.AlignmentFlag.AlignCenter, "—")
+            painter.drawText(option.rect, QtCore.Qt.AlignmentFlag.AlignCenter, "\u2014")
 
         painter.restore()
 
     @_check_types.do
+    @_guarded(lambda: QtCore.QSize(WIRE_TABLE_SIZE[0] + 12, _bitmaps.ROW_H))
     def sizeHint(self, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> QtCore.QSize:
-        """Execute the size hint operation.
+        """The cell is as tall as its stacked pictures, and never shorter than a normal row.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param option: Value for ``option``.
-        :type option: UNKNOWN
-        :param index: Index value.
-        :type index: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :param option: The item's style options.
+        :type option: QtWidgets.QStyleOptionViewItem
+        :param index: The item.
+        :type index: :class:`QtCore.QModelIndex`
+        :returns: The size the cell wants.
+        :rtype: QtCore.QSize
         """
-        return QtCore.QSize(190, _bitmaps.ROW_H)
+        row: CircuitRow = index.data(QtCore.Qt.ItemDataRole.UserRole + 1)
+        pixmaps = [] if row is None else self._pixmaps(row)
+        width = max([px.width() for px in pixmaps] + [WIRE_TABLE_SIZE[0]]) + self._MARGIN * 2
+        height = sum(px.height() for px in pixmaps) + self._GAP * max(0, len(pixmaps) - 1) + self._MARGIN * 2
+
+        return QtCore.QSize(width, max(_bitmaps.ROW_H, height))
 
 
 class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
@@ -869,6 +1352,7 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
         return imgs, name
 
     @_check_types.do
+    @_guarded(None)
     def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionViewItem,
               index: QtCore.QModelIndex) -> None:
         """Execute the paint operation.
@@ -922,6 +1406,7 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
         painter.restore()
 
     @_check_types.do
+    @_guarded(lambda: QtCore.QSize(80, _bitmaps.ROW_H))
     def sizeHint(self, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> QtCore.QSize:
         """Execute the size hint operation.
 
@@ -942,11 +1427,12 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class NumericDelegate(QtWidgets.QStyledItemDelegate):
-    """Represent a numeric delegate in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a numeric delegate in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
+    @_guarded("")
     def displayText(self, value: str, locale: QtCore.QLocale) -> str:
         """Execute the display text operation.
 
@@ -966,7 +1452,7 @@ class NumericDelegate(QtWidgets.QStyledItemDelegate):
 
             return str(int(f))
 
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             if value is not None:
                 return str(value)
 
@@ -977,7 +1463,7 @@ class NumericDelegate(QtWidgets.QStyledItemDelegate):
 # Detail panel
 # ---------------------------------------------------------------------------
 class CircuitDetailPanel(QtWidgets.QWidget):
-    """Represent a circuit detail panel in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a circuit detail panel in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
@@ -1003,17 +1489,6 @@ class CircuitDetailPanel(QtWidgets.QWidget):
         layout.addWidget(self._title)
 
         # Wire preview in detail panel
-        self._wire_preview = QtWidgets.QLabel()
-        self._wire_preview.setFixedHeight(_bitmaps.ROW_H + 8)
-
-        self._wire_preview.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignLeft |
-            QtCore.Qt.AlignmentFlag.AlignVCenter)
-
-        self._wire_preview.setStyleSheet(
-            "background:#121212; border-radius:4px; padding:4px;")
-
-        layout.addWidget(self._wire_preview)
 
         tabs = self._tabs = QtWidgets.QTabWidget()
         tabs.setStyleSheet("""
@@ -1044,6 +1519,18 @@ class CircuitDetailPanel(QtWidgets.QWidget):
 
         self._totals = _te()
         tabs.addTab(self._totals,  "Totals & Routing")
+
+        # one card per distinct wire of the circuit: its picture centred above what is specific to it
+        self._wires_scroll = QtWidgets.QScrollArea()
+        self._wires_scroll.setWidgetResizable(True)
+        self._wires_scroll.setStyleSheet("QScrollArea { border:none; background:#1e1e1e; }")
+        body = QtWidgets.QWidget()
+        body.setStyleSheet("background:#1e1e1e;")
+        self._wires_layout = QtWidgets.QVBoxLayout(body)
+        self._wires_layout.setContentsMargins(6, 6, 6, 6)
+        self._wires_layout.setSpacing(10)
+        self._wires_scroll.setWidget(body)
+        tabs.addTab(self._wires_scroll, "Wires")
         self._drt = QtWidgets.QTreeWidget()
         self._drt.setHeaderHidden(True)
         self._drt.setColumnCount(1)
@@ -1077,15 +1564,67 @@ class CircuitDetailPanel(QtWidgets.QWidget):
         total_h = max(p.height() for p in all_px)
         comp = QtGui.QPixmap(total_w, total_h)
         comp.fill(QtCore.Qt.GlobalColor.transparent)
-        ptr = QtGui.QPainter(comp)
         x = 0
-        for p in all_px:
-            ptr.drawPixmap(x, (total_h - p.height()) // 2, p)
-            x += p.width() + gap
-
-        ptr.end()
+        with _bitmaps.painting(comp) as ptr:
+            for p in all_px:
+                ptr.drawPixmap(x, (total_h - p.height()) // 2, p)
+                x += p.width() + gap
 
         return comp
+
+    @_check_types.do
+    def _show_wires(self, row: CircuitRow | None) -> None:
+        """Fill the Wires tab: one card for each distinct wire of the circuit, its picture centred above its data.
+
+        :param row: The circuit's row, or ``None`` to empty the tab.
+        :type row: CircuitRow | None
+        """
+        layout = self._wires_layout
+
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+
+            if widget is not None:
+                # out of the panel now: deleteLater alone leaves it a child, and drawn, until the event loop gets to it
+                widget.setParent(None)
+                widget.deleteLater()
+
+        wires = [] if row is None else row.wires
+        self._tabs.setTabText(1, f"Wires ({len(wires)})" if len(wires) > 1 else "Wires")
+
+        if not wires:
+            note = QtWidgets.QLabel("No circuit selected" if row is None else "This circuit has no wires.")
+            note.setStyleSheet("color:#888; padding:8px;")
+            layout.addWidget(note)
+            layout.addStretch(1)
+            return
+
+        for info in wires:
+            card = QtWidgets.QFrame()
+            card.setObjectName("wireCard")
+            card.setStyleSheet("#wireCard { border:1px solid #3a3a3a; border-radius:4px; background:#222; }")
+
+            box = QtWidgets.QVBoxLayout(card)
+            box.setContentsMargins(8, 8, 8, 8)
+            box.setSpacing(6)
+
+            picture = QtWidgets.QLabel()
+            pixmap = _panel_pixmap(info)
+
+            if pixmap is not None:
+                picture.setPixmap(pixmap)
+
+            box.addWidget(picture, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
+
+            text = QtWidgets.QLabel(_wire_text(info))
+            text.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
+            text.setStyleSheet("font-family:monospace; font-size:11px; color:#e0e0e0;")
+            box.addWidget(text)
+
+            layout.addWidget(card)
+
+        layout.addStretch(1)
 
     @_check_types.do
     def show_row(self, row: CircuitRow | None) -> None:
@@ -1098,7 +1637,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
         """
         if row is None:
             self._title.setText("No circuit selected")
-            self._wire_preview.clear()
+            self._show_wires(None)
             self._totals.clear()
             self._drt.clear()
             self._sugg.clear()
@@ -1109,39 +1648,12 @@ class CircuitDetailPanel(QtWidgets.QWidget):
         self._title.setText(f"  {name}")
 
         # ── Wire preview ──────────────────────────────────────────────
-        if row.wire_color_primary:
-            px = _bitmaps.cached_wire_pixmap(row.wire_color_primary,
-                                             row.wire_color_stripe,
-                                             row.wire_conductor_material,
-                                             width=320, height=_bitmaps.ROW_H)
-
-            self._wire_preview.setPixmap(px)
-            mat = row.wire_conductor_material or "copper"
-            self._wire_preview.setToolTip(f"Primary: {row.wire_color_primary}\n"
-                                          f"Stripe:  {row.wire_color_stripe or 'none'}\n"
-                                          f"Conductor: {mat}")
-        else:
-            self._wire_preview.clear()
+        self._show_wires(row)
 
         # ── Totals ────────────────────────────────────────────────────
-        awg = _design_rules.resolve_awg(row.wire_gauge_awg, row.wire_gauge_mm2)
-
-        in_bun = bool(row.bundle_names)
-        amp_line = ""
-        if awg is not None:
-            amp = _design_rules.AWG_AMPACITY.get(awg)
-            if amp:
-                lim = amp[0] if in_bun else amp[1]
-                margin = lim - row.total_load_a
-                amp_line = (f"  {'Ampacity (' + ('bundled' if in_bun else 'open-air')+')':<26}"
-                            f" {lim:.1f} A   margin {margin:+.2f} A\n")
-
         lm = row.total_length_mm / 1000
         txt = (
-            f"  {'Wire gauge:':<28} {row.wire_gauge_awg} AWG  /  {row.wire_gauge_mm2} mm²\n"
-            f"  {'Conductor:':<28} {row.wire_conductor_material or 'unknown'}\n"
-            f"  {'OD:':<28} {row.od_mm:.2f} mm\n"
-            f"  {'Conductors:':<28} {row.num_conductors}\n\n"
+            f"  {'Wire parts:':<28} {len(row.wires)}  (see the Wires tab)\n\n"
             f"  {'Total length:':<28} {row.total_length_mm:.1f} mm\n"
             f"  {'':28} {lm:.4f} m   /   {lm*3.28084:.4f} ft\n\n"
             f"  {'Total resistance:':<28} {row.total_resistance:.6f} Ω\n"
@@ -1149,11 +1661,9 @@ class CircuitDetailPanel(QtWidgets.QWidget):
             f"  {'System voltage:':<28} {row.volts:.1f} V\n"
             f"  {'Total load:':<28} {row.total_load_a:.3f} A\n"
             f"  {'Voltage drop:':<28} {row.voltage_drop_v:.4f} V  "
-            f"({row.voltage_drop_pct:.2f} %)\n"
-            f"{amp_line}\n"
+            f"({row.voltage_drop_pct:.2f} %)\n\n"
             f"  {'From:':<28} {row.from_connector}  pin {row.from_pin}\n"
-            f"  {'To:':<28} {row.to_connectors}\n"
-            f"  {'Pins:':<28} {row.to_pins}\n\n"
+            f"  {'To:':<28} {row.to_connectors}  pin {row.to_pins}\n\n"
             f"  {'Bundles traversed:':<28} "
             f"{', '.join(row.bundle_names) or 'None (free wire)'}\n"
         )
@@ -1167,7 +1677,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
                 _design_rules.SEV_FG[_design_rules.Severity.OK])))
 
             self._drt.addTopLevelItem(item)
-            self._tabs.setTabText(1, "DRT Issues")
+            self._tabs.setTabText(2, "DRT Issues")
         else:
             for iss in row.issues:
                 item = QtWidgets.QTreeWidgetItem(
@@ -1185,12 +1695,12 @@ class CircuitDetailPanel(QtWidgets.QWidget):
                      if i.severity == _design_rules.Severity.WARNING)
 
             self._tabs.setTabText(
-                1, f"DRT Issues  ({ec}✕  {wc}⚠)" if (ec or wc) else "DRT Issues")
+                2, f"DRT Issues  ({ec}✕  {wc}⚠)" if (ec or wc) else "DRT Issues")
 
         # ── Suggestions ───────────────────────────────────────────────
         if not row.suggestions:
             self._sugg.setPlainText("No concentric-twist split suggestions.")
-            self._tabs.setTabText(2, "Suggestions")
+            self._tabs.setTabText(3, "Suggestions")
         else:
             lines = []
             for i, s in enumerate(row.suggestions, 1):
@@ -1206,7 +1716,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
                     "",
                 ]
             self._sugg.setPlainText("\n".join(lines))
-            self._tabs.setTabText(2, f"Suggestions ({len(row.suggestions)})")
+            self._tabs.setTabText(3, f"Suggestions ({len(row.suggestions)})")
 
 
 # ---------------------------------------------------------------------------
@@ -1232,11 +1742,13 @@ _TABLE_STYLE = """
 
 
 class CircuitTableView(QtWidgets.QTableView):
-    """Represent a circuit table view in :mod:`harness_designer.ui.editor_ciruit.editor_widget`.
+    """Represent a circuit table view in :mod:`harness_designer.ui.editor_circuit.editor_widget`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     row_selected: QtCore.SignalInstance = QtCore.Signal(object)
+    # the circuit id of the row whose Delete Circuit was chosen
+    delete_requested: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
@@ -1270,7 +1782,8 @@ class CircuitTableView(QtWidgets.QTableView):
 
         vh = self.verticalHeader()
         vh.setDefaultSectionSize(_bitmaps.ROW_H)
-        vh.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Fixed)
+        # a row is as tall as its tallest cell: the Wire column stacks a picture per distinct wire
+        vh.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         vh.setVisible(False)
 
         hh = self.horizontalHeader()
@@ -1283,7 +1796,7 @@ class CircuitTableView(QtWidgets.QTableView):
             hh.setSectionResizeMode(
                 col, QtWidgets.QHeaderView.ResizeMode.Stretch)
 
-        for col in (COL_CIRCUIT_NUM, COL_FROM_PIN,
+        for col in (COL_CIRCUIT_NUM, COL_FROM_PIN, COL_TO_PIN,
                     COL_GAUGE, COL_LOAD_A, COL_V_DROP_PCT):
 
             hh.setSectionResizeMode(
@@ -1292,9 +1805,41 @@ class CircuitTableView(QtWidgets.QTableView):
         # Give connector and wire columns a reasonable fixed width
         self.setColumnWidth(COL_FROM_CONN, 120)
         self.setColumnWidth(COL_TO_CONNS, 160)
-        self.setColumnWidth(COL_WIRE_COLOR, 190)
+        self.setColumnWidth(COL_WIRE_COLOR, WIRE_TABLE_SIZE[0] + 12)
 
     @_check_types.do
+    @_guarded(None)
+    def contextMenuEvent(self, event: QtGui.QContextMenuEvent) -> None:
+        """Right-click a circuit for its menu: Delete Circuit.
+
+        :param event: The context menu event.
+        :type event: :class:`QtGui.QContextMenuEvent`
+        """
+        index = self.indexAt(event.pos())
+
+        if not index.isValid():
+            return
+
+        row: CircuitRow | None = index.data(QtCore.Qt.ItemDataRole.UserRole + 1)
+
+        if row is None or row.circuit_db_id is None:
+            return
+
+        self.selectRow(index.row())
+
+        menu = QtWidgets.QMenu(self)
+        delete_action = menu.addAction("Delete Circuit\u2026")
+
+        if self._choose_action(menu, event.globalPos()) is delete_action:
+            self.delete_requested.emit(row.circuit_db_id)
+
+    @_check_types.do
+    def _choose_action(self, menu: QtWidgets.QMenu, global_pos: QtCore.QPoint) -> QtGui.QAction | None:
+        """Show *menu* at *global_pos* and return the action the user chose, or ``None``."""
+        return menu.exec(global_pos)
+
+    @_check_types.do
+    @_guarded(None)
     def selectionChanged(self, selected: QtCore.QItemSelection,
                          deselected: QtCore.QItemSelection) -> None:
         """Execute the selection changed operation.
@@ -1307,10 +1852,18 @@ class CircuitTableView(QtWidgets.QTableView):
         :type deselected: UNKNOWN
         """
         super().selectionChanged(selected, deselected)
+        self.row_selected.emit(self.selected_row())
+
+    @_check_types.do
+    def selected_row(self) -> CircuitRow | None:
+        """Return the row that is selected in the table, or ``None`` when no row is.
+
+        :returns: The selected row.
+        :rtype: CircuitRow | None
+        """
         idxs = self.selectionModel().selectedRows()
         if not idxs:
-            self.row_selected.emit(None)
-            return
+            return None
 
         proxy = self.model()
 
@@ -1321,20 +1874,17 @@ class CircuitTableView(QtWidgets.QTableView):
             si = idxs[0]
             sm = proxy
 
-        self.row_selected.emit(sm.data(si, QtCore.Qt.ItemDataRole.UserRole + 1))
+        return sm.data(si, QtCore.Qt.ItemDataRole.UserRole + 1)
 
 
 # ---------------------------------------------------------------------------
 # Dock
 # ---------------------------------------------------------------------------
-class EditorCircuitPanel(QtWidgets.QDockWidget):
+class EditorCircuitPanel(QtWidgets.QWidget):
     """
-    Usage in mainframe.py:
-        from .circuit_spreadsheet.circuit_spreadsheet import CircuitSpreadsheetDock
-        self._circuit_dock = CircuitSpreadsheetDock(self)
-        self.addDockWidget(Qt.BottomDockWidgetArea, self._circuit_dock)
-        # after project opens:
-        self._circuit_dock.load_project(self.project_db)
+    The circuit table and its detail panel. :class:`EditorCircuit` (``editor_circuit.py``) puts it in the
+    dock; ``MainFrame`` builds that, and ``load_project(project_db)`` points the panel at a project (or
+    at none, when it closes).
     """
 
     @_check_types.do
@@ -1346,12 +1896,14 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         :param mainframe: Main application frame.
         :type mainframe: UNKNOWN
         """
-        super().__init__("Circuit Editor", mainframe)
+        super().__init__(mainframe)
         self._mainframe = mainframe
         self._project_db = None
         self._thread = None
         self._worker = None
-        self.setAllowedAreas(QtCore.Qt.DockWidgetArea.AllDockWidgetAreas)
+        self._refresh_pending = False
+        # the circuit that selecting a row selected (see _on_row_selected), so unselecting the row can deselect it
+        self._selected_circuit_db_id: bytes | None = None
 
         self._model = CircuitTableModel(self)
         self._model.cell_edited.connect(self._on_cell_edited)
@@ -1366,6 +1918,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._view = CircuitTableView(mainframe, self)
         self._view.setModel(self._proxy)
         self._view.row_selected.connect(self._on_row_selected)
+        self._view.delete_requested.connect(self._on_delete_requested)
         self._view.setItemDelegateForColumn(
             COL_WIRE_COLOR, self._wire_delegate)
 
@@ -1409,7 +1962,11 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         lay.addWidget(self._build_toolbar())
         lay.addWidget(splitter, 1)
         lay.addWidget(self._progress)
-        self.setWidget(container)
+        # A plain panel, like every other editor's: the dock around it is the one DockBase makes. This used to be a
+        # QDockWidget itself, which put a dock (its own title bar, float and close buttons) inside the dock.
+        outer = QtWidgets.QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(container)
 
         self._model.modelReset.connect(self._update_count)
         self._proxy.rowsInserted.connect(self._update_count)
@@ -1417,18 +1974,37 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
 
     # ── Public ────────────────────────────────────────────────────────
     @_check_types.do
-    def load_project(self, project_db: "_project_db.PJTTables") -> None:
-        """Load the project.
+    @_guarded(None)
+    def load_project(self, project_db: _Union["_project_db.PJTTables", None]) -> None:
+        """Point the dock at a project (or at none, when it closes).
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Rows are built when the dock is on screen: right away if it already
+        is, otherwise in :meth:`showEvent`. A dock nobody opens costs nothing.
 
-        :param project_db: Value for ``project_db``.
-        :type project_db: UNKNOWN
+        :param project_db: The project's tables, or ``None`` to clear the dock.
+        :type project_db: :class:`_project_db.PJTTables` | None
         """
         self._project_db = project_db
-        self.refresh()
+
+        if project_db is None or self.isVisible():
+            self.refresh()
 
     @_check_types.do
+    @_guarded(None)
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        """Rebuild the rows whenever the dock is shown, so what it lists is
+        current with the circuits made, merged or deleted since.
+
+        :param event: The show event.
+        :type event: :class:`QtGui.QShowEvent`
+        """
+        super().showEvent(event)
+
+        if self._project_db is not None:
+            self.refresh()
+
+    @_check_types.do
+    @_guarded(None)
     def refresh(self) -> None:
         """Execute the refresh operation.
 
@@ -1438,11 +2014,13 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
             self._model.clear()
             return
 
-        if self._thread and self._thread.isRunning():
+        if self._thread is not None and self._thread.isRunning():
+            # a build is under way, perhaps for a project that has since closed: run again when it ends
+            self._refresh_pending = True
             return
 
         # flush stale pixmaps on reload
-        _bitmaps.WIRE_PIXMAP_CACHE.clear()
+        _WIRE_IMAGES.clear()
 
         self._progress.setValue(0)
         self._progress.show()
@@ -1453,9 +2031,30 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._worker.progress.connect(self._progress.setValue)
         self._worker.finished.connect(self._on_loaded)
         self._worker.finished.connect(self._thread.quit)
+        self._thread.finished.connect(self._on_thread_finished)
         self._thread.start()
 
     @_check_types.do
+    @_guarded(None)
+    def deselect_circuit(self, circuit_db_id: bytes) -> None:
+        """Clear the table's selection when the selected row is this circuit's, and do nothing otherwise.
+
+        A circuit's views call this when the circuit is deselected (``Circuit.set_selected(False)``: the user clicked another object, or empty
+        space, in an editor), so the table stops showing the circuit's row as selected. When it is the table that changed the selection, the
+        row is no longer the selected one by the time the circuit asks, so this exits without doing anything and the two cannot loop.
+
+        :param circuit_db_id: The circuit's row id.
+        :type circuit_db_id: bytes
+        """
+        row = self._view.selected_row()
+
+        if row is None or row.circuit_db_id != circuit_db_id:
+            return
+
+        self._view.clearSelection()
+
+    @_check_types.do
+    @_guarded(None)
     def highlight_circuit(self, circuit_db_id: bytes) -> None:
         """Execute the highlight circuit operation.
 
@@ -1534,6 +2133,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         return tb
 
     @_check_types.do
+    @_guarded(None)
     def _on_sev_changed(self, idx: int) -> None:
         """Handle the sev changed event.
 
@@ -1548,6 +2148,24 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
              3: _design_rules.Severity.INFO}.get(idx))
 
     @_check_types.do
+    @_guarded(None)
+    def _on_thread_finished(self) -> None:
+        """Let go of the finished build, and start another if one was asked for while it ran."""
+        thread, worker = self._thread, self._worker
+        self._thread = self._worker = None
+
+        if worker is not None:
+            worker.deleteLater()
+
+        if thread is not None:
+            thread.deleteLater()
+
+        if self._refresh_pending:
+            self._refresh_pending = False
+            self.refresh()
+
+    @_check_types.do
+    @_guarded(None)
     def _on_loaded(self, rows: list[CircuitRow]) -> None:
         """Handle the loaded event.
 
@@ -1556,11 +2174,28 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         :param rows: Value for ``rows``.
         :type rows: list[CircuitRow]
         """
+        # A build that was still running when the project closed or changed: its rows are for the wrong project.
+        if self._project_db is None or self._worker is None or self._worker._db is not self._project_db:
+            self._progress.hide()
+            return
+
+        # the connector pictures were drawn as QImage on the worker thread; a QPixmap may only be made on this one
+        for row in rows:
+            if isinstance(row.from_connector_image, QtGui.QImage):
+                row.from_connector_image = QtGui.QPixmap.fromImage(row.from_connector_image)
+
+            row.to_connector_images = [
+                QtGui.QPixmap.fromImage(image) if isinstance(image, QtGui.QImage) else image
+                for image in row.to_connector_images]
+
+            for info in row.wires:
+                _table_pixmap(info)
+
         self._model.load(rows)
         self._view.resizeColumnsToContents()
         # Re-enforce minimum widths for visual columns after resize
         self._view.setColumnWidth(
-            COL_WIRE_COLOR, max(self._view.columnWidth(COL_WIRE_COLOR), 190))
+            COL_WIRE_COLOR, max(self._view.columnWidth(COL_WIRE_COLOR), WIRE_TABLE_SIZE[0] + 12))
 
         self._view.setColumnWidth(
             COL_FROM_CONN, max(self._view.columnWidth(COL_FROM_CONN), 100))
@@ -1572,6 +2207,65 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._update_count()
 
     @_check_types.do
+    def _confirm_delete(self, label: str, members: int) -> bool:
+        """Ask whether to delete a circuit, saying that it cannot be undone.
+
+        :param label: What to call the circuit, e.g. ``#3 Fuel pump``.
+        :type label: str
+        :param members: How many wires, wire service loops, splices and terminals are in it.
+        :type members: int
+        :returns: ``True`` to delete it.
+        :rtype: bool
+        """
+        if members:
+            what = (f"{members} object{'' if members == 1 else 's'} in it (wires, wire service loops, splices and terminals) "
+                    f"will be taken out of the circuit. The objects themselves are kept.\n\n")
+        else:
+            what = "It has no wires, wire service loops, splices or terminals.\n\n"
+
+        button = QtWidgets.QMessageBox.question(
+            self, "Delete Circuit",
+            f"Are you sure you want to delete circuit {label}?\n\n{what}This cannot be undone.",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
+            QtWidgets.QMessageBox.StandardButton.No)
+
+        return button == QtWidgets.QMessageBox.StandardButton.Yes
+
+    @_check_types.do
+    @_guarded(None)
+    def _on_delete_requested(self, circuit_db_id: bytes) -> None:
+        """Delete the circuit whose Delete Circuit was chosen, after asking.
+
+        Deleting a circuit clears the circuit of every wire, wire service loop, splice and terminal in it (``PJTCircuit.detach_members``:
+        the column holds NULL); it never deletes them.
+
+        :param circuit_db_id: The circuit's row id.
+        :type circuit_db_id: bytes
+        """
+        project = self._mainframe.project
+
+        if project is None:
+            return
+
+        circuit = _find_obj(project.circuits, circuit_db_id)
+
+        if circuit is None:
+            _logger.error(f"circuit editor: no circuit {circuit_db_id!r} to delete")
+            return
+
+        db_obj = circuit.db_obj
+        members = (len(db_obj.wires) + len(db_obj.wire_service_loops) + len(db_obj.splices) + len(db_obj.terminals))
+
+        if not self._confirm_delete(db_obj.label, members):
+            return
+
+        circuit.delete()
+
+        self._detail.show_row(None)
+        self.refresh()
+
+    @_check_types.do
+    @_guarded(None)
     def _on_row_selected(self, row: CircuitRow | None) -> None:
         """Handle the row selected event.
 
@@ -1581,23 +2275,39 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         :type row: CircuitRow | None
         """
         self._detail.show_row(row)
-        if row is None:
-            return
 
         project = self._mainframe.project
+        previous_id, self._selected_circuit_db_id = self._selected_circuit_db_id, None
+
+        if row is None:
+            # The row was unselected (empty space in the table, the row toggled off, a filter hiding it): deselect the circuit it had
+            # selected, everywhere. When a click in an editor ended the selection this does nothing, because the circuit is already
+            # deselected (it says so before its views call deselect_circuit, which is what cleared this row).
+            if project is not None and previous_id is not None:
+                previous = _find_obj(project.circuits, previous_id)
+
+                if previous is not None and previous.is_selected:
+                    previous.set_selected(False)
+
+            return
+
         if project is None:
             return
 
         obj = _find_obj(project.circuits, row.circuit_db_id)
         if obj:
+            self._selected_circuit_db_id = row.circuit_db_id
+            # Selecting a circuit highlights all of its members (see
+            # Circuit.set_selected); MainFrame.set_selected does not deselect
+            # the previous selection, so do that first or two circuits stay lit.
+            current = self._mainframe.get_selected()
+            if current is not None and current is not obj:
+                current.set_selected(False)
+
             self._mainframe.set_selected(obj)
 
-        for wid in row.wire_db_ids:
-            wo = _find_obj(project.wires, wid)
-            if wo:
-                wo.identify([0.2, 0.6, 1.0, 1.0])
-
     @_check_types.do
+    @_guarded(None)
     def _on_cell_edited(self, circuit_db_id: bytes, col: int, value: Any) -> None:
         """Handle the cell edited event.
 
@@ -1624,17 +2334,19 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
             c.notes = str(value)
 
     @_check_types.do
+    @_guarded(None)
     def _update_count(self) -> None:
         """Update the count.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
         n = self._proxy.rowCount()
-        errs = sum(
-            1 for r in range(self._model.rowCount())
-            if (
-                self._model.data(self._model.index(r, 0), QtCore.Qt.ItemDataRole.UserRole + 1) or
-                CircuitRow().worst_severity == _design_rules.Severity.ERROR))
+        errs = 0
+        for r in range(self._proxy.rowCount()):
+            shown = self._proxy.data(self._proxy.index(r, 0), QtCore.Qt.ItemDataRole.UserRole + 1)
+
+            if shown is not None and shown.worst_severity == _design_rules.Severity.ERROR:
+                errs += 1
 
         label = f"  {n} circuit{'s' if n!=1 else ''}"
         if errs:
@@ -1667,6 +2379,7 @@ def _cell_text(row: CircuitRow, col: int) -> str:
         COL_FROM_CONN: None,   # handled by delegate
         COL_FROM_PIN: row.from_pin,
         COL_TO_CONNS: None,   # handled by delegate
+        COL_TO_PIN: row.to_pins,
         COL_WIRE_COLOR: None,   # handled by delegate
         COL_GAUGE: _gauge(row),
         COL_LENGTH_MM: row.total_length_mm,
@@ -1684,21 +2397,27 @@ def _cell_text(row: CircuitRow, col: int) -> str:
 
 @_check_types.do
 def _gauge(row: CircuitRow) -> str:
-    """Execute the gauge operation.
+    """The gauge of every distinct wire of the circuit, each once, in the order the circuit meets them."""
+    texts = []
 
-    UNKNOWN details are inferred from the callable name and signature.
+    for info in row.wires:
+        text = _gauge_text(info.gauge_awg, info.gauge_mm2)
 
-    :param row: Value for ``row``.
-    :type row: :class:`CircuitRow`
-    :returns: Return value. UNKNOWN details.
-    :rtype: str
-    """
+        if text and text not in texts:
+            texts.append(text)
+
+    return ", ".join(texts)
+
+
+@_check_types.do
+def _gauge_text(awg: Any, mm2: Any) -> str:
+    """One gauge as text: ``18 AWG / 0.75 mm²``, whichever of the two the part has."""
     p = []
-    if row.wire_gauge_awg is not None:
-        p.append(f"{row.wire_gauge_awg} AWG")
+    if awg is not None:
+        p.append(f"{awg} AWG")
 
-    if row.wire_gauge_mm2 is not None:
-        p.append(f"{row.wire_gauge_mm2} mm²")
+    if mm2 is not None:
+        p.append(f"{mm2} mm²")
 
     return " / ".join(p)
 
@@ -1736,28 +2455,31 @@ def _cell_tooltip(row: CircuitRow, col: int) -> str:
         return "Bundles traversed:\n" + "\n".join(f"  • {b}" for b in row.bundle_names)
 
     if col == COL_GAUGE:
-        awg = _design_rules.resolve_awg(row.wire_gauge_awg, row.wire_gauge_mm2)
-        if awg is not None:
-            amp = _design_rules.AWG_AMPACITY.get(awg)
+        lines = []
+
+        for info in row.wires:
+            awg = _design_rules.resolve_awg(info.gauge_awg, info.gauge_mm2)
+            amp = None if awg is None else _design_rules.AWG_AMPACITY.get(awg)
+
             if amp:
-                in_bun = bool(row.bundle_names)
-                return (f"Bundled ampacity:   {amp[0]:.1f} A\n"
-                        f"Open-air ampacity:  {amp[1]:.1f} A\n"
-                        f"Currently:  {'bundled' if in_bun else 'open air'}")
+                lines.append(f"{info.part_number or 'wire'}:  {_gauge_text(info.gauge_awg, info.gauge_mm2)}\n"
+                             f"    Bundled ampacity:   {amp[0]:.1f} A\n"
+                             f"    Open-air ampacity:  {amp[1]:.1f} A\n"
+                             f"    Currently:  {'bundled' if info.bundled else 'open air'}")
+
+        return "\n".join(lines)
 
     if col == COL_WIRE_COLOR:
-        parts = []
-        if row.wire_color_primary:
-            parts.append(f"Primary:   {row.wire_color_primary}")
+        lines = []
 
-        if row.wire_color_stripe:
-            parts.append(f"Stripe:    {row.wire_color_stripe}")
+        for info in row.wires:
+            colour = info.color_primary or "unknown"
+            if info.color_stripe:
+                colour += f" / {info.color_stripe}"
 
-        mat = row.wire_conductor_material
-        if mat:
-            parts.append(f"Conductor: {mat}")
+            lines.append(f"{info.part_number or 'wire'}:  {colour},  conductor {info.conductor or 'unknown'}")
 
-        return "\n".join(parts) if parts else ""
+        return "\n".join(lines)
 
     if col == COL_FROM_CONN:
         return row.from_connector or ""

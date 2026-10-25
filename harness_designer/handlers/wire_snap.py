@@ -41,6 +41,7 @@ from ..objects import wire_layout as _wire_layout
 from ..database.project_db import pseudo_wire_layout as _pseudo_wire_layout
 from ..geometry import point as _point
 from ..wire_routing import reroute as _wire_reroute
+from . import wire_circuit as _wire_circuit
 from .. import check_types as _check_types
 
 
@@ -424,3 +425,5 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
 
     if not still_referenced:
         mainframe.project.ptables.pjt_points3d_table[stale_id].delete()
+
+    _wire_circuit.reconcile_wire_circuit(project, wire_obj)

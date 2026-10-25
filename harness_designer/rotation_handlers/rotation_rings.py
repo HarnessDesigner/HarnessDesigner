@@ -46,6 +46,7 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 from .editor_3d import generic as _editor_3d_generic
+from .editor_3d import wire_roll as _editor_3d_wire_roll
 from .editor_schematic import generic as _editor_schematic_generic
 from .editor_pegboard import generic as _editor_pegboard_generic
 from ..objects import object_base as _object_base
@@ -89,6 +90,9 @@ class RotationRings(_object_base.ObjectBase):
     objpegboard = None
     obj3d = None
     _angle_lock_snapshot: tuple | None = None
+
+    # The 3D gizmo built when the 3D canvas arms this -- see WireRollRings
+    _rings_3d_class = _editor_3d_generic.Rings3D
 
     @_check_types.do
     def __init__(self, canvas: "_canvas_window_base.CanvasWindowBase", selected: "_objects.ObjectBase"):
@@ -140,7 +144,7 @@ class RotationRings(_object_base.ObjectBase):
                 self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
                 self._render_target = self.objpegboard
             else:
-                self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
+                self.obj3d = self._rings_3d_class(self, selected, mainframe)
                 self._render_target = self.obj3d
         finally:
             QtWidgets.QApplication.restoreOverrideCursor()
@@ -292,3 +296,17 @@ class RotationRings(_object_base.ObjectBase):
         :type value: bool
         """
         pass
+
+
+
+class WireRollRings(RotationRings):
+    """The gizmo for rolling a wire service loop about the wire it sits in:
+    :class:`RotationRings` armed and driven exactly the same way (the
+    object's ``_active_handler``, the same mouse dispatch, the same render
+    entry point), but showing the single ring of
+    :class:`~.editor_3d.wire_roll.WireRollRings3D` instead of the three-axis
+    gizmo. Started from the loop's own context menu (``WireServiceLoop.
+    start_wire_roll``) -- never by the right-click that arms the ordinary one.
+    """
+
+    _rings_3d_class = _editor_3d_wire_roll.WireRollRings3D

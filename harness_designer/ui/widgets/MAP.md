@@ -6,19 +6,19 @@ No imports found -- a plain empty package marker, no re-exports.
 
 #### auto_complete.py
 
-`_AutoCompleter`/`AutoComplete` -- the shared completion engine that `autocomplete_combobox.py`/`autocomplete_textctrl.py` are both built on.
+`_AutoCompleter`/`AutoComplete` -- a completion engine and a `QLineEdit` built on it. Only `AutoComplete` (the MySQL login dialog's user name) and `ui/dialogs/part_search.py`'s `SearchTextEdit` use it. `autocomplete_combobox.py`, `autocomplete_textctrl.py` and `bitmap_autocomplete_combobox.py` do NOT: each builds its own `QCompleter` (the same few lines, four times). An older version of this note said they were all built on it.
 
 #### autocomplete_combobox.py
 
-`AutoCompleteComboBox` -- a combobox driven by `auto_complete.py`'s shared completion engine; used e.g. by `ui/toolbar/snap_angle_button.py`'s right-click popup of the 71 valid snap angles.
+`AutoCompleteComboBox` -- an editable `QComboBox` with its own inline `QCompleter` and a mirrored choice list (`SetItems`/`Append`/`Insert`/`Delete`/`Clear` keep the list and the completer in step; Qt's own `clear()`/`addItems()` do NOT feed the completer). Used by `ui/prop_ctrls/combobox_prop.py`, `color_prop.py`, `ComboBoxCtrl` and `ui/toolbar/snap_angle_button.py`. It has no Enter signal of its own: it passes on Qt's, and `currentTextChanged` fires on EVERY keystroke. A wrapper must commit on `textActivated` (a list pick) and `lineEdit().returnPressed` (Enter), as `ComboBoxProperty` does since 2026-10-24 and `snap_angle_button.py` does with `activated` + `editingFinished`.
 
 #### autocomplete_textctrl.py
 
-`AutoCompleteTextCtrl` -- a text entry driven by the same shared completion engine as `autocomplete_combobox.py`.
+`AutoCompleteTextCtrl` -- a single-line `QLineEdit` with its own inline `QCompleter`; Qt's `returnPressed` is its Enter (nothing is added to the text). `AutoCompleteTextEdit` (added 2026-10-24) is the multi-line version, a `QPlainTextEdit` with a popup completer that matches the line being typed. It owns the multi-line Enter rule (user): the first two Enters type newlines, the THIRD Enter in a row (`COMMIT_ENTERS`) emits `returnPressed` and is NOT added to the text, and the newlines at the end are cut down to ONE (the only thing ever removed; spaces and inner newlines stay). While the popup is open Enter/Tab/Escape belong to it. Both controls have the same choice API, `SetValue` and `GetValue`.
 
 #### bitmap_autocomplete_combobox.py
 
-`BitmapAutoCompleteComboBox` -- an autocomplete combo whose entries also carry an icon.
+`BitmapAutoCompleteComboBox` -- an autocomplete combo whose entries also carry an icon. Its docstring says `currentTextChanged` fires on selection or Enter only; it fires on every keystroke. Only the unused `BitmapComboBoxProperty` builds it.
 
 #### cad_datasheet_ctrl.py
 
@@ -42,7 +42,7 @@ No imports found -- a plain empty package marker, no re-exports.
 
 #### combobox_ctrl.py
 
-`ComboBoxCtrl` -- a thin `QWidget` wrapper for a plain dropdown, backing `ui/prop_ctrls/combobox_prop.py`.
+`ComboBoxCtrl` -- a label plus `AutoCompleteComboBox`, used by `ui/dialogs/project_dialog.py` and `color_ctrl.py` (NOT by `combobox_prop.py`, which builds its own `AutoCompleteComboBox`; an older note said it backs it). Known, not fixed: its docstring says `currentTextChanged` fires for selections and Enter commits only, but it fires on every keystroke (and Enter adds more), so `ColorCtrl` emits `colorChanged` per keystroke with the previous colour; `process_enter` is stored and never read.
 
 #### context_menus.py
 

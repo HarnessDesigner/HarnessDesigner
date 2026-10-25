@@ -2,8 +2,6 @@
 
 from typing import TYPE_CHECKING, Union as _Union
 
-import math
-
 import numpy as np
 from PySide6 import QtCore, QtWidgets
 
@@ -11,6 +9,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from . import wire_service_loop_search as _loop_search
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
@@ -35,262 +34,89 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_3d
 
 
-# ---------------------------------------------------------------------------
-# Mesh-vs-mesh collision helpers
-#
-# Wires and loops are tested against each other using their actual VBO
-# triangle data transformed into world space -- a straight-line-plus-radius
-# capsule is a fine stand-in for a wire (which really is a cylinder) but a
-# poor one for the loop itself, which bulges out sideways. No clearance
-# margin is added on top of raw intersection: these loops are packed tight
-# into a boot with no gap by design, any remaining space gets filled with
-# epoxy resin afterward.
-# ---------------------------------------------------------------------------
-
-@_check_types.do
-def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
-    """Hamilton product of two [w, x, y, z] quaternions."""
-    w1, x1, y1, z1 = q1
-    w2, x2, y2, z2 = q2
-    return np.array([
-        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-    ], dtype=np.float64)
+# The roll search turns the loop about the wire in steps of this many degrees at
+# the spot it is on, where a narrow gap matters, and in the coarser steps while it
+# slides along the wire, where a long slide multiplies the work.
+_ROLL_STEP_DEG = 2.0
+_SLIDE_ROLL_STEP_DEG = 6.0
 
 
 @_check_types.do
-def _mesh_world_triangles(
-    vbo: _Union["_vbo_base.VBOHandlerBase", "_text.Text", None], position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
-) -> np.ndarray | None:
-    """(N, 3, 3) world-space triangles for a mesh at the given pose -- same
-    transform the faces shader applies (scale, then rotate, then
-    translate). None if the object has no mesh.
+def _wire_pivot(
+    before: np.ndarray, after: np.ndarray, start: np.ndarray, stop: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """The (unit axis, pivot) the loop rolls about.
+
+    The axle is the wire itself: the line through *before* and *after*, the
+    wire points just before the loop and just after it. The line between the
+    loop's own *start* and *stop* points is NOT that line (it sits at an angle
+    to the coil's axis, so rolling about it makes the coil wobble); the two
+    lines meet at the start point, which is on the wire, and that meeting point
+    is the pivot. Lines that never meet (parallel, or skew from rounding) give
+    the point of the wire's line nearest the start point.
     """
-    if vbo is None:
-        return None
+    axis = after - before
+    axis = axis / np.linalg.norm(axis)
 
-    verts = vbo.vertices.reshape(-1, 3)
-    if len(verts) % 3:
-        return None
+    v = stop - start
+    w0 = before - start
+    b = float(np.dot(axis, v))
+    c = float(np.dot(v, v))
+    d = float(np.dot(axis, w0))
+    e = float(np.dot(v, w0))
+    denom = c - b * b
 
-    verts = (verts * scale) @ angle
-    verts = verts + position
-    return verts.reshape(-1, 3, 3)
+    if denom < 1e-6 * c:
+        s = -d
+    else:
+        s = (b * e - c * d) / denom
 
-
-@_check_types.do
-def _triangle_edges(tris: np.ndarray) -> np.ndarray:
-    """(N*3, 2, 3) start/end pairs for every edge of every triangle --
-    shared edges get tested twice, which is harmless."""
-    v0, v1, v2 = tris[:, 0], tris[:, 1], tris[:, 2]
-    edges = np.stack([
-        np.stack([v0, v1], axis=1),
-        np.stack([v1, v2], axis=1),
-        np.stack([v2, v0], axis=1),
-    ], axis=1)
-    return edges.reshape(-1, 2, 3)
+    return axis, before + s * axis
 
 
-# Corner 0 = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z (see
-# gl.object_picker's comment on the same convention) -- these are
-# the same 6 quad faces Base3D._render_obb draws, each split into 2
-# triangles.
-_OBB_TRIANGLE_INDICES = np.array([
-    (0, 1, 2), (0, 2, 3),  # front
-    (5, 4, 7), (5, 7, 6),  # back
-    (4, 0, 3), (4, 3, 7),  # left
-    (1, 5, 6), (1, 6, 2),  # right
-    (3, 2, 6), (3, 6, 7),  # top
-    (4, 5, 1), (4, 1, 0),  # bottom
-], dtype=np.int32)
+class WireRoll:
+    """A loop's roll about the wire it sits in, frozen at the pose the loop
+    had when the roll began (see WireServiceLoop.begin_wire_roll).
 
+    :meth:`pose` is always worked out from that starting pose, never from the
+    loop's current one, so a drag can not accumulate drift and a roll of 0
+    puts the loop back where it began. A roll is a rigid rotation of the mesh
+    AND of the start point about the axle through the pivot (see
+    _wire_pivot); the object turns about its OWN origin, so what it needs is
+    the roll composed AFTER its starting angle (``R' = Q R0``, Q a rotation
+    about a WORLD axis) together with the start point carried round the pivot
+    -- the same roll _resolve_collision makes.
 
-@_check_types.do
-def _candidate_obb(vbo: _Union["_vbo_base.VBOHandlerBase", "_text.Text", None], position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
-                   ) -> np.ndarray | None:
-    """(8, 3) world-space OBB corners for a hypothetical (not-yet-applied)
-    pose -- same formula Base3D._compute_obb uses for its own (always
-    current) .obb, just evaluated against a candidate instead of self.
-    Tiny array, cheap to build -- this is the broad-phase test, run for
-    every roll/slide candidate, before ever touching per-triangle mesh
-    data (see _is_clear).
+    :param axis: Unit direction of the wire through the loop (float64).
+    :param pivot: Where that wire meets the line between the loop's start and
+        stop points (float64).
+    :param matrix: The loop's rotation matrix (``Angle.as_matrix_numpy``, the
+        column-vector R) when the roll began (float64).
+    :param start: The loop's start point when the roll began (float64).
     """
-    if vbo is None or vbo.local_obb is None:
-        return None
 
-    obb = vbo.local_obb * scale
-    obb = obb @ angle
-    obb = obb + position
+    @_check_types.do
+    def __init__(self, axis: np.ndarray, pivot: np.ndarray, matrix: np.ndarray, start: np.ndarray):
+        self.axis = axis
+        self.pivot = pivot
+        self.matrix = matrix
+        self.start = start
 
-    return obb
+    @_check_types.do
+    def pose(self, degrees: float) -> tuple[np.ndarray, _angle.Angle]:
+        """The (start point, angle) the loop has after rolling *degrees*
+        (right-handed about :attr:`axis`) from the pose it began in.
+        """
+        theta = np.radians(degrees)
+        x, y, z = self.axis
 
+        cross = np.array([[0.0, -z, y], [z, 0.0, -x], [-y, x, 0.0]], dtype=np.float64)
+        rotation = np.eye(3) + np.sin(theta) * cross + (1.0 - np.cos(theta)) * (cross @ cross)
 
-@_check_types.do
-def _obb_triangles(obb: np.ndarray) -> np.ndarray:
-    """(12, 3, 3) triangles for an OBB's own 8 corners."""
-    return obb[_OBB_TRIANGLE_INDICES]
+        start = self.pivot + rotation @ (self.start - self.pivot)
+        angle = _angle.Angle.from_matrix((rotation @ self.matrix).astype(np.float32))
 
-
-@_check_types.do
-def _rays_vs_triangles_batched(
-    ray_origins: np.ndarray, ray_dirs: np.ndarray, tris: np.ndarray, max_t: float | None = None
-) -> np.ndarray:
-    """Möller-Trumbore ray-triangle intersection, batched over *both* M
-    rays and N triangles at once via numpy broadcasting -- returns an
-    (M, N) boolean hit matrix in a single call.
-
-    Same algebra as BaseVar._ray_triangles_intersect_vectorized (which
-    only batches over triangles, one ray at a time -- that shape is kept
-    as-is for the picker, which only ever needs one ray), just with a
-    leading ray axis threaded through every intermediate array so numpy
-    computes every ray-triangle pair in one pass instead of one Python
-    call per ray.
-
-    Args:
-        ray_origins: (M, 3)
-        ray_dirs: (M, 3) -- unnormalized; t=1 reaches ray_origin + ray_dirs
-        tris: (N, 3, 3)
-        max_t: optional upper bound on t, for a finite segment (edge) test
-    """
-    v0, v1, v2 = tris[:, 0], tris[:, 1], tris[:, 2]  # each (N, 3)
-    edge1 = v1 - v0  # (N, 3)
-    edge2 = v2 - v0  # (N, 3)
-
-    ro = ray_origins[:, None, :]  # (M, 1, 3)
-    rd = ray_dirs[:, None, :]  # (M, 1, 3)
-    e1 = edge1[None, :, :]  # (1, N, 3)
-    e2 = edge2[None, :, :]  # (1, N, 3)
-    v0b = v0[None, :, :]  # (1, N, 3)
-
-    h = np.cross(rd, e2)  # (M, N, 3)
-    det = np.sum(e1 * h, axis=-1)  # (M, N)
-
-    valid_det = np.abs(det) > 1e-6
-    inv_det = np.zeros_like(det)
-    inv_det[valid_det] = 1.0 / det[valid_det]
-
-    s = ro - v0b  # (M, N, 3)
-    u = inv_det * np.sum(s * h, axis=-1)  # (M, N)
-    valid_u = valid_det & (u >= 0.0) & (u <= 1.0)
-
-    q = np.cross(s, e1)  # (M, N, 3)
-    v = inv_det * np.sum(rd * q, axis=-1)  # (M, N)
-    valid_v = valid_u & (v >= 0.0) & (u + v <= 1.0)
-
-    t = inv_det * np.sum(e2 * q, axis=-1)  # (M, N)
-
-    hit = valid_v & (t > 1e-6)
-    if max_t is not None:
-        hit = hit & (t <= max_t)
-
-    return hit
-
-
-@_check_types.do
-def _meshes_intersect(tris_a: np.ndarray | None, tris_b: np.ndarray | None) -> bool:
-    """True if any edge of one mesh crosses a face of the other -- both
-    directions batched in one call each via _rays_vs_triangles_batched,
-    not a Python loop over edges.
-
-    Rather than a full triangle-triangle SAT test (11 separating axes,
-    easy to get subtly wrong with no test suite to check it against), this
-    reuses the same Möller-Trumbore math Base3D already has for picking,
-    bounded to a finite segment via max_t=1.0 (ray_dir passed as the
-    unnormalized edge vector, so t=1 reaches the far endpoint). Misses
-    only the case of one mesh fully nested inside the other with no
-    surface crossing at all, which doesn't happen here -- wires and loops
-    are always comparable in scale, never one wholly swallowing the other.
-    """
-    if tris_a is None or tris_b is None or len(tris_a) == 0 or len(tris_b) == 0:
-        return False
-
-    for tris_x, tris_y in ((tris_a, tris_b), (tris_b, tris_a)):
-        edges = _triangle_edges(tris_x)
-        hits = _rays_vs_triangles_batched(edges[:, 0], edges[:, 1] - edges[:, 0], tris_y, max_t=1.0)
-        if np.any(hits):
-            return True
-
-    return False
-
-
-@_check_types.do
-def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndarray:
-    """Indices into session.candidates whose OBB overlaps my_obb_tris --
-    the broad-phase for _is_clear, entirely batched against the whole
-    session-cached candidate set in two calls (one per direction) instead
-    of looping candidate-by-candidate.
-
-    session.candidate_obb_tris/candidate_obb_edge_* are every candidate's
-    OBB stacked into one array up front by begin_move_session, along with
-    an owner-index array mapping each triangle/edge back to which
-    candidate it came from -- built once for the whole move/rotate
-    operation, since none of it changes for the duration of one.
-    """
-    owners = []
-
-    if len(session.candidate_obb_tris):
-        my_edges = _triangle_edges(my_obb_tris)
-        hits = _rays_vs_triangles_batched(
-            my_edges[:, 0], my_edges[:, 1] - my_edges[:, 0], session.candidate_obb_tris, max_t=1.0)
-
-        hit_tris = np.any(hits, axis=0)
-        if np.any(hit_tris):
-            owners.append(session.candidate_tri_owner[hit_tris])
-
-    if len(session.candidate_obb_edge_owner):
-        hits = _rays_vs_triangles_batched(
-            session.candidate_obb_edge_origins, session.candidate_obb_edge_dirs,
-            my_obb_tris, max_t=1.0)
-
-        hit_edges = np.any(hits, axis=1)
-        if np.any(hit_edges):
-            owners.append(session.candidate_obb_edge_owner[hit_edges])
-
-    if not owners:
-        return np.empty(0, dtype=np.int64)
-
-    return np.unique(np.concatenate(owners))
-
-
-@_check_types.do
-def _is_clear(
-    vbo: _Union["_vbo_base.VBOHandlerBase", "_text.Text", None],
-    position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
-    my_obb: np.ndarray | None, session: "_MoveSession",
-) -> bool:
-    """True if a candidate pose (my_obb, plus vbo/position/angle/scale to
-    build real mesh data from if needed) doesn't intersect any candidate's
-    own geometry.
-
-    OBB-vs-OBB first, batched against the whole session-cached candidate
-    set at once (see _obb_hit_owners) -- full per-triangle mesh data for
-    *this* object, and for whichever candidates actually overlapped at
-    the OBB level, is only ever transformed into world space for those
-    candidates (there are typically zero or one), never eagerly for the
-    whole candidate set.
-    """
-    if my_obb is None:
-        return True
-
-    hit_owners = _obb_hit_owners(_obb_triangles(my_obb), session)
-    if len(hit_owners) == 0:
-        return True
-
-    my_tris = _mesh_world_triangles(vbo, position, angle, scale)
-    if my_tris is None:
-        return True
-
-    for owner in hit_owners:
-        obj3d = session.candidates[owner].obj3d
-        other_tris = _mesh_world_triangles(
-            obj3d._vbo, obj3d._position.as_numpy, obj3d._angle, obj3d._scale.as_numpy)  # NOQA
-
-        if _meshes_intersect(my_tris, other_tris):
-            return False
-
-    return True
+        return start, angle
 
 
 class _MoveSession:
@@ -300,21 +126,14 @@ class _MoveSession:
     computed once at the start of one instead of on every intermediate
     _update_position/_update_angle call.
 
-    candidate_obb_tris/candidate_obb_edge_* are every entry in
-    `candidates`' own OBB stacked into one array apiece, with an
-    owner-index array mapping each triangle/edge back to its position in
-    `candidates` -- what lets _obb_hit_owners test against the whole
-    candidate set in two batched numpy calls instead of looping
-    candidate-by-candidate.
+    loop_search holds every candidate box (one per wire section, one per
+    other loop or marker) with the shape its mesh really is, plus the loop's
+    own mesh, and runs the whole roll/slide search against them in C -- see
+    wire_service_loop_search.
     """
     attached: list | None = None
     markers: list | None = None
-    candidates: list | None = None
-    candidate_obb_tris: np.ndarray | None = None
-    candidate_tri_owner: np.ndarray | None = None
-    candidate_obb_edge_origins: np.ndarray | None = None
-    candidate_obb_edge_dirs: np.ndarray | None = None
-    candidate_obb_edge_owner: np.ndarray | None = None
+    loop_search: _loop_search.LoopSearch | None = None
 
 
 @capturable()
@@ -536,22 +355,53 @@ class WireServiceLoop(_base_3d.Base3D):
         self._angle._process_callbacks()  # NOQA
 
     @_check_types.do
-    def _roll_axis(self) -> np.ndarray | None:
-        """Direction from the loop's own current start to stop point -- the
-        axis _resolve_collision twists candidate orientations around.
-
-        Per the user's direction, this is derived from the loop's own
-        connection points, not by asking any wire for its direction --
-        snapshotted once per resolve attempt (see _resolve_collision), since
-        _p2 is itself angle-dependent (see _sync_stop_position) and would be
-        circular if re-derived from an in-progress candidate.
+    def _implied_stop(self) -> np.ndarray:
+        """Where the mesh puts the stop point at the current angle and start
+        point: the formula of _sync_stop_position, returned instead of
+        written. Used rather than _p2 because a resolve that runs in the
+        middle of a move (the start point is new, _p2 is not synced yet) must
+        see a consistent start/stop pair.
         """
-        direction = self._p2.as_numpy - self._p1.as_numpy
-        length = np.linalg.norm(direction)
-        if length < 1e-6:
+        # vbo.endpoint is a Point (np.asarray cannot take one), and Point.as_numpy is float32
+        stop = self._vbo.endpoint.as_numpy.astype(np.float64) * self._scale.as_numpy
+
+        return self._angle.as_matrix_numpy @ stop + self._position.as_numpy
+
+    @_check_types.do
+    def _wire_points(self, attached: list["_wire.Wire"]) -> tuple[np.ndarray, np.ndarray] | None:
+        """The wire points that bracket the loop: the one just before it
+        (the previous point of the attached wire that ends at the loop's
+        STOP point, a waypoint or that wire's own start) and the one just
+        after it (the next point of the attached wire that starts at the
+        loop's START point). None unless both exist.
+
+        The loop sits in the wire with its stop point on the side the wire
+        comes from and its start point on the side it goes on to: the helix's
+        endpoint lies behind its start along the wire, and
+        add_handlers.editor_3d.wire_service_loop.split_wire_for_loop leaves the
+        first half ending at the stop point and the second starting at the
+        start point.
+        """
+        before = None
+        after = None
+
+        for w in attached:
+            points = [w.obj3d.start_position.as_numpy]
+            points.extend(waypoint.point.as_numpy for waypoint in w.db_obj.waypoints3d)
+            points.append(w.obj3d.stop_position.as_numpy)
+
+            if w.obj3d.stop_position.db_id == self._p2.db_id:
+                before = points[-2]
+
+            if w.obj3d.start_position.db_id == self._p1.db_id:
+                after = points[1]
+
+        if before is None or after is None:
             return None
 
-        return direction / length
+        # Point.as_numpy is float32; the pivot maths (a near-parallel test, dot
+        # products of long vectors) wants float64
+        return before.astype(np.float64), after.astype(np.float64)
 
     @_check_types.do
     def _attached_wires(self) -> list["_wire.Wire"]:
@@ -623,13 +473,9 @@ class WireServiceLoop(_base_3d.Base3D):
         releasing the mouse and moving/clicking again picks up anything a
         gap here let through.
 
-        No further distance cull on top of this: once the OBB test itself
-        is batched across the whole candidate set in one numpy call (see
-        _obb_hit_owners), an extra candidate costs a few more rows in an
-        array numpy was already broadcasting over, not a fresh Python-level
-        loop iteration -- the per-candidate cost distance culling existed
-        to avoid mostly disappears once nothing loops candidate-by-candidate
-        in Python anymore.
+        No further distance cull on top of this: the search rejects a far
+        box with one axis-aligned compare in C, so an extra candidate costs
+        nanoseconds, not a Python-level loop iteration.
         """
         return [
             view.parent for view in self._aabb_manager.visible_objects()
@@ -640,7 +486,7 @@ class WireServiceLoop(_base_3d.Base3D):
     @_check_types.do
     def begin_move_session(self) -> None:
         """Start caching the collision-candidate list -- and every
-        candidate's OBB, pre-stacked into one array apiece -- for a whole
+        candidate's boxes, handed to the C search once -- for a whole
         interactive move or rotate operation, instead of rebuilding any of
         it on every single intermediate _update_position/_update_angle
         call during one continuous drag.
@@ -659,40 +505,33 @@ class WireServiceLoop(_base_3d.Base3D):
         attached_wire_ids = {w.db_obj.db_id for w in session.attached}
         session.markers = self._markers_on_attached_wires()
 
-        session.candidates = [
+        candidates = [
             obj for obj in self._viewport_candidates()
             if not (obj.is_wire and obj.db_obj.db_id in attached_wire_ids)
         ] + session.markers
 
-        # Every candidate's OBB, stacked into one array apiece, with an
-        # owner-index array mapping each triangle/edge back to its
-        # position in session.candidates -- built once here so
-        # _obb_hit_owners can test against the whole set in two batched
-        # numpy calls (one per direction) instead of looping
-        # candidate-by-candidate on every roll/slide step.
-        obbs = [c.obj3d.obb for c in session.candidates]
-        obb_tris = [_obb_triangles(obb) for obb in obbs if obb is not None]
-        tri_owners = [i for i, obb in enumerate(obbs) if obb is not None]
+        # Every candidate's collision boxes, each tagged with the shape its
+        # mesh really is. A wire is one box per section (Wire.segment_obbs):
+        # its pool OBB is the envelope of the whole path, which for a bent
+        # or diagonal wire is a far larger box than the wire itself, and a
+        # section's mesh is a cylinder (KIND_CYLINDER). Anything else
+        # (another loop, a marker) is its single pool OBB (KIND_BOX). The
+        # boxes are only the hit list: the search goes on to test this
+        # loop's own mesh against the real shape of every box that overlaps.
+        boxes = []
+        kinds = []
+        for candidate in candidates:
+            if candidate.is_wire:
+                for box in candidate.obj3d.segment_obbs():
+                    boxes.append(box)
+                    kinds.append(_loop_search.KIND_CYLINDER)
+            elif candidate.obj3d.obb is not None:
+                boxes.append(candidate.obj3d.obb)
+                kinds.append(_loop_search.KIND_BOX)
 
-        if obb_tris:
-            session.candidate_obb_tris = np.concatenate(obb_tris, axis=0)
-            session.candidate_tri_owner = np.repeat(
-                np.array(tri_owners, dtype=np.int64), 12)
-        else:
-            session.candidate_obb_tris = np.empty((0, 3, 3))
-            session.candidate_tri_owner = np.empty(0, dtype=np.int64)
-
-        obb_edges = [_triangle_edges(t) for t in obb_tris]
-        if obb_edges:
-            edges = np.concatenate(obb_edges, axis=0)
-            session.candidate_obb_edge_origins = edges[:, 0]
-            session.candidate_obb_edge_dirs = edges[:, 1] - edges[:, 0]
-            session.candidate_obb_edge_owner = np.repeat(
-                np.array(tri_owners, dtype=np.int64), 36)
-        else:
-            session.candidate_obb_edge_origins = np.empty((0, 3))
-            session.candidate_obb_edge_dirs = np.empty((0, 3))
-            session.candidate_obb_edge_owner = np.empty(0, dtype=np.int64)
+        session.loop_search = _loop_search.LoopSearch(
+            boxes, kinds, self._vbo.local_obb, self._scale.as_numpy,
+            self._vbo.vertices.reshape(-1, 3))
 
         self._move_session = session
 
@@ -707,18 +546,28 @@ class WireServiceLoop(_base_3d.Base3D):
 
     @_check_types.do
     def _resolve_collision(self) -> None:
-        """Roll then slide until the current pose is clear of nearby wires,
-        other loops, and wire markers on the attached wires -- mutates
-        self._position/self._angle as needed (see _apply_resolved).
+        """Turn the loop about the wire, and slide it along it if it must,
+        until it is clear of nearby wires, other loops, and wire markers on
+        the attached wires -- mutates self._position/self._angle as needed
+        (see _apply_resolved).
 
-        1. Try all 16 roll orientations (22.5 degree steps, one full
-           clockwise revolution) around _roll_axis() at the current
-           position. First clear one wins.
-        2. If none clear, slide along that axis in both directions,
-           re-trying the full roll search at each step, each direction
-           capped at whichever is closer: the attached wire's own outer
-           endpoint, or the nearest wire marker on that side -- sliding
-           never crosses either.
+        The loop is a coil in a wire, so it can only spin about the wire.
+        The axle is the line through the two wire points either side of it
+        (_wire_points), NOT the line between the loop's own start and stop
+        points, which sits at an angle to the coil's axis and would make it
+        wobble; the pivot is where the two lines meet (_wire_pivot). A roll
+        is a rigid rotation of the mesh AND of the start and stop points about
+        that axle through that pivot, and what is committed is the angle the
+        object itself needs for that (the roll composed with its current
+        angle, since the object turns about its own origin, not the pivot)
+        together with the new start point -- see wire_service_loop_search.
+
+        1. Look for the NEAREST clear roll at the current spot, in small
+           steps outward from the current angle, either way.
+        2. If none clears, slide along the wire in both directions, scanning
+           the full turn at each step, each direction capped at the wire
+           point on that side or the nearest wire marker, whichever is closer
+           -- sliding never crosses either.
         3. Keep whichever direction reaches a clear spot in fewer steps.
         4. If neither direction ever clears within its bound, the pose is
            left unchanged -- "the placement should not be allowed" past
@@ -726,103 +575,70 @@ class WireServiceLoop(_base_3d.Base3D):
            whatever's blocking it is the way out, not an automatic
            slide-through.
 
+        All of that runs in C (wire_service_loop_search.LoopSearch.search):
+        a pose is clear when, for every candidate, either its box misses the
+        loop's box or the loop's mesh misses the candidate's real shape.
+        This method only works out the axle, pivot and slide limits, and
+        applies what the search returns.
+
         Runs from _update_position/_update_angle (and once at the end of
         __init__), so this fires for any move regardless of what triggered
         it -- this handler's own preview drag today, or anything else that
         moves this loop's shared start point or rotates it in the future.
+        Nothing to resolve (and nothing done) while the loop is not yet in a
+        wire on both sides, e.g. while a project is still loading its wires.
 
-        Candidate gathering (viewport filter, distance cull, attached-wire/
-        marker lookups) is cached for the whole operation by
+        Candidate gathering (viewport filter, attached-wire/marker lookups,
+        every candidate's boxes) is cached for the whole operation by
         begin_move_session, not redone on every one of these calls -- see
         there. If no session is active (this was reached outside a
-        begin/end_move_session bracket), a throwaway one-shot list is
+        begin/end_move_session bracket), a throwaway one-shot session is
         built here instead of skipping collision avoidance entirely.
         """
-        axis = self._roll_axis()
-        if axis is None:
-            return
-
         session = self._move_session
         if session is None:
             self.begin_move_session()
             session = self._move_session
             self._move_session = None  # one-shot -- nothing to keep cached
 
-        attached = session.attached
-        markers = session.markers
+        wire_points = self._wire_points(session.attached)
+        if wire_points is None:
+            return
 
-        p1_np = self._p1.as_numpy
-        q_base = np.array(self._angle.as_quat_float, dtype=np.float64)
+        before, after = wire_points
+        p1_np = self._p1.as_numpy.astype(np.float64)
+        p2_np = self._implied_stop()
+        axis, pivot = _wire_pivot(before, after, p1_np, p2_np)
+        q0 = np.array(self._angle.as_quat_float, dtype=np.float64)
         scale_np = self._scale.as_numpy
         t0 = float(np.dot(self._position.as_numpy - p1_np, axis))
 
-        @_check_types.do
-        def _roll_search(t_: float) -> np.ndarray | None:
-            pos_np = p1_np + t_ * axis
-            for step_ in range(16):
-                theta = step_ * (2.0 * math.pi / 16.0)
-                hw = math.cos(theta / 2.0)
-                hs = math.sin(theta / 2.0)
-                q_twist = np.array(
-                    [hw, axis[0] * hs, axis[1] * hs, axis[2] * hs], dtype=np.float64)
+        # Bound each slide direction by the nearest obstacle point (the wire
+        # point on that side, or a marker) projected onto the axle --
+        # whichever is closer. The loop is not a point: along the axle it spans
+        # from its start point to its stop point (the stop sits behind the
+        # start), and it is the end that leads in each direction that has to
+        # stop at the boundary.
+        reach = float(np.dot(p2_np - p1_np, axis))
+        lo = min(0.0, reach)
+        hi = max(0.0, reach)
 
-                q_cand_ = _quat_mul(q_base, q_twist)
-                cand_angle = _angle.Angle.from_quat(q_cand_.tolist())
-
-                cand_obb = _candidate_obb(self._vbo, pos_np, cand_angle, scale_np)
-                if _is_clear(self._vbo, pos_np, cand_angle, scale_np, cand_obb, session):
-                    return q_cand_
-
-            return None
-
-        q_result = _roll_search(t0)
-        if q_result is not None:
-            self._commit_resolved(p1_np + t0 * axis, q_result)
-            return
-
-        # Bound each slide direction by the nearest obstacle point (the
-        # attached wire's own outer endpoint, or a marker) projected onto
-        # the axis -- whichever is closer.
-        boundary_ts = []
-        my_ids = (self._p1.db_id, self._p2.db_id)
-        for w in attached:
-            for p in (w.obj3d.start_position, w.obj3d.stop_position):
-                if p.db_id in my_ids:
-                    continue
-                boundary_ts.append(float(np.dot(p.as_numpy - p1_np, axis)))
-        for m in markers:
+        boundary_ts = [float(np.dot(before - p1_np, axis)), float(np.dot(after - p1_np, axis))]
+        for m in session.markers:
             boundary_ts.append(float(np.dot(m.obj3d.position.as_numpy - p1_np, axis)))
 
-        pos_limit = min([bt for bt in boundary_ts if bt > t0], default=t0)
-        neg_limit = max([bt for bt in boundary_ts if bt < t0], default=t0)
+        pos_limit = min([bt - hi for bt in boundary_ts if bt >= t0 + hi], default=t0)
+        neg_limit = max([bt - lo for bt in boundary_ts if bt <= t0 + lo], default=t0)
 
         step = max(float(scale_np[0]) * 0.5, 0.5)
-        best: tuple[float, float, np.ndarray] | None = None
 
-        for limit, sign in ((pos_limit, 1.0), (neg_limit, -1.0)):
-            t = t0
-            while True:
-                t_next = t + sign * step
-                t_next = min(t_next, limit) if sign > 0 else max(t_next, limit)
-                reached_limit = t_next == t
-                t = t_next
+        found = session.loop_search.search(
+            p1_np, p2_np, pivot, axis, q0, t0, pos_limit, neg_limit, step,
+            _ROLL_STEP_DEG, _SLIDE_ROLL_STEP_DEG)
 
-                q_cand = _roll_search(t)
-                if q_cand is not None:
-                    distance = abs(t - t0)
-                    if best is None or distance < best[0]:
-                        best = (distance, t, q_cand)
-                    break
-
-                if reached_limit:
-                    # Reached the wire's own endpoint or a marker without
-                    # clearing -- the limit of how far this direction can
-                    # slide.
-                    break
-
-        if best is not None:
-            _, t_final, q_final = best
-            self._commit_resolved(p1_np + t_final * axis, q_final)
+        if found is not None:
+            self._commit_resolved(
+                np.array(found[3], dtype=np.float64), np.array(found[2], dtype=np.float64))
             return
 
         # Nothing clears anywhere within bounds -- revert to the last pose
@@ -916,6 +732,9 @@ class WireServiceLoop(_base_3d.Base3D):
             wire.db_obj.circuit_id,
             True, q_arr)
 
+        if wire.db_obj.operating_temp is not None:
+            loop_db.operating_temp = wire.db_obj.operating_temp
+
         with mainframe.editor3d.context:
             split_state = _add_wsl.split_wire_for_loop(
                 mainframe, wire, p_start_db.db_id, p_stop_db.db_id, seg_idx)
@@ -983,6 +802,85 @@ class WireServiceLoop(_base_3d.Base3D):
     def stop_position(self) -> _point.Point:
         """Wire stop position (Point instance)"""
         return self._p2
+
+    @property
+    @_check_types.do
+    def centroid(self) -> _point.Point:
+        """World-space centroid of the loop (a new Point, not shared) -- the
+        point it turns about under an ordinary rotation (see _update_angle),
+        and so where the rotation rings are centered.
+        """
+        centroid = self._world_centroid()
+
+        return _point.Point(float(centroid[0]), float(centroid[1]), float(centroid[2]))
+
+    @property
+    @_check_types.do
+    def can_roll_on_wire(self) -> bool:
+        """Whether the wires on both sides of the loop are there to roll it
+        about (they are not while a project is still loading its wires).
+        """
+        return self._wire_points(self._attached_wires()) is not None
+
+    @_check_types.do
+    def begin_wire_roll(self) -> WireRoll | None:
+        """Freeze the loop's present pose as the start of a roll about the
+        wire it sits in (see WireRoll); None when :attr:`can_roll_on_wire` is
+        False.
+        """
+        points = self._wire_points(self._attached_wires())
+        if points is None:
+            return None
+
+        before, after = points
+        start = self._position.as_numpy.astype(np.float64)
+
+        axis, pivot = _wire_pivot(before, after, start, self._implied_stop())
+
+        return WireRoll(axis, pivot, self._angle.as_matrix_numpy.astype(np.float64), start)
+
+    @_check_types.do
+    def roll_to(self, roll: WireRoll, degrees: float) -> None:
+        """Put the loop *degrees* round the wire from the pose *roll* froze.
+
+        Nothing is searched or avoided: the roll the user drags is the roll
+        the loop gets (the nearest-clear-roll search belongs to placing a
+        loop). Written through _apply_resolved so the attached wires follow
+        the start point and the stop point is re-derived from the mesh.
+        """
+        start, angle = roll.pose(degrees)
+
+        self._apply_resolved(start, np.array(angle.as_quat_float, dtype=np.float64))
+        self._sync_stop_position()
+        self._last_centroid = self._world_centroid()
+        self.editor3d.Refresh(False)
+
+    @_check_types.do
+    def start_wire_roll(self) -> None:
+        """Select this loop and show the single ring that rolls it about the
+        wire (rotation_handlers.rotation_rings.WireRollRings), in place of
+        whatever rotation gizmo is up.
+        """
+        from ...rotation_handlers import rotation_rings as _rotation_rings  # NOQA -- avoid a cycle at import time
+
+        # The menu entry is disabled without wires either side, but this runs
+        # a tick after the click, and the wires can have gone by then
+        if not self.can_roll_on_wire:
+            return
+
+        if self.mainframe.get_selected() is not self.parent:
+            _menu_ops.select_object(self)
+
+        if self._active_handler is not None:
+            self._active_handler.delete()
+            self._active_handler = None
+
+        editor = self.editor3d.editor
+
+        self._active_handler = _rotation_rings.WireRollRings(editor, self.parent)
+        self._rotation_just_armed = False
+        editor.active_handler_obj = self
+        self.editor3d.Refresh(False)
 
 
 @capturable()
@@ -1159,6 +1057,10 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
         action = self.addAction('Add Wire')
         action.triggered.connect(self.on_add_wire)
 
+        action = self.addAction('Rotate on Wire')
+        action.setEnabled(selected.can_roll_on_wire)
+        action.triggered.connect(self.on_rotate_on_wire)
+
         self.addSeparator()
         action = self.addAction('Trace Circuit')
         action.triggered.connect(self.on_trace_circuit)
@@ -1188,6 +1090,17 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
         @_check_types.do
         def _do() -> None:
             _wire_3d.Wire.start_add(mainframe, preset_part_id=part_id)
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_rotate_on_wire(self) -> None:
+        """Show the single ring that rolls this service loop about its wire."""
+        selected = self.selected
+
+        @_check_types.do
+        def _do() -> None:
+            selected.start_wire_roll()
 
         QtCore.QTimer.singleShot(0, _do)
 

@@ -76,6 +76,17 @@ def _wires_diameter(bundle_db_obj: "_pjt_bundle.PJTBundle") -> float | None:
 
 
 @_check_types.do
+def wires_diameter(bundle_db_obj: "_pjt_bundle.PJTBundle") -> float | None:
+    """The diameter *bundle_db_obj*'s own wires need, in millimetres, or ``None`` if it has no wires.
+
+    :func:`_wires_diameter` for readers outside this module, such as the circuit solver, which
+    needs the bundle's size and must not change anything: unlike :func:`effective_diameter`, this
+    never grows a transition branch.
+    """
+    return _wires_diameter(bundle_db_obj)
+
+
+@_check_types.do
 def _attached_branches(
     bundle_db_obj: "_pjt_bundle.PJTBundle"
 ) -> list["_pjt_transition_branch.PJTTransitionBranch"]:

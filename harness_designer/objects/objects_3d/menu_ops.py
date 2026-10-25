@@ -14,23 +14,18 @@ from collections.abc import Callable
 
 from PySide6 import QtCore, QtWidgets
 
-from ... import color as _color
-from ... import config as _config
-from ...gl import materials as _materials
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from . import base_3d as _base_3d
     from .. import ObjectBase as _ObjectBase
+    from ..objectsvar import base_var as _base_var
     from ... import ui as _ui
     from ...ui.dialogs import part_search as _part_search
     from ...database.global_db import bases as _glb_bases
     from ...database.project_db import pjt_bases as _pjt_bases
     from ...handlers import handler_base as _handler_base
-
-
-_colors_config = _config.Config.colors
 
 
 @_check_types.do
@@ -217,10 +212,18 @@ def get_part_id(mainframe: "_ui.MainFrame", page: Any, table: "_glb_bases.TableB
 
 
 @_check_types.do
-def trace_circuit(obj3d: "_base_3d.Base3D", db_obj: _Union["_pjt_bases.PJTEntryBase", None] = None) -> None:
-    """Highlight every project object on the circuit the object belongs to."""
+def trace_circuit(view: "_base_var.BaseVar", db_obj: _Union["_pjt_bases.PJTEntryBase", None] = None) -> None:
+    """Highlight every project object on the circuit the object belongs to.
+
+    Works from any editor's view object: the highlight and the refresh of all
+    three editors are :meth:`Circuit.highlight`'s job.
+
+    :param view: The 3D, schematic or peg-board view object whose menu asked.
+    :param db_obj: The row whose circuit to trace, when that is not
+        ``view.db_obj`` (a wire layout traces its first attached wire's).
+    """
     if db_obj is None:
-        db_obj = obj3d.db_obj
+        db_obj = view.db_obj
 
     try:
         circuit = db_obj.circuit
@@ -230,21 +233,4 @@ def trace_circuit(obj3d: "_base_3d.Base3D", db_obj: _Union["_pjt_bases.PJTEntryB
     if circuit is None:
         return
 
-    material = _materials.Glowing(
-        _color.Color(*_colors_config.add_object.wire_highlight))
-
-    member_lists = []
-    for read in (lambda: circuit.wires, lambda: circuit.wire_service_loops,
-                 lambda: circuit.splices, lambda: circuit.terminals):
-        try:
-            member_lists.append(read())
-        except (AttributeError, KeyError, TypeError):
-            continue
-
-    for members in member_lists:
-        for member in members:
-            obj = member.get_object()
-            if obj is not None:
-                obj.identify(material)
-
-    obj3d.editor3d.Refresh()
+    circuit.get_object().highlight(True)

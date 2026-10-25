@@ -26,7 +26,7 @@ Wrapper for a housing's cavities. See the Rigid-child positioning convention not
 
 #### circuit.py
 
-Peg-board-only part type (no 3D or schematic view) — a grouping construct for peg-board wire tables.
+`Circuit(ObjectBase)` — the wrapper for a `pjt_circuits` row: a logical grouping, not a placed part. It has an inert placeholder view in every editor (`objects_3d/circuit.py`, `objects_schematic/circuit.py`, `objects_pegboard/circuit.py`; added 2026-10-25, built like a `Note` that was never placed there: no vbo/position/angle/scale/material, not visible, `obb` None). They exist so each canvas can hold the circuit as its one selected object: `MainFrame._set_selected` hands it to every canvas, and a click elsewhere deselects it through `MouseHandlerBase.on_left_up` -> `Circuit.set_selected(False)`, which clears the highlight. A circuit can NOT be picked with the mouse (`gl.object_picker` skips a view with no `obb`), `CanvasBase.add_object` and every `center_on_object` skip it (no position), so it is only ever selected from the circuit editor or the object browser. Before 2026-10-25 it had no views, and selecting one made `CanvasBase._draw_scene` dereference `None` and abort the process. `highlight(flag)` gives every wire, service loop, splice and terminal in the circuit the `materials.Circuit` material across all three editors (`identify()`, a material override: the members are NOT selected), or clears it with `identify(None)`, and `set_selected(flag)` calls it; `delete()` deselects first; `menu_ops.trace_circuit` uses the same method. `deselect_in_editor()` (2026-10-25) tells the circuit editor the circuit was deselected (`EditorCircuitPanel.deselect_circuit`); the circuit's three views call it from their `set_selected(False)`, and it is a no-op when the editor does not exist yet or its selected row is not this circuit's. `delete()` follows `Note.delete()` and detaches the circuit's members rather than deleting them (every member's `circuit_id` becomes NULL, which the four member tables allow; the circuit editor's right-click Delete Circuit calls it after a Yes/No). Create one with `Project.create_circuit()`, never by constructing it directly after load. The file's remaining ~600 lines are a commented-out `WireInfo` class (electrical/AWG logic), kept for a later port.
 
 #### cover.py
 
@@ -58,7 +58,7 @@ One-file-per-part wrapper, same shape as `generic.py`.
 
 #### project.py
 
-`Project` — owns the whole in-memory scene graph for a loaded project; imports (and is imported by) every per-part wrapper module. Its loader deliberately loads every `PJTCavity` row before any `PJTHousing` row (comment at `project.py:310-321`) specifically to dodge a cavity-construction-ordering race — see the housing/cavity entries in MEMORY.md. Object creation = insert into `project.ptables.pjt_*_table`, wrap in the matching `objects/<type>.py` class, then `project.add_<type>(obj)`; deletion = `project.delete_<type>(db_id)` (pops the registry + deletes the db row) plus `mainframe.remove_object(parent)` — skipping either half leaves a dangling registry entry or a zombie render.
+`Project` — owns the whole in-memory scene graph for a loaded project; imports (and is imported by) every per-part wrapper module. Its loader deliberately loads every `PJTCavity` row before any `PJTHousing` row (comment at `project.py:310-321`) specifically to dodge a cavity-construction-ordering race — see the housing/cavity entries in MEMORY.md. Object creation = insert into `project.ptables.pjt_*_table`, wrap in the matching `objects/<type>.py` class, then `project.add_<type>(obj)`; deletion = `project.delete_<type>(db_id)` (pops the registry + deletes the db row) plus `mainframe.remove_object(parent)` — skipping either half leaves a dangling registry entry or a zombie render. Circuits follow the same trio (`add_circuit`/`delete_circuit`/`get_circuit`), are swept at the end of `Project.delete()` (after every member is gone), and also have `create_circuit()` (insert + wrap + register in one call) and `merge_circuits(keep_id, drop_id)` (moves the members, then deletes the emptied circuit's object, browser node and row).
 
 #### project_model.py
 
@@ -86,7 +86,7 @@ Wrapper for transitions. Model-building/rendering design (OCC boolean pipeline i
 
 #### wire.py
 
-All three views; imports `terminal.py`/`splice.py` (wire endpoints). `Point.db_id` is a string like `"1233d"`/`"1232d"` — strip the 2-char suffix to get the raw db id (MEMORY.md).
+`Wire.delete` releases the wire's `WireSlackHandler` first (2026-10-25; see `handlers/MAP.md`), so a deleted wire stops reacting to its points moving. All three views; imports `terminal.py`/`splice.py` (wire endpoints). `Point.db_id` is a string like `"1233d"`/`"1232d"` — strip the 2-char suffix to get the raw db id (MEMORY.md).
 
 #### wire_layout.py
 
