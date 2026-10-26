@@ -12,84 +12,57 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
-    con.execute('SELECT 1 FROM platings LIMIT 1;')
-    if con.fetchall():
-        return
 
-    json_path = os.path.join(data_path, 'platings.json')
-
-    if os.path.exists(json_path):
-        splash.SetText(f'Loading Plating file...')
-        splash.flush()
-
-        _logger.database(json_path)
-
-        with open(json_path, 'r') as f:
-            data = json.loads(f.read())
-
-        if isinstance(data, dict):
-            data = [value for value in data.values()]
-
-        data_len = len(data)
-
-        splash.SetText(f'Adding plating to db [0 | {data_len}]...', log=False)
-        splash.flush()
-
-        for i, item in enumerate(data):
-            splash.SetText(f'Adding plating to db [{i + 1} | {data_len}]...', log=False)
-
-            # platings.json is a pre-UUID-migration seed file and still
-            # carries a leftover integer "id" per entry -- discard it so
-            # every row gets a freshly generated UUID id instead of
-            # colliding integers.
-            # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
-            # default to; every other entry gets a generated id
-            id = item.pop('id', None)
-            if id == 0:
-                add_plating(con, id=id, commit=False, **item)
-            else:
-                add_plating(con, commit=False, **item)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_plating(con: "_connector_base.ConnectorBase", symbol: str, description: str = '', id: int | None = None, commit: bool = True) -> bytes:  # NOQA
-    """Add a plating.
+def add_plating(con: "_connector_base.ConnectorBase", symbol: str,  # NOQA
+                description: str = '', id: int | None = None,  # NOQA
+                commit: bool = True) -> bytes:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a plating.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param symbol: Value for ``symbol``.
-    :type symbol: UNKNOWN
+    :type symbol: str
+
     :param description: Value for ``description``.
-    :type description: UNKNOWN
-    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
-        default to) instead of a generated id; ``None`` generates one.
+    :type description: str
+
+    :param id: ``0`` from the catalog JSON stores the nil UUID
+               (the "none" row that unassigned foreign keys
+               default to) instead of a generated id; ``None`` generates one.
     :type id: int | None
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if id is None:
@@ -109,25 +82,31 @@ def add_plating(con: "_connector_base.ConnectorBase", symbol: str, description: 
 
 @_check_types.do
 def get_plating_id(con: "_connector_base.ConnectorBase", symbol: str) -> bytes:
-    """Return the plating ID.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the plating ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param symbol: Value for ``symbol``.
-    :type symbol: UNKNOWN
+    :type symbol: str
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
+
     if not symbol:
         return _id_generator.NIL_UUID.bytes
 
-    con.execute('SELECT id FROM platings WHERE symbol=?;', (symbol,))
+    con.execute('SELECT id FROM platings WHERE symbol=?;',
+                (symbol,))
+
     rows = con.fetchall()
 
     if not rows:
-        con.execute('SELECT id FROM platings WHERE description=?;', (symbol,))
+        con.execute('SELECT id FROM platings WHERE description=?;',
+                    (symbol,))
+
         rows = con.fetchall()
 
     if not rows:
@@ -150,7 +129,9 @@ def get_plating_id(con: "_connector_base.ConnectorBase", symbol: str) -> bytes:
 
             symbol = '/'.join(symbol_parts)
 
-            con.execute('SELECT id FROM platings WHERE symbol=?;', (symbol,))
+            con.execute('SELECT id FROM platings WHERE symbol=?;',
+                        (symbol,))
+
             rows = con.fetchall()
 
             if rows:
@@ -162,7 +143,8 @@ def get_plating_id(con: "_connector_base.ConnectorBase", symbol: str) -> bytes:
         _logger.database(f'adding plating ("{symbol}", "{description}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO platings (id, symbol, description) VALUES (?, ?, ?);',
+        con.execute('INSERT INTO platings (id, symbol, description) '
+                    'VALUES (?, ?, ?);',
                     (db_id, symbol, description))
 
         con.commit()

@@ -82,7 +82,9 @@ for a new primitive shape**, and don't confuse the two `Line` classes when both 
 On-disk cache for generated primitive mesh data — `path(name)`, `load(name, version)`,
 `save(name, version, packed, count, aabb, obb, extra=None)`. Versioned by an explicit `version`
 int per cached mesh, so a primitive's generation code can bump its own cache format independently
-of others. Not listed in CODEBASE_MAP.md's `shapes/` file list (stale) despite being substantial
+of others. Each cache is one `<appdata>/<name>.hdm` file (the format is in `utils/hdm.py`; a
+`<name>.npz` written before it is upgraded in place the first time it is loaded). Not listed in
+CODEBASE_MAP.md's `shapes/` file list (stale) despite being substantial
 enough (a full mesh disk-cache) to warrant its own bullet there.
 
 #### rectangle.py
@@ -105,7 +107,8 @@ listed in CODEBASE_MAP.md's `shapes/` file list (stale).
 
 3D text/label geometry — tessellates real font glyphs via `build123d` (`_tessellate_char`,
 `build123d.FontStyle`) into cached per-glyph VBOs (`_glyph_cache_path`/`_load_glyph_cache`/
-`_save_glyph_cache`, `_build_char`, `build_chars` for a full warm-up pass), assembled into
+`_save_glyph_cache`, `_build_char`, `build_chars` for a full warm-up pass; every glyph is in the one
+`glyph_cache.hdm` file, see `utils/hdm.py`), assembled into
 words/lines by the `Text` class (`_layout`, `_add_word`, `build_vbos`). Also owns
 `_CameraTrackingArena`/`update_camera_tracking` — a billboard-style registry
 (`_billboard_matrices`) for text that must always face the camera, with its own growable capacity

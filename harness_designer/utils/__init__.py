@@ -10,6 +10,7 @@ from . import bounding_boxes as _bb
 from . import model_utils as _mu
 from . import window_geometry as _wg
 from . import natural_sort as _ns
+from . import hdm as _hdm
 
 
 mm2_to_awg = _wc.mm2_to_awg
@@ -53,6 +54,13 @@ safe_center = _wg.safe_center
 
 natural_sort_key = _ns.natural_sort_key
 
+HDM_EXTENSION = _hdm.EXTENSION
+save_hdm = _hdm.save
+save_hdm_arrays = _hdm.save_arrays
+load_hdm = _hdm.load
+load_hdm_arrays = _hdm.load_arrays
+migrate_hdm = _hdm.migrate
+
 
 del _wc
 del _remap
@@ -64,3 +72,4 @@ del _bb
 del _mu
 del _wg
 del _ns
+del _hdm

@@ -18,7 +18,7 @@ Runs the `pyfqmr` simplifier. This is the one step where the target triangle cou
 **Argument mismatch (flagged, not changed):** `ThreadWorker.run` calls `_reduce_triangles(vertices, faces, target_count, aggressiveness, iterations)` (line 554-556). The fifth positional argument is `update_rate`, not `max_iterations` (the signature is `..., aggressiveness, update_rate, max_iterations, ...`). The database column is called `iterations`, so the value probably belongs in `max_iterations`. The simplifier therefore runs with `update_rate=iterations` and the default `max_iterations=150`.
 
 ## Line 383-607 (`ThreadWorker.run`) — one model conversion per message
-Reads the row, resolves the file, loads and centres the model, optionally decimates it, computes normals and the bounding volumes, writes a `.npy` file, and updates the database. Each step sends a progress message. The work is in the loaders above.
+Reads the row, resolves the file, loads and centres the model, optionally decimates it, computes normals and the bounding volumes, writes a `.hdm` file (a short text header, then the `.npy` data), and updates the database. Each step sends a progress message. The work is in the loaders above.
 
 **Bug (flagged, not changed):** line 422 is `message['allow_retry'] = False,` with a trailing comma. That stores the tuple `(False,)`, which is truthy, so the "no retry" flag is always set. Remove the comma.
 

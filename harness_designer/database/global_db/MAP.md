@@ -98,7 +98,7 @@ Unused.
 
 #### model3d.py
 
-`Models3DTable`/`Model3D` — 3D model storage. `angle3d`/`quat3d` NULL on this table is meaningful (triggers the part-orientation dialog on first download) — don't default those away the way a position column would be.
+`Models3DTable`/`Model3D` — 3D model storage. `angle3d`/`quat3d` NULL on this table is meaningful (triggers the part-orientation dialog on first download) — don't default those away the way a position column would be. `Model3D.data_path` is `<model_path>/<uuid[:2]>/<uuid>.hdm`; a model saved before the `.hdm` format (`<uuid>.npy`) is upgraded in place there the first time it is asked for (see `utils/hdm.py`).
 
 #### plating.py
 

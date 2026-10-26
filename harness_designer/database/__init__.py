@@ -56,6 +56,4 @@ That is all there is to it, Very painless and easy to use. When the program star
 it will automatically populte the classes with the stpored data and on program exit
 it will save the data in those classes.
 
-
-
 """

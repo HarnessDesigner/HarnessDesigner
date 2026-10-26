@@ -9,44 +9,28 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
 
-    con.execute('SELECT 1 FROM cavity_locks LIMIT 1;')
-    if con.fetchall():
-        return
-
-    splash.SetText(f'Building cavity locks...')
-    splash.flush()
-
-    names = ('Cavity Lock', 'Clean Body', 'Locking Lance', 'Clean Body and Lance',
-             'Flex Arm', 'Insert Molded', 'Molded On', 'Nose Piece', 'Press Fit')
-
-    data = ((_id_generator.NIL_UUID.bytes, 'No Lock'),) + tuple(
-        (_id_generator.generate_global_row_id(con).bytes, name) for name in names)
-
-    splash.SetText(f'Adding cavity locks to db [{len(data)} | {len(data)}]...', log=False)
-    splash.flush()
-
-    con.executemany('INSERT INTO cavity_locks (id, name) VALUES (?, ?);', data)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
@@ -55,26 +39,30 @@ def get_cavity_lock_id(con: "_connector_base.ConnectorBase", name: str) -> bytes
     Return the cavity lock ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if not name:
         return _id_generator.NIL_UUID.bytes
 
-    con.execute('SELECT id FROM cavity_locks WHERE name=?;', (name,))
+    con.execute('SELECT id FROM cavity_locks WHERE name=?;',
+                (name,))
+
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding cavity lock ("{name}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO cavity_locks (id, name) VALUES (?, ?);', (db_id, name))
+
+        con.execute('INSERT INTO cavity_locks (id, name) VALUES (?, ?);',
+                    (db_id, name))
 
         con.commit()
 

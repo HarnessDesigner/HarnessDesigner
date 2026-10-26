@@ -13,7 +13,7 @@ from . import logger as _logger
 
 
 if TYPE_CHECKING:
-    from . import splash as _splash
+    from . import splash_screen as _splash
     from . import ui as _ui
 
 

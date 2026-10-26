@@ -12,86 +12,56 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
 
-    con.execute('SELECT * from colors WHERE name="Black";')
-    if con.fetchall():
-        return
-
-    json_path = os.path.join(data_path, 'colors.json')
-
-    splash.SetText(f'Loading colors file...')
-    splash.flush()
-
-    _logger.database(json_path)
-
-    with open(json_path, 'r') as f:
-        data = json.loads(f.read())
-
-    if isinstance(data, dict):
-        data = [value for value in data.values()]
-
-    data_len = len(data)
-    splash.SetText(f'Adding color to db [0 | {data_len}]...', log=False)
-    splash.flush()
-
-    for i, item in enumerate(data):
-        splash.SetText(f'Adding color to db [{i + 1} | {data_len}]...', log=False)
-
-        # colors.json is a pre-UUID-migration seed file and still carries a
-        # leftover integer "id" per entry -- discard it so every row gets a
-        # freshly generated UUID id instead of colliding integers.
-        # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
-        # default to; every other entry gets a generated id
-        id = item.pop('id', None)
-        if id == 0:
-            add_color(con, id=id, commit=False, **item)
-        else:
-            add_color(con, commit=False, **item)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int, id: int | None = None, commit: bool = True) -> bytes: # NOQA
+def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int,  # NOQA
+              id: int | None = None, commit: bool = True) -> bytes:  # NOQA
+
     """
     Add a color.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :param rgb: Value for ``rgb``.
-    :type rgb: UNKNOWN
+    :type rgb: int
 
-    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
-        default to) instead of a generated id; ``None`` generates one.
+    :param id: ``0`` from the catalog JSON stores the nil UUID
+               (the "none" row that unassigned foreign keys
+               default to) instead of a generated id; ``None`` generates one.
     :type id: int | None
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if id is None:
@@ -115,13 +85,13 @@ def get_color_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     Return the color ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if not name:
@@ -131,7 +101,9 @@ def get_color_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     res = con.fetchall()
 
     if not res:
-        con.execute('SELECT id FROM colors WHERE name=?;', (name.title(),))
+        con.execute('SELECT id FROM colors WHERE name=?;',
+                    (name.title(),))
+
         res = con.fetchall()
 
     if not res:

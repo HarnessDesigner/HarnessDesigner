@@ -1205,7 +1205,7 @@ def create_model_vbo(model: "_model3d.Model3D") -> _Union["PooledVBOHandler", No
     if data_path is None:
         return None
 
-    packed = np.load(data_path, mmap_mode='r')
+    packed = _utils.load_hdm(data_path, mmap_mode='r')
 
     if uuid in PooledVBOHandler:
         vbo = PooledVBOHandler(uuid)

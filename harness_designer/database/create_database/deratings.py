@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Schema for the ``deratings`` table.
+"""
+Schema for the ``deratings`` table.
 
 A manufacturer's derating table for one catalog part (a terminal, a wire or a
 splice): how much current the part may carry under given conditions. One row
@@ -70,7 +71,8 @@ table = _con.SQLTable(
 
 
 def add_indexes(db_cursor: "_glb_bases.TableBase") -> None:
-    """Index the three part columns, so a part's table is found without
+    """
+    Index the three part columns, so a part's table is found without
     reading every row of the catalog's.
 
     Only SQLite needs it: a MySQL foreign key already indexes its column.
@@ -81,6 +83,7 @@ def add_indexes(db_cursor: "_glb_bases.TableBase") -> None:
     :param db_cursor: The ``deratings`` table class.
     :type db_cursor: :class:`_glb_bases.TableBase`
     """
+
     if _con.Config.database.connector != _con.CONNECTOR_SQLITE:
         return
 

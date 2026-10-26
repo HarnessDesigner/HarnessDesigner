@@ -10,67 +10,65 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
 
-    con.execute('SELECT 1 FROM families LIMIT 1;')
-    if con.fetchall():
-        return
-
-    data = (_id_generator.NIL_UUID.bytes, 'No Family', _id_generator.NIL_UUID.bytes)
-
-    splash.SetText(f'Adding families to db [1 | 1]...', log=False)
-    splash.flush()
-
-    con.execute('INSERT INTO families (id, name, mfg_id) VALUES(?, ?, ?);', data)
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def get_family_id(con: "_connector_base.ConnectorBase", name: str, mfg_id: bytes) -> bytes:
+def get_family_id(con: "_connector_base.ConnectorBase", name: str,
+                  mfg_id: bytes) -> bytes:
+
     """
     Return the family ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :param mfg_id: Identifier for the mfg.
-    :type mfg_id: UNKNOWN
+    :type mfg_id: bytes
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if not name:
         return _id_generator.NIL_UUID.bytes
 
-    con.execute('SELECT id FROM families WHERE name=? AND mfg_id=?;', (name, mfg_id))
+    con.execute('SELECT id FROM families WHERE name=? AND mfg_id=?;',
+                (name, mfg_id))
+
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding family ("{name}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO families (id, name, mfg_id) VALUES (?, ?, ?);', (db_id, name, mfg_id))
+        con.execute('INSERT INTO families (id, name, mfg_id) '
+                    'VALUES (?, ?, ?);',
+                    (db_id, name, mfg_id))
 
         con.commit()
 
@@ -89,7 +87,7 @@ table = _con.SQLTable(
     _con.TextField('name', no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION))
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION))
 )

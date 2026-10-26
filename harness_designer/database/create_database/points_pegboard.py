@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Schema for ``pjt_points_pegboard``.
+"""
+Schema for ``pjt_points_pegboard``.
 
 One row per peg-board point -- either an anchor's own position (housing/
 cavity/terminal/transition/transition-branch, referenced FROM the owning

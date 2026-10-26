@@ -25,87 +25,94 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_cpa_lock(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
-                 color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
-                 max_temp: str | None = None, model3d: str | None = None, type: str | None = None, length: float = 0.0, width: float = 0.0,  # NOQA
-                 height: float = 0.0, weight: float = 0.0, pins: int = 0, terminal_size: float = 0.0, compat_housings: list[str] | None = None,
+def add_cpa_lock(con: "_connector_base.ConnectorBase", part_number: str,
+                 description: str, mfg: str | None = None,
+                 family: str | None = None, series: str | None = None,
+                 color: str | None = None, image: str | None = None,
+                 datasheet: str | None = None, cad: str | None = None,
+                 min_temp: str | None = None, max_temp: str | None = None,  # NOQA
+                 model3d: str | None = None, type: str | None = None,  # NOQA
+                 length: float = 0.0, width: float = 0.0, height: float = 0.0,  # NOQA
+                 weight: float = 0.0, pins: int = 0, terminal_size: float = 0.0,
+                 compat_housings: list[str] | None = None,
                  commit: bool = True) -> bytes:
+
     """
     Add a CPA lock.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param part_number: Value for ``part_number``.
-    :type part_number: UNKNOWN
+    :type part_number: str
 
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str
 
     :param mfg: Value for ``mfg``.
-    :type mfg: UNKNOWN
+    :type mfg: str | None
 
     :param family: Value for ``family``.
-    :type family: UNKNOWN
+    :type family: str | None
 
     :param series: Value for ``series``.
-    :type series: UNKNOWN
+    :type series: str | None
 
     :param color: Value for ``color``.
-    :type color: UNKNOWN
+    :type color: str | None
 
     :param image: Value for ``image``.
-    :type image: UNKNOWN
+    :type image: str | None
 
     :param datasheet: Value for ``datasheet``.
-    :type datasheet: UNKNOWN
+    :type datasheet: str | None
 
     :param cad: Value for ``cad``.
-    :type cad: UNKNOWN
+    :type cad: str | None
 
     :param min_temp: Value for ``min_temp``.
-    :type min_temp: UNKNOWN
+    :type min_temp: str | None
 
     :param max_temp: Value for ``max_temp``.
-    :type max_temp: UNKNOWN
+    :type max_temp: str | None
 
     :param model3d: Value for ``model3d``.
-    :type model3d: UNKNOWN
+    :type model3d: str | None
 
     :param type: Value for ``type``.
-    :type type: UNKNOWN
+    :type type: str | None
 
     :param length: Value for ``length``.
-    :type length: UNKNOWN
+    :type length: float
 
     :param width: Value for ``width``.
-    :type width: UNKNOWN
+    :type width: float
 
     :param height: Value for ``height``.
-    :type height: UNKNOWN
+    :type height: float
 
     :param weight: Value for ``weight``.
-    :type weight: UNKNOWN
+    :type weight: float
 
     :param pins: Value for ``pins``.
-    :type pins: UNKNOWN
+    :type pins: int
 
     :param terminal_size: Value for ``terminal_size``.
-    :type terminal_size: UNKNOWN
+    :type terminal_size: float
 
     :param compat_housings: Value for ``compat_housings``.
-    :type compat_housings: UNKNOWN
+    :type compat_housings: list[str] | None
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if compat_housings is None:
@@ -144,14 +151,14 @@ def add_cpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
     _logger.database(f'adding cpa lock {part_number}, {description}')
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO cpa_locks (id, part_number, description, mfg_id, family_id, '
-                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
-                'max_temp_id, model3d_id, type_id, length, width, height, weight, pins, '
-                'terminal_size, compat_housings) '
+    con.execute('INSERT INTO cpa_locks (id, part_number, description, mfg_id, '
+                'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                'min_temp_id, max_temp_id, model3d_id, type_id, length, width, height, '
+                'weight, pins, terminal_size, compat_housings) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
-                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
-                 type_id, length, width, height, weight, pins, terminal_size,
+                (new_id, part_number, description, mfg_id, family_id, series_id,
+                 color_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
+                 model3d_id, type_id, length, width, height, weight, pins, terminal_size,
                  compat_housings_str))
 
     _logger.database(f'cpa lock added "{part_number}"')
@@ -162,12 +169,14 @@ def add_cpa_lock(con: "_connector_base.ConnectorBase", part_number: str, descrip
 
 
 @_check_types.do
-def add_cpa_locks(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
+def add_cpa_locks(con: "_connector_base.ConnectorBase",
+                  data: tuple[dict] | list[dict]) -> None:
+
     """
     Add a CPA locks.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param data: Data payload.
     :type data: tuple[dict] | list[dict]
@@ -178,70 +187,23 @@ def add_cpa_locks(con: "_connector_base.ConnectorBase", data: tuple[dict] | list
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
 
-    con.execute('SELECT id FROM cpa_locks WHERE id=1;')
-    if con.fetchall():
-        return
-
-    dirs = [('', data_path)]
-
-    for file_name in os.listdir(data_path):
-        file = os.path.join(data_path, file_name)
-        if os.path.isdir(file):
-            dirs.append((file_name + ' ', file))
-
-    cwd = os.getcwd()
-    for name, path in dirs:
-        os.chdir(path)
-
-        json_path = os.path.join(path, 'cpa_locks.json')
-
-        if os.path.exists(json_path):
-            splash.SetText(f'Loading {name}cpa locks file...')
-            splash.flush()
-
-            _logger.database(json_path)
-
-            with open(json_path, 'r') as f:
-                data = json.loads(f.read())
-
-            if isinstance(data, dict):
-                data = [value for value in data.values()]
-
-            data_len = len(data)
-
-            splash.SetText(f'Adding {name}cpa lock to db [0 | {data_len}]...', log=False)
-            splash.flush()
-
-            for i, item in enumerate(data):
-                splash.SetText(f'Adding {name}cpa lock to db [{i + 1} | {data_len}]...', log=False)
-
-                if 'shared_cad' in item:
-                    del item['shared_cad']
-
-                if 'shared_model3d' in item:
-                    del item['shared_model3d']
-
-                try:
-                    add_cpa_lock(con, commit=False, **item)
-                except Exception as err:
-                    _logger.traceback(err)
-
-        con.commit()
-    os.chdir(cwd)
+    raise NotImplementedError
 
 
 id_field = _con.UUIDField('id', is_primary=True)
@@ -252,49 +214,49 @@ table = _con.SQLTable(
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_families.table,
-                                                    _families.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_families.table,
+                                                     _families.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_series.table,
-                                                    _series.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_series.table,
+                                                     _series.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('min_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('max_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('model3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_models3d.table,
-                                                    _models3d.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_models3d.table,
+                                                     _models3d.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('type_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_cpa_lock_types.table,
-                                                    _cpa_lock_types.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cpa_lock_types.table,
+                                                     _cpa_lock_types.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),
@@ -311,25 +273,25 @@ pjt_table = _con.SQLTable(
     'pjt_cpa_locks',
     pjt_id_field,
     _con.UUIDField('part_id', no_null=True,
-                  references=_con.SQLFieldReference(table,
-                                                    id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(table,
+                                                     id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('point3d_id', no_null=True,
-                  references=_con.SQLFieldReference(_points3d.pjt_table,
-                                                    _points3d.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                     _points3d.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('housing_id', default='NULL',
-                  references=_con.SQLFieldReference(_housings.pjt_table,
-                                                    _housings.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_housings.pjt_table,
+                                                     _housings.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('scale3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_points3d.pjt_table,
-                                                    _points3d.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                     _points3d.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),

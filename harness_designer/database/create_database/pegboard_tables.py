@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Schema for ``pjt_pegboard_tables``.
+"""
+Schema for ``pjt_pegboard_tables``.
 
 One row per anchor that has a floating Excel-like data table overlaid on the
 peg-board view. ``point_pegboard_id`` is this table's CENTER position --
@@ -32,10 +33,10 @@ pjt_table = _con.SQLTable(
     'pjt_pegboard_tables',
     pjt_id_field,
     _con.UUIDField('point_pegboard_id', no_null=True,
-                  references=_con.SQLFieldReference(_points_pegboard.pjt_table,
-                                                    _points_pegboard.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                     _points_pegboard.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 
     # str((width, height)) -- one column instead of two separate width/
     # height floats, so reading the table's size back is a single query

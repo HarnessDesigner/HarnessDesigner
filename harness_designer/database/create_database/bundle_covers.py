@@ -25,17 +25,19 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_bundle_covers(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
+def add_bundle_covers(con: "_connector_base.ConnectorBase",
+                      data: tuple[dict] | list[dict]) -> None:
+
     """
     Add a bundle covers.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param data: Data payload.
     :type data: tuple[dict] | list[dict]
@@ -46,146 +48,112 @@ def add_bundle_covers(con: "_connector_base.ConnectorBase", data: tuple[dict] | 
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
 
-    con.execute('SELECT id FROM bundle_covers WHERE id=1;')
-    if con.fetchall():
-        return
-
-    dirs = [('', data_path)]
-
-    for file_name in os.listdir(data_path):
-        file = os.path.join(data_path, file_name)
-        if os.path.isdir(file):
-            dirs.append((file_name + ' ', file))
-
-    cwd = os.getcwd()
-    for name, path in dirs:
-        os.chdir(path)
-
-        json_path = os.path.join(path, 'bundles.json')
-
-        if os.path.exists(json_path):
-            splash.SetText(f'Loading {name}bundle covers file...')
-            splash.flush()
-
-            _logger.database(json_path)
-
-            with open(json_path, 'r') as f:
-                data = json.loads(f.read())
-
-            if isinstance(data, dict):
-                data = [value for value in data.values()]
-
-            data_len = len(data)
-            splash.SetText(f'Adding {name}bundle cover to db [0 | {data_len}]', log=False)
-            splash.flush()
-
-            for i, item in enumerate(data):
-                splash.SetText(f'Adding {name}bundle cover to db [{i + 1} | {data_len}]', log=False)
-
-                try:
-                    add_bundle_cover(con, commit=False, **item)
-                except Exception as err:
-                    _logger.traceback(err)
-
-            con.commit()
-
-    os.chdir(cwd)
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_bundle_cover(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
-                     color: str | None = None, material: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None,
-                     shrink_temp: str | None = None, min_temp: str | None = None, max_temp: str | None = None, protection: str | None = None,
-                     rigidity: str = '', shrink_ratio: str = '', wall: str = '', min_dia: float = 0.0, max_dia: float = 0.0,
-                     adhesive_ids: list[bytes] | None = None, weight: float = 0.0, commit: bool = True) -> bytes:
+def add_bundle_cover(con: "_connector_base.ConnectorBase", part_number: str,
+                     description: str, mfg: str | None = None,
+                     family: str | None = None, series: str | None = None,
+                     color: str | None = None, material: str | None = None,
+                     image: str | None = None, datasheet: str | None = None,
+                     cad: str | None = None, shrink_temp: str | None = None,
+                     min_temp: str | None = None, max_temp: str | None = None,
+                     protection: str | None = None, rigidity: str = '',
+                     shrink_ratio: str = '', wall: str = '', min_dia: float = 0.0,
+                     max_dia: float = 0.0, adhesive_ids: list[bytes] | None = None,
+                     weight: float = 0.0, commit: bool = True) -> bytes:
+
     """
     Add a bundle cover.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param part_number: Value for ``part_number``.
-    :type part_number: UNKNOWN
+    :type part_number: str
 
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str
 
     :param mfg: Value for ``mfg``.
-    :type mfg: UNKNOWN
+    :type mfg: str | None
 
     :param family: Value for ``family``.
-    :type family: UNKNOWN
+    :type family: str | None
 
     :param series: Value for ``series``.
-    :type series: UNKNOWN
+    :type series: str | None
 
     :param color: Value for ``color``.
-    :type color: UNKNOWN
+    :type color: str | None
 
     :param material: Value for ``material``.
-    :type material: UNKNOWN
+    :type material: str | None
 
     :param image: Value for ``image``.
-    :type image: UNKNOWN
+    :type image: str | None
 
     :param datasheet: Value for ``datasheet``.
-    :type datasheet: UNKNOWN
+    :type datasheet: str | None
 
     :param cad: Value for ``cad``.
-    :type cad: UNKNOWN
+    :type cad: str | None
 
     :param shrink_temp: Value for ``shrink_temp``.
-    :type shrink_temp: UNKNOWN
+    :type shrink_temp: str | None
 
     :param min_temp: Value for ``min_temp``.
-    :type min_temp: UNKNOWN
+    :type min_temp: str | None
 
     :param max_temp: Value for ``max_temp``.
-    :type max_temp: UNKNOWN
+    :type max_temp: str | None
 
     :param protection: Value for ``protection``.
-    :type protection: UNKNOWN
+    :type protection: str | None
 
     :param rigidity: Value for ``rigidity``.
-    :type rigidity: UNKNOWN
+    :type rigidity: str
 
     :param shrink_ratio: Value for ``shrink_ratio``.
-    :type shrink_ratio: UNKNOWN
+    :type shrink_ratio: str
 
     :param wall: Value for ``wall``.
-    :type wall: UNKNOWN
+    :type wall: str
 
     :param min_dia: Value for ``min_dia``.
-    :type min_dia: UNKNOWN
+    :type min_dia: float
 
     :param max_dia: Value for ``max_dia``.
-    :type max_dia: UNKNOWN
+    :type max_dia: float
 
     :param adhesive_ids: Identifier for the adhesive.
-    :type adhesive_ids: UNKNOWN
+    :type adhesive_ids: list[bytes] | None
 
     :param weight: Value for ``weight``.
-    :type weight: UNKNOWN
+    :type weight: float
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if adhesive_ids is None:
@@ -209,15 +177,16 @@ def add_bundle_cover(con: "_connector_base.ConnectorBase", part_number: str, des
     adhesive_ids_str = ', '.join(adhesive_ids)
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO bundle_covers (id, part_number, description, mfg_id, family_id, '
-                'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
-                'shrink_temp_id, min_temp_id, max_temp_id, protection_id, rigidity, '
-                'shrink_ratio, wall, min_dia, max_dia, adhesive_ids, weight) '
+    con.execute('INSERT INTO bundle_covers (id, part_number, description, '
+                'mfg_id, family_id, series_id, color_id, material_id, image_id, '
+                'datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id, '
+                'protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, '
+                'adhesive_ids, weight) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, part_number, description, mfg_id, family_id, series_id, color_id, material_id,
-                 image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id,
-                 protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids_str,
-                 weight))
+                (new_id, part_number, description, mfg_id, family_id, series_id,
+                 color_id, material_id, image_id, datasheet_id, cad_id, shrink_temp_id,
+                 min_temp_id, max_temp_id, protection_id, rigidity, shrink_ratio, wall,
+                 min_dia, max_dia, adhesive_ids_str, weight))
 
     _logger.database(f'bundle cover added "{part_number}"')
 
@@ -234,54 +203,54 @@ table = _con.SQLTable(
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_families.table,
-                                                    _families.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_families.table,
+                                                     _families.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_series.table,
-                                                    _series.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_series.table,
+                                                     _series.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('material_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_materials.table,
+                                                     _materials.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('shrink_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 
     _con.UUIDField('min_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('max_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('protection_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_protections.table,
-                                                    _protections.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_protections.table,
+                                                     _protections.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.IntField('rigidity', default='""', no_null=True),
     _con.IntField('shrink_ratio', default='""', no_null=True),
     _con.IntField('wall', default='""', no_null=True),

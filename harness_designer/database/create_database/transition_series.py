@@ -9,49 +9,47 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
-    con.execute('SELECT 1 FROM transition_series LIMIT 1;')
-    if con.fetchall():
-        return
 
-    data = ((_id_generator.generate_global_row_id(con).bytes, 'Internal Use DO NOT DELETE'),)
-
-    splash.SetText(f'Adding transition series to db [1 | 1]...')
-    splash.flush()
-
-    con.executemany('INSERT INTO transition_series (id, name) VALUES (?, ?);', data)
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def get_transition_series_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
-    """Return the transition series ID.
+def get_transition_series_id(con: "_connector_base.ConnectorBase",
+                             name: str) -> bytes:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the transition series ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
+
     if not name:
         return _id_generator.NIL_UUID.bytes
 

@@ -1576,6 +1576,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
   - utils/
     - __init__.py
     - bounding_boxes.py
+    - hdm.py
     - mesh_normals.py
     - mesh_surface.py
     - mesh_surface_picker.py

@@ -12,6 +12,7 @@ from ...geometry import angle as _angle
 from ...geometry import point as _point
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import resources as _resources
+from ... import utils as _utils
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
@@ -168,7 +169,11 @@ class Model3D(EntryBase):
 
         hex_path = file_id[:2]
 
-        path = os.path.join(model_path, hex_path, f'{file_id}.npy')
+        path = os.path.join(model_path, hex_path, f'{file_id}{_utils.HDM_EXTENSION}')
+
+        if not os.path.exists(path):
+            # a model saved before the .hdm format is upgraded in place
+            _utils.migrate_hdm(path)
 
         if not os.path.exists(path):
             file_type = self.file_type

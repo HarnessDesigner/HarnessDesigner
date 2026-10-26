@@ -18,18 +18,18 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def get_image_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | None:  # NOQA
+def get_image_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | None:
     """
     Return the image ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param path: Filesystem path.
     :type path: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes | None
     """
 
     if not path:
@@ -44,9 +44,12 @@ def get_image_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | Non
         db_id = _id_generator.generate_global_row_id(con).bytes
 
         if path.startswith('http'):
-            con.execute('INSERT INTO images (id, path) VALUES (?, ?);', (db_id, path))
+            con.execute('INSERT INTO images (id, path) VALUES (?, ?);',
+                        (db_id, path))
         else:
-            values = _resources.collect_resource(con, _resources.RESOURCE_TYPE_IMAGE, path)
+            values = _resources.collect_resource(
+                con, _resources.RESOURCE_TYPE_IMAGE, path)
+
             if values is None:
                 return None
 
@@ -55,7 +58,9 @@ def get_image_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | Non
             con.execute('SELECT value FROM settings WHERE name="image_path";')
             image_path = con.fetchall()[0][0]
 
-            con.execute('SELECT extension FROM file_types WHERE id=?;', (file_type_id,))
+            con.execute('SELECT extension FROM file_types WHERE id=?;',
+                        (file_type_id,))
+
             ext = con.fetchall()[0][0]
 
             dst = os.path.join(image_path, uuid[:2])
@@ -66,7 +71,8 @@ def get_image_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | Non
             src = os.path.join(image_path, f'{uuid}.{ext}')
             shutil.move(src, dst)
 
-            con.execute('INSERT INTO images (id, uuid, path, file_type_id) VALUES (?, ?, ?, ?);',
+            con.execute('INSERT INTO images (id, uuid, path, file_type_id) '
+                        'VALUES (?, ?, ?, ?);',
                         (db_id, uuid, path, file_type_id))
 
         con.commit()
@@ -85,8 +91,8 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('uuid', default="NULL"),
     _con.UUIDField('file_type_id', default="NULL",
-                  references=_con.SQLFieldReference(_file_types.table,
-                                                    _file_types.id_field)),
+                   references=_con.SQLFieldReference(_file_types.table,
+                                                     _file_types.id_field)),
     _con.BlobField('data', default='NULL'),
     _con.TextField('path', no_null=True)
 )

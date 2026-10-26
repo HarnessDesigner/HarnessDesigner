@@ -2,8 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from .... import objects as _objects
 from ....objects.objects_3d import base_3d as _base_3d
 from ....objects.objects_pegboard import base_pegboard as _base_pegboard
@@ -15,6 +13,7 @@ from ....shapes import box as _box
 from ....gl import vbo as _vbo
 from ....gl import materials as _materials
 from .... import color as _color
+from .... import utils as _utils
 from .... import check_types as _check_types
 
 
@@ -100,7 +99,7 @@ class Housing3D(_base_3d.Base3D):
                 if uuid in _vbo.PooledVBOHandler:
                     vbo = _vbo.PooledVBOHandler(uuid)
                 else:
-                    packed = np.load(model.data_path).reshape(-1, 3)
+                    packed = _utils.load_hdm(model.data_path).reshape(-1, 3)
 
                     angle = model.angle3d
                     position = model.position3d

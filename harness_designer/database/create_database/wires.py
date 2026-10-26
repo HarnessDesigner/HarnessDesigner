@@ -31,155 +31,153 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_wires(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
-    """Add a wires.
+def add_wires(con: "_connector_base.ConnectorBase",
+              data: tuple[dict] | list[dict]) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a wires.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param data: Data payload.
     :type data: tuple[dict] | list[dict]
     """
+
     for line in data:
         add_wire(con, **line)
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
-    con.execute('SELECT id FROM wires WHERE id=1;')
-    if con.fetchall():
-        return
 
-    dirs = [('', data_path)]
-
-    for file_name in os.listdir(data_path):
-        file = os.path.join(data_path, file_name)
-        if os.path.isdir(file):
-            dirs.append((file_name + ' ', file))
-
-    cwd = os.getcwd()
-    for name, path in dirs:
-        os.chdir(path)
-
-        json_path = os.path.join(path, 'wires.json')
-
-        if os.path.exists(json_path):
-
-            splash.SetText(f'Loading {name}wires file...')
-            splash.flush()
-
-            _logger.database(json_path)
-
-            with open(json_path, 'r') as f:
-                data = json.loads(f.read())
-
-            if isinstance(data, dict):
-                data = [value for value in data.values()]
-
-            data_len = len(data)
-
-            splash.SetText(f'Adding {name}wire to db [0 | {data_len}]...', log=False)
-            splash.flush()
-
-            for i, item in enumerate(data):
-                splash.SetText(f'Adding {name}wire to db [{i + 1} | {data_len}]...', log=False)
-
-                try:
-                    add_wire(con, commit=False, **item)
-                except Exception as err:
-                    _logger.traceback(err)
-
-            con.commit()
-
-    os.chdir(cwd)
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_wire(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
-             color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
-             max_temp: str | None = None, material: str | None = None, stripe_color: str | None = None, core_material: str | None = None,
-             num_conductors: int = 1, shielded: int = 0, tpi: float = 0.0, wire_size_dia: float | None = None, wire_size_cross: float | None = None,
-             wire_size_awg: int | None = None, od_mm: float = 0.0, weight_1km: float = 0.0, resistance_1km: float = 0.0, volts: float = 0.0,
-             strands: int = 1, wire_type: str | None = None, commit: bool = True) -> bytes:
-    """Add a wire.
+def add_wire(con: "_connector_base.ConnectorBase", part_number: str,
+             description: str, mfg: str | None = None, family: str | None = None,
+             series: str | None = None, color: str | None = None,
+             image: str | None = None, datasheet: str | None = None,
+             cad: str | None = None, min_temp: str | None = None,
+             max_temp: str | None = None, material: str | None = None,
+             stripe_color: str | None = None, core_material: str | None = None,
+             num_conductors: int = 1, shielded: int = 0, tpi: float = 0.0,
+             wire_size_dia: float | None = None,
+             wire_size_cross: float | None = None,
+             wire_size_awg: int | None = None, od_mm: float = 0.0,
+             weight_1km: float = 0.0, resistance_1km: float = 0.0,
+             volts: float = 0.0, strands: int = 1, wire_type: str | None = None,
+             commit: bool = True) -> bytes:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a wire.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param part_number: Value for ``part_number``.
-    :type part_number: UNKNOWN
+    :type part_number: str
+
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str
+
     :param mfg: Value for ``mfg``.
-    :type mfg: UNKNOWN
+    :type mfg: str | None
+
     :param family: Value for ``family``.
-    :type family: UNKNOWN
+    :type family: str | None
+
     :param series: Value for ``series``.
-    :type series: UNKNOWN
+    :type series: str | None
+
     :param color: Value for ``color``.
-    :type color: UNKNOWN
+    :type color: str | None
+
     :param image: Value for ``image``.
-    :type image: UNKNOWN
+    :type image: str | None
+
     :param datasheet: Value for ``datasheet``.
-    :type datasheet: UNKNOWN
+    :type datasheet: str | None
+
     :param cad: Value for ``cad``.
-    :type cad: UNKNOWN
+    :type cad: str | None
+
     :param min_temp: Value for ``min_temp``.
-    :type min_temp: UNKNOWN
+    :type min_temp: str | None
+
     :param max_temp: Value for ``max_temp``.
-    :type max_temp: UNKNOWN
+    :type max_temp: str | None
+
     :param material: Value for ``material``.
-    :type material: UNKNOWN
+    :type material: str | None
+
     :param stripe_color: Value for ``stripe_color``.
-    :type stripe_color: UNKNOWN
+    :type stripe_color: str | None
+
     :param core_material: Value for ``core_material``.
-    :type core_material: UNKNOWN
+    :type core_material: str | None
+
     :param num_conductors: Value for ``num_conductors``.
-    :type num_conductors: UNKNOWN
+    :type num_conductors: int
+
     :param shielded: Value for ``shielded``.
-    :type shielded: UNKNOWN
+    :type shielded: int
+
     :param tpi: Value for ``tpi``.
-    :type tpi: UNKNOWN
+    :type tpi: float
+
     :param wire_size_dia: Value for ``wire_size_dia``.
-    :type wire_size_dia: UNKNOWN
+    :type wire_size_dia: float | None
+
     :param wire_size_cross: Value for ``wire_size_cross``.
-    :type wire_size_cross: UNKNOWN
+    :type wire_size_cross: float | None
+
     :param wire_size_awg: Value for ``wire_size_awg``.
-    :type wire_size_awg: UNKNOWN
+    :type wire_size_awg: int | None
+
     :param od_mm: Value for ``od_mm``.
-    :type od_mm: UNKNOWN
+    :type od_mm: float
+
     :param weight_1km: Value for ``weight_1km``.
-    :type weight_1km: UNKNOWN
+    :type weight_1km: float
+
     :param resistance_1km: Value for ``resistance_1km``.
-    :type resistance_1km: UNKNOWN
+    :type resistance_1km: float
+
     :param volts: Value for ``volts``.
-    :type volts: UNKNOWN
+    :type volts: float
+
     :param strands: Value for ``strands``.
-    :type strands: UNKNOWN
+    :type strands: int
+
     :param wire_type: Name of the wire type ("Wire", "Coaxial", "Ribbon", ...); blank is "Wire".
     :type wire_type: str | None
+
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
@@ -226,53 +224,53 @@ table = _con.SQLTable(
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_families.table,
-                                                    _families.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_families.table,
+                                                     _families.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_series.table,
-                                                    _series.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_series.table,
+                                                     _series.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('min_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('max_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('material_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_materials.table,
+                                                     _materials.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('stripe_color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('core_material_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_platings.table,
-                                                    _platings.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_platings.table,
+                                                     _platings.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.IntField('num_conductors', default='1', no_null=True),
     _con.IntField('shielded', default='0', no_null=True),
     _con.FloatField('tpi', default='"0.0"', no_null=True),
@@ -285,9 +283,9 @@ table = _con.SQLTable(
     _con.FloatField('volts', default='"0.0"', no_null=True),
     _con.IntField('strands', default='1'),
     _con.UUIDField('wire_type_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_wire_types.table,
-                                                    _wire_types.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_wire_types.table,
+                                                     _wire_types.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 )
 
 
@@ -304,7 +302,7 @@ pjt_table = _con.SQLTable(
     _con.UUIDField('circuit_id', default='NULL',
                    references=_con.SQLFieldReference(_circuits.pjt_table,
                                                      _circuits.pjt_id_field,
-                                                      on_update=_con.REFERENCE_NO_ACTION)),
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('bundle_id', default='NULL',
                    references=_con.SQLFieldReference(_bundle_covers.pjt_table,
                                                      _bundle_covers.pjt_id_field,

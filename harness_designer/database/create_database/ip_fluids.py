@@ -10,7 +10,7 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
@@ -18,92 +18,23 @@ BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str | None = None) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str | None = None) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str | None
     """
 
-    con.execute('SELECT 1 FROM ip_fluids LIMIT 1;')
-    if con.fetchall():
-        return
-
-    splash.SetText(f'Building IP fluids...')
-    splash.flush()
-
-    rows = (
-        ('0', 'No Protection', 'No protection against ingress of water.'),
-        ('1', 'Dripping water',
-         'Dripping water (vertically falling drops)\n'
-         'shall have no unsafe effect on the specimen\n'
-         'when mounted upright.'),
-
-        ('2', 'Dripping water when tilted at 15°',
-         'Vertically dripping water shall have no harmful\n'
-         'effect when the enclosure is tilted at an angle\n'
-         'of 15° from its normal position.'),
-
-        ('3', 'Spraying water',
-         'Water falling as a spray at any angle up to 60°\n'
-         'from the vertical shall have no harmful effect.'),
-
-        ('4', 'Splashing water',
-         'Water splashing against the enclosure from any\n'
-         'direction shall have no harmful effect.'),
-
-        ('5', 'Water jets',
-         'Water projected by a nozzle (6.3 mm) against enclosure\n'
-         'from any direction shall have no harmful effects.'),
-
-        ('6', 'Powerful water jets',
-         'Water projected in powerful jets (12.5 mm nozzle)\n'
-         'against the enclosure from any direction shall have\n'
-         'no harmful effects.'),
-
-        ('7', 'Immersion, up to 1 meter',
-         'Ingress of water in harmful quantity shall not be\n'
-         'possible when the enclosure is immersed in water.'),
-
-        ('8', 'Immersion, 1 meter or more depth',
-         'The equipment is suitable for continuous\n'
-         'immersion in water.'),
-
-        ('9', 'Powerful high-temperature water jets',
-         'Protected against close-range high-pressure,\n'
-         'high-temperature spray downs.'),
-
-        ('6K', 'Powerful water jets with increased pressure',
-         'Water projected in powerful jets (6.3 mm nozzle)\n'
-         'against the enclosure from any direction, under\n'
-         'elevated pressure.'),
-
-        ('9K', 'Steam Cleaning',
-         'Protection against high-pressure, high-temperature\n'
-         'jet sprays, wash-downs or steam-cleaning procedures'),
-
-        ('X', 'Unknown',
-         'No data is available to specify a\n'
-         'protection rating about this criterion.')
-    )
-
-    data = tuple(
-        (_id_generator.generate_global_row_id(con).bytes, name, short_desc, description)
-        for name, short_desc, description in rows)
-
-    splash.SetText(f'Adding IP fluids to db [{len(data)} | {len(data)}]...', log=False)
-    splash.flush()
-
-    con.executemany('INSERT INTO ip_fluids (id, name, short_desc, description) VALUES (?, ?, ?, ?);', data)
-
-    con.commit()
+    raise NotImplementedError
 
 
 id_field = _con.UUIDField('id', is_primary=True)

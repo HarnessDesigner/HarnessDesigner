@@ -19,26 +19,34 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
-def add_pjt_wire_layout(con: "_connector_base.ConnectorBase", project_id: int, point2d_id: bytes | None = None, point3d_id: bytes | None = None, notes: str = '',
+def add_pjt_wire_layout(con: "_connector_base.ConnectorBase", project_id: int,
+                        point2d_id: bytes | None = None,
+                        point3d_id: bytes | None = None, notes: str = '',
                         is_visible2d: int = 0, is_visible3d: int = 0) -> None:
-    """Add a PJT wire layout.
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a PJT wire layout.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param project_id: Identifier for the project.
-    :type project_id: UNKNOWN
+    :type project_id: int
+
     :param point2d_id: Identifier for the point 2D.
-    :type point2d_id: UNKNOWN
+    :type point2d_id: bytes | None
+
     :param point3d_id: Identifier for the point 3D.
-    :type point3d_id: UNKNOWN
+    :type point3d_id: bytes | None
+
     :param notes: Value for ``notes``.
-    :type notes: UNKNOWN
+    :type notes: str
+
     :param is_visible2d: Boolean flag for whether visible 2D.
-    :type is_visible2d: UNKNOWN
+    :type is_visible2d: int
+
     :param is_visible3d: Boolean flag for whether visible 3D.
-    :type is_visible3d: UNKNOWN
+    :type is_visible3d: int
     """
 
     new_id = _id_generator.generate_project_row_id(con, project_id).bytes

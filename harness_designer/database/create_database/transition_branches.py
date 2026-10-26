@@ -18,11 +18,13 @@ if TYPE_CHECKING:
 
 @_check_types.do
 def _offset_to_text(offset: list | tuple | None) -> str:
-    """Convert a branch offset from the catalog JSON into the stored
+    """
+    Convert a branch offset from the catalog JSON into the stored
     ``"[x, y, z]"`` text. The JSON still uses the old form -- missing, or
     ``[x, y]`` -- so a missing value becomes the origin and a missing z
     becomes 0.0. Remove the 2 value handling once the JSON is updated.
     """
+
     if offset is None:
         return '[0.0, 0.0, 0.0]'
 
@@ -36,12 +38,14 @@ def _offset_to_text(offset: list | tuple | None) -> str:
 
 @_check_types.do
 def _angle_to_text(angle: int | float | list | tuple | None) -> str:
-    """Convert a branch angle from the catalog JSON into the stored
+    """
+    Convert a branch angle from the catalog JSON into the stored
     ``"[x, y, z]"`` euler-degrees text. The JSON still holds the old single
     float, which was a rotation about Z (so it becomes ``[0, 0, angle]``);
     a missing value becomes no rotation. Remove the single float handling
     once the JSON is updated.
     """
+
     if angle is None:
         return '[0.0, 0.0, 0.0]'
 
@@ -52,41 +56,66 @@ def _angle_to_text(angle: int | float | list | tuple | None) -> str:
 
 
 @_check_types.do
-def add_transition_branch(con: "_connector_base.ConnectorBase", idx: int, transition_id: bytes, bulb_offset: list[float] | None = None, bulb_length: float | None = None,
-                          min_dia: float = 0.0, max_dia: float = 0.0, length: float = 0.0, offset: list[float] | tuple[float, ...] | None = None, angle: int | float | list[float] | tuple[float, ...] | None = None,
-                          flange_height: float | None = None, flange_width: float | None = None, commit: bool = True) -> bytes:
-    """Add a transition branch.
+def add_transition_branch(
+    con: "_connector_base.ConnectorBase",
+    idx: int,
+    transition_id: bytes,
+    bulb_offset: list[float] | None = None,
+    bulb_length: float | None = None,
+    min_dia: float = 0.0,
+    max_dia: float = 0.0,
+    length: float = 0.0,
+    offset: list[float] | tuple[float, ...] | None = None,
+    angle: int | float | list[float] | tuple[float, ...] | None = None,
+    flange_height: float | None = None,
+    flange_width: float | None = None,
+    commit: bool = True
+) -> bytes:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a transition branch.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param idx: Value for ``idx``.
-    :type idx: UNKNOWN
+    :type idx: int
+
     :param transition_id: Identifier for the transition.
-    :type transition_id: UNKNOWN
+    :type transition_id: bytes
+
     :param bulb_offset: Value for ``bulb_offset``.
-    :type bulb_offset: UNKNOWN
+    :type bulb_offset: list[float] | None
+
     :param bulb_length: Value for ``bulb_length``.
-    :type bulb_length: UNKNOWN
+    :type bulb_length: float | None
+
     :param min_dia: Value for ``min_dia``.
-    :type min_dia: UNKNOWN
+    :type min_dia: float
+
     :param max_dia: Value for ``max_dia``.
-    :type max_dia: UNKNOWN
+    :type max_dia: float
+
     :param length: Value for ``length``.
-    :type length: UNKNOWN
+    :type length: float
+
     :param offset: Value for ``offset``.
-    :type offset: UNKNOWN
+    :type offset: list[float] | tuple[float, ...] | None
+
     :param angle: Value for ``angle``.
-    :type angle: UNKNOWN
+    :type angle: int | float | list[float] | tuple[float, ...] | None
+
     :param flange_height: Value for ``flange_height``.
-    :type flange_height: UNKNOWN
+    :type flange_height: float | None
+
     :param flange_width: Value for ``flange_width``.
-    :type flange_width: UNKNOWN
+    :type flange_width: float | None
+
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     offset = _offset_to_text(offset)
@@ -117,26 +146,35 @@ def add_transition_branch(con: "_connector_base.ConnectorBase", idx: int, transi
 # since Cython type-checks a typed parameter's default value against its
 # annotation when the function object is built).
 @_check_types.do
-def add_pjt_transition_branch(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, transition_id: bytes,
-                              point3d_id: bytes | None = None, diameter: float = 0.0, branch_id: int = 0) -> None:
-    """Add a PJT transition branch.
+def add_pjt_transition_branch(con: "_connector_base.ConnectorBase",
+                              project_id: int, part_id: bytes,
+                              transition_id: bytes,
+                              point3d_id: bytes | None = None,
+                              diameter: float = 0.0, branch_id: int = 0) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a PJT transition branch.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param project_id: Identifier for the project.
-    :type project_id: UNKNOWN
+    :type project_id: int
+
     :param part_id: Identifier for the part.
-    :type part_id: UNKNOWN
+    :type part_id: bytes
+
     :param transition_id: Identifier for the transition.
-    :type transition_id: UNKNOWN
+    :type transition_id: bytes
+
     :param point3d_id: Identifier for the point 3D.
-    :type point3d_id: UNKNOWN
+    :type point3d_id: bytes | None
+
     :param diameter: Value for ``diameter``.
-    :type diameter: UNKNOWN
+    :type diameter: float
+
     :param branch_id: Identifier for the branch.
-    :type branch_id: UNKNOWN
+    :type branch_id: int
     """
 
     new_id = _id_generator.generate_project_row_id(con, project_id).bytes
@@ -155,10 +193,10 @@ table = _con.SQLTable(
     'transition_branches',
     id_field,
     _con.UUIDField('transition_id', no_null=True,
-                  references=_con.SQLFieldReference(_transitions.table,
-                                                    _transitions.id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_transitions.table,
+                                                     _transitions.id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.IntField('idx', no_null=True),
     _con.TextField('bulb_offset', default='NULL'),
     _con.FloatField('bulb_length', default='NULL'),

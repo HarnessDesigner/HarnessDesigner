@@ -208,7 +208,7 @@ _GLYPH_CACHE_VERSION = 2
 
 @_check_types.do
 def _glyph_cache_path() -> str:
-    return os.path.join(_utils.get_appdata(), 'glyph_cache.npz')
+    return os.path.join(_utils.get_appdata(), f'glyph_cache{_utils.HDM_EXTENSION}')
 
 
 @_check_types.do
@@ -222,27 +222,32 @@ def _load_glyph_cache() -> dict | None:
     cache existed at all.
     """
     path = _glyph_cache_path()
-    if not os.path.exists(path):
-        return None
 
     try:
-        with np.load(path) as data:
-            if int(data['version'][0]) != _GLYPH_CACHE_VERSION:
-                return None
+        # a cache written before the .hdm format is upgraded in place
+        _utils.migrate_hdm(path)
 
-            result = {}
-            for char_code, style in data['keys']:
-                char_code = int(char_code)
-                style = int(style)
-                prefix = f'{style}_{char_code}_'
-                meta = data[prefix + 'meta']
+        if not os.path.exists(path):
+            return None
 
-                result[(chr(char_code), style)] = (
-                    data[prefix + 'packed'], int(meta[0]),
-                    data[prefix + 'aabb'], data[prefix + 'obb'],
-                    float(meta[1]), float(meta[2]), float(meta[3]))
+        data = _utils.load_hdm_arrays(path)
 
-            return result
+        if int(data['version'][0]) != _GLYPH_CACHE_VERSION:
+            return None
+
+        result = {}
+        for char_code, style in data['keys']:
+            char_code = int(char_code)
+            style = int(style)
+            prefix = f'{style}_{char_code}_'
+            meta = data[prefix + 'meta']
+
+            result[(chr(char_code), style)] = (
+                data[prefix + 'packed'], int(meta[0]),
+                data[prefix + 'aabb'], data[prefix + 'obb'],
+                float(meta[1]), float(meta[2]), float(meta[3]))
+
+        return result
     except Exception:  # NOQA -- any read/format problem just means rebuild
         return None
 
@@ -251,7 +256,7 @@ def _load_glyph_cache() -> dict | None:
 def _save_glyph_cache(entries: dict) -> None:
     """Write every ``(char, style_value): (packed, count, aabb, obb,
     width, height, center_y)`` entry in *entries* to disk as a single
-    ``.npz`` archive, so the next app launch can skip build123d/OCCT
+    ``.hdm`` file, so the next app launch can skip build123d/OCCT
     entirely for every glyph gathered this run (see _load_glyph_cache).
     Written to a temp file and moved into place with ``os.replace`` so a
     run interrupted mid-save never leaves a corrupt/partial cache file
@@ -276,17 +281,7 @@ def _save_glyph_cache(entries: dict) -> None:
 
     arrays['keys'] = np.array(keys, dtype=np.int64)
 
-    path = _glyph_cache_path()
-    tmp_path = path + '.tmp'
-
-    # np.savez appends '.npz' to a path with no extension -- pass the
-    # already-'.npz'-suffixed tmp path as a file object instead so the
-    # actual written filename matches tmp_path exactly for the
-    # os.replace below.
-    with open(tmp_path, 'wb') as f:
-        np.savez(f, **arrays)
-
-    os.replace(tmp_path, path)
+    _utils.save_hdm_arrays(_glyph_cache_path(), arrays)
 
 
 @_check_types.do
@@ -430,7 +425,7 @@ def build_chars(mainframe: "_ui.MainFrame", on_progress: Callable[[int, int], No
 
     Each glyph's tessellated mesh (the actual slow part -- see
     _tessellate_char) is also cached to disk, across app launches, as a
-    single ``.npz`` file (see _load_glyph_cache/_save_glyph_cache): the
+    single ``.hdm`` file (see _load_glyph_cache/_save_glyph_cache): the
     first run after a cache miss (first-ever launch, or
     _GLYPH_CACHE_VERSION bumped) still does the full build123d/OCCT
     tessellation for every glyph and writes the result to disk once at

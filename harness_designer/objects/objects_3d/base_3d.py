@@ -169,7 +169,7 @@ class Base3D(_objectsvar.BaseVar):
             if uuid in _vbo.PooledVBOHandler:
                 vbo = _vbo.PooledVBOHandler(uuid)
             else:
-                packed = np.load(model.data_path).reshape(-1, 3)
+                packed = _utils.load_hdm(model.data_path).reshape(-1, 3)
 
                 angle = model.angle3d
                 position = model.position3d

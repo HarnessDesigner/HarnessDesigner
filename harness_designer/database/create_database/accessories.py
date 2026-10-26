@@ -18,124 +18,96 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
 
-    con.execute('SELECT 1 FROM accessories LIMIT 1;')
-    if con.fetchall():
-        return
-
-    splash.SetText(f'Building accessories...')
-    splash.flush()
-
-    rows = (
-        ('None', 'No Accessories'),
-        ('S1017-1.0X50', '1" x 50\' Polyamide Adhesive, -20 – 60 °C [-4 – 140 °F], Hot Melt Tape'),
-        ('S1030', 'Polyolefin Adhesive, -80 – 80 °C [-112 – 176 °F], Hot Melt Tape'),
-        ('S1030-TAPE-3/4X33FT', '3/4" x 33\' Polyolefin Adhesive, -80 – 80 °C [-112 – 176 °F], Hot Melt Tape'),
-        ('S1048-TAPE-1X100-FT', '1" x 100\' Thermoplastic Adhesive, -55 – 120 °C [-67 – 248 °F], Hot Melt Tape'),
-        ('S1048-TAPE-3/4X100-FT', '3/4" x 100\' Thermoplastic Adhesive, -55 – 120 °C [-67 – 248 °F], Hot Melt Tape'),
-        ('S1125-KIT-1', 'Dual Pack, 5 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
-        ('S1125-KIT-4', 'Dual Pack, 5 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
-        ('S1125-KIT-5', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
-        ('S1125-KIT-8', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
-        ('S1125-APPLICATOR', 'Epoxy Adhesives Dispensing Gun')
-    )
-
-    # mfg_id previously pointed at whatever manufacturer had sequential id=1
-    # under the old int-id scheme -- not recoverable, and every other
-    # UUID-keyed table already treats the nil sentinel as a valid
-    # "unassigned" mfg_id (see the X'00...00' schema default below), so
-    # that's what these fall back to rather than guessing a real one.
-    data = tuple(
-        (_id_generator.generate_global_row_id(con).bytes, part_number, description,
-         _id_generator.NIL_UUID.bytes)
-        for part_number, description in rows)
-
-    splash.SetText(f'Adding accessories to db [{len(data)} | {len(data)}]...', log=False)
-    splash.flush()
-
-    con.executemany('INSERT INTO accessories (id, part_number, description, mfg_id) VALUES(?, ?, ?, ?);', data)
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_accessory(con: "_connector_base.ConnectorBase", part_number: str, mfg: str, description: str | None = None, series: str | None = None,
-                  family: str | None = None, color: str | None = None, material: str | None = None, image: str | None = None,
-                  datasheet: str | None = None, cad: str | None = None, model3d: str | None = None, length: float = 0.0,
-                  width: float = 0.0, height: float = 0.0, weight: float = 0.0, commit: bool = True) -> bytes:
+def add_accessory(con: "_connector_base.ConnectorBase", part_number: str, mfg: str,
+                  description: str | None = None, series: str | None = None,
+                  family: str | None = None, color: str | None = None,
+                  material: str | None = None, image: str | None = None,
+                  datasheet: str | None = None, cad: str | None = None,
+                  model3d: str | None = None, length: float = 0.0,
+                  width: float = 0.0, height: float = 0.0, weight: float = 0.0,
+                  commit: bool = True) -> bytes:
+
     """
     Add an accessory.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param part_number: Value for ``part_number``.
-    :type part_number: UNKNOWN
+    :type part_number: str
 
     :param mfg: Value for ``mfg``.
-    :type mfg: UNKNOWN
+    :type mfg: str
 
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str | None
 
     :param series: Value for ``series``.
-    :type series: UNKNOWN
+    :type series: str | None
 
     :param family: Value for ``family``.
-    :type family: UNKNOWN
+    :type family: str | None
 
     :param color: Value for ``color``.
-    :type color: UNKNOWN
+    :type color: str | None
 
     :param material: Value for ``material``.
-    :type material: UNKNOWN
+    :type material: str | None
 
     :param image: Value for ``image``.
-    :type image: UNKNOWN
+    :type image: str | None
 
     :param datasheet: Value for ``datasheet``.
-    :type datasheet: UNKNOWN
+    :type datasheet: str | None
 
     :param cad: Value for ``cad``.
-    :type cad: UNKNOWN
+    :type cad: str | None
 
     :param model3d: Value for ``model3d``.
-    :type model3d: UNKNOWN
+    :type model3d: str | None
 
     :param length: Value for ``length``.
-    :type length: UNKNOWN
+    :type length: float
 
     :param width: Value for ``width``.
-    :type width: UNKNOWN
+    :type width: float
 
     :param height: Value for ``height``.
-    :type height: UNKNOWN
+    :type height: float
 
     :param weight: Value for ``weight``.
-    :type weight: UNKNOWN
+    :type weight: float
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
 
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :returns: Return value. Row ID of the added record.
+    :rtype: bytes
     """
 
     if color is None:
@@ -171,13 +143,13 @@ def add_accessory(con: "_connector_base.ConnectorBase", part_number: str, mfg: s
 
     _logger.database(f'adding accessory {part_number}, {description}')
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO accessories (id, part_number, description, mfg_id, '
-                'family_id, series_id, color_id, material_id, image_id, '
+    con.execute('INSERT INTO accessories (id, part_number, description, '
+                'mfg_id, family_id, series_id, color_id, material_id, image_id, '
                 'datasheet_id, cad_id, model3d_id, length, width, height, weight) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
-                 material_id, image_id, datasheet_id, cad_id, model3d_id, length,
-                 width, height, weight))
+                (new_id, part_number, description, mfg_id, family_id, series_id,
+                 color_id, material_id, image_id, datasheet_id, cad_id, model3d_id,
+                 length, width, height, weight))
 
     _logger.database(f'accessory added "{part_number}"')
 
@@ -195,43 +167,41 @@ table = _con.SQLTable(
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_families.table,
-                                                    _families.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_families.table,
+                                                     _families.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_series.table,
-                                                    _series.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_series.table,
+                                                     _series.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('material_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_materials.table,
+                                                     _materials.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('model3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_models3d.table,
-                                                    _models3d.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
-
-
+                   references=_con.SQLFieldReference(_models3d.table,
+                                                     _models3d.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.FloatField('length', default='"0.0"', no_null=True),
     _con.FloatField('width', default='"0.0"', no_null=True),
     _con.FloatField('height', default='"0.0"', no_null=True),

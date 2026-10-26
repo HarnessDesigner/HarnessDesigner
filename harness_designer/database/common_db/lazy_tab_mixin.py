@@ -2,6 +2,9 @@
 
 from typing import TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtCore
+
+
 from ... import check_types as _check_types
 
 
@@ -11,12 +14,21 @@ if TYPE_CHECKING:
 
 
 class LazyTabMixin:
-    """Defer per-tab DB queries until the tab is first shown.
+    """
+    Defer per-tab DB queries until the tab is first shown.
 
     Mix this in alongside QTabWidget. Call _init_lazy_tabs() at the end
     of __init__, and call _lazy_set_obj(db_obj) from set_obj.
     Subclasses must implement _load_tab(index).
     """
+
+    currentChanged: QtCore.SignalInstance | None = None
+
+    def count(self):
+        raise NotImplementedError
+
+    def currentIndex(self):
+        raise NotImplementedError
 
     @_check_types.do
     def _init_lazy_tabs(self) -> None:
@@ -27,6 +39,7 @@ class LazyTabMixin:
     def _lazy_set_obj(
         self, db_obj: _Union["_glb_bases.EntryBase", "_pjt_bases.PJTEntryBase", None]
     ) -> None:
+
         self.db_obj = db_obj
         self._tab_loaded = [False] * self.count()
         self._load_tab(self.currentIndex())

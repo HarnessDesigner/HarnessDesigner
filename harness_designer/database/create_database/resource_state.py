@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Schema and helpers for the shared resource coordination state table.
+"""
+Schema and helpers for the shared resource coordination state table.
 
 The ``resource_state`` table stores one row per (resource_type, resource_id) pair
 and is the coordination hub that lets multiple seats avoid duplicate downloads or
@@ -36,25 +37,25 @@ table = _con.SQLTable(
     'resource_state',
     id_field,
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('model3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_models3d.table,
-                                                    _models3d.id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_models3d.table,
+                                                     _models3d.id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     # Coordination / progress
     # -1 = idle, 0 = claimed, >0 = step progress
     _con.IntField('progress', default=f'{PROGRESS_IDLE}', no_null=True),

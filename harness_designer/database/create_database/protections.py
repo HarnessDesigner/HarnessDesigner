@@ -9,53 +9,51 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
-    con.execute('SELECT id FROM protections WHERE id=?;', (_id_generator.NIL_UUID.bytes,))
-    if con.fetchall():
-        return
 
-    data = (dict(id=_id_generator.NIL_UUID.bytes, name='No Protection'),)
-
-    splash.SetText(f'Adding protections to db [0 | {len(data)}]...')
-    splash.flush()
-
-    for item in data:
-        splash.SetText(f'Adding protections to db [1 | {len(data)}]...')
-        add_protection(con, commit=False, **item)
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_protection(con: "_connector_base.ConnectorBase", name: str, id: bytes | None = None, commit: bool = True) -> bytes | None:  # NOQA
-    """Add a protection.
+def add_protection(con: "_connector_base.ConnectorBase", name: str,  # NOQA
+                   id: bytes | None = None, commit: bool = True) -> bytes | None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a protection.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
+
     :param id: Identifier for the ID.
-    :type id: UNKNOWN
+    :type id: bytes | None
+
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes | None
     """
 
     if id is None:
@@ -75,28 +73,34 @@ def add_protection(con: "_connector_base.ConnectorBase", name: str, id: bytes | 
 
 @_check_types.do
 def get_protection_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
-    """Return the protection ID.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the protection ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
+
     if not name:
         return _id_generator.NIL_UUID.bytes
 
-    con.execute('SELECT id FROM protections WHERE name=?;', (name,))
+    con.execute('SELECT id FROM protections WHERE name=?;',
+                (name,))
+
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding protection ("{name}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO protections (id, name) VALUES (?, ?);', (db_id, name))
+        con.execute('INSERT INTO protections (id, name) '
+                    'VALUES (?, ?);',
+                    (db_id, name))
 
         con.commit()
 

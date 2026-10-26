@@ -12,94 +12,76 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
 
-    con.execute('SELECT 1 FROM file_types LIMIT 1;')
-    if con.fetchall():
-        return
-
-    json_path = os.path.join(data_path, 'file_types.json')
-
-    splash.SetText(f'Loading file types file...')
-    splash.flush()
-
-    with open(json_path, 'r') as f:
-        data = json.loads(f.read())
-
-    if isinstance(data, dict):
-        data = [value for value in data.values()]
-
-    data_len = len(data)
-    splash.SetText(f'Adding file type to db [0 | {data_len}]...', log=False)
-    splash.flush()
-
-    for i, item in enumerate(data):
-        splash.SetText(f'Adding file type to db [{i + 1} | {data_len}]...', log=False)
-
-        add_file_type(con, commit=False, **item)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_file_type(con: "_connector_base.ConnectorBase", name: str, extension: str, is_model: bool | int = 0,
-                  is_image: bool | int = 0, is_datasheet: bool | int = 0,
-                  is_cad: bool | int = 0, mimetype: str = '', commit: bool = True) -> bytes:
+def add_file_type(con: "_connector_base.ConnectorBase", name: str, extension: str,
+                  is_model: bool | int = 0, is_image: bool | int = 0,
+                  is_datasheet: bool | int = 0, is_cad: bool | int = 0,
+                  mimetype: str = '', commit: bool = True) -> bytes:
+
     """
     Add a file type.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :param extension: Value for ``extension``.
-    :type extension: UNKNOWN
+    :type extension: str
 
     :param is_model: Boolean flag for whether model.
-    :type is_model: UNKNOWN
+    :type is_model: bool | int
 
     :param is_image: Boolean flag for whether model.
-    :type is_image: UNKNOWN
+    :type is_image: bool | int
 
     :param is_datasheet: Boolean flag for whether model.
-    :type is_datasheet: UNKNOWN
+    :type is_datasheet: bool | int
 
     :param is_cad: Boolean flag for whether model.
-    :type is_cad: UNKNOWN
+    :type is_cad: bool | int
 
     :param mimetype: Value for ``mimetype``.
-    :type mimetype: UNKNOWN
+    :type mimetype: str
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO file_types (id, mimetype, extension, name, is_model, is_image, is_datasheet, is_cad) '
+    con.execute('INSERT INTO file_types (id, mimetype, extension, name, '
+                'is_model, is_image, is_datasheet, is_cad) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, mimetype, extension, name, int(is_model), int(is_image), int(is_datasheet), int(is_cad)))
+                (new_id, mimetype, extension, name, int(is_model),
+                 int(is_image), int(is_datasheet), int(is_cad)))
 
     _logger.database(f'file type added "{extension}"')
 
@@ -109,28 +91,33 @@ def add_file_type(con: "_connector_base.ConnectorBase", name: str, extension: st
 
 
 @_check_types.do
-def get_file_type(con: "_connector_base.ConnectorBase", extension: str | None = None, mimetype: str | None = None) -> bytes | None:
+def get_file_type(con: "_connector_base.ConnectorBase",
+                  extension: str | None = None,
+                  mimetype: str | None = None) -> bytes | None:
+
     """
     Return the file type.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param extension: Value for ``extension``.
-    :type extension: UNKNOWN
+    :type extension: str | None
 
     :param mimetype: Value for ``mimetype``.
-    :type mimetype: UNKNOWN
+    :type mimetype: str | None
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes | None
     """
 
     if extension is None and mimetype is None:
         return None
 
     if extension is not None and mimetype is not None:
-        con.execute('SELECT id FROM file_types WHERE extension=? AND mimetype=?;', (extension, mimetype))
+        con.execute('SELECT id FROM file_types WHERE extension=? AND mimetype=?;',
+                    (extension, mimetype))
+
         res = con.fetchall()
 
         if res:
@@ -139,7 +126,8 @@ def get_file_type(con: "_connector_base.ConnectorBase", extension: str | None = 
         _logger.database(f'adding file type ("{extension}", "{mimetype}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO file_types (id, extension, mimetype) VALUES (?, ?, ?);',
+        con.execute('INSERT INTO file_types (id, extension, mimetype) '
+                    'VALUES (?, ?, ?);',
                     (db_id, extension, mimetype))
 
         con.commit()
@@ -149,7 +137,9 @@ def get_file_type(con: "_connector_base.ConnectorBase", extension: str | None = 
         return db_id
 
     elif extension is not None:
-        con.execute('SELECT id FROM file_types WHERE extension=?;', (extension,))
+        con.execute('SELECT id FROM file_types WHERE extension=?;',
+                    (extension,))
+
         res = con.fetchall()
 
         if res:
@@ -158,7 +148,9 @@ def get_file_type(con: "_connector_base.ConnectorBase", extension: str | None = 
         _logger.database(f'adding file type ("{extension}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO file_types (id, extension) VALUES (?, ?);', (db_id, extension))
+
+        con.execute('INSERT INTO file_types (id, extension) VALUES (?, ?);',
+                    (db_id, extension))
 
         con.commit()
 
@@ -167,7 +159,9 @@ def get_file_type(con: "_connector_base.ConnectorBase", extension: str | None = 
         return db_id
 
     elif mimetype is not None:
-        con.execute('SELECT id FROM file_types WHERE mimetype=?;', (mimetype,))
+        con.execute('SELECT id FROM file_types WHERE mimetype=?;',
+                    (mimetype,))
+
         res = con.fetchall()
 
         if res:

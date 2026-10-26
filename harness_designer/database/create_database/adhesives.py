@@ -9,54 +9,28 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
 
-    con.execute('SELECT 1 FROM adhesives LIMIT 1;')
-    if con.fetchall():
-        return
-
-    splash.SetText(f'Building adhesives...')
-    splash.flush()
-
-    codes = (
-        ('None', 'No Adhesive', ''),
-        ('225', 'Precoated latent-curing epoxy/polyamide', ''),
-        ('42', 'Hot-melt/polyamide (Thermoplastic)', ''),
-        ('86', 'Hot-melt,high performance (Thermoplastic)', ''),
-        ('S1006', 'Epoxy/polyamide two-part paste (Thermoset)', ''),
-        ('S1017', 'Hot-melt/polyamide (Thermoplastic)', 'S1017-1.0X50'),
-        ('S1030', 'Hot-melt/polyolefin (Thermoplastic)', 'S1030, S1030-TAPE-3/4X33FT'),
-        ('S1048', 'Hot-melt,high performance (Thermoplastic)', 'S1048-TAPE-1X100-FT, S1048-TAPE-3/4X100-FT'),
-        ('S1125', 'Epoxy/polyamide two-part paste (Thermoset)', 'S1125-KIT-1, S1125-KIT-4, S1125-KIT-5, S1125-KIT-8, S1125-APPLICATOR')
-    )
-
-    data = tuple(
-        (_id_generator.generate_global_row_id(con).bytes, code, description, accessory_part_nums)
-        for code, description, accessory_part_nums in codes)
-
-    splash.SetText(f'Adding adhesives to db [{len(data)} | {len(data)}]...', log=False)
-    splash.flush()
-
-    con.executemany('INSERT INTO adhesives (id, code, description, accessory_part_nums) VALUES (?, ?, ?, ?);', data)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
@@ -65,13 +39,13 @@ def get_adhesive_id(con: "_connector_base.ConnectorBase", code: str) -> bytes:
     Return the adhesive ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param code: Value for ``code``.
-    :type code: UNKNOWN
+    :type code: str
 
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :returns: Row ID of the adhesive.
+    :rtype: bytes
     """
 
     if not code:
@@ -84,7 +58,8 @@ def get_adhesive_id(con: "_connector_base.ConnectorBase", code: str) -> bytes:
         _logger.database(f'adding adhesive ("{code}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO adhesives (id, code) VALUES (?, ?);', (db_id, code))
+        con.execute('INSERT INTO adhesives (id, code) VALUES (?, ?);',
+                    (db_id, code))
 
         con.commit()
 

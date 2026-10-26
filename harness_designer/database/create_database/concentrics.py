@@ -22,10 +22,10 @@ pjt_table = _con.SQLTable(
     # could never have inserted a row. Both columns are nullable now; that at
     # least one is set is not enforced in SQL (SQLTable has no CHECK support).
     _con.UUIDField('bundle_id', default="NULL",
-                  references=_con.SQLFieldReference(_bundle_covers.pjt_table,
-                                                    _bundle_covers.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_bundle_covers.pjt_table,
+                                                     _bundle_covers.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 
     # Nullable -- PJTConcentricsTable.insert()'s own signature already
     # types both this and bundle_id as `bytes | None` (a concentric row
@@ -39,9 +39,9 @@ pjt_table = _con.SQLTable(
     # skeleton bundle placement (BUNDLE_PLACEMENT.md section 3) started
     # actually running.
     _con.UUIDField('transition_branch_id', default="NULL",
-                  references=_con.SQLFieldReference(_transition_branches.pjt_table,
-                                                    _transition_branches.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_transition_branches.pjt_table,
+                                                     _transition_branches.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.TextField('notes', default='""', no_null=True)
 )

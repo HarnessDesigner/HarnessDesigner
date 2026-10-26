@@ -18,18 +18,22 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def get_model3d_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | None:  # NOQA
-    """Return the model 3D ID.
+def get_model3d_id(con: "_connector_base.ConnectorBase",  # NOQA
+                   path: str) -> bytes | None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the model 3D ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param path: Filesystem path.
     :type path: str
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes | None
     """
+
     if not path:
         return None
 
@@ -42,7 +46,8 @@ def get_model3d_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | N
         db_id = _id_generator.generate_global_row_id(con).bytes
 
         if path.startswith('http'):
-            con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);', (db_id, path))
+            con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);',
+                        (db_id, path))
         else:
 
             con.execute('SELECT value FROM settings WHERE name="model_path";')
@@ -51,14 +56,18 @@ def get_model3d_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | N
             src = path
             dst = os.path.join(model_path, os.path.split(path)[-1])
 
-            con.execute('SELECT id FROM models3d WHERE path=?;', (dst,))
+            con.execute('SELECT id FROM models3d WHERE path=?;',
+                        (dst,))
+
             res = con.fetchall()
 
             if res:
                 return res[0][0]
 
             shutil.move(src, dst)
-            con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);', (db_id, dst))
+
+            con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);',
+                        (db_id, dst))
 
         con.commit()
 
@@ -76,8 +85,8 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('uuid', default="NULL"),
     _con.UUIDField('file_type_id', default="NULL",
-                  references=_con.SQLFieldReference(_file_types.table,
-                                                    _file_types.id_field)),
+                   references=_con.SQLFieldReference(_file_types.table,
+                                                     _file_types.id_field)),
     _con.IntField('target_count', default='25000', no_null=True),
     _con.FloatField('aggressiveness', default='"5.0"', no_null=True),
     _con.IntField('update_rate', default='150', no_null=True),

@@ -9,47 +9,28 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
 
-    con.execute('SELECT 1 FROM cpa_lock_types LIMIT 1;')
-    if con.fetchall():
-        return
-
-    splash.SetText(f'Building cpa lock types...')
-    splash.flush()
-
-    names = ('Lever', 'Steel Lever', 'Lever at Cover', 'Locking Lever', 'Lever Claw',
-             'Locking Slide', 'Slide', 'Lever and Locking Slide',
-             'Locking Lever and Locking Slide', 'External CPA Lock',
-             'Plastic Clip or Metal Holder', 'Plastic Lever or Metal Lever',
-             'Plastic Clip', 'Groove')
-
-    data = ((_id_generator.NIL_UUID.bytes, 'No Lock'),) + tuple(
-        (_id_generator.generate_global_row_id(con).bytes, name) for name in names)
-
-    splash.SetText(f'Adding cpa lock types to db [{len(data)} | {len(data)}]...', log=False)
-    splash.flush()
-
-    con.executemany('INSERT INTO cpa_lock_types (id, name) VALUES (?, ?);', data)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
@@ -58,26 +39,28 @@ def get_cpa_lock_type_id(con: "_connector_base.ConnectorBase", name: str) -> byt
     Return the CPA lock type ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if not name:
         return _id_generator.NIL_UUID.bytes
 
-    con.execute('SELECT id FROM cpa_lock_types WHERE name=?;', (name,))
+    con.execute('SELECT id FROM cpa_lock_types WHERE name=?;',
+                (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding cpa lock type ("{name}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO cpa_lock_types (id, name) VALUES (?, ?);', (db_id, name))
+        con.execute('INSERT INTO cpa_lock_types (id, name) VALUES (?, ?);',
+                    (db_id, name))
 
         con.commit()
 

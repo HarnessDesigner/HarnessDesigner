@@ -20,36 +20,50 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
-def add_pjt_wire_service_loop(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, name: str = '', start_point3d_id: bytes | None = None,
-                              stop_point3d_id: bytes | None = None, circuit_id: bytes | None = None, notes: str = '',
-                              quat3d: list[float] | None = [1.0, 0.0, 0.0, 0.0], angle3d: list[float] | None = [0.0, 0.0, 0.0],
+def add_pjt_wire_service_loop(con: "_connector_base.ConnectorBase",
+                              project_id: int, part_id: bytes, name: str = '',
+                              start_point3d_id: bytes | None = None,
+                              stop_point3d_id: bytes | None = None,
+                              circuit_id: bytes | None = None, notes: str = '',
+                              quat3d: list[float] | None = [1.0, 0.0, 0.0, 0.0],
+                              angle3d: list[float] | None = [0.0, 0.0, 0.0],
                               is_visible3d: int = 1) -> None:
-    """Add a PJT wire service loop.
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a PJT wire service loop.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param project_id: Identifier for the project.
-    :type project_id: UNKNOWN
+    :type project_id: int
+
     :param part_id: Identifier for the part.
-    :type part_id: UNKNOWN
+    :type part_id: bytes
+
     :param name: Value for ``name``.
-    :type name: UNKNOWN
+    :type name: str
+
     :param start_point3d_id: Identifier for the start point 3D.
-    :type start_point3d_id: UNKNOWN
+    :type start_point3d_id: bytes | None
+
     :param stop_point3d_id: Identifier for the stop point 3D.
-    :type stop_point3d_id: UNKNOWN
+    :type stop_point3d_id: bytes | None
+
     :param circuit_id: Identifier for the circuit.
-    :type circuit_id: UNKNOWN
+    :type circuit_id: bytes | None
+
     :param notes: Value for ``notes``.
-    :type notes: UNKNOWN
+    :type notes: str
+
     :param quat3d: Value for ``quat3d``.
-    :type quat3d: UNKNOWN
+    :type quat3d: list[float] | None
+
     :param angle3d: Value for ``angle3d``.
-    :type angle3d: UNKNOWN
+    :type angle3d: list[float] | None
+
     :param is_visible3d: Boolean flag for whether visible 3D.
-    :type is_visible3d: UNKNOWN
+    :type is_visible3d: int
     """
 
     new_id = _id_generator.generate_project_row_id(con, project_id).bytes

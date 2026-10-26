@@ -8,6 +8,10 @@ Package init.
 
 `compute_aabb()`, `compute_obb()`, `adjust_aabb()` — axis-aligned and oriented bounding-box math, consumed heavily by `bounds/` and the GL/culling pipeline.
 
+#### hdm.py
+
+The `.hdm` ("harness designer model") file format: how every numpy file the application keeps on disk (imported 3D models and the primitive/glyph caches) is written and read. An `.hdm` file is a two-line text header (`#` lines: the copyright, then a note that the data comes from unknown sources and the copyright covers only the way it is written, not the data) followed byte for byte by what numpy itself writes: `.npy` for a model (`save`/`load`), `.npz` for a cache (`save_arrays`/`load_arrays`). numpy has no slot for metadata and cannot read past a prefix, so **nothing may `np.load` an `.hdm` path directly**; `load()`/`load_arrays()` skip the header first (a header line starts with `#`, a numpy payload never does, so lines can be added to `HEADER` without touching a reader), and `load(path, mmap_mode='r')` parses the `.npy` header itself and returns an `np.memmap` at the payload's offset, so a model is still streamed to the GPU rather than copied. Writes go through a temp file and `os.replace`. `migrate(path)` upgrades a pre-hdm `.npy`/`.npz` of the same name in place (rewritten as `.hdm`, checked, then the old file deleted); it must convert rather than ignore old files because a model's source file is deleted once it is converted, so an old `.npy` model cannot be rebuilt. A lock serialises it: Windows cannot replace or delete a file another thread has open, and eight racing threads failed without one. Re-exported from `utils` as `HDM_EXTENSION`, `save_hdm`, `load_hdm`, `save_hdm_arrays`, `load_hdm_arrays`, `migrate_hdm`.
+
 #### mesh_normals.py
 
 `compute_normals()`, `compute_smooth_normals()`, `compute_face_normals()`, `compute_face_indexes()` — builds the packed vertex/normal layout `gl/vbo.py` expects (see `gl/MAP.md`'s 3D rendering pipeline notes).

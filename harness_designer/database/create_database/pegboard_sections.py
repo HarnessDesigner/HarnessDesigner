@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Schema for ``pjt_pegboard_sections``.
+"""
+Schema for ``pjt_pegboard_sections``.
 
 One row per concentric-twist cross-section widget shown on the peg-board
 view (``ui.concentric_section``: drawn into a buffer and uploaded as a GL
@@ -32,15 +33,15 @@ pjt_table = _con.SQLTable(
     'pjt_pegboard_sections',
     pjt_id_field,
     _con.UUIDField('concentric_id', no_null=True, is_unique=True,
-                  references=_con.SQLFieldReference(_concentrics.pjt_table,
-                                                    _concentrics.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_concentrics.pjt_table,
+                                                     _concentrics.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('point_pegboard_id', no_null=True,
-                  references=_con.SQLFieldReference(_points_pegboard.pjt_table,
-                                                    _points_pegboard.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_NO_ACTION,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                     _points_pegboard.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_NO_ACTION,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 
     # str((width, height)) in world mm -- one column instead of two floats,
     # same convention as pjt_pegboard_tables.size (see PJTPegboardSection.size).

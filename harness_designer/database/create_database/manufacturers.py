@@ -12,26 +12,31 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def inspect_mfg_fam_series(mfg_name: str, family_name: str | None, series_name: str | None) -> tuple[str, str | None, str | None]:
+def inspect_mfg_fam_series(
+    mfg_name: str,
+    family_name: str | None,
+    series_name: str | None
+) -> tuple[str, str | None, str | None]:
+
     """
     Execute the inspect mfg fam series operation.
 
     :param mfg_name: Value for ``mfg_name``.
-    :type mfg_name: UNKNOWN
+    :type mfg_name: str
 
     :param family_name: Value for ``family_name``.
-    :type family_name: UNKNOWN
+    :type family_name: str | None
 
     :param series_name: Value for ``series_name``.
-    :type series_name: UNKNOWN
+    :type series_name: str | None
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: tuple[str, str | None, str | None]
     """
 
     if family_name is None:
@@ -70,103 +75,72 @@ def inspect_mfg_fam_series(mfg_name: str, family_name: str | None, series_name: 
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
 
-    con.execute('SELECT 1 FROM manufacturers LIMIT 1;')
-    if con.fetchall():
-        return
-
-    json_path = os.path.join(data_path, 'manufacturers.json')
-
-    if os.path.exists(json_path):
-        splash.SetText(f'Loading Manufacturers file...')
-        splash.flush()
-
-        _logger.database(json_path)
-
-        with open(json_path, 'r') as f:
-            data = json.loads(f.read())
-
-        if isinstance(data, dict):
-            data = [value for value in data.values()]
-
-        data_len = len(data)
-
-        splash.SetText(f'Adding manufacturer to db [0 | {data_len}]...', log=False)
-        splash.flush()
-
-        for i, item in enumerate(data):
-            splash.SetText(f'Adding manufacturer to db [{i + 1} | {data_len}]...', log=False)
-
-            # manufacturers.json is a pre-UUID-migration seed file and still
-            # carries a leftover integer "id" per entry -- discard it so
-            # every row gets a freshly generated UUID id instead of
-            # colliding integers.
-            # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
-            # default to; every other entry gets a generated id
-            id = item.pop('id', None)
-            if id == 0:
-                add_manufacturer(con, id=id, commit=False, **item)
-            else:
-                add_manufacturer(con, commit=False, **item)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, description: str = '', address: str = '', contact_person: str = '', phone: str = '',
-                     ext: str = '', email: str = '', website: str = '', id: int | None = None, commit: bool = True) -> bytes:  # NOQA
+def add_manufacturer(con: "_connector_base.ConnectorBase", name: str,
+                     description: str = '', address: str = '',
+                     contact_person: str = '', phone: str = '', ext: str = '',
+                     email: str = '', website: str = '', id: int | None = None,  # NOQA
+                     commit: bool = True) -> bytes:
+
     """
     Add a manufacturer.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str
 
     :param address: Value for ``address``.
-    :type address: UNKNOWN
+    :type address: str
 
     :param contact_person: Value for ``contact_person``.
-    :type contact_person: UNKNOWN
+    :type contact_person: str
 
     :param phone: Value for ``phone``.
-    :type phone: UNKNOWN
+    :type phone: str
 
     :param ext: Value for ``ext``.
-    :type ext: UNKNOWN
+    :type ext: str
 
     :param email: Value for ``email``.
-    :type email: UNKNOWN
+    :type email: str
 
     :param website: Value for ``website``.
-    :type website: UNKNOWN
+    :type website: str
 
-    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
-        default to) instead of a generated id; ``None`` generates one.
+    :param id: ``0`` from the catalog JSON stores the nil UUID
+               (the "none" row that unassigned foreign keys
+               default to) instead of a generated id; ``None`` generates one.
     :type id: int | None
 
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if id is None:
@@ -175,9 +149,11 @@ def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, descriptio
         id_bytes = _id_generator.NIL_UUID.bytes
 
     con.execute(
-        'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '
+        'INSERT INTO manufacturers (id, name, description, address, '
+        'contact_person, phone, ext, email, website) '
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-        (id_bytes, name, description, address, contact_person, phone, ext, email, website)
+        (id_bytes, name, description, address,
+         contact_person, phone, ext, email, website)
         )
 
     _logger.database(f'manufacturer added "{name}"')
@@ -193,26 +169,30 @@ def get_mfg_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     Return the mfg ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if not name:
         return _id_generator.NIL_UUID.bytes
 
-    con.execute('SELECT id FROM manufacturers WHERE name=?;', (name,))
+    con.execute('SELECT id FROM manufacturers WHERE name=?;',
+                (name,))
+
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding manufacturer ("{name}", "", "", "", "")')
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO manufacturers (id, name, phone, address, email, website) '
-                    'VALUES (?, ?, ?, ?, ?, ?);', (db_id, name, '', '', '', ''))
+        con.execute('INSERT INTO manufacturers (id, name, phone, '
+                    'address, email, website) '
+                    'VALUES (?, ?, ?, ?, ?, ?);',
+                    (db_id, name, '', '', '', ''))
 
         con.commit()
         _logger.database(f'manufacturer added "{name}" = {db_id}')

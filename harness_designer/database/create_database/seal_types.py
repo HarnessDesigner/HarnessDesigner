@@ -12,7 +12,7 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
@@ -39,74 +39,53 @@ _DEFAULT_CATEGORY = CATEGORY_ACC
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
-    con.execute('SELECT 1 FROM seal_types LIMIT 1;')
-    if con.fetchall():
-        return
 
-    json_path = os.path.join(data_path, 'seal_types.json')
-
-    if os.path.exists(json_path):
-        splash.SetText(f'Loading Seal Types file...')
-        splash.flush()
-
-        _logger.database(json_path)
-
-        with open(json_path, 'r') as f:
-            data = json.loads(f.read())
-
-        if isinstance(data, dict):
-            data = [value for value in data.values()]
-
-        data_len = len(data)
-
-        splash.SetText(f'Adding seal type to db [0 | {data_len}]...')
-        splash.flush()
-
-        for i, item in enumerate(data):
-            splash.SetText(f'Adding seal type to db [{i + 1} | {data_len}]...')
-
-            # seal_types.json is a pre-UUID-migration seed file and still
-            # carries a leftover integer "id" per entry -- discard it so
-            # every row gets a freshly generated UUID id instead of
-            # colliding integers.
-            # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
-            # default to; every other entry gets a generated id
-            id = item.pop('id', None)
-            if id == 0:
-                add_seal_type(con, id=id, commit=False, **item)
-            else:
-                add_seal_type(con, commit=False, **item)
-
-    con.commit()
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_seal_type(con: "_connector_base.ConnectorBase", name: str, category: str, id: int | None = None, commit: bool = True) -> bytes | None:
-    """Add a new row to ``seal_types``.
+def add_seal_type(con: "_connector_base.ConnectorBase", name: str, category: str,
+                  id: int | None = None, commit: bool = True) -> bytes | None:
+
+    """
+    Add a new row to ``seal_types``.
 
     :param con: Database connection wrapper.
+    :type con: _connector_base.ConnectorBase
+
     :param name: Manufacturer-facing type name (unique).
+    :type name: str
+
     :param category: One of :data:`CATEGORIES` -- what placement logic
         actually branches on, independent of *name*.
-    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
-        default to) instead of a generated id; ``None`` generates one.
+    :type category: str
+
+    :param id: ``0`` from the catalog JSON stores the nil UUID
+               (the "none" row that unassigned foreign keys
+               default to) instead of a generated id; ``None`` generates one.
     :type id: int | None
 
     :param commit: Whether to commit immediately.
+    :type commit: bool
+
     :returns: The new row's id, or ``None`` when ``commit`` is ``False``
         (the caller is batching, per :func:`add_records`).
+    :rtype: bytes | None
     """
 
     if id is None:
@@ -127,26 +106,38 @@ def add_seal_type(con: "_connector_base.ConnectorBase", name: str, category: str
 
 
 @_check_types.do
-def get_seal_type_id(con: "_connector_base.ConnectorBase", name: str | None, category: str | None = None) -> bytes | None:
-    """Resolve *name* to its ``seal_types`` row id, auto-creating the row
+def get_seal_type_id(con: "_connector_base.ConnectorBase", name: str | None,
+                     category: str | None = None) -> bytes | None:
+
+    """
+    Resolve *name* to its ``seal_types`` row id, auto-creating the row
     if this is the first time *name* has been seen.
 
+    :param con:
+    :type con: _connector_base.ConnectorBase
+
     :param name: Type name to resolve. Falsy (unset) is a legitimate
-        state for a housing's own seal type (which may genuinely have
-        none) -- returns ``None`` (SQL NULL) in that case, never the old
-        nil-UUID sentinel row, which no longer exists (there is no
-        placeholder "None"/"Unknown" row in ``seal_types`` any more --
-        an actual seal part's own type, unlike a housing's, is required
-        and never reaches this branch with a falsy *name*).
+                 state for a housing's own seal type (which may genuinely have
+                 none) -- returns ``None`` (SQL NULL) in that case, never the old
+                 nil-UUID sentinel row, which no longer exists (there is no
+                 placeholder "None"/"Unknown" row in ``seal_types`` any more --
+                 an actual seal part's own type, unlike a housing's, is required
+                 and never reaches this branch with a falsy *name*).
+    :type name: str | None
+
     :param category: Category for a newly-created row (see
-        :data:`CATEGORIES`). Only consulted when *name* doesn't already
-        exist; falls back to :data:`_DEFAULT_CATEGORY` (logged) when not
-        given, since most callers already know every name they'll ever
-        pass (seeded from ``seal_types.json`` before any part/housing
-        import runs) and only hit the auto-create path for a genuinely
-        new, not-yet-classified manufacturer string.
+                     :data:`CATEGORIES`). Only consulted when *name* doesn't already
+                     exist; falls back to :data:`_DEFAULT_CATEGORY` (logged) when not
+                     given, since most callers already know every name they'll ever
+                     pass (seeded from ``seal_types.json`` before any part/housing
+                     import runs) and only hit the auto-create path for a genuinely
+                     new, not-yet-classified manufacturer string.
+    :type category: str | None
+
     :returns: The row id, or ``None`` when *name* is falsy.
+    :rtype: bytes | None
     """
+
     if not name:
         return None
 
@@ -158,13 +149,15 @@ def get_seal_type_id(con: "_connector_base.ConnectorBase", name: str | None, cat
             category = _DEFAULT_CATEGORY
             _logger.database(
                 f'adding seal type ("{name}") with no category given -- '
-                f'defaulting to {_DEFAULT_CATEGORY}, needs a real classification later')
+                f'defaulting to {_DEFAULT_CATEGORY}, '
+                f'needs a real classification later')
         else:
             _logger.database(f'adding seal type ("{name}", {category})')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
         con.execute(
-            'INSERT INTO seal_types (id, name, category) VALUES (?, ?, ?);',
+            'INSERT INTO seal_types (id, name, category) '
+            'VALUES (?, ?, ?);',
             (db_id, name, category))
 
         con.commit()

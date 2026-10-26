@@ -9,41 +9,28 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", _: str) -> None:  # NOQA
+
     """
     Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
 
     :param _: Value for ``_``.
-    :type _: UNKNOWN
+    :type _: str
     """
 
-    con.execute('SELECT * FROM materials;')
-    if con.fetchall():
-        return
-
-    data = ((_id_generator.NIL_UUID.bytes, 'Unknown Material'),)
-
-    try:
-        splash.SetText(f'Adding materials to db [{len(data)} | {len(data)}]...')
-        splash.flush()
-
-        con.executemany('INSERT INTO materials (id, name) VALUES(?, ?);', data)
-        con.commit()
-    except:  # NOQA
-        res = con.execute('SELECT * FROM materials;').fetchall()
-        _logger.error(res)
-        raise
+    raise NotImplementedError
 
 
 @_check_types.do
@@ -52,13 +39,13 @@ def get_material_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     Return the material ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     if not name:
@@ -71,7 +58,9 @@ def get_material_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
         _logger.database(f'adding material ("{name}")')
 
         db_id = _id_generator.generate_global_row_id(con).bytes
-        con.execute('INSERT INTO materials (id, name) VALUES (?, ?);', (db_id, name))
+
+        con.execute('INSERT INTO materials (id, name) VALUES (?, ?);',
+                    (db_id, name))
 
         con.commit()
 

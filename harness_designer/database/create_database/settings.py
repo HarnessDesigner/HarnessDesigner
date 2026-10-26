@@ -11,41 +11,47 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
 def get_setting(con: "_connector_base.ConnectorBase", name: str) -> str:  # NOQA
-    """Return the setting.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Return the setting.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: str
     """
+
     con.execute(f'SELECT value FROM settings WHERE name="{name}";')
     res = con.fetchall()
     return res[0][0]
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", appdata: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",
+                splash: "_splash_screen.Splash", appdata: str) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param appdata: Value for ``appdata``.
-    :type appdata: UNKNOWN
+    :type appdata: str
     """
+
     con.execute('SELECT id FROM settings WHERE name="model_path";')
     if con.fetchall():
         return
@@ -81,53 +87,63 @@ def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", 
     splash.flush()
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "model_path", ?);',
+    con.execute('INSERT INTO settings (id, name, value) '
+                'VALUES(?, "model_path", ?);',
                 (new_id, model_path))
 
     splash.SetText(f'Adding setting to db [2 | 4]...')
     splash.flush()
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "image_path", ?);',
+    con.execute('INSERT INTO settings (id, name, value) '
+                'VALUES(?, "image_path", ?);',
                 (new_id, image_path))
 
     splash.SetText(f'Adding setting to db [3 | 4]...')
     splash.flush()
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "cad_path", ?);',
+    con.execute('INSERT INTO settings (id, name, value) '
+                'VALUES(?, "cad_path", ?);',
                 (new_id, cad_path))
 
     splash.SetText(f'Adding setting to db [4 | 4]...')
     splash.flush()
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "datasheet_path", ?);',
+    con.execute('INSERT INTO settings (id, name, value) '
+                'VALUES(?, "datasheet_path", ?);',
                 (new_id, datasheet_path))
 
     con.commit()
 
 
 @_check_types.do
-def add_setting(con: "_connector_base.ConnectorBase", key: str, value: str, commit: bool = True) -> bytes:
-    """Add a setting.
+def add_setting(con: "_connector_base.ConnectorBase", key: str, value: str,
+                commit: bool = True) -> bytes:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a setting.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param key: Lookup key.
-    :type key: UNKNOWN
+    :type key: str
+
     :param value: Value to store or process.
-    :type value: UNKNOWN
+    :type value: str
+
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO settings (id, name, value) VALUES (?, ?, ?);',
+    con.execute('INSERT INTO settings (id, name, value) '
+                'VALUES (?, ?, ?);',
                 (new_id, key, value))
 
     _logger.database(f'setting added "{key}"')

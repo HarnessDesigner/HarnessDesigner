@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtWidgets
-import numpy as np
 import time
 import weakref as _weakref
 
@@ -29,6 +28,7 @@ from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
 from .. import config as _config
+from .. import utils as _utils
 from .. import logger as _logger
 from ..gl import vbo as _vbo_handler
 from ..shapes import helix as _helix
@@ -229,7 +229,7 @@ class Project:
                 obb = model3d.obb
                 aabb = model3d.aabb
                 data_path = model3d.data_path
-                packed = np.load(data_path)
+                packed = _utils.load_hdm(data_path)
 
                 angle = model3d.angle3d
                 packed @= angle

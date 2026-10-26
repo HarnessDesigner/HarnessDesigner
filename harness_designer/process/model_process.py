@@ -605,9 +605,10 @@ class ThreadWorker(threading.Thread):
             message['step'] = 8
             self.out_queue.put(message)
 
-            # The packed array is saved as a plain uncompressed .npy file.
-            # The parent opens the file as a numpy memory map and streams
-            # it straight into the GPU vertex buffer.
+            # The packed array is saved as an uncompressed .hdm file: a
+            # short text header (see utils/hdm.py) followed by the plain
+            # .npy data. The parent opens the file as a numpy memory map
+            # and streams it straight into the GPU vertex buffer.
             unpacked_verts = packed[:vertex_count * 3].reshape(-1, 3)
             aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
             aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
@@ -620,7 +621,7 @@ class ThreadWorker(threading.Thread):
             directory = os.path.join(model_dir, uuid[:2])
             os.makedirs(directory, exist_ok=True)
 
-            np.save(os.path.join(directory, f'{uuid}.npy'), packed)
+            _utils.save_hdm(os.path.join(directory, f'{uuid}{_utils.HDM_EXTENSION}'), packed)
 
             message['step'] = 9
             self.out_queue.put(message)

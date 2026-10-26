@@ -27,62 +27,86 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_transition(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
-                   color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
-                   max_temp: str | None = None, material: str | None = None, shape: str | None = None, protection: str | None = None,
-                   branch_count: int = 0, adhesive_ids: list[bytes] | None = None, weight: float = 0.0, branches: list[dict] = [],
-                   commit: bool = True) -> None:
-    """Add a transition.
+def add_transition(con: "_connector_base.ConnectorBase", part_number: str,
+                   description: str, mfg: str | None = None,
+                   family: str | None = None, series: str | None = None,
+                   color: str | None = None, image: str | None = None,
+                   datasheet: str | None = None, cad: str | None = None,
+                   min_temp: str | None = None, max_temp: str | None = None,
+                   material: str | None = None, shape: str | None = None,
+                   protection: str | None = None, branch_count: int = 0,
+                   adhesive_ids: list[bytes] | None = None, weight: float = 0.0,
+                   branches: list[dict] = [], commit: bool = True) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a transition.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param part_number: Value for ``part_number``.
-    :type part_number: UNKNOWN
+    :type part_number: str
+
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str
+
     :param mfg: Value for ``mfg``.
-    :type mfg: UNKNOWN
+    :type mfg: str | None
+
     :param family: Value for ``family``.
-    :type family: UNKNOWN
+    :type family: str | None
+
     :param series: Value for ``series``.
-    :type series: UNKNOWN
+    :type series: str | None
+
     :param color: Value for ``color``.
-    :type color: UNKNOWN
+    :type color: str | None
+
     :param image: Value for ``image``.
-    :type image: UNKNOWN
+    :type image: str | None
+
     :param datasheet: Value for ``datasheet``.
-    :type datasheet: UNKNOWN
+    :type datasheet: str | None
+
     :param cad: Value for ``cad``.
-    :type cad: UNKNOWN
+    :type cad: str | None
+
     :param min_temp: Value for ``min_temp``.
-    :type min_temp: UNKNOWN
+    :type min_temp: str | None
+
     :param max_temp: Value for ``max_temp``.
-    :type max_temp: UNKNOWN
+    :type max_temp: str | None
+
     :param material: Value for ``material``.
-    :type material: UNKNOWN
+    :type material: str | None
+
     :param shape: Value for ``shape``.
-    :type shape: UNKNOWN
+    :type shape: str | None
+
     :param protection: Value for ``protection``.
-    :type protection: UNKNOWN
+    :type protection: str | None
+
     :param branch_count: Value for ``branch_count``.
-    :type branch_count: UNKNOWN
+    :type branch_count: int
+
     :param adhesive_ids: Identifier for the adhesive.
-    :type adhesive_ids: UNKNOWN
+    :type adhesive_ids: list[bytes] | None
+
     :param weight: Value for ``weight``.
-    :type weight: UNKNOWN
+    :type weight: float
+
     :param branches: Value for ``branches``.
-    :type branches: UNKNOWN
+    :type branches: list[dict]
+
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
     """
-    
+
     if adhesive_ids is None:
         adhesive_ids = []
 
@@ -123,32 +147,44 @@ def add_transition(con: "_connector_base.ConnectorBase", part_number: str, descr
 
 
 @_check_types.do
-def add_pjt_transition(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, point3d_id: bytes | None = None, name: str = '', notes: str = '',
-                       quat3d: list[float] | None = None, angle3d: list[float] | None = None, is_visible3d: int = 1) -> None:
-    """Add a PJT transition.
+def add_pjt_transition(con: "_connector_base.ConnectorBase", project_id: int,
+                       part_id: bytes, point3d_id: bytes | None = None,
+                       name: str = '', notes: str = '',
+                       quat3d: list[float] | None = None,
+                       angle3d: list[float] | None = None,
+                       is_visible3d: int = 1) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a PJT transition.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param project_id: Identifier for the project.
-    :type project_id: UNKNOWN
+    :type project_id: int
+
     :param part_id: Identifier for the part.
-    :type part_id: UNKNOWN
+    :type part_id: bytes
+
     :param point3d_id: Identifier for the point 3D.
-    :type point3d_id: UNKNOWN
+    :type point3d_id: bytes | None
+
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
+
     :param notes: Value for ``notes``.
-    :type notes: UNKNOWN
+    :type notes: str
+
     :param quat3d: Value for ``quat3d``.
-    :type quat3d: UNKNOWN
+    :type quat3d: list[float] | None
+
     :param angle3d: Value for ``angle3d``.
-    :type angle3d: UNKNOWN
+    :type angle3d: list[float] | None
+
     :param is_visible3d: Boolean flag for whether visible 3D.
-    :type is_visible3d: UNKNOWN
+    :type is_visible3d: int
     """
-    
+
     if quat3d is None:
         quat3d = [1.0, 0.0, 0.0, 0.0]
 
@@ -165,13 +201,15 @@ def add_pjt_transition(con: "_connector_base.ConnectorBase", project_id: int, pa
 
 
 @_check_types.do
-def add_transitions(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
-    """Add a transitions.
+def add_transitions(con: "_connector_base.ConnectorBase",
+                    data: tuple[dict] | list[dict]) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a transitions.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param data: Data payload.
     :type data: tuple[dict] | list[dict]
     """
@@ -181,74 +219,23 @@ def add_transitions(con: "_connector_base.ConnectorBase", data: tuple[dict] | li
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
-    con.execute('SELECT id FROM transitions WHERE id=1;')
-    if con.fetchall():
-        return
 
-    dirs = [('', data_path)]
-
-    for file_name in os.listdir(data_path):
-        file = os.path.join(data_path, file_name)
-        if os.path.isdir(file):
-            dirs.append((file_name + ' ', file))
-
-    cwd = os.getcwd()
-    for name, path in dirs:
-        os.chdir(path)
-
-        json_path = os.path.join(path, 'transitions.json')
-
-        if os.path.exists(json_path):
-            splash.SetText(f'Loading {name}trasitions file...')
-            splash.flush()
-
-            with open(json_path, 'r') as f:
-                data = json.loads(f.read())
-
-            data_len = len(data)
-
-            splash.SetText(f'Adding {name}transition to db [0 | {data_len}]...', log=False)
-            splash.flush()
-
-            for i, item in enumerate(data):
-                splash.SetText(f'Adding {name}transition to db [{i + 1} | {data_len}]...', log=False)
-
-                # transitions.json can list several protections per part
-                # (joined into one composite `protections` catalog row,
-                # see get_protection_id) -- but 'n'.join() on a bare
-                # string (a single protection already stored as a plain
-                # string, not a list) iterates its own characters instead,
-                # producing a one-letter-per-line name ("L", "o", "n",
-                # "g", ...). Only join an actual list; a string is already
-                # the name.
-                protection = item['protection']
-                if isinstance(protection, list):
-                    item['protection'] = '\n'.join(protection)
-
-                item['image'] = None
-                item['datasheet'] = None
-                item['cad'] = None
-
-                try:
-                    add_transition(con, commit=False, **item)
-                except Exception as err:
-                    _logger.traceback(err)
-
-            con.commit()
-
-    os.chdir(cwd)
+    raise NotImplementedError
 
 
 id_field = _con.UUIDField('id', is_primary=True)
@@ -259,54 +246,54 @@ table = _con.SQLTable(
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_families.table,
-                                                    _families.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_families.table,
+                                                     _families.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_series.table,
-                                                    _series.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_series.table,
+                                                     _series.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 
     _con.UUIDField('min_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('max_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('material_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_materials.table,
+                                                     _materials.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('shape_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_shapes.table,
-                                                    _shapes.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_shapes.table,
+                                                     _shapes.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('protection_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_protections.table,
-                                                    _protections.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_protections.table,
+                                                     _protections.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.IntField('branch_count', default='0', no_null=True),
     _con.TextField('adhesive_ids', default='"[]"', no_null=True),
     _con.FloatField('weight', default='"0.0"', no_null=True)
@@ -319,7 +306,7 @@ pjt_table = _con.SQLTable(
     'pjt_transitions',
     pjt_id_field,
     _con.UUIDField('part_id', no_null=True,
-                    references=_con.SQLFieldReference(table,
+                   references=_con.SQLFieldReference(table,
                                                      id_field,
                                                      on_delete=_con.REFERENCE_NO_ACTION,
                                                      on_update=_con.REFERENCE_NO_ACTION)),

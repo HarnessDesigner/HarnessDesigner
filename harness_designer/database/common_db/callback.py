@@ -1,6 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Callback registration helpers for database-backed model objects."""
+"""
+Callback registration helpers for database-backed model objects.
+"""
 
 from collections.abc import Callable
 
@@ -11,26 +13,32 @@ from ... import check_types as _check_types
 
 
 class CallbackMixin:
-    """Provide callback registration and dispatch support.
+    """
+    Provide callback registration and dispatch support.
     """
     @_check_types.do
     def __init__(self):
-        """Initialize callback storage for the mixin instance.
         """
+        Initialize callback storage for the mixin instance.
+        """
+
         self._callbacks = []
 
     @_check_types.do
     def bind(self, callback: Callable[..., None], tag: str) -> "Callback":
-        """Register a callback for a specific update tag.
+        """
+        Register a callback for a specific update tag.
 
         :param callback: Bound method to invoke for matching tags.
-        :type callback: UNKNOWN
+        :type callback: `Callable[..., None]`
+
         :param tag: Tag that must match before the callback is invoked.
         :type tag: str
 
         :returns: The created callback wrapper.
         :rtype: Callback
         """
+
         cb_class = Callback(self, callback, tag)
         self._callbacks.append(cb_class)
 
@@ -38,9 +46,10 @@ class CallbackMixin:
 
     @_check_types.do
     def unbind(self, cb_class: "Callback") -> None:
-        """Remove a previously registered callback wrapper.
+        """
+        Remove a previously registered callback wrapper.
 
-        :param cb_class: UNKNOWN.
+        :param cb_class: Callback object that was retruned when calling bind.
         :type cb_class: 'Callback'
 
         :returns: ``None``.
@@ -53,33 +62,40 @@ class CallbackMixin:
 
     @_check_types.do
     def _populate(self, tag: str) -> None:
-        """Notify registered callbacks that match the supplied tag.
+        """
+        Notify registered callbacks that match the supplied tag.
 
         :param tag: Callback or message tag associated with the operation.
-        :type tag: UNKNOWN
+        :type tag: str
 
         :returns: ``None``.
         :rtype: None
         """
+
         for cb in self._callbacks:
             cb(tag, self)
 
 
 class Callback:
-
-    """Represent a weakly referenced callback binding.
     """
+    Represent a weakly referenced callback binding.
+    """
+
     @_check_types.do
     def __init__(self, parent: CallbackMixin, callback: Callable[..., None], tag: str):
-        """Initialize the callback wrapper.
+        """
+        Initialize the callback wrapper.
 
         :param parent: Parent :class:`CallbackMixin` that owns this wrapper.
         :type parent: CallbackMixin
+
         :param callback: Bound method stored through :class:`weakref.WeakMethod`.
-        :type callback: UNKNOWN
+        :type callback: Callable[..., None]
+
         :param tag: Tag that must match before the callback runs.
-        :type tag: UNKNOWN
+        :type tag: str
         """
+
         self._parent = parent
         self.tag = tag
         self._ref = weakref.WeakMethod(callback, self._remove_ref)
@@ -87,7 +103,8 @@ class Callback:
 
     @_check_types.do
     def unbind(self) -> None:
-        """Unregister this callback wrapper from its parent.
+        """
+        Unregister this callback wrapper from its parent.
 
         :returns: ``None``.
         :rtype: None
@@ -95,55 +112,67 @@ class Callback:
         self._parent.unbind(self)
 
     @_check_types.do
-    def _remove_ref(self, ref: weakref.WeakMethod) -> None:
-        """Remove this wrapper when the weak callback reference expires.
+    def _remove_ref(self, _: weakref.WeakMethod) -> None:
+        """
+        Remove this wrapper when the weak callback reference expires.
 
-        :param ref: Weak reference callback argument supplied by :mod:`weakref`.
-        :type ref: UNKNOWN
+        :param _:
 
         :returns: ``None``.
         :rtype: None
         """
+
         self._parent.unbind(self)
 
     @_check_types.do
     def __enter__(self) -> None:
-        """Mark the callback as actively executing within a context manager.
+        """
+        Mark the callback as actively executing within a context manager.
 
         :returns: ``None``.
         :rtype: None
         """
+
         self._ref_count += 1
 
     @_check_types.do
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
+    def __exit__(self, exc_type: type[BaseException] | None,
+                 exc_val: BaseException | None,
                  exc_tb: types.TracebackType | None) -> None:
-        """Clear the active execution marker for the callback.
+
+        """
+        Clear the active execution marker for the callback.
 
         :param exc_type: Exception type passed by the context manager protocol.
-        :type exc_type: UNKNOWN
+        :type exc_type: type[BaseException] | None
+
         :param exc_val: Exception instance passed by the context manager protocol.
-        :type exc_val: UNKNOWN
+        :type exc_val: BaseException | None
+
         :param exc_tb: Traceback object passed by the context manager protocol.
-        :type exc_tb: UNKNOWN
+        :type exc_tb: types.TracebackType | None
 
         :returns: ``None``.
         :rtype: None
         """
+
         self._ref_count -= 1
 
     @_check_types.do
     def __call__(self, tag: str, entry: CallbackMixin) -> None:
-        """Invoke the wrapped callback when the supplied tag matches.
+        """
+        Invoke the wrapped callback when the supplied tag matches.
 
         :param tag: Callback or message tag associated with the operation.
-        :type tag: UNKNOWN
+        :type tag: str
+
         :param entry: Entry object forwarded to the callback.
-        :type entry: UNKNOWN
+        :type entry: CallbackMixin
 
         :returns: ``None``.
         :rtype: None
         """
+
         if self._ref_count:
             return
 

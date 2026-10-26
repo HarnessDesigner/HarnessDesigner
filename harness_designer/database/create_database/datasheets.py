@@ -18,18 +18,20 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def get_datasheet_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | None:  # NOQA
+def get_datasheet_id(con: "_connector_base.ConnectorBase",  # NOQA
+                     path: str) -> bytes | None:  # NOQA
+
     """
     Return the datasheet ID.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
 
     :param path: Filesystem path.
     :type path: str
 
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes | None
     """
 
     if not path:
@@ -44,7 +46,8 @@ def get_datasheet_id(con: "_connector_base.ConnectorBase", path: str) -> bytes |
         db_id = _id_generator.generate_global_row_id(con).bytes
 
         if path.startswith('http'):
-            con.execute('INSERT INTO datasheets (id, path) VALUES (?, ?);', (db_id, path))
+            con.execute('INSERT INTO datasheets (id, path) VALUES (?, ?);',
+                        (db_id, path))
         else:
             values = _resources.collect_resource(con, _resources.RESOURCE_TYPE_DATASHEET, path)
             if values is None:
@@ -54,7 +57,9 @@ def get_datasheet_id(con: "_connector_base.ConnectorBase", path: str) -> bytes |
             con.execute('SELECT value FROM settings WHERE name="datasheet_path";')
             datasheet_path = con.fetchall()[0][0]
 
-            con.execute('SELECT extension FROM file_types WHERE id=?;', (file_type_id,))
+            con.execute('SELECT extension FROM file_types WHERE id=?;',
+                        (file_type_id,))
+
             ext = con.fetchall()[0][0]
 
             dst = os.path.join(datasheet_path, uuid[:2])
@@ -65,7 +70,8 @@ def get_datasheet_id(con: "_connector_base.ConnectorBase", path: str) -> bytes |
             src = os.path.join(datasheet_path, f'{uuid}.{ext}')
             shutil.move(src, dst)
 
-            con.execute('INSERT INTO datasheets (id, uuid, path, file_type_id) VALUES (?, ?, ?, ?);',
+            con.execute('INSERT INTO datasheets (id, uuid, path, file_type_id) '
+                        'VALUES (?, ?, ?, ?);',
                         (db_id, uuid, path, file_type_id))
 
         con.commit()
@@ -84,8 +90,8 @@ table = _con.SQLTable(
     id_field,
     _con.TextField('uuid', default="NULL"),
     _con.UUIDField('file_type_id', default="NULL",
-                  references=_con.SQLFieldReference(_file_types.table,
-                                                    _file_types.id_field)),
+                   references=_con.SQLFieldReference(_file_types.table,
+                                                     _file_types.id_field)),
     _con.BlobField('data', default='NULL'),
     _con.TextField('path', no_null=True)
 )

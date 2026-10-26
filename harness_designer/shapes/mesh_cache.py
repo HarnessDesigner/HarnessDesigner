@@ -10,7 +10,8 @@ fixed result to cache). Measured cost building these from scratch:
 every single app launch, even though the result is identical every time
 (fixed geometry/tessellation parameters). This caches a mesh's already-
 tessellated (packed, count, aabb, obb) VBO-ready data to a single small
-``.npz`` file per cache name -- written once, after a cache miss; every
+``.hdm`` file per cache name (see utils/hdm.py) -- written once, after a
+cache miss; every
 later launch loads it back and skips the OCCT work entirely (VBO
 upload itself still happens fresh every launch -- that needs a live GL
 context, and was never the slow part).
@@ -33,8 +34,8 @@ from .. import check_types as _check_types
 @_check_types.do
 def path(name: str) -> str:
     """Return the on-disk path for cache *name* (no extension needed --
-    always ``<appdata>/<name>.npz``)."""
-    return os.path.join(_utils.get_appdata(), f'{name}.npz')
+    always ``<appdata>/<name>.hdm``)."""
+    return os.path.join(_utils.get_appdata(), f'{name}{_utils.HDM_EXTENSION}')
 
 
 @_check_types.do
@@ -50,18 +51,21 @@ def load(name: str, version: int) -> tuple[np.ndarray, int, np.ndarray, np.ndarr
     itself.
     """
     cache_path = path(name)
-    if not os.path.exists(cache_path):
-        return None
 
     try:
-        with np.load(cache_path) as data:
-            if int(data['version'][0]) != version:
-                return None
+        # a cache written before the .hdm format is upgraded in place
+        _utils.migrate_hdm(cache_path)
 
-            extra = data['extra'] if 'extra' in data.files else None
+        if not os.path.exists(cache_path):
+            return None
 
-            return (data['packed'], int(data['count'][0]),
-                    data['aabb'], data['obb'], extra)
+        data = _utils.load_hdm_arrays(cache_path)
+
+        if int(data['version'][0]) != version:
+            return None
+
+        return (data['packed'], int(data['count'][0]),
+                data['aabb'], data['obb'], data.get('extra'))
     except Exception:  # NOQA -- any read/format problem just means rebuild
         return None
 
@@ -87,13 +91,4 @@ def save(name: str, version: int, packed: np.ndarray, count: int,
     if extra is not None:
         arrays['extra'] = np.asarray(extra, dtype=np.float64)
 
-    cache_path = path(name)
-    tmp_path = cache_path + '.tmp'
-
-    # np.savez appends '.npz' to a bare string path -- pass an already-
-    # open file object instead so the written filename matches tmp_path
-    # exactly for the os.replace below.
-    with open(tmp_path, 'wb') as f:
-        np.savez(f, **arrays)
-
-    os.replace(tmp_path, cache_path)
+    _utils.save_hdm_arrays(path(name), arrays)

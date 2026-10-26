@@ -29,77 +29,40 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
-def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
-    """Add a records.
+def add_records(con: "_connector_base.ConnectorBase",  # NOQA
+                splash: "_splash_screen.Splash", data_path: str) -> None:  # NOQA
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a records.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param splash: Value for ``splash``.
-    :type splash: UNKNOWN
+    :type splash: _splash_screen.Splash
+
     :param data_path: Value for ``data_path``.
-    :type data_path: UNKNOWN
+    :type data_path: str
     """
-    con.execute('SELECT id FROM splices WHERE id=1;')
-    if con.fetchall():
-        return
 
-    dirs = [('', data_path)]
-
-    for file_name in os.listdir(data_path):
-        file = os.path.join(data_path, file_name)
-        if os.path.isdir(file):
-            dirs.append((file_name + ' ', file))
-
-    cwd = os.getcwd()
-    for name, path in dirs:
-        os.chdir(path)
-
-        json_path = os.path.join(path, 'splices.json')
-
-        if os.path.exists(json_path):
-            splash.SetText(f'Loading {name}splices file...')
-            splash.flush()
-
-            _logger.database(json_path)
-
-            with open(json_path, 'r') as f:
-                data = json.loads(f.read())
-
-            if isinstance(data, dict):
-                data = [value for value in data.values()]
-
-            data_len = len(data)
-
-            splash.SetText(f'Adding {name}splice to db [0 | {data_len}]', log=False)
-            splash.flush()
-
-            for i, item in enumerate(data):
-                splash.SetText(f'Adding {name}splice to db [{i + 1} | {data_len}]', log=False)
-
-                try:
-                    add_splice(con, commit=False, **item)
-                except Exception as err:
-                    _logger.traceback(err)
-
-        con.commit()
-    os.chdir(cwd)
+    raise NotImplementedError
 
 
 @_check_types.do
-def add_splices(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
-    """Add a splices.
+def add_splices(con: "_connector_base.ConnectorBase",
+                data: tuple[dict] | list[dict]) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a splices.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param data: Data payload.
     :type data: tuple[dict] | list[dict]
     """
@@ -109,77 +72,115 @@ def add_splices(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[d
 
 
 @_check_types.do
-def add_splice(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
-               color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
-               max_temp: str | None = None, model3d: str | None = None, material: str | None = None, plating: str | None = None,  type: str | None = None,  # NOQA
-               min_dia: float = 0.0, max_dia: float = 0.0, resistance: float = 0.0, length: float = 0.0, weight: float = 0.0,
-               wire_size_awg_min: int | None = None, wire_size_awg_max: int | None = None, wire_size_dia_min: float | None = None,
-               wire_size_dia_max: float | None = None, wire_size_cross_min: float | None = None, wire_size_cross_max: float | None = None,
+def add_splice(con: "_connector_base.ConnectorBase", part_number: str,
+               description: str, mfg: str | None = None, family: str | None = None,
+               series: str | None = None, color: str | None = None,
+               image: str | None = None, datasheet: str | None = None,
+               cad: str | None = None, min_temp: str | None = None,
+               max_temp: str | None = None, model3d: str | None = None,  # NOQA
+               material: str | None = None, plating: str | None = None,  # NOQA
+               type: str | None = None, min_dia: float = 0.0, max_dia: float = 0.0,  # NOQA
+               resistance: float = 0.0, length: float = 0.0, weight: float = 0.0,
+               wire_size_awg_min: int | None = None,
+               wire_size_awg_max: int | None = None,
+               wire_size_dia_min: float | None = None,
+               wire_size_dia_max: float | None = None,
+               wire_size_cross_min: float | None = None,
+               wire_size_cross_max: float | None = None,
                num_wires: int | None = None, commit: bool = True) -> bytes:
-    """Add a splice.
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a splice.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param part_number: Value for ``part_number``.
-    :type part_number: UNKNOWN
+    :type part_number: str
+
     :param description: Value for ``description``.
-    :type description: UNKNOWN
+    :type description: str
+
     :param mfg: Value for ``mfg``.
-    :type mfg: UNKNOWN
+    :type mfg: str | None
+
     :param family: Value for ``family``.
-    :type family: UNKNOWN
+    :type family: str | None
+
     :param series: Value for ``series``.
-    :type series: UNKNOWN
+    :type series: str | None
+
     :param color: Value for ``color``.
-    :type color: UNKNOWN
+    :type color: str | None
+
     :param image: Value for ``image``.
-    :type image: UNKNOWN
+    :type image: str | None
+
     :param datasheet: Value for ``datasheet``.
-    :type datasheet: UNKNOWN
+    :type datasheet: str | None
+
     :param cad: Value for ``cad``.
-    :type cad: UNKNOWN
+    :type cad: str | None
+
     :param min_temp: Value for ``min_temp``.
-    :type min_temp: UNKNOWN
+    :type min_temp: str | None
+
     :param max_temp: Value for ``max_temp``.
-    :type max_temp: UNKNOWN
+    :type max_temp: str | None
+
     :param model3d: Value for ``model3d``.
-    :type model3d: UNKNOWN
+    :type model3d: str | None
+
     :param material: Value for ``material``.
-    :type material: UNKNOWN
+    :type material: str | None
+
     :param plating: Value for ``plating``.
-    :type plating: UNKNOWN
+    :type plating: str | None
+
     :param type: Value for ``type``.
-    :type type: UNKNOWN
+    :type type: str | None
+
     :param min_dia: Value for ``min_dia``.
-    :type min_dia: UNKNOWN
+    :type min_dia: float
+
     :param max_dia: Value for ``max_dia``.
-    :type max_dia: UNKNOWN
+    :type max_dia: float
+
     :param resistance: Value for ``resistance``.
-    :type resistance: UNKNOWN
+    :type resistance: float
+
     :param length: Value for ``length``.
-    :type length: UNKNOWN
+    :type length: float
+
     :param weight: Value for ``weight``.
-    :type weight: UNKNOWN
+    :type weight: float
+
     :param wire_size_awg_min: Value for ``wire_size_awg_min``.
-    :type wire_size_awg_min: UNKNOWN
+    :type wire_size_awg_min: int | None
+
     :param wire_size_awg_max: Value for ``wire_size_awg_max``.
-    :type wire_size_awg_max: UNKNOWN
+    :type wire_size_awg_max: int | None
+
     :param wire_size_dia_min: Value for ``wire_size_dia_min``.
-    :type wire_size_dia_min: UNKNOWN
+    :type wire_size_dia_min: float | None
+
     :param wire_size_dia_max: Value for ``wire_size_dia_max``.
-    :type wire_size_dia_max: UNKNOWN
+    :type wire_size_dia_max: float | None
+
     :param wire_size_cross_min: Value for ``wire_size_cross_min``.
-    :type wire_size_cross_min: UNKNOWN
+    :type wire_size_cross_min: float | None
+
     :param wire_size_cross_max: Value for ``wire_size_cross_max``.
-    :type wire_size_cross_max: UNKNOWN
+    :type wire_size_cross_max: float | None
+
     :param num_wires: Value for ``num_wires``.
-    :type num_wires: UNKNOWN
+    :type num_wires: int | None
+
     :param commit: Value for ``commit``.
-    :type commit: UNKNOWN
+    :type commit: bool
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: bytes
     """
 
     mfg, family, series = _manufacturers.inspect_mfg_fam_series(mfg, family, series)
@@ -199,19 +200,20 @@ def add_splice(con: "_connector_base.ConnectorBase", part_number: str, descripti
     model3d_id = _models3d.get_model3d_id(con, model3d)
 
     new_id = _id_generator.generate_global_row_id(con).bytes
-    con.execute('INSERT INTO splices (id, part_number, description, mfg_id, family_id, '
-                'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
-                'max_temp_id, model3d_id, material_id, plating_id, type_id, min_dia, '
-                'max_dia, resistance, length, weight, wire_size_awg_min, wire_size_awg_max, '
-                'wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, '
-                'wire_size_cross_max, num_wires) '
+    con.execute('INSERT INTO splices (id, part_number, description, mfg_id, '
+                'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
+                'min_temp_id, max_temp_id, model3d_id, material_id, plating_id, type_id, '
+                'min_dia, max_dia, resistance, length, weight, wire_size_awg_min, '
+                'wire_size_awg_max, wire_size_dia_min, wire_size_dia_max, '
+                'wire_size_cross_min, wire_size_cross_max, num_wires) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
                 '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
-                 image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
-                 material_id, plating_id, type_id, min_dia, max_dia, resistance,
-                 length, weight, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
-                 wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, num_wires))
+                (new_id, part_number, description, mfg_id, family_id, series_id,
+                 color_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
+                 model3d_id, material_id, plating_id, type_id, min_dia, max_dia,
+                 resistance, length, weight, wire_size_awg_min, wire_size_awg_max,
+                 wire_size_dia_min, wire_size_dia_max, wire_size_cross_min,
+                 wire_size_cross_max, num_wires))
 
     _logger.database(f'splice added "{part_number}"')
 
@@ -221,37 +223,53 @@ def add_splice(con: "_connector_base.ConnectorBase", part_number: str, descripti
 
 
 @_check_types.do
-def add_pjt_splice(con: "_connector_base.ConnectorBase", project_id: int, part_id: bytes, start_point3d_id: bytes | None = None, stop_point3d_id: bytes | None = None,
-                   branch_point3d_id: bytes | None = None, point2d_id: bytes | None = None, circuit_id: bytes | None = None, name: str = '',
-                   notes: str = '', is_visible2d: int = 0, is_visible3d: int = 0) -> None:
-    """Add a PJT splice.
+def add_pjt_splice(con: "_connector_base.ConnectorBase", project_id: int,
+                   part_id: bytes, start_point3d_id: bytes | None = None,
+                   stop_point3d_id: bytes | None = None,
+                   branch_point3d_id: bytes | None = None,
+                   point2d_id: bytes | None = None,
+                   circuit_id: bytes | None = None, name: str = '',
+                   notes: str = '', is_visible2d: int = 0,
+                   is_visible3d: int = 0) -> None:
 
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Add a PJT splice.
 
     :param con: Value for ``con``.
-    :type con: UNKNOWN
+    :type con: _connector_base.ConnectorBase
+
     :param project_id: Identifier for the project.
-    :type project_id: UNKNOWN
+    :type project_id: int
+
     :param part_id: Identifier for the part.
-    :type part_id: UNKNOWN
+    :type part_id: bytes
+
     :param start_point3d_id: Identifier for the start point 3D.
-    :type start_point3d_id: UNKNOWN
+    :type start_point3d_id: bytes | None
+
     :param stop_point3d_id: Identifier for the stop point 3D.
-    :type stop_point3d_id: UNKNOWN
+    :type stop_point3d_id: bytes | None
+
     :param branch_point3d_id: Identifier for the branch point 3D.
-    :type branch_point3d_id: UNKNOWN
+    :type branch_point3d_id: bytes | None
+
     :param point2d_id: Identifier for the point 2D.
-    :type point2d_id: UNKNOWN
+    :type point2d_id: bytes | None
+
     :param circuit_id: Identifier for the circuit.
-    :type circuit_id: UNKNOWN
+    :type circuit_id: bytes | None
+
     :param name: Name value.
-    :type name: UNKNOWN
+    :type name: str
+
     :param notes: Value for ``notes``.
-    :type notes: UNKNOWN
+    :type notes: str
+
     :param is_visible2d: Boolean flag for whether visible 2D.
-    :type is_visible2d: UNKNOWN
+    :type is_visible2d: int
+
     :param is_visible3d: Boolean flag for whether visible 3D.
-    :type is_visible3d: UNKNOWN
+    :type is_visible3d: int
     """
 
     new_id = _id_generator.generate_project_row_id(con, project_id).bytes
@@ -260,8 +278,9 @@ def add_pjt_splice(con: "_connector_base.ConnectorBase", project_id: int, part_i
                 'stop_point3d_id, branch_point3d_id, point2d_id, circuit_id, name, '
                 'notes, is_visible2d, is_visible3d) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (new_id, part_id, start_point3d_id, stop_point3d_id, branch_point3d_id,
-                 point2d_id, circuit_id, name, notes, is_visible2d, is_visible3d))
+                (new_id, part_id, start_point3d_id, stop_point3d_id,
+                 branch_point3d_id, point2d_id, circuit_id, name, notes,
+                 is_visible2d, is_visible3d))
 
     con.commit()
 
@@ -274,57 +293,57 @@ table = _con.SQLTable(
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_manufacturers.table,
-                                                    _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_manufacturers.table,
+                                                     _manufacturers.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_families.table,
-                                                    _families.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_families.table,
+                                                     _families.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_series.table,
-                                                    _series.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_series.table,
+                                                     _series.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_colors.table,
-                                                    _colors.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_colors.table,
+                                                     _colors.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('image_id', default='NULL',
-                  references=_con.SQLFieldReference(_images.table,
-                                                    _images.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_images.table,
+                                                     _images.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('datasheet_id', default='NULL',
-                  references=_con.SQLFieldReference(_datasheets.table,
-                                                    _datasheets.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_datasheets.table,
+                                                     _datasheets.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('cad_id', default='NULL',
-                  references=_con.SQLFieldReference(_cads.table,
-                                                    _cads.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_cads.table,
+                                                     _cads.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('min_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('max_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_temperatures.table,
-                                                    _temperatures.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_temperatures.table,
+                                                     _temperatures.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('model3d_id', default='NULL',
-                  references=_con.SQLFieldReference(_models3d.table,
-                                                    _models3d.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_models3d.table,
+                                                     _models3d.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('material_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_materials.table,
-                                                    _materials.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_materials.table,
+                                                     _materials.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('plating_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_platings.table,
-                                                    _platings.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_platings.table,
+                                                     _platings.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.UUIDField('type_id', default="X'00000000000000000000000000000000'", no_null=True,
-                  references=_con.SQLFieldReference(_splice_types.table,
-                                                    _splice_types.id_field,
-                                                    on_update=_con.REFERENCE_NO_ACTION)),
+                   references=_con.SQLFieldReference(_splice_types.table,
+                                                     _splice_types.id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.FloatField('min_dia', default='"0.0"', no_null=True),
     _con.FloatField('max_dia', default='"0.0"', no_null=True),
     _con.FloatField('resistance', default='"0.0"', no_null=True),

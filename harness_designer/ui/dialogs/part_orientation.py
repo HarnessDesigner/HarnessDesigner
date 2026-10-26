@@ -165,7 +165,7 @@ class PartModel3D(_base_3d.Base3D):
             else:
                 data_path = model_db.data_path
                 if data_path is not None:
-                    packed = np.load(model_db.data_path).reshape(-1, 3)
+                    packed = _utils.load_hdm(model_db.data_path).reshape(-1, 3)
 
                     angle = model_db.angle3d
                     position = model_db.position3d

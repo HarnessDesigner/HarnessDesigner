@@ -2,12 +2,11 @@
 
 from typing import TYPE_CHECKING, Union as _Union, Any
 
-import numpy as np
-
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ... import color as _color
 from ... import config as _config
+from ... import utils as _utils
 from ...gl import materials as _materials
 from .. import objectsvar as _objectsvar
 from ...gl import vbo as _vbo
@@ -437,7 +436,7 @@ class BasePegboard(_objectsvar.BaseVar):
             if uuid in _vbo.PooledVBOHandler:
                 vbo = _vbo.PooledVBOHandler(uuid)
             else:
-                packed = np.load(model.data_path).reshape(-1, 3)
+                packed = _utils.load_hdm(model.data_path).reshape(-1, 3)
 
                 angle = model.angle3d
                 position = model.position3d
