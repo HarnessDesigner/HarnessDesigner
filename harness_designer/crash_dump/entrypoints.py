@@ -1,4 +1,7 @@
-"""Public, app-facing entry points.
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""
+Public, app-facing entry points.
 
 ``run.py``'s fatal-exception hook and ``canvas_base.py``'s per-object
 render-failure handler call straight into ``dump_state_on_fatal_exception``
@@ -17,6 +20,7 @@ outright, but ``canvas_base.py``'s render-failure call sites don't all
 wrap this call in their own try/except either, so the guard has to live
 here.
 """
+
 from __future__ import annotations
 
 import os
@@ -26,6 +30,7 @@ from datetime import datetime
 
 from .walker import dump_to_html
 from .. import check_types as _check_types
+
 
 FATAL_SEVERITY = 1
 RENDER_FAILURE_SEVERITY = 2
@@ -47,7 +52,8 @@ _render_failure_last_dump: dict[int, float] = {}
 def dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
     try:
         _dump_state_on_fatal_exception(exc_type, exc_value, exc_tb)
-    except Exception:  # NOQA -- a broken diagnostic must never mask the real exception
+    except Exception:  # NOQA
+        # a broken diagnostic must never mask the real exception
         pass
 
 
@@ -55,7 +61,8 @@ def dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
 def dump_render_failure(view_obj, exc: Exception) -> None:
     try:
         _dump_render_failure(view_obj, exc)
-    except Exception:  # NOQA -- a broken diagnostic must never mask the real exception
+    except Exception:  # NOQA
+        # a broken diagnostic must never mask the real exception
         pass
 
 
@@ -63,7 +70,8 @@ def dump_render_failure(view_obj, exc: Exception) -> None:
 def dump_visible_objects(view_objects, canvas_label: str) -> None:
     try:
         _dump_visible_objects(view_objects, canvas_label)
-    except Exception:  # NOQA -- a broken diagnostic must never mask anything
+    except Exception:  # NOQA
+        # a broken diagnostic must never mask anything
         pass
 
 
@@ -71,42 +79,58 @@ def dump_visible_objects(view_objects, canvas_label: str) -> None:
 def _dump_state_on_fatal_exception(exc_type, exc_value, exc_tb) -> None:
     import harness_designer as _hd
 
-    roots = [root for root in (_hd._app, _hd._mainframe) if root is not None]
+    roots = [root for root in (_hd._app, _hd._mainframe)  # NOQA
+             if root is not None]
+
     if not roots:
         return
 
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    path = os.path.join(_log_dir(), f'crash_dump_{stamp}.html')
-    formatted_traceback = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    path = os.path.join(_log_dir(), f'crash_dump_{stamp}.html')  # NOQA
+    formatted_traceback = ''.join(  # NOQA
+        traceback.format_exception(exc_type, exc_value, exc_tb))
+
     _dump_with_write_suppression(lambda: dump_to_html(
         roots,
         trigger_severity=FATAL_SEVERITY,
         dump_kind='fatal',
         path=path,
-        exception={'type': exc_type.__name__, 'message': str(exc_value), 'traceback': formatted_traceback},
-    ))
+        exception={'type': exc_type.__name__,
+                   'message': str(exc_value),
+                   'traceback': formatted_traceback}))
 
 
 @_check_types.do
 def _dump_render_failure(view_obj, exc: Exception) -> None:
     now = time.monotonic()
     obj_id = id(view_obj)
+
     last_dump_time = _render_failure_last_dump.get(obj_id)
-    if last_dump_time is not None and (now - last_dump_time) < _RENDER_FAILURE_COOLDOWN_SECONDS:
+    if (
+        last_dump_time is not None and
+        now - last_dump_time < _RENDER_FAILURE_COOLDOWN_SECONDS
+    ):
         return
+
     _render_failure_last_dump[obj_id] = now
     _prune_stale_cooldowns(now)
 
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-    path = os.path.join(_log_dir(), f'render_failure_{type(view_obj).__name__}_{stamp}.html')
-    formatted_traceback = ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+
+    path = os.path.join(
+        _log_dir(), f'render_failure_{type(view_obj).__name__}_{stamp}.html')
+
+    formatted_traceback = ''.join(  # NOQA
+        traceback.format_exception(type(exc), exc, exc.__traceback__))
+
     _dump_with_write_suppression(lambda: dump_to_html(
         [view_obj],
         trigger_severity=RENDER_FAILURE_SEVERITY,
         dump_kind='render_failure',
         path=path,
-        exception={'type': type(exc).__name__, 'message': str(exc), 'traceback': formatted_traceback},
-    ))
+        exception={'type': type(exc).__name__,
+                   'message': str(exc),
+                   'traceback': formatted_traceback}))
 
 
 @_check_types.do
@@ -120,23 +144,23 @@ def _dump_visible_objects(view_objects, canvas_label: str) -> None:
         list(view_objects),
         trigger_severity=MANUAL_DUMP_SEVERITY,
         dump_kind='manual',
-        path=path,
-    ))
+        path=path))
 
 
 @_check_types.do
 def _prune_stale_cooldowns(now: float) -> None:
-    stale_ids = [
-        obj_id for obj_id, last_dump_time in _render_failure_last_dump.items()
-        if (now - last_dump_time) >= _RENDER_FAILURE_COOLDOWN_SECONDS
-    ]
+    stale_ids = [obj_id
+                 for obj_id, last_dump_time in _render_failure_last_dump.items()
+                 if (now - last_dump_time) >= _RENDER_FAILURE_COOLDOWN_SECONDS]
+
     for obj_id in stale_ids:
         del _render_failure_last_dump[obj_id]
 
 
 @_check_types.do
 def _dump_with_write_suppression(dump_callable) -> None:
-    """Run ``dump_callable`` (a zero-arg closure that performs the actual
+    """
+    Run ``dump_callable`` (a zero-arg closure that performs the actual
     walk/write) inside the current project's write-suppressing gesture,
     if a project is actually open -- some lazily-created-on-read columns
     (e.g. ``PJTSplice.branch_position3d_id``) insert a database row as a
@@ -146,9 +170,11 @@ def _dump_with_write_suppression(dump_callable) -> None:
     rotate gesture happens to already be open when a render failure
     fires mid-gesture.
     """
+
     project = _current_project()
     if project is None:
         dump_callable()
+
         return
 
     with project.gesture():
@@ -159,7 +185,7 @@ def _dump_with_write_suppression(dump_callable) -> None:
 def _current_project():
     try:
         import harness_designer as _hd
-    except Exception:
+    except Exception:  # NOQA
         return None
 
     mainframe = getattr(_hd, '_mainframe', None)
@@ -179,4 +205,5 @@ def _log_dir() -> str:
 
     log_dir = os.path.join(_paths.get_appdata(), 'log')
     os.makedirs(log_dir, exist_ok=True)
+
     return log_dir

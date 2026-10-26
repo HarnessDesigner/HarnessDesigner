@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Pooled wire-path storage for one view (currently the Schematic
+"""
+Pooled wire-path storage for one view (currently the Schematic
 editor's wire-to-wire lane checks in ``wire_routing/routing.py``).
 
 Modelled on a mesh's vertex array + face-index array, not on
@@ -54,14 +55,22 @@ class SegmentPool:
     def __init__(self):
         self._zero = np.zeros(3, dtype=np.float32)
 
-        self.reset()
+        self._buffers: list[np.ndarray] = []
+        self._counts: list[int] = []
+        self._free: list[int] = []
+
+        self._by_id: dict[int, int] = {}
+
+        self._entries: dict[weakref.ref, np.ndarray] = {}
 
     @_check_types.do
     def reset(self) -> None:
-        """Forget every registered path, in place (see
+        """
+        Forget every registered path, in place (see
         :meth:`.array_pool.ArrayPool.reset`). Weakref callbacks from
         before the reset find nothing to drop and do no harm.
         """
+
         # Slot i's vertex buffer (a Point's live ``_data``), or the shared
         # ``_zero`` placeholder for a free slot.
         self._buffers: list[np.ndarray] = []
@@ -82,6 +91,7 @@ class SegmentPool:
 
         if index is not None:
             self._counts[index] += 1
+
             return index
 
         if self._free:
@@ -94,6 +104,7 @@ class SegmentPool:
             self._counts.append(1)
 
         self._by_id[key] = index
+
         return index
 
     @_check_types.do
@@ -101,6 +112,7 @@ class SegmentPool:
         # set(), not np.unique: this also runs from a weakref callback at
         # interpreter shutdown, when the module-level ``np`` may already be gone.
         for index in set(indices.ravel().tolist()):
+
             # A vertex shared by two segments of one wire (every interior
             # point) was acquired once per register() call, not once per
             # segment, so it's dropped exactly once here as well.
@@ -118,11 +130,16 @@ class SegmentPool:
             self._drop(pairs)
 
     @_check_types.do
-    def register(self, obj: "_base_var.BaseVar", buffers: list[np.ndarray]) -> None:
-        """Set *obj*'s path to the chain of *buffers* (each a ``Point``'s
+    def register(self, obj: "_base_var.BaseVar",
+                 buffers: list[np.ndarray]) -> None:
+
+        """
+        Set *obj*'s path to the chain of *buffers* (each a ``Point``'s
         ``as_numpy``, in path order, start to stop), replacing whatever
         it registered before. Acquires the new vertex references before
-        dropping the old ones so a point that's in both stays alive."""
+        dropping the old ones so a point that's in both stays alive.
+        """
+
         ref = weakref.ref(obj, self._on_dead)
 
         # One reference per DISTINCT buffer, matching _drop (which drops
@@ -152,28 +169,40 @@ class SegmentPool:
 
     @_check_types.do
     def release(self, obj: "_base_var.BaseVar") -> None:
-        """Drop *obj*'s path -- call once when it's deleted. Harmless if
-        it was never registered or is already released."""
+        """
+        Drop *obj*'s path -- call once when it's deleted. Harmless if
+        it was never registered or is already released.
+        """
+
         pairs = self._entries.pop(weakref.ref(obj), None)
         if pairs is not None:
             self._drop(pairs)
 
     @_check_types.do
-    def segments(self, exclude: list | None = None,
-                 window: tuple[float, float, float, float] | None = None) -> np.ndarray:
-        """Every registered wire's segments as one ``(S, 2, 2)`` float
+    def segments(
+        self,
+        exclude: list | None = None,
+        window: tuple[float, float, float, float] | None = None
+    ) -> np.ndarray:
+
+        """
+        Every registered wire's segments as one ``(S, 2, 2)`` float
         array: ``[s, 0]`` is a segment's ``(x, z)`` start, ``[s, 1]`` its
         end.
 
         :param exclude: Wires to leave out.
+
         :param window: ``(lo_x, lo_z, hi_x, hi_z)`` -- keep only segments
             whose bounding box overlaps it.
         """
+
         skip = set()
         if exclude:
             skip = {weakref.ref(obj) for obj in exclude}
 
-        wanted = [pairs for ref, pairs in self._entries.items() if ref not in skip]
+        wanted = [pairs for ref, pairs in self._entries.items()
+                  if ref not in skip]
+
         if not wanted:
             return np.empty((0, 2, 2), dtype=np.float32)
 

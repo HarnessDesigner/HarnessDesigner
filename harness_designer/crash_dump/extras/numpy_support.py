@@ -1,8 +1,12 @@
-"""Rendering for ``numpy.ndarray`` -- the only place in crash_dump that
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""
+Rendering for ``numpy.ndarray`` -- the only place in crash_dump that
 ever imports numpy, and only once a value of this type is actually
 captured. Large arrays are summarized (shape/dtype + a bounded preview)
 rather than enumerated element by element.
 """
+
 from __future__ import annotations
 
 from ... import check_types as _check_types
@@ -20,4 +24,4 @@ def render(value):
         'preview': preview,
         'truncated': bool(flat.size > _MAX_PREVIEW_ITEMS),
     }
-    return ('value', summary)
+    return 'value', summary

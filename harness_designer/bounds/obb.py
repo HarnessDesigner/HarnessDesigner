@@ -7,7 +7,8 @@ from .. import check_types as _check_types
 
 
 class OBB(_array_pool.ArrayPool):
-    """Oriented bounding box pool -- each row is an ``(8, 3)`` array of
+    """
+    Oriented bounding box pool -- each row is an ``(8, 3)`` array of
     corners, ordered per ``utils.bounding_boxes.compute_obb``: corner 0
     = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z.
     """
@@ -17,13 +18,22 @@ class OBB(_array_pool.ArrayPool):
         super().__init__([[0.0] * 3] * 8)
 
     @_check_types.do
-    def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
-                              direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
-        """Vectorized slab test against each row's own oriented edge
+    def _vectorized_ray_test(
+        self,
+        rows: np.ndarray,
+        origin: np.ndarray,
+        direc: np.ndarray,
+        t0: float,
+        t1: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+
+        """
+        Vectorized slab test against each row's own oriented edge
         axes -- same math as ``gl.object_picker._ray_intersect_obb``,
         batched over every row in *rows* at once instead of looping in
         Python.
         """
+
         n = rows.shape[0]
         c0 = rows[:, 0, :]
         c1 = rows[:, 1, :]
@@ -64,6 +74,7 @@ class OBB(_array_pool.ArrayPool):
 
             # Parallel to this slab and outside it -- dead on arrival.
             hit &= ~(parallel & (np.abs(e) > half_extent))
+
             # A degenerate (near-zero-length) edge can't define an axis.
             hit &= ~degenerate
 

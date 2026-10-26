@@ -16,7 +16,10 @@ class View:
 
     @_check_types.do
     def reset(self) -> None:
-        """Empty every pool of this view, in place."""
+        """
+        Empty every pool of this view, in place.
+        """
+
         self._aabb.reset()
         self._obb.reset()
         self._segments.reset()
@@ -47,10 +50,12 @@ class Manager:
 
     @_check_types.do
     def reset(self) -> None:
-        """Empty every view's pools, in place -- the View objects (and the
+        """
+        Empty every view's pools, in place -- the View objects (and the
         pools inside them) are what canvases/objects hold references to,
         so they must stay the same objects. Called when a project unloads.
         """
+
         self._editor_3d.reset()
         self._editor_schematic.reset()
         self._editor_pegboard.reset()

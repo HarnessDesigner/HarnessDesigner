@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 Runtime annotation check behind ``@_check_types.do``.
 

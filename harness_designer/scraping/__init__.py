@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """Point-and-click scraper authoring: turning a captured JSON/HTML sample
 into working Python extraction code, with optional Claude API assistance.
 

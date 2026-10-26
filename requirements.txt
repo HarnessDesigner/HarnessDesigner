@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 PyOpenGL==3.1.10
 PyOpenGL-accelerate==3.1.10; sys_platform != "darwin" or platform_machine == "x86_64"
 requests==2.33.1

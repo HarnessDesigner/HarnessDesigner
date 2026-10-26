@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """Explicit per-axis access for the rotation handlers.
 
 Each handler works on one of the three Euler axes by name. These helpers

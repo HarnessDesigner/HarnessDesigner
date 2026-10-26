@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 connector_analysis.py
 Pure-numpy geometry analysis for connector housing inspection.

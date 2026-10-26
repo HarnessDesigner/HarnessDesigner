@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 # Harness Designer — macOS preinstall script
 # Runs BEFORE pkgbuild copies the app bundle into place. Handles, via
 # dep_installer's --phase pre: is the app currently running (Retry/Cancel),

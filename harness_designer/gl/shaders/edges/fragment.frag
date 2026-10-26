@@ -1,3 +1,5 @@
+// (c) 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 // ASCII characters only -- this file is read with encoding='ascii' (see
 // edges.py's own compile_program()); a non-ASCII byte here raises
 // UnicodeDecodeError instead of compiling.

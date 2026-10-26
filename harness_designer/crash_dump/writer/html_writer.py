@@ -1,4 +1,7 @@
-"""Assembles the single, self-contained HTML dump file.
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""
+Assembles the single, self-contained HTML dump file.
 
 A static shell (styles + a small vanilla-JS tree viewer, no external
 dependencies) wraps a streamed-in ``<script>`` block holding one JSON
@@ -15,12 +18,14 @@ page load. A ``ref`` child (an already-captured, deduplicated object) is
 rendered exactly like a normal nested object -- expanding it just looks up
 its target id in the same map.
 """
+
 from __future__ import annotations
 
 from .json_writer import dumps_for_script_embed
 from ... import check_types as _check_types
 
-_HEAD = """<!doctype html>
+_HEAD = """\
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -48,7 +53,8 @@ body { font-family: Consolas, "Courier New", monospace; font-size: 13px; margin:
 <script type="application/json" id="dump-data">
 """
 
-_TAIL = """</script>
+_TAIL = """\
+</script>
 <script>
 (function () {
   var raw = document.getElementById('dump-data').textContent;
@@ -231,7 +237,8 @@ _TAIL = """</script>
 
 
 class HtmlDumpWriter:
-    """Streaming writer for one dump. Use as a context manager::
+    """
+    Streaming writer for one dump. Use as a context manager:
 
         with HtmlDumpWriter(path) as writer:
             writer.write_meta({...})

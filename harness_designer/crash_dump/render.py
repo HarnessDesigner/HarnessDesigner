@@ -1,4 +1,7 @@
-"""Per-type rendering: how to label/format a captured value, and what
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""
+Per-type rendering: how to label/format a captured value, and what
 counts as its children -- independent of, and consulted only after, the
 capture-schema registry (``registry.py``) has already decided a value is
 NOT itself a walkable, schema'd app object (those stay refs, handled
@@ -27,6 +30,7 @@ A renderer returns one of:
     becomes a ``ref`` rather than being inlined here.
   - ``None`` -- this type isn't covered; the caller omits it entirely.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -41,6 +45,7 @@ _LAZY_EXTRAS = {
     'datetime.date': 'harness_designer.crash_dump.extras.datetime_support',
     'numpy.ndarray': 'harness_designer.crash_dump.extras.numpy_support',
 }
+
 _resolved_extras: dict[str, object] = {}
 
 
@@ -49,12 +54,15 @@ def _resolve_extra(type_key: str):
     cached_renderer = _resolved_extras.get(type_key)
     if cached_renderer is not None:
         return cached_renderer
+
     module_path = _LAZY_EXTRAS.get(type_key)
     if module_path is None:
         return None
+
     extras_module = importlib.import_module(module_path)
     resolved_renderer = extras_module.render
     _resolved_extras[type_key] = resolved_renderer
+
     return resolved_renderer
 
 
@@ -65,26 +73,28 @@ def iter_render_children(value):
     renderer = _resolve_extra(type_key)
     if renderer is None:
         return None
-    return renderer(value)
+
+    return renderer(value)  # NOQA
 
 
-@iter_render_children.register(list)
-@iter_render_children.register(tuple)
-@iter_render_children.register(set)
-@iter_render_children.register(frozenset)
+@iter_render_children.register(list)  # NOQA
+@iter_render_children.register(tuple)  # NOQA
+@iter_render_children.register(set)  # NOQA
+@iter_render_children.register(frozenset)  # NOQA
 @_check_types.do
 def _render_sequence(value):
-    return ('children', [(f'[{index}]', item) for index, item in enumerate(value)])
+    return 'children', [(f'[{index}]', item) for index, item in enumerate(value)]
 
 
 @_check_types.do
 def _key_label(key) -> str:
     if isinstance(key, bytes):
         return key.hex()
+
     return str(key)
 
 
-@iter_render_children.register(dict)
+@iter_render_children.register(dict)  # NOQA
 @_check_types.do
 def _render_mapping(value):
-    return ('children', [(_key_label(key), item) for key, item in value.items()])
+    return 'children', [(_key_label(key), item) for key, item in value.items()]

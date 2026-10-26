@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Shared block/slot storage engine behind both
+"""
+Shared block/slot storage engine behind both
 :class:`~.aabb.AABB`/:class:`~.obb.OBB`.
 
 One instance of a manager holds every object's box for a single view
@@ -76,7 +77,8 @@ TAG_OBSTACLE = 1  # schematic housing/splice/note -- a hard obstacle for wire ro
 
 
 class ArrayPool:
-    """See the module docstring for the overall design. Not used
+    """
+    See the module docstring for the overall design. Not used
     directly -- :class:`~.aabb.AABB`/:class:`~.obb.OBB` supply the row
     width and the sentinel row for their own box shape, plus the actual
     ray-test math via :meth:`_vectorized_ray_test`.
@@ -85,6 +87,7 @@ class ArrayPool:
     @_check_types.do
     def __init__(self, sentinel_row: list, block_size: int = 50,
                  dtype: type = np.float32):
+
         self._block_size = block_size
 
         # float32 is load-bearing: rows are handed straight to
@@ -96,11 +99,19 @@ class ArrayPool:
 
         self._shape = (self._block_size,) + self._sentinel_row.shape
 
-        self.reset()
+        self._blocks: list[np.ndarray] = []
+        self._refs = []
+        self._visible_refs = []
+        self._visible = np.empty((0,), dtype=bool)
+
+        self._tags = np.empty((0,), dtype=np.uint8)
+        self._free: list[int] = []
+        self._issued_in_last_block = 0
 
     @_check_types.do
     def reset(self) -> None:
-        """Drop every block and slot, back to the freshly-constructed
+        """
+        Drop every block and slot, back to the freshly-constructed
         empty state, *in place* -- the pool object itself stays the same,
         so every object/canvas already holding a reference to it keeps a
         valid one. For unloading a project: its objects are never
@@ -116,6 +127,7 @@ class ArrayPool:
         (e.g. the 3D focal target, see ``Canvas.delete_focal_target``)
         *before* calling this, and recreate it afterwards.
         """
+
         self._blocks: list[np.ndarray] = []
         self._refs = []
         self._visible_refs = []
@@ -135,7 +147,8 @@ class ArrayPool:
 
     @_check_types.do
     def _add_block(self) -> None:
-        """A fresh block, pre-filled with the sentinel row throughout --
+        """
+        A fresh block, pre-filled with the sentinel row throughout --
         every row starts "released" until :meth:`allocate` hands it out,
         so a never-yet-issued row already reads as inert with no extra
         bookkeeping.
@@ -159,7 +172,8 @@ class ArrayPool:
 
     @_check_types.do
     def allocate(self, obj: "_base_var.BaseVar") -> int:
-        """Claim a row for *obj* -- a freed slot from an earlier
+        """
+        Claim a row for *obj* -- a freed slot from an earlier
         release if one's available (reused at its own original
         address), otherwise the next never-issued row in the current
         tail block (appending a brand-new block first if that block is
@@ -172,13 +186,19 @@ class ArrayPool:
         here, for as long as it lives -- callers hold onto it, they
         never derive one themselves.
         """
+
         if self._free:
             index = self._free.pop()
         else:
-            if not self._blocks or self._issued_in_last_block >= self._block_size:
+            if (
+                not self._blocks or
+                self._issued_in_last_block >= self._block_size
+            ):
                 self._add_block()
 
-            index = ((len(self._blocks) - 1) * self._block_size) + self._issued_in_last_block
+            index = (((len(self._blocks) - 1) * self._block_size) +
+                     self._issued_in_last_block)
+
             self._issued_in_last_block += 1
 
         self._refs[index] = weakref.ref(obj)
@@ -186,7 +206,8 @@ class ArrayPool:
 
     @_check_types.do
     def release(self, index: int) -> None:
-        """Free *slot* -- call exactly once, when the object that
+        """
+        Free *slot* -- call exactly once, when the object that
         allocated it is deleted, never on a mere visibility/state
         change. Overwrites the row with the sentinel value so it can
         never satisfy a real query again, clears its weak reference,
@@ -214,14 +235,18 @@ class ArrayPool:
 
     @_check_types.do
     def update(self, index: int, values: np.ndarray) -> None:
-        """Overwrite *slot*'s own row in place with *values* (already in
-        whatever shape/units the concrete subclass's row represents)."""
+        """
+        Overwrite *slot*'s own row in place with *values* (already in
+        whatever shape/units the concrete subclass's row represents).
+        """
+
         block, slot = divmod(index, self._block_size)
         self._blocks[block][slot][:] = values
 
     @_check_types.do
     def __contains__(self, item: "_base_var.BaseVar") -> bool:
         ref = weakref.ref(item)
+
         return ref in self._refs
 
     @_check_types.do
@@ -242,20 +267,28 @@ class ArrayPool:
 
     @_check_types.do
     def set_tag(self, index: int, tag: int) -> None:
-        """Categorize *index*'s slot (one of the ``TAG_*`` constants) so a
+        """
+        Categorize *index*'s slot (one of the ``TAG_*`` constants) so a
         bulk query can select a whole category at once via
-        :meth:`rows_tagged` instead of walking objects in Python."""
+        :meth:`rows_tagged` instead of walking objects in Python.
+        """
+
         self._tags[index] = tag
 
     @_check_types.do
-    def rows_tagged(self, tag: int, exclude: list[int] | None = None) -> np.ndarray:
-        """Every row whose slot is tagged *tag*, as one new array (a copy,
+    def rows_tagged(self, tag: int,
+                    exclude: list[int] | None = None) -> np.ndarray:
+        """
+        Every row whose slot is tagged *tag*, as one new array (a copy,
         not a view -- this is a boolean-mask selection). Independent of
         visibility: a routing obstacle scan needs every such object, in
         view or not.
 
+        :param tag:
+
         :param exclude: Slot indices to leave out even if tagged.
         """
+
         mask = self._tags == tag
 
         if exclude:
@@ -266,22 +299,31 @@ class ArrayPool:
 
     @_check_types.do
     def read(self, index: int) -> np.ndarray:
-        """*slot*'s own current row."""
+        """
+        *slot*'s own current row.
+        """
+
         block, slot = divmod(index, self._block_size)
 
         return self._blocks[block][slot]
 
     @_check_types.do
     def is_visible(self, index: int) -> bool:
-        """Whether *index*'s own object was drawn in this view's current pass
-        (set by :meth:`mark_visible`, cleared by :meth:`reset_visible`)."""
+        """
+        Whether *index*'s own object was drawn in this view's current pass
+        (set by :meth:`mark_visible`, cleared by :meth:`reset_visible`).
+        """
+
         return bool(self._visible[index])
 
     @_check_types.do
     def mark_visible(self, index: int) -> None:
-        """Called from inside the owning object's own ``render()`` --
+        """
+        Called from inside the owning object's own ``render()`` --
         see the module docstring's ``_visible`` bullet. A no-op for a
-        released slot (a deleted object still mid-render)."""
+        released slot (a deleted object still mid-render).
+        """
+
         if self._refs[index] is None:
             return
 
@@ -290,27 +332,34 @@ class ArrayPool:
 
     @_check_types.do
     def reset_visible(self) -> None:
-        """Called once, at the start of this view's own render pass,
-        before any object's ``render()`` runs this frame."""
+        """
+        Called once, at the start of this view's own render pass,
+        before any object's ``render()`` runs this frame.
+        """
+
         self._visible[:] = False
         del self._visible_refs[:]
 
     @_check_types.do
     def resolve(self, index: int) -> _Union["_base_var.BaseVar", None]:
-        """The real, live object *slot* belongs to, or ``None`` if it's
+        """
+        The real, live object *slot* belongs to, or ``None`` if it's
         already been garbage collected (a defensive guard, same as
         ``objects.wire.Wire.start_sibling``/``objects.terminal.Terminal
         .wires`` already do for their own weak references elsewhere in
         this codebase -- shouldn't normally happen if every object
         properly calls :meth:`release` on its own deletion, but resolving
-        a dead weak reference is not itself an error)."""
+        a dead weak reference is not itself an error).
+        """
+
         ref = self._refs[index]
 
         return None if ref is None else ref()
 
     @_check_types.do
     def slot_at_row(self, index: int) -> tuple[int, int]:
-        """The ``(block, slot)`` pair a :meth:`snapshot` row index came
+        """
+        The ``(block, slot)`` pair a :meth:`snapshot` row index came
         from -- snapshot rows are a straight concatenation of every
         block in order, so a row index maps onto ``(block, index)`` by
         the same arithmetic the blocks are themselves sized by. Only
@@ -318,12 +367,14 @@ class ArrayPool:
         query's result back into real slots) -- everywhere else, a slot
         is passed around as the opaque index it already is.
         """
+
         block, slot = divmod(index, self._block_size)
         return block, slot
 
     @_check_types.do
     def snapshot(self) -> np.ndarray:
-        """Every row across every block, concatenated into one array --
+        """
+        Every row across every block, concatenated into one array --
         for a bulk vectorized query (a hit test, a routing obstacle
         scan) against everything currently stored, released or not
         (a released/never-issued row's own sentinel value already
@@ -331,6 +382,7 @@ class ArrayPool:
         docstring). Row ``i`` of the result is exactly
         :meth:`slot_at_row`'s own ``i``.
         """
+
         if not self._blocks:
             return np.empty((0,) + self._shape[1:], dtype=self._dtype)
 
@@ -338,7 +390,8 @@ class ArrayPool:
 
     @_check_types.do
     def snapshot_live(self) -> np.ndarray:
-        """Like :meth:`snapshot`, but only the rows whose slot is
+        """
+        Like :meth:`snapshot`, but only the rows whose slot is
         currently issued -- released/never-issued slots are dropped
         instead of being left in as inert sentinel rows. For a
         whole-pool aggregate (e.g. :meth:`.aabb.AABB.extent`) where a
@@ -350,6 +403,7 @@ class ArrayPool:
         project occupied, and that is what a caller reading the bounds
         after teardown wants.
         """
+
         rows = self.snapshot()
         if not rows.shape[0]:
             return rows
@@ -377,18 +431,29 @@ class ArrayPool:
 
     @_check_types.do
     def snapshot_visible(self) -> np.ndarray:
-        """The ``_visible`` flags in the same row order :meth:`snapshot`
+        """
+        The ``_visible`` flags in the same row order :meth:`snapshot`
         returns its bounds in -- AND the two together to restrict a
-        bulk query to only what's actually in view this frame."""
+        bulk query to only what's actually in view this frame.
+        """
+
         if not self._blocks:
             return np.empty((0,), dtype=bool)
 
         return self._visible.copy()
 
     @_check_types.do
-    def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
-                              direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
-        """Subclass hook -- given *rows* (an ``(N, ...)`` array, this
+    def _vectorized_ray_test(
+        self,
+        rows: np.ndarray,
+        origin: np.ndarray,
+        direc: np.ndarray,
+        t0: float,
+        t1: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+
+        """
+        Subclass hook -- given *rows* (an ``(N, ...)`` array, this
         pool's own row shape per entry) and a ray (*origin*/*direc*,
         world space, *direc* already normalized), test every row at
         once and return ``(hit_mask, t_vals)``: both shape ``(N,)``,
@@ -404,34 +469,49 @@ class ArrayPool:
         scalar, one-object-at-a-time math, just batched over every row
         in one call instead of looping in Python.
         """
+
         raise NotImplementedError
 
     @_check_types.do
-    def hit_test(self, origin: np.ndarray, direc: np.ndarray,
-                 t0: float = 0.0, t1: float = np.inf,
-                 visible_only: bool = True) -> list[tuple[int, float]]:
-        """Vectorized ray hit test against every stored row -- restricted
+    def hit_test(
+        self,
+        origin: np.ndarray,
+        direc: np.ndarray,
+        t0: float = 0.0,
+        t1: float = np.inf,
+        visible_only: bool = True
+    ) -> list[tuple[int, float]]:
+
+        """
+        Vectorized ray hit test against every stored row -- restricted
         to only the rows currently flagged ``_visible`` when
         *visible_only* is True (the normal case: there is no reason to
         ray-test an object that isn't even being drawn this frame).
 
         :param origin: Ray origin, world space, shape ``(3,)``.
+
         :param direc: Ray direction, world space, shape ``(3,)`` --
-            expected already normalized (matches
-            ``gl.object_picker.find_object``'s own convention).
+                      expected already normalized (matches
+                      ``gl.object_picker.find_object``'s own convention).
+
         :param t0: Minimum accepted hit distance along the ray.
+
         :param t1: Maximum accepted hit distance along the ray.
+
         :param visible_only: Restrict the test to rows flagged visible
-            this frame (see :meth:`mark_visible`/:meth:`reset_visible`).
-            Pass False to test every live row regardless of visibility.
+                             this frame
+                             (see :meth:`mark_visible`/:meth:`reset_visible`).
+                             Pass False to test every live row regardless
+                             of visibility.
 
         :returns: ``(index, t_hit)`` pairs, nearest first -- *index* is
-            this pool's own slot index, the exact same value
-            :meth:`allocate`/``__getitem__`` hand out and
-            :meth:`resolve`/:meth:`slot_at_row` accept, so a caller
-            pulls the real object straight off it via
-            ``pool.resolve(index)``.
+                  this pool's own slot index, the exact same value
+                  :meth:`allocate`/``__getitem__`` hand out and
+                  :meth:`resolve`/:meth:`slot_at_row` accept, so a caller
+                  pulls the real object straight off it via
+                  ``pool.resolve(index)``.
         """
+
         rows = self.snapshot()
         if rows.shape[0] == 0:
             return []
@@ -454,9 +534,9 @@ class ArrayPool:
         if hit_local.size == 0:
             return []
 
-        results = [
-            (int(candidate_indices[i]), float(t_vals[i]))
-            for i in hit_local
-        ]
+        results = [(int(candidate_indices[i]), float(t_vals[i]))
+                   for i in hit_local]
+
         results.sort(key=lambda pair: pair[1])
+
         return results

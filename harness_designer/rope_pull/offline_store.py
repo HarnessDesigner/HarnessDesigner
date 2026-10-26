@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """Per-chain working state for a peg-board drag.
 
 While a peg-board drag runs, each chain it touches keeps an in-memory

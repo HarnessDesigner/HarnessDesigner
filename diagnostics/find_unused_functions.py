@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """Locate module-level functions that appear to have no usages elsewhere in
 the codebase.
 

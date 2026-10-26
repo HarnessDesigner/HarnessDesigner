@@ -1,6 +1,10 @@
-"""Per-class capture-list primitives: the vocabulary used to declare, on a
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""
+Per-class capture-list primitives: the vocabulary used to declare, on a
 class body, exactly which attributes and properties a crash dump may read.
 """
+
 from __future__ import annotations
 
 from .. import check_types as _check_types
@@ -20,7 +24,8 @@ class Attr:
 
 
 def dump_property(severity: int):
-    """Mark a ``@property`` as capturable at the given severity.
+    """
+    Mark a ``@property`` as capturable at the given severity.
 
     Must be stacked below ``@property`` (closer to ``def``) -- the tag is
     stashed on the plain getter function, since a ``property`` object
@@ -31,7 +36,9 @@ def dump_property(severity: int):
         def wire_position_pegboard_id(self):
             ...
     """
+
     def decorator(func):
         func._dump_severity = severity
         return func
+
     return decorator

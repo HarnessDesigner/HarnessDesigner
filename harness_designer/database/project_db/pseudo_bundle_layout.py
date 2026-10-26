@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """Pseudo ``PJTBundleLayout`` row for an in-memory bundle waypoint.
 
 Mirrors :mod:`.pseudo_wire_layout` (``PseudoPJTWireLayout``) -- the two row

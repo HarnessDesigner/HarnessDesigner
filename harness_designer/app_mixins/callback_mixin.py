@@ -39,9 +39,13 @@ class CallbackMixin:
         return self
 
     @_check_types.do
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
+    def __exit__(self, exc_type: type[BaseException] | None,
+                 exc_val: BaseException | None,
                  exc_tb: types.TracebackType | None) -> None:
-        """Decrement the ref-count guard.  See __enter__."""
+
+        """
+        Decrement the ref-count guard.  See __enter__.
+        """
 
         self.__ref_count__ -= 1
 
@@ -151,15 +155,18 @@ class CallbackMixin:
 
         del self.__unbound_callbacks__[:]
         used_callbacks = []
+
         callbacks = self.__callbacks__[:]
         del self.__callbacks__[:]
 
         for ref in callbacks:
             if ref in used_callbacks:
                 continue
+
             cb = ref()
             if cb is None:
                 continue
+
             cb(self)
             used_callbacks.append(ref)
 

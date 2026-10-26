@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 # wire_service_loop_search.pyx
 # cython: language_level=3
 # cython: boundscheck=False

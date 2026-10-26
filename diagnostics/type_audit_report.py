@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """List the wrong calls that ``harness_designer/check_types.py`` recorded.
 
 While the app runs, ``check_types.do`` compares the annotations of every decorated function with what really arrives

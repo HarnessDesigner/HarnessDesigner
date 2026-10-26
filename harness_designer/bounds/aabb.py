@@ -7,7 +7,8 @@ from .. import check_types as _check_types
 
 
 class AABB(_array_pool.ArrayPool):
-    """Axis-aligned bounding box pool -- each row is a ``(2, 3)`` array,
+    """
+    Axis-aligned bounding box pool -- each row is a ``(2, 3)`` array,
     ``row[0]`` the min corner and ``row[1]`` the max corner.
     """
 
@@ -17,7 +18,8 @@ class AABB(_array_pool.ArrayPool):
 
     @_check_types.do
     def extent(self) -> tuple[np.ndarray, np.ndarray] | None:
-        """The box enclosing every live box in the pool: the outermost
+        """
+        The box enclosing every live box in the pool: the outermost
         min and max corner on each axis, as float64 ``(3,)`` arrays.
 
         ``None`` if the pool holds nothing usable. Skips non-finite
@@ -26,11 +28,13 @@ class AABB(_array_pool.ArrayPool):
         never written, so it would otherwise drag the extent to the
         origin.
         """
+
         rows = self.snapshot_live().astype(np.float64)
         if not rows.shape[0]:
             return None
 
         usable = np.isfinite(rows).all(axis=(1, 2)) & rows.any(axis=(1, 2))
+
         rows = rows[usable]
         if not rows.shape[0]:
             return None
@@ -38,12 +42,21 @@ class AABB(_array_pool.ArrayPool):
         return rows[:, 0, :].min(axis=0), rows[:, 1, :].max(axis=0)
 
     @_check_types.do
-    def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
-                              direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
-        """Vectorized slab test -- same math as
+    def _vectorized_ray_test(
+        self,
+        rows: np.ndarray,
+        origin: np.ndarray,
+        direc: np.ndarray,
+        t0: float,
+        t1: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+
+        """
+        Vectorized slab test -- same math as
         ``gl.object_picker._ray_intersect_aabb``, batched over every row
         in *rows* at once instead of looping in Python.
         """
+
         n = rows.shape[0]
         aabb_min = rows[:, 0, :]
         aabb_max = rows[:, 1, :]

@@ -1,4 +1,7 @@
-"""JSON serialization for one dump record, safe for embedding as the text
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+"""
+JSON serialization for one dump record, safe for embedding as the text
 content of an inert ``<script>`` element.
 
 A node/meta record is serialized on its own line (JSON Lines/NDJSON) so the
@@ -20,6 +23,7 @@ the entire line outright. Rather than lose the record (or the NaN/Infinity
 information itself, by silently coercing to ``null``), every float is
 sanitized to its quoted string form before serializing.
 """
+
 from __future__ import annotations
 
 import json
@@ -39,17 +43,24 @@ def _json_safe(value):
     if isinstance(value, float):
         if math.isnan(value):
             return 'NaN'
+
         if math.isinf(value):
             return 'Infinity' if value > 0 else '-Infinity'
+
         return value
+
     if isinstance(value, dict):
         return {key: _json_safe(item) for key, item in value.items()}
+
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
+
     return value
 
 
 @_check_types.do
 def dumps_for_script_embed(record: dict) -> str:
     safe_record = _json_safe(record)
-    return json.dumps(safe_record, separators=(',', ':')).translate(_SCRIPT_SAFE_ESCAPES)
+
+    return json.dumps(safe_record,
+                      separators=(',', ':')).translate(_SCRIPT_SAFE_ESCAPES)
