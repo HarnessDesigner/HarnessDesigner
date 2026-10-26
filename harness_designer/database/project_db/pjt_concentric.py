@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branches
     from . import pjt_concentric_layer as _pjt_concentric_layer
     from . import pjt_bundle as _pjt_bundle
+    from . import pjt_pegboard_section as _pjt_pegboard_section
     from ...objects import boot as _boot_obj
 
 
@@ -162,6 +163,41 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :rtype: :class:`PJTConcentricsTable`
         """
         return self._table
+
+    @property
+    @dump_property(severity=2)
+    @_check_types.do
+    def pegboard_section(self) -> _Union["_pjt_pegboard_section.PJTPegboardSection", None]:
+        """Return this concentric's peg-board widget row (its position and
+        size). There is at most ONE per concentric -- a connected bundle and
+        transition branch share the concentric, so they share the widget --
+        and ``None`` until the widget has been placed.
+
+        :returns: The widget row, or ``None``.
+        :rtype: :class:`_pjt_pegboard_section.PJTPegboardSection` | None
+        """
+        return self.table.db.pjt_pegboard_sections_table.for_concentric(self.db_id)
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this concentric's peg-board widget first (the widget is
+        meaningless without its concentric), then the concentric itself.
+
+        Goes through the live facade when one exists
+        (``PegboardSection.delete()`` also frees its GL textures and its hidden
+        host, and deletes the row), and only deletes the bare row when no view
+        was ever built for it this session -- the same shape as
+        ``TablePositionPegMixin.delete_table_overlay``.
+        """
+        section = self.pegboard_section
+        if section is not None:
+            section_obj = section.get_object()
+            if section_obj is not None:
+                section_obj.delete()
+            else:
+                section.delete()
+
+        super().delete()
 
     @property
     @dump_property(severity=2)

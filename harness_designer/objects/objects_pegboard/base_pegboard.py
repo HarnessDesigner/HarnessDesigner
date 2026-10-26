@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from ...database.project_db import pjt_transition as _pjt_transition
     from ...database.project_db import pjt_bundle as _pjt_bundle
+    from ...database.project_db import pjt_concentric as _pjt_concentric
     from .. import ObjectBase as _ObjectBase
     from ...ui import editor_pegboard as _editor_pegboard
     from ...database import project_db as _project_db
@@ -340,6 +341,37 @@ class BasePegboard(_objectsvar.BaseVar):
             table_row.is_visible_pegboard = True
 
         self._ensure_table_object(table_row)
+
+        self.pegboard.Refresh()
+
+    @_check_types.do
+    def concentric_section_visible(self, concentric: _Union["_pjt_concentric.PJTConcentric", None]) -> bool:
+        """Whether *concentric*'s section widget exists and is shown -- used to
+        disable the "Show Concentric Section" context-menu action while it is.
+        ``None`` (no concentric yet) is not shown."""
+        if concentric is None:
+            return False
+
+        row = concentric.pegboard_section
+        return row is not None and bool(row.is_visible_pegboard)
+
+    @_check_types.do
+    def show_concentric_section(self, concentric: "_pjt_concentric.PJTConcentric", anchor: _point.Point) -> None:
+        """Show *concentric*'s section widget -- creating its row at the
+        nearest free spot to *anchor* the first time, re-showing it after the
+        user closed it (see ``objects.pegboard_section.PegboardSection.show``)
+        -- the way :meth:`show_table` does for a wire table.
+
+        The caller picks *anchor* (a bundle has no single position of its own:
+        its midpoint) and the concentric (``handlers.concentric_handler``).
+        """
+        from ...objects import pegboard_section as _pegboard_section_obj  # NOQA -- avoid a cycle at import time
+
+        obstacles = _table_placement.obstacle_rects_from_objects(
+            self._aabb_manager.visible_objects())
+
+        _pegboard_section_obj.PegboardSection.show(
+            self.parent.mainframe, concentric, anchor, obstacles)
 
         self.pegboard.Refresh()
 

@@ -24,6 +24,10 @@
 
 `WireRoute(Wire, WireRouteMixin)` — wire-into-skeleton drag-and-drop (`BUNDLE_PLACEMENT.md` section 12); thin per-view glue around `handlers.wire_routing_drag.WireRouteMixin`, subclassing this view's own ordinary `Wire` drag handler rather than `DragHandler3D`/`WireDragMixin` directly, so ordinary bend-drag behavior is inherited unchanged and only the eligibility scan / hover-highlight / drop-tracking is layered on top. Which concrete handler (`Wire` or `WireRoute`) gets constructed for a click is decided by `objects.objects_3d.wire.Wire.handle_interaction`, not here. Its eligibility scan was dead on arrival from a naming typo in the shared `WireRouteMixin` (`_moving` vs. `moving`) — see `handlers/MAP.md`'s `wire_routing_drag.py` entry; fixed 2026-10-08 but still unverified end-to-end in the live app.
 
+#### wire_service_loop.py
+
+`WireServiceLoop(Generic)` — the drag of a wire service loop whose context menu has **Lock to Wire** checked (`objects_3d.wire_service_loop.WireServiceLoop._create_drag_handler` picks it over `Generic`; the hook is `Base3D._create_drag_handler`). The mouse delta is applied as `wire_marker.py` does (`_delta3d`, no axis lock) but only its component along the wire counts: the direction is `WireServiceLoop.slide_axle()` (the line through the two wire points either side of the loop, NOT the start-to-stop line, which is ~27 degrees off), re-read every event because it turns when the loop is carried round a bend, and the distance goes to `WireServiceLoop.slide_along_wire`, which does the work (slide, hop a free bend, stop, pass a marker). The arrows are `wire_marker_arrow.WireMarkerArrow` on a Point of the handler's own kept on the loop's centroid (the loop's `position` is its start point, off to one end); their orientation is fixed when built, so they are deleted and rebuilt when the wire turns. The move gesture, the peg-board length realization and the collision session are all `Generic`'s, inherited; no collision search runs on the slide itself.
+
 #### wire_snap.py
 
 `SnapProbeSet(handlers.snap_probe_set.SnapProbeSet)` — the 3D-view concrete subclass (no module docstring; just the per-view specialization).

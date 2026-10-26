@@ -412,6 +412,10 @@ class PJTPointPegboard(PJTEntryBase):
         if db.pjt_pegboard_tables_table.select('id', point_pegboard_id=self.db_id):
             return True
 
+        # A concentric section widget owns its own center point (2026-10-25).
+        if db.pjt_pegboard_sections_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
         for table in (
             db.pjt_housings_table, db.pjt_transitions_table,
             db.pjt_transition_branches_table, db.pjt_bundles_table,

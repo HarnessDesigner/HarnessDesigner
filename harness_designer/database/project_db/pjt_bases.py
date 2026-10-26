@@ -1232,6 +1232,7 @@ from .pjt_concentric_wire import PJTConcentricWiresTable  # NOQA
 from .pjt_transition_branch import PJTTransitionBranchesTable  # NOQA
 from .pjt_point_pegboard import PJTPointsPegboardTable  # NOQA
 from .pjt_pegboard_table import PJTPegboardTablesTable  # NOQA
+from .pjt_pegboard_section import PJTPegboardSectionsTable  # NOQA
 
 from .project import ProjectsTable  # NOQA
 
@@ -1325,6 +1326,7 @@ class PJTTables:
         self._pjt_transition_branches_table = None
         self._pjt_points_pegboard_table = None
         self._pjt_pegboard_tables_table = None
+        self._pjt_pegboard_sections_table = None
 
         self._points2d = []
         self._points3d = []
@@ -1421,6 +1423,7 @@ class PJTTables:
         self._pjt_transition_branches_table = PJTTransitionBranchesTable(self, project_id, tables, Splash)
         self._pjt_points_pegboard_table = PJTPointsPegboardTable(self, project_id, tables, Splash)
         self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
+        self._pjt_pegboard_sections_table = PJTPegboardSectionsTable(self, project_id, tables, Splash)
 
         for table in self._ordered_project_tables():
             table.load_cache()
@@ -1451,6 +1454,7 @@ class PJTTables:
             self._pjt_notes_table, self._pjt_concentrics_table, self._pjt_concentric_layers_table,
             self._pjt_concentric_wires_table, self._pjt_transition_branches_table,
             self._pjt_points_pegboard_table, self._pjt_pegboard_tables_table,
+            self._pjt_pegboard_sections_table,
         ]
 
     @_check_types.do
@@ -1924,3 +1928,13 @@ class PJTTables:
         :rtype: :class:`PJTPegboardTablesTable`
         """
         return self._pjt_pegboard_tables_table
+
+    @property
+    @_check_types.do
+    def pjt_pegboard_sections_table(self) -> PJTPegboardSectionsTable:
+        """Return the peg-board concentric section widget table.
+
+        :returns: The section widget placement table for the loaded project.
+        :rtype: :class:`PJTPegboardSectionsTable`
+        """
+        return self._pjt_pegboard_sections_table

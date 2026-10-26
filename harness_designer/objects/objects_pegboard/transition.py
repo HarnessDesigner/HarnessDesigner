@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ...database.global_db import transition_branch as _g_transition_branch
     from ...database.project_db import pjt_transition as _pjt_transition
     from ...database.project_db import pjt_transition_branch as _pjt_transition_branch
+    from ...database.project_db import pjt_concentric as _pjt_concentric
     from .. import transition as _transition
     from ...gl.shaders import program as _shader_program
 
@@ -975,6 +976,25 @@ class TransitionMenu(QtWidgets.QMenu):
         action.setEnabled(not self.selected.has_visible_table())
         action.triggered.connect(self.on_show_table)
 
+        # A concentric belongs to one BRANCH (not to the transition), so a
+        # transition with one branch gets a plain action and a transition with
+        # several a submenu that names them -- by branch_id, as the wire table's
+        # Branch column does.
+        branches = sorted(self.selected.db_obj.branches, key=lambda branch: branch.branch_id)
+
+        if len(branches) == 1:
+            action = self.addAction('Show Concentric Section')
+            action.setEnabled(not self._section_visible(branches[0]))
+            action.triggered.connect(
+                lambda checked=False, branch=branches[0]: self.on_show_concentric_section(branch))
+        elif branches:
+            submenu = self.addMenu('Show Concentric Section')
+            for branch in branches:
+                action = submenu.addAction(f'Branch {branch.branch_id}')
+                action.setEnabled(not self._section_visible(branch))
+                action.triggered.connect(
+                    lambda checked=False, branch=branch: self.on_show_concentric_section(branch))
+
         self.addSeparator()
         action = self.addAction('Select')
         action.triggered.connect(self.on_select)
@@ -994,6 +1014,28 @@ class TransitionMenu(QtWidgets.QMenu):
         ``BasePegboard.show_table``).
         """
         self.selected.show_table()
+
+    @_check_types.do
+    def _section_visible(self, branch: "_pjt_transition_branch.PJTTransitionBranch") -> bool:
+        """Whether *branch*'s concentric section widget is already showing
+        (its own concentric, or its bundle's), without making a concentric."""
+        from ...handlers import concentric_handler as _concentric_handler  # NOQA -- avoid a cycle at import time
+
+        return self.selected.concentric_section_visible(
+            _concentric_handler.find_concentric_for_branch(branch))
+
+    @_check_types.do
+    def on_show_concentric_section(self, branch: "_pjt_transition_branch.PJTTransitionBranch") -> None:
+        """Show *branch*'s concentric section widget -- making the concentric
+        and the widget's row the first time (at the nearest free spot to this
+        transition), re-showing a closed one otherwise (see
+        ``BasePegboard.show_concentric_section``)."""
+        from ...handlers import concentric_handler as _concentric_handler  # NOQA -- avoid a cycle at import time
+
+        concentric = _concentric_handler.concentric_for_branch(
+            self.selected.db_obj.table.db, branch)
+
+        self.selected.show_concentric_section(concentric, self.selected.position)
 
     @_check_types.do
     def on_select(self) -> None:

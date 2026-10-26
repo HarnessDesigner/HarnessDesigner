@@ -519,6 +519,20 @@ class Project:
         # from-scratch rebuild rather than something reload can skip).
         _reconcile_bundle_sibling_graph(self)
 
+        # Concentric section widgets: one per placed row (``pjt_pegboard_
+        # sections``, one per concentric), built once everything they sit
+        # beside exists. Unlike a wire table there is no anchor whose own
+        # peg-board view builds this, so the loader does. Not counted in
+        # ``count``: it is not part of the stored object count, and the
+        # canvases hold the facade (the row only keeps a weakref).
+        #
+        # Imported here, not at the top: the widget reaches the ``ui`` package
+        # (the wire table's host), which imports this one.
+        from . import pegboard_section as _pegboard_section  # NOQA -- avoid a cycle at import time
+
+        for section_row in ptables.pjt_pegboard_sections_table:
+            _pegboard_section.PegboardSection(mainframe, section_row)
+
         stop_time = time.time()
 
         duration = (stop_time - start_time)

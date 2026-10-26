@@ -43,6 +43,7 @@ from OpenGL import GL
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import base_pegboard as _base_pegboard
+from . import wire_drop as _wire_drop
 from ...shapes import rectangle as _rectangle
 from ...shapes import cylinder as _cylinder
 from ...geometry import angle as _angle
@@ -130,6 +131,11 @@ _BORDER_RGBA = bytes([0, 255, 0, 255])
 # (Kevin, 2026-09-16: "we need to make the thing resizable... we have
 # the green border that can be used as the resize border").
 _MIN_TABLE_SIZE_MM = 20.0
+
+# How far (logical canvas pixels) the pointer has to move after pressing a wire
+# row before the press becomes a drag of that wire out of the table -- see
+# wire_drop and Table._begin_wire_drag. Smaller than this is still a click.
+_WIRE_DRAG_THRESHOLD_PX = 6.0
 
 # Cursor shape for each (x_edge, z_edge) resize zone -- see
 # _resize_zone_at's own docstring for what these pairs mean. Diagonal
@@ -227,6 +233,16 @@ class Table(_base_pegboard.BasePegboard):
     # class-level default: set_selected can run before __init__ finishes
     _hover_cursor_active = False
     _swallow_release = False
+
+    # A wire dragged out of this table onto a concentric section widget (see
+    # wire_drop): the wire row a press landed on and where, whether that has
+    # become a drag, the section the pointer is over, and whether this table
+    # owns the canvas cursor for it. Class-level for the same reason as above.
+    _wire_press_wire_id = None
+    _wire_press_pos = None
+    _wire_drag_active = False
+    _wire_drop_target = None
+    _wire_drag_cursor_active = False
 
     # Shared across every Table instance -- bumped once per table
     # per actual render() call, never guessed/predicted from creation
@@ -418,6 +434,7 @@ class Table(_base_pegboard.BasePegboard):
         # A table deleted (closed with its anchor) while its wire is
         # still selected must not leave the highlight behind.
         self.pegboard.wire_highlight.clear(self)
+        self._end_wire_drag()
         super()._delete()
 
     @_check_types.do
@@ -1274,6 +1291,7 @@ class Table(_base_pegboard.BasePegboard):
             if self.pegboard.editor.active_handler_obj is self:
                 self.pegboard.editor.active_handler_obj = None
             self._host.table.close_column_picker()
+            self._end_wire_drag()
             self._reset_hover_cursor()
             self._clear_hover()
             self._set_resize_cursor(None)
@@ -1307,6 +1325,16 @@ class Table(_base_pegboard.BasePegboard):
                 return False
 
             self._dispatch_press(current_pos)
+
+            # A press that landed on a wire row may turn into a drag of that
+            # wire (see _begin_wire_drag); anything else (the header, a scroll
+            # bar, a click that only closed the column picker) cannot.
+            self._wire_press_wire_id = None
+            self._wire_press_pos = None
+            if self._press_target is not None:
+                self._wire_press_wire_id = self._wire_at(current_pos)
+                self._wire_press_pos = current_pos
+
             return True
 
         if interaction_type == Interaction.LEFT_DCLICK:
@@ -1335,7 +1363,15 @@ class Table(_base_pegboard.BasePegboard):
                 self._apply_resize(current_pos)
                 return True
 
+            if self._wire_drag_active:
+                self._update_wire_drag(current_pos)
+                return True
+
             if self._press_target is not None:
+                if self._wire_press_wire_id is not None and self._wire_drag_started(current_pos):
+                    self._begin_wire_drag(current_pos)
+                    return True
+
                 self._dispatch_drag_move(current_pos)
                 return True
 
@@ -1366,6 +1402,13 @@ class Table(_base_pegboard.BasePegboard):
             return False
 
         if interaction_type == Interaction.LEFT_UP:
+            if self._wire_drag_active:
+                self._finish_wire_drag(current_pos)
+                return True
+
+            self._wire_press_wire_id = None
+            self._wire_press_pos = None
+
             if self._swallow_release:
                 self._swallow_release = False
                 return True
@@ -1383,6 +1426,10 @@ class Table(_base_pegboard.BasePegboard):
             return True
 
         if interaction_type == Interaction.CANCEL:
+            if self._wire_drag_active:
+                self._end_wire_drag()
+                return True
+
             if self._resize_zone is not None:
                 # Abort the in-progress resize at whatever size/
                 # position it had reached -- matches CANCEL's own
@@ -1451,6 +1498,101 @@ class Table(_base_pegboard.BasePegboard):
 
         self._regrab_texture()
         return True
+
+    # ------------------------------------------------------------------
+    # Dragging a wire row out of this table onto a concentric section
+    # widget (see wire_drop for why this is not a Qt drag)
+    # ------------------------------------------------------------------
+
+    @_check_types.do
+    def _wire_at(self, screen_pos: _point.Point) -> bytes | None:
+        """The wire whose row is under *screen_pos* and is the table's
+        selected row. Called right after a press has been forwarded into the
+        hidden table, which selects the row it lands on. ``None`` over the
+        header, a scroll bar, empty space, or the frame.
+        """
+        table = self._host.table
+        viewport = table.viewport()
+        local = viewport.mapFrom(self._host, self._screen_to_panel_local(screen_pos).toPoint())
+
+        if not viewport.rect().contains(local):
+            return None
+
+        index = table.indexAt(local)
+        if not index.isValid():
+            return None
+
+        if not table.selectionModel().isRowSelected(index.row()):
+            return None
+
+        return table.GetSelection()
+
+    @_check_types.do
+    def _wire_drag_started(self, screen_pos: _point.Point) -> bool:
+        """Whether the pointer has moved far enough from where a wire row was
+        pressed for that to be a drag of the wire rather than a click."""
+        origin = self._wire_press_pos
+        return float(np.hypot(screen_pos.x - origin.x, screen_pos.y - origin.y)) >= _WIRE_DRAG_THRESHOLD_PX
+
+    @_check_types.do
+    def _begin_wire_drag(self, screen_pos: _point.Point) -> None:
+        """The press on a wire row has moved far enough to be a drag. End the
+        table's own press first -- at the spot it began, as the click on that
+        row it would otherwise have been, so the table is left in a clean
+        state -- then carry the wire from here."""
+        self._dispatch_release(self._wire_press_pos)
+        self._wire_drag_active = True
+        self._update_wire_drag(screen_pos)
+
+    @_check_types.do
+    def _update_wire_drag(self, screen_pos: _point.Point) -> None:
+        """Follow the drag: highlight the drop target under the pointer (and
+        un-highlight the one it left) and show a cursor that says whether the
+        wire can be dropped there."""
+        target = _wire_drop.target_at(screen_pos)
+
+        if target is not self._wire_drop_target:
+            if self._wire_drop_target is not None:
+                self._wire_drop_target.set_wire_drop_hover(False)
+
+            self._wire_drop_target = target
+            if target is not None:
+                target.set_wire_drop_hover(True)
+
+        shape = QtCore.Qt.CursorShape.ForbiddenCursor
+        if target is not None:
+            shape = QtCore.Qt.CursorShape.DragCopyCursor
+
+        self.pegboard.camera.canvas.setCursor(QtGui.QCursor(shape))
+        self._wire_drag_cursor_active = True
+
+    @_check_types.do
+    def _finish_wire_drag(self, screen_pos: _point.Point) -> None:
+        """The button was released: hand the wire to whatever drop target is
+        under the pointer (if any)."""
+        wire_id = self._wire_press_wire_id
+        target = _wire_drop.target_at(screen_pos)
+
+        self._end_wire_drag()
+
+        if target is not None:
+            target.accept_wire_drop(wire_id)
+
+    @_check_types.do
+    def _end_wire_drag(self) -> None:
+        """Drop all of the drag's state, its target highlight and its cursor.
+        Safe to call when no wire is being dragged."""
+        if self._wire_drop_target is not None:
+            self._wire_drop_target.set_wire_drop_hover(False)
+            self._wire_drop_target = None
+
+        if self._wire_drag_cursor_active:
+            self._wire_drag_cursor_active = False
+            self.pegboard.camera.canvas.unsetCursor()
+
+        self._wire_drag_active = False
+        self._wire_press_wire_id = None
+        self._wire_press_pos = None
 
     # ------------------------------------------------------------------
     # Synthetic event dispatch -- ported from the scratch prototype's

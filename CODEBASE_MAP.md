@@ -141,6 +141,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - materials.py
       - models3d.py
       - notes.py
+      - pegboard_sections.py
       - pegboard_tables.py
       - platings.py
       - points2d.py
@@ -280,6 +281,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - pjt_cpa_lock.py
       - pjt_housing.py
       - pjt_note.py
+      - pjt_pegboard_section.py
       - pjt_pegboard_table.py
       - pjt_point2d.py
       - pjt_point3d.py
@@ -338,6 +340,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - wire.py
       - wire_marker.py
       - wire_route.py
+      - wire_service_loop.py
       - wire_snap.py
     - editor_pegboard/
       - __init__.py
@@ -489,6 +492,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - bundle_diameter.py
     - bundle_layout_handler.py
     - bundle_topology.py
+    - concentric_handler.py
     - handler_base.py
     - rope_pull_handler.py
     - seal_handler.py
@@ -716,6 +720,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - housing.py
     - note.py
     - object_base.py
+    - pegboard_section.py
     - pegboard_table.py
     - project.py
     - project_model.py
@@ -747,6 +752,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - note.py
       - project_model.py
       - seal.py
+      - section.py
       - splice.py
       - table.py
       - terminal.py
@@ -776,6 +782,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - note.py
       - project_model.py
       - seal.py
+      - section.py
       - splice.py
       - table.py
       - table_placement.py
@@ -783,6 +790,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - tpa_lock.py
       - transition.py
       - wire.py
+      - wire_drop.py
       - wire_highlight.py
       - wire_layout.py
       - wire_marker.py
@@ -803,6 +811,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - note.py
       - project_model.py
       - seal.py
+      - section.py
       - splice.py
       - table.py
       - terminal.py
@@ -1362,6 +1371,16 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - __init__.py
     - dock_base.py
     - mainframe.py
+    - concentric_section/
+      - __init__.py
+      - MAP.md
+      - info_panel.py
+      - packing.py
+      - section_host.py
+      - section_model.py
+      - section_view.py
+      - section_widget.py
+      - wire_painter.py
     - datasheet_viewer/
       - __init__.py
       - viewer.py

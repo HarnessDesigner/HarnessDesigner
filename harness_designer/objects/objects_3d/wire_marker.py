@@ -150,6 +150,14 @@ class WireMarker(_base_3d.Base3D):
         except AttributeError:
             pass
 
+    @property
+    @_check_types.do
+    def end_buffer(self) -> float:
+        """How close (mm) this marker's center can come to either end of the
+        wire segment it sits on: half its own length plus 3 mm.
+        """
+        return self._buffer
+
     @staticmethod
     @_check_types.do
     def _segment_for_point(

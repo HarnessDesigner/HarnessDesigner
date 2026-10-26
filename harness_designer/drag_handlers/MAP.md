@@ -14,7 +14,7 @@ No module docstring; empty/package marker only.
 
 #### wire_marker_arrow.py
 
-`WireMarkerArrow`/`ArrowMarker3D` — the bidirectional arrow gizmo for a wire-marker drag, oriented along the wire instead of a world axis. Structurally mirrors `move_arrows.py` but takes an orientation supplied directly (`angle_for_direction`) rather than one of `'x'`/`'y'`/`'z'` — a wire marker's drag is constrained to an arbitrary (non-axis-aligned) line. Its rotation math was verified numerically against `Arrows3D`'s own hardcoded per-axis quaternions before use — `shapes.arrow.create_vbo`'s mesh points along local +X, NOT local -Z like `geometry.angle.Angle.from_points` assumes for every other object in the codebase, so `from_points` cannot be reused here without producing a mirrored/incorrect orientation.
+`WireMarkerArrow`/`ArrowMarker3D` — the bidirectional arrow gizmo for a wire-marker drag, oriented along the wire instead of a world axis. Structurally mirrors `move_arrows.py` but takes an orientation supplied directly (`angle_for_direction`) rather than one of `'x'`/`'y'`/`'z'` — a wire marker's drag is constrained to an arbitrary (non-axis-aligned) line. Its rotation math was verified numerically against `Arrows3D`'s own hardcoded per-axis quaternions before use — `shapes.arrow.create_vbo`'s mesh points along local +X, NOT local -Z like `geometry.angle.Angle.from_points` assumes for every other object in the codebase, so `from_points` cannot be reused here without producing a mirrored/incorrect orientation. Also used by the wire-locked service-loop drag (`editor_3d/wire_service_loop.py`), which has to rebuild it when a bend turns the wire: the arrow's orientation is fixed at construction and it follows only the Point it is given.
 
 ## FOLDERS
 

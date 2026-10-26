@@ -62,7 +62,7 @@ DDL/seed for `pjt_concentric_wires`, per-project concentric-cable wire-membershi
 
 #### concentrics.py
 
-DDL/seed for `pjt_concentrics`, per-project concentric-cable group rows.
+DDL/seed for `pjt_concentrics`, per-project concentric-cable group rows. A row is attached to a bundle, to a transition branch, or -- when a bundle and a transition branch are connected -- to BOTH (they share the one row and the one `pjt_pegboard_sections` widget), so `bundle_id` and `transition_branch_id` are both nullable (`bundle_id` was NOT NULL until 2026-10-25, which made `handlers.transition_handler._create_branch_concentric`'s `insert(None, branch_id)` impossible); that at least one of them is set is not enforced in SQL or in `PJTConcentricsTable.insert`. PITFALL: `SQLTable.update_fields` only ADDS missing columns, so a project database created before the 2026-10-25 change keeps `bundle_id NOT NULL` until it is re-created. Concentric design: `CONCENTRIC_TWIST_DESIGN.md` (repo root).
 
 #### covers.py
 
@@ -139,6 +139,10 @@ DDL/seed for the `models3d` file/resource table (3D model storage). Its `point3d
 #### notes.py
 
 DDL/seed for `pjt_notes`, per-project free-floating note rows.
+
+#### pegboard_sections.py
+
+DDL for `pjt_pegboard_sections` (NEW 2026-10-25): the placement of a concentric-twist cross-section widget (`ui/concentric_section/`) on the Peg Board, drawn into a buffer and shown as a GL texture the same way the floating wire tables are. Columns: `concentric_id` (UNIQUE, NOT NULL -- exactly ONE widget per concentric, so a connected bundle and transition branch, which share one concentric, share one widget), `point_pegboard_id` (the widget's CENTER; unlike `pegboard_tables.py` this row OWNS its own `pjt_points_pegboard` row rather than sharing an anchor's), `size` (`str((width, height))` in world mm, same convention as `pegboard_tables.size`) and `is_visible_pegboard`. What the widget is attached to is not stored here -- it is whatever the concentric's `bundle_id` / `transition_branch_id` point at. No facade object or GL code reads this table yet.
 
 #### pegboard_tables.py
 

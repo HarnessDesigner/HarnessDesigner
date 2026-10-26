@@ -14,6 +14,10 @@ Defines `DockWidget(QtWidgets.QDockWidget)` (adds `Raise()`/`Show(flag)` conveni
 
 ## FOLDERS
 
+#### concentric_section/
+
+The concentric-twist cross-section widget (NEW 2026-10-25): a custom-drawn cross-section of a bundle on the left, a wire-information pane on the right, a draggable sash between them; drawn into an RGBA buffer for use as a GL texture on the Peg Board, like the floating wire tables. See `concentric_section/MAP.md` and `CONCENTRIC_TWIST_DESIGN.md` (repo root).
+
 #### datasheet_viewer/
 
 Single-file viewer dock (not covered in detail by this documentation pass).

@@ -53,7 +53,7 @@ space via the inverse MVP matrix. As of the current `canvas_pegboard/mouse_handl
 by reading it directly), pegboard's mouse handler is now just as thin as the other two editors'
 and goes through this same shared module — the old pegboard-only `_find_anchor_at_point` AABB
 hit-test MEMORY.md once flagged as the one remaining gap here is gone; all three editors now pick
-through `object_picker` exclusively.
+through `object_picker` exclusively. `_render_id_of` (the tie-break between overlapping floating panels) returns the render id of a peg-board wire table AND of a concentric section widget (`is_pegboard_table` / `is_pegboard_section`); both draw from `Table._render_id_counter`.
 
 #### vbo.py
 

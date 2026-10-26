@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from ...ui.dialogs.housing_editor import housing_editor as _housing_editor
     from ...ui.dialogs.transition_editor import dialog as _transition_editor
     from ...gl import shaders as _shaders
+    from ...drag_handlers import base as _drag_base
     from ...bounds import aabb as _aabb
     from ...bounds import obb as _obb
     from ...ui.editor_3d import editor_3d as _editor_3d
@@ -392,12 +393,22 @@ class Base3D(_objectsvar.BaseVar):
             self.parent.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
-            from ...drag_handlers.editor_3d import generic as _drag_generic  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> this module)
-
-            self._active_handler = _drag_generic.Generic(self.editor3d.editor, self.parent)
+            self._active_handler = self._create_drag_handler()
             return True
 
         return False
+
+    @_check_types.do
+    def _create_drag_handler(self) -> "_drag_base.DragHandlerBase":
+        """The drag handler :meth:`handle_interaction` arms when a press on
+        this already-selected object is a drag. The plain single-position
+        drag by default; an object whose drag is not a plain translation
+        overrides this (a wire service loop locked to its wire slides along
+        it instead -- see ``WireServiceLoop._create_drag_handler``).
+        """
+        from ...drag_handlers.editor_3d import generic as _drag_generic  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> this module)
+
+        return _drag_generic.Generic(self.editor3d.editor, self.parent)
 
     @_check_types.do
     def _handle_rotation_interaction(

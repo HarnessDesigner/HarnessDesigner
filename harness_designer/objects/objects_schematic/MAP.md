@@ -60,6 +60,10 @@ One file per harness part, same `BaseSchematic(parent, db_obj)` shape.
 
 One file per harness part, same `BaseSchematic(parent, db_obj)` shape.
 
+#### section.py
+
+Inert placeholder for the concentric section widget (NEW 2026-10-25) -- it has no schematic presence; same shape as this directory's `table.py`.
+
 #### splice.py
 
 One file per harness part, same `BaseSchematic(parent, db_obj)` shape.

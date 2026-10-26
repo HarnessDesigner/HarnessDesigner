@@ -183,10 +183,8 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def bundle(self) -> "_pjt_bundle.PJTBundle":
-        """Return the bundle.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def bundle(self) -> _Union["_pjt_bundle.PJTBundle", None]:
+        """Return the bundle, or ``None`` when nothing is attached yet.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_bundle.PJTBundle`
@@ -211,10 +209,8 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
     @property
     @dump_property(severity=2)
     @_check_types.do
-    def concentric(self) -> "_pjt_concentric.PJTConcentric":
-        """Return the concentric.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def concentric(self) -> _Union["_pjt_concentric.PJTConcentric", None]:
+        """Return this branch's own concentric, or ``None`` when it has none.
 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric.PJTConcentric`

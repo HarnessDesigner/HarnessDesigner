@@ -142,7 +142,8 @@ def _render_id_of(wrapped: "_base_var.BaseVar") -> int:
     the correct way to decide whether reading it even makes sense, per
     this codebase's own "no getattr/hasattr for control flow" rule.
     """
-    if wrapped.parent.is_pegboard_table:
+    # a concentric section widget stacks against the wire tables by the same counter
+    if wrapped.parent.is_pegboard_table or wrapped.parent.is_pegboard_section:
         return wrapped.render_id
 
     return 0

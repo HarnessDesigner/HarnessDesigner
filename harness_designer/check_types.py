@@ -64,9 +64,9 @@ when the process ends (``atexit`` for the app, a ``multiprocessing`` finalizer
 for its worker processes). Both writes use the look-up-then-add rule above, so
 the app, its worker processes and every session add to the same file without
 repeating a row. A process that is killed, or a worker that ends with
-``os._exit``, loses at most the last interval. If the file cannot be written the data stays in memory and
-the dump is retried on the next tick. A forked child (not Windows) is not
-checked: its records would only repeat its parent's.
+``os._exit``, loses at most the last interval. If the file cannot be written
+the data stays in memory and the dump is retried on the next tick. A forked
+child (not Windows) is not checked: its records would only repeat its parent's.
 
 This module is deliberately standalone (standard library only, no package
 imports) so it can be imported from anywhere without import cycles, and nothing
@@ -157,6 +157,7 @@ def _db_path():
         return path
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     return os.path.join(root, 'type_audit.sqlite3')
 
 
@@ -193,7 +194,8 @@ class _FuncState:
     __slots__ = (
         'module', 'qualname', 'params', 'file', 'line',
         'positional', 'first', 'keywords', 'func', 'constructor',
-        'calls', 'yields', 'trees', 'verdicts', 'signature', 'name', 'rows', 'folded', 'seen', 'distinct', 'db_id',
+        'calls', 'yields', 'trees', 'verdicts', 'signature', 'name', 'rows',
+        'folded', 'seen', 'distinct', 'db_id',
     )
 
     def __init__(self, module, qualname, params, file, line, positional, first, keywords, func):
@@ -203,36 +205,43 @@ class _FuncState:
         self.file = file
         self.line = line
 
-        # positional parameter names (receiver included), where the checked ones start, and the names a keyword can use
+        # positional parameter names (receiver included), where the checked
+        # ones start, and the names a keyword can use
         self.positional = positional
         self.first = first
         self.keywords = keywords
 
-        # the function itself, for its annotations and its signature; they are read on the first checked call
+        # the function itself, for its annotations and its signature;
+        # they are read on the first checked call
         self.func = func
 
-        # an __init__ builds the object and returns nothing (and by project convention has no return annotation): its
+        # an __init__ builds the object and returns nothing (and by project
+        # convention has no return annotation): its
         # return is neither checked nor reported
         self.constructor = func.__name__ == '__init__'
 
         self.calls = 0
         self.yields = 0
 
-        # slot -> the hint as a tree; (slot, type or (type, contents)) -> 0 fits, 1 does not fit, 2 the contents decide
+        # slot -> the hint as a tree; (slot, type or (type, contents)) -> 0 fits,
+        # 1 does not fit, 2 the contents decide
         self.trees = {}
         self.verdicts = {}
 
-        # (parameters, return type) of the annotated signature as text, and the name the function is stored under; both
+        # (parameters, return type) of the annotated signature as text,
+        # and the name the function is stored under; both
         # worked out when the first row is written
         self.signature = None
         self.name = None
 
-        # one tuple per wrong call: (caller, file, line, calling signature, what it returned). Only ever appended to;
+        # one tuple per wrong call: (caller, file, line, calling signature,
+        # what it returned). Only ever appended to;
         # `folded` is how many of them are already in the in-memory database
         self.rows = []
         self.folded = 0
 
-        # (caller, file, calling signature, what it returned) of every row: a repeat in this process is not looked up again
+        # (caller, file, calling signature, what it returned) of every row:
+        # a repeat in this process is not looked up again
         self.seen = set()
 
         # (slot, type that arrived) -> how many rows exist for it
@@ -241,7 +250,10 @@ class _FuncState:
 
 
 class _Busy(threading.local):
-    """Per-thread flag set while a type is being named, so naming it cannot recurse into the recorder."""
+    """
+    Per-thread flag set while a type is being named,
+    so naming it cannot recurse into the recorder.
+    """
 
     on = False
 
@@ -264,26 +276,33 @@ def _fail(where, exc):
 
     try:
         sys.__stderr__.write(message + '\n')
-    except Exception:
+    except Exception:  # NOQA
         pass
 
 
-# frames in this file are the recorder's own; the call site is the first frame outside it
+# frames in this file are the recorder's own;
+# the call site is the first frame outside it
 _OWN_FILE = _fail.__code__.co_filename
 
 
-# ------------------------------------------------------------------ types -> text
+# -------- types -> text
 
 def _key_of(value, depth):
     t = type(value)
-    if depth > 0 and (t is list or t is tuple or t is dict or t is set or t is frozenset):
+    if (
+        depth > 0 and
+        (t is list or t is tuple or t is dict or t is set or t is frozenset)
+    ):
         return t, _shape(value, depth - 1)
 
     return t
 
 
 def _shape(value, depth):
-    """What a container holds, as hashable data: a tuple's items by position, otherwise the SET of types sampled from it."""
+    """
+    What a container holds, as hashable data: a tuple's items by position,
+    otherwise the SET of types sampled from it.
+    """
 
     t = type(value)
     if t is tuple:
@@ -297,7 +316,8 @@ def _shape(value, depth):
         return None
 
     if t is dict:
-        # the first entries, then the last one (cheap on a dict), keys and values kept apart
+        # the first entries, then the last one (cheap on a dict),
+        # keys and values kept apart
         key_types = set()
         value_types = set()
         taken = 0
@@ -344,7 +364,10 @@ def _shape(value, depth):
 
 
 def _call_mark(t):
-    """``__call__`` when the class or a base of it defines one (so an instance can be called), ``__nocall__`` when not."""
+    """
+    ``__call__`` when the class or a base of it defines one
+    (so an instance can be called), ``__nocall__`` when not.
+    """
 
     for base in t.__mro__:
         if '__call__' in vars(base):
@@ -371,7 +394,7 @@ def _render(key):
 
     if t is tuple:
         if not shape:
-            return base + '[()]'
+            return f'{base}[()]'
 
         parts = []
         for item in shape:
@@ -380,36 +403,45 @@ def _render(key):
             else:
                 parts.append(_render(item))
 
-        return base + '[' + ', '.join(parts) + ']'
+        return f'{base}[{", ".join(parts)}]'
 
     if shape is None:
         return base
 
     if t is dict:
-        return base + '[' + _render_union(shape[0]) + ', ' + _render_union(shape[1]) + ']'
+        return f'{base}[{_render_union(shape[0])}, {_render_union(shape[1])}]'
 
-    return base + '[' + _render_union(shape) + ']'
+    return f'{base}[{_render_union(shape)}]'
 
 
-# ------------------------------------------------------------------ the annotation check
+# ----------------- the annotation check
 #
-# A hint is turned into a small tree of _Hint nodes once per function and slot, on the first checked call (when the module is
-# complete):
+# A hint is turned into a small tree of _Hint nodes once per function and slot,
+# on the first checked call (when the module is complete):
 #
 #   any  none  unknown  ellipsis  callable  type
-#   cls    .cls = a class; takes subclasses, registered virtual subclasses, int for float ...
-#   name   .name = a quoted name that could not be imported at run time: matched by class name against the bases, then
-#          against every class a loaded module has under that name (so an alias such as `ConfigEditor3DType = ConfigDB` works)
-#   alias  .name = a bare `_Name` that could not be imported: an import alias (`ObjectBase as _ObjectBase`), so it is matched
-#          as `Name`, and anything that does not match is left alone because what the alias stands for is not known
+#   cls    .cls = a class; takes subclasses, registered virtual
+#          subclasses, int for float ...
+#   name   .name = a quoted name that could not be imported at run time:
+#            matched by class name against the bases, then against every
+#            class a loaded module has under that name (so an alias such
+#            as `ConfigEditor3DType = ConfigDB` works)
+#   alias  .name = a bare `_Name` that could not be imported:
+#            an import alias (`ObjectBase as _ObjectBase`), so it is matched
+#            as `Name`, and anything that does not match is left alone because
+#            what the alias stands for is not known
 #   union  .args = the members
-#   gen    .cls = list / dict / tuple / Iterable ..., .args = what it holds: list[int], dict[str, X], tuple[int, ...] ...
+#   gen    .cls = list / dict / tuple / Iterable ..., .args = what it holds:
+#            list[int], dict[str, X], tuple[int, ...] ...
 #
-# _accepts() then answers for the type (or type + sampled contents) that arrived: 2 it fits, 1 cannot tell, 0 it does not
-# fit. Only 0 is ever recorded, so whatever cannot be understood is never reported.
+# _accepts() then answers for the type (or type + sampled contents) that arrived:
+#   2 it fits, 1 cannot tell, 0 it does not fit. Only 0 is ever recorded, so
+#   whatever cannot be understood is never reported.
 
 class _Hint:
-    """One node of a hint tree; `kind` says which of the shapes above it is."""
+    """
+    One node of a hint tree; `kind` says which of the shapes above it is.
+    """
 
     __slots__ = ('kind', 'cls', 'name', 'args')
 
@@ -429,9 +461,10 @@ _TYPE_OF = _Hint('type')
 _MISSING = object()
 
 # typing names that mean nothing without the machinery behind them
-_VAGUE_NAMES = frozenset((
-    'Self', 'LiteralString', 'Never', 'NoReturn', 'TypeVar', 'ParamSpec', 'Concatenate', 'TypeGuard', 'TypeAlias', 'Unpack',
-))
+_VAGUE_NAMES = frozenset(('Self', 'LiteralString', 'Never', 'NoReturn',
+                          'TypeVar', 'ParamSpec', 'Concatenate', 'TypeGuard',
+                          'TypeAlias', 'Unpack'))
+
 _YIELDING = frozenset(('Iterator', 'Iterable', 'Generator'))
 
 _SIGNATURES = {}
@@ -447,11 +480,15 @@ def _dotted(node):
         return None
 
     parts.append(node.id)
+
     return '.'.join(reversed(parts))
 
 
 def _lookup(dotted, scope):
-    """What a dotted name means in the function's module (or builtins); _MISSING when it is not there at run time."""
+    """
+    What a dotted name means in the function's module (or builtins);
+    _MISSING when it is not there at run time.
+    """
 
     first, _, rest = dotted.partition('.')
     found = scope.get(first, _MISSING)
@@ -490,14 +527,15 @@ def _tree_of(ann, scope, depth):
         return _tree_of_text(ann.__forward_arg__, scope, depth + 1)
 
     if isinstance(ann, typing.NewType):
-        return _tree_of(ann.__supertype__, scope, depth + 1)
+        return _tree_of(ann.__supertype__, scope, depth + 1)  # NOQA
 
     origin = typing.get_origin(ann)
     if origin is not None:
         args = typing.get_args(ann)
 
         if origin is typing.Union or origin is types.UnionType:
-            return _Hint('union', args=tuple(_tree_of(arg, scope, depth + 1) for arg in args))
+            return _Hint('union',
+                         args=tuple(_tree_of(arg, scope, depth + 1) for arg in args))
 
         if origin is typing.Annotated:
             return _tree_of(args[0], scope, depth + 1)
@@ -509,7 +547,8 @@ def _tree_of(ann, scope, depth):
             return _TYPE_OF
 
         if isinstance(origin, type):
-            return _Hint('gen', origin, args=tuple(_tree_of(arg, scope, depth + 1) for arg in args))
+            return _Hint('gen', origin,
+                         args=tuple(_tree_of(arg, scope, depth + 1) for arg in args))
 
         return _UNKNOWN
 
@@ -545,7 +584,9 @@ def _tree_of_node(node, scope, depth):
         return _UNKNOWN
 
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-        return _Hint('union', args=(_tree_of_node(node.left, scope, depth + 1), _tree_of_node(node.right, scope, depth + 1)))
+        return _Hint('union',
+                     args=(_tree_of_node(node.left, scope, depth + 1),
+                           _tree_of_node(node.right, scope, depth + 1)))
 
     if isinstance(node, (ast.Name, ast.Attribute)):
         dotted = _dotted(node)
@@ -580,10 +621,13 @@ def _tree_of_node(node, scope, depth):
         last = base.rpartition('.')[2]
 
         if last == 'Union' or last == '_Union':
-            return _Hint('union', args=tuple(_tree_of_node(element, scope, depth + 1) for element in elements))
+            return _Hint('union',
+                         args=tuple(_tree_of_node(element, scope, depth + 1)
+                                    for element in elements))
 
         if last == 'Optional':
-            return _Hint('union', args=(_tree_of_node(elements[0], scope, depth + 1), _NONE))
+            return _Hint('union',
+                         args=(_tree_of_node(elements[0], scope, depth + 1), _NONE))
 
         if last == 'Annotated':
             return _tree_of_node(elements[0], scope, depth + 1)
@@ -599,7 +643,8 @@ def _tree_of_node(node, scope, depth):
 
         found = _lookup(base, scope)
         if found is _MISSING:
-            # the contents of a hint whose class cannot be imported here cannot be checked
+            # the contents of a hint whose class cannot be
+            # imported here cannot be checked
             return _Hint('name', name=last)
 
         origin = typing.get_origin(found)
@@ -607,7 +652,9 @@ def _tree_of_node(node, scope, depth):
             origin = found
 
         if isinstance(origin, type):
-            return _Hint('gen', origin, args=tuple(_tree_of_node(element, scope, depth + 1) for element in elements))
+            return _Hint('gen', origin,
+                         args=tuple(_tree_of_node(element, scope, depth + 1)
+                                    for element in elements))
 
         return _UNKNOWN
 
@@ -615,7 +662,10 @@ def _tree_of_node(node, scope, depth):
 
 
 def _wants_contents(tree):
-    """True when the hint says something about what is inside a container (list[int], not just list)."""
+    """
+    True when the hint says something about what is inside a
+    container (list[int], not just list).
+    """
 
     if tree.kind == 'gen':
         return bool(tree.args)
@@ -635,7 +685,8 @@ def _accepts_class(cls, t):
     try:
         if issubclass(t, cls):
             return 2
-    except Exception:
+
+    except Exception:  # NOQA
         # a Protocol that is not runtime-checkable, a TypedDict ...
         return 1
 
@@ -645,8 +696,12 @@ def _accepts_class(cls, t):
     if cls is complex and issubclass(t, (int, float)):
         return 2
 
-    # numpy scalars convert to the plain number types, so they are not held against a number hint
-    if t.__module__.startswith('numpy') and (cls is int or cls is float or cls is complex or cls is bool):
+    # numpy scalars convert to the plain number types,
+    # so they are not held against a number hint
+    if (
+        t.__module__.startswith('numpy') and
+        (cls is int or cls is float or cls is complex or cls is bool)
+    ):
         return 1
 
     return 0
@@ -670,7 +725,8 @@ def _accepts_contents(origin, args, t, shape):
             if len(args) == 1 or (len(args) == 2 and args[1].kind == 'ellipsis'):
                 return _worst(args[0], items)
 
-            # a fixed shape: the recorder keeps only the first few items of a long tuple
+            # a fixed shape: the recorder keeps only the
+            # first few items of a long tuple
             if len(items) != len(shape):
                 if len(args) <= _MAX_TUPLE:
                     return 0
@@ -704,7 +760,8 @@ def _accepts_contents(origin, args, t, shape):
 
         return 2
 
-    # list / set / frozenset: one argument, or the project's list[a, b, c] which means "any of these"
+    # list / set / frozenset: one argument, or the project's list[a, b, c]
+    # which means "any of these"
     tree = args[0]
     if len(args) > 1:
         tree = _Hint('union', args=args)
@@ -713,17 +770,20 @@ def _accepts_contents(origin, args, t, shape):
 
 
 def _named_classes(name):
-    """Every class a loaded module has under `name`: how a name from a TYPE_CHECKING-only import is found at run time.
+    """
+    Every class a loaded module has under `name`:
+      how a name from a TYPE_CHECKING-only import is found at run time.
 
-    `ConfigEditor3DType = ConfigDB` at run time has a different name from the class it stands for, so matching the name
-    against the bases of what arrived is not enough.
+    `ConfigEditor3DType = ConfigDB` at run time has a different name from the
+    class it stands for, so matching the name against the bases of what
+    arrived is not enough.
     """
 
     found = []
     for module in list(sys.modules.values()):
         try:
             item = vars(module).get(name)
-        except Exception:
+        except Exception:  # NOQA
             continue
 
         if isinstance(item, type) and item not in found:
@@ -733,7 +793,11 @@ def _named_classes(name):
 
 
 def _accepts(tree, key):
-    """2: what arrived fits the hint. 1: cannot tell. 0: it does not fit."""
+    """
+    2: what arrived fits the hint.
+    1: cannot tell.
+    0: it does not fit.
+    """
 
     if isinstance(key, type):
         t = key
@@ -821,17 +885,26 @@ def _slot_tree(state, slot):
 
         if slot == '<yield>':
             # Iterator[X] / Iterable[X] / Generator[X, ...]: the items are X
-            if tree.kind == 'gen' and tree.cls.__name__ in _YIELDING and tree.args:
+            if (
+                tree.kind == 'gen' and
+                tree.cls.__name__ in _YIELDING and
+                tree.args
+            ):
                 tree = tree.args[0]
             else:
                 tree = _UNKNOWN
 
     state.trees[slot] = tree
+
     return tree
 
 
 def _first_verdict(state, slot, t):
-    """0: any value of this type fits. 1: none does. 2: the type fits but the hint also names contents."""
+    """
+    0: any value of this type fits.
+    1: none does.
+    2: the type fits but the hint also names contents.
+    """
 
     _busy.on = True
     try:
@@ -839,10 +912,14 @@ def _first_verdict(state, slot, t):
         if _accepts(tree, t) == 0:
             return 1
 
-        if _wants_contents(tree) and (t is list or t is tuple or t is dict or t is set or t is frozenset):
+        if (
+            _wants_contents(tree) and
+            (t is list or t is tuple or t is dict or t is set or t is frozenset)
+        ):
             return 2
 
         return 0
+
     finally:
         _busy.on = False
 
@@ -859,7 +936,10 @@ def _judge(state, slot, key):
 
 
 def _bad_slot(state, slot, value):
-    """What arrived in the slot as a key (a type, or a type with its contents) when it does not fit the hint; else None."""
+    """
+    What arrived in the slot as a key (a type, or a type with its contents)
+    when it does not fit the hint; else None.
+    """
 
     t = type(value)
     verdicts = state.verdicts
@@ -887,7 +967,10 @@ def _bad_slot(state, slot, value):
 
 
 def _verify_args(state, args, kwargs):
-    """[(slot, key)] for the parameters whose value does not fit the hint; None when they all do."""
+    """
+    [(slot, key)] for the parameters whose value does not fit the hint;
+    None when they all do.
+    """
 
     bad = None
     names = state.positional
@@ -920,10 +1003,12 @@ def _verify_args(state, args, kwargs):
     return bad
 
 
-# ------------------------------------------------------------------ recording a mismatch
+# ------------- recording a mismatch
 
 def _call_keys(state, args, kwargs):
-    """(parameter, key) for everything that was passed, in call order."""
+    """
+    (parameter, key) for everything that was passed, in call order.
+    """
 
     keys = []
     names = state.positional

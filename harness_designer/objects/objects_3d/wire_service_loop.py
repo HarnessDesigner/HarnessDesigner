@@ -26,6 +26,8 @@ if TYPE_CHECKING:
     from .. import wire_service_loop as _wire_service_loop
     from .. import wire as _wire
     from .. import wire_marker as _wire_marker
+    from ...database.project_db import pjt_point3d as _pjt_point3d
+    from ...drag_handlers import base as _drag_base
     from ... import ui as _ui
     from ...gl import vbo as _vbo_base
     from ...shapes import text as _text
@@ -39,6 +41,11 @@ Config = _config.Config.editor_3d
 # slides along the wire, where a long slide multiplies the work.
 _ROLL_STEP_DEG = 2.0
 _SLIDE_ROLL_STEP_DEG = 6.0
+
+# Most bends one slide (the distance one mouse event asks for) will carry the
+# loop round: the distance is only a few mm, so this only ever matters for a
+# wire with waypoints packed closer together than the loop is long.
+_MAX_SLIDE_HOPS = 8
 
 
 @_check_types.do
@@ -196,6 +203,10 @@ class WireServiceLoop(_base_3d.Base3D):
             # Set by begin_move_session/cleared by end_move_session -- see
             # both, and _resolve_collision.
             self._move_session: _MoveSession | None = None
+            # Whether a drag slides the loop along its wire instead of moving
+            # it freely (the context menu's "Lock to Wire"). Not saved: off
+            # again when the project is reloaded.
+            self._lock_to_wire = False
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
@@ -882,6 +893,364 @@ class WireServiceLoop(_base_3d.Base3D):
         editor.active_handler_obj = self
         self.editor3d.Refresh(False)
 
+    @property
+    @_check_types.do
+    def lock_to_wire(self) -> bool:
+        """Whether a drag slides this loop along its wire (True) or moves it
+        freely (False, the default). Not saved with the project.
+        """
+        return self._lock_to_wire
+
+    @lock_to_wire.setter
+    @_check_types.do
+    def lock_to_wire(self, value: bool) -> None:
+        self._lock_to_wire = value
+
+    @_check_types.do
+    def _create_drag_handler(self) -> "_drag_base.DragHandlerBase":
+        """The slide along the wire when locked to it (and the wires are
+        there to slide along), the ordinary free drag otherwise.
+        """
+        if self._lock_to_wire and self.can_roll_on_wire:
+            from ...drag_handlers.editor_3d import wire_service_loop as _drag_wire_service_loop  # NOQA -- avoid a cycle at import time
+
+            return _drag_wire_service_loop.WireServiceLoop(self.editor3d.editor, self.parent)
+
+        return super()._create_drag_handler()
+
+    @_check_types.do
+    def slide_axle(self) -> np.ndarray | None:
+        """Unit direction of the wire the loop sits in, pointing from the wire's
+        start toward its stop; None while there are no wires on both sides.
+        It turns whenever the loop is carried round a bend (:meth:`slide_along_wire`).
+        """
+        roll = self.begin_wire_roll()
+        if roll is None:
+            return None
+
+        return roll.axis
+
+    @_check_types.do
+    def _wires_either_side(self) -> tuple["_wire.Wire", "_wire.Wire"] | None:
+        """(the wire that ends at the loop's stop point, the wire that starts
+        at its start point); None unless both are there. The first is the
+        side the wire comes from, the second the side it goes on to (see
+        :meth:`_wire_points`).
+        """
+        wire_a = None
+        wire_b = None
+
+        for w in self._attached_wires():
+            if w.obj3d.stop_position.db_id == self._p2.db_id:
+                wire_a = w
+
+            if w.obj3d.start_position.db_id == self._p1.db_id:
+                wire_b = w
+
+        if wire_a is None or wire_b is None:
+            return None
+
+        return wire_a, wire_b
+
+    @_check_types.do
+    def slide_along_wire(self, distance: float) -> None:
+        """Slide the loop *distance* mm along the wire it sits in (positive
+        toward the wire's stop end, negative toward its start), carrying it
+        round bends and stopping where it must.
+
+        The loop is a rigid body, so a slide moves its start point, its stop
+        point and its mesh by the same distance along the wire, nothing else.
+        With *gap* = half the loop's own length along the wire:
+
+        - It slides until its leading end is *gap* from the next point of the
+          wire (a waypoint, or the wire's end). A wire's end stops it there:
+          the wire in front of the loop is never allowed to shrink to nothing.
+        - At a waypoint that is free to move it HOPS (:meth:`_hop`): it is
+          carried round the bend onto the next stretch and the waypoint passes
+          to the wire behind it. At a waypoint shared with a cavity, terminal
+          or splice (or another wire, or a bundle) it stops, as it does if the
+          next stretch is too short to hold it.
+        - A wire marker that gets in its way is passed (:meth:`_pass_markers`).
+
+        No collision search runs: the slide the user drags is the slide the
+        loop gets.
+        """
+        remaining = distance
+
+        for _ in range(_MAX_SLIDE_HOPS + 1):
+            if abs(remaining) < 1e-9:
+                break
+
+            remaining = self._slide_once(remaining)
+
+        self.editor3d.Refresh(False)
+
+    @_check_types.do
+    def _slide_once(self, remaining: float) -> float:
+        """Slide along the stretch of wire the loop is on, as far as it can
+        go, then hop the bend at the end of it if there is one it may hop.
+
+        :returns: How much of *remaining* is still to be slid after a hop
+            (carry on with it on the new stretch); 0.0 when the slide is done
+            or the loop is stopped.
+        """
+        wires = self._wires_either_side()
+        roll = self.begin_wire_roll()
+        if wires is None or roll is None:
+            return 0.0
+
+        wire_a, wire_b = wires
+        before, after = self._wire_points(self._attached_wires())
+
+        axis = roll.axis
+        p1 = roll.start
+
+        rear = float(np.dot(self._implied_stop() - p1, axis))
+        gap = abs(rear) / 2.0
+
+        forward = remaining > 0.0
+        if forward:
+            room = float(np.dot(after - p1, axis)) - gap
+        else:
+            room = rear - float(np.dot(before - p1, axis)) - gap
+
+        move = min(abs(remaining), max(room, 0.0))
+        if move > 0.0:
+            if forward:
+                self._translate_along(axis * move)
+            else:
+                self._translate_along(axis * -move)
+
+        left = abs(remaining) - move
+        if left < 1e-9:
+            return 0.0
+
+        if not self._hop(forward, wire_a, wire_b):
+            return 0.0
+
+        if forward:
+            return left
+
+        return -left
+
+    @_check_types.do
+    def _translate_along(self, offset: np.ndarray) -> None:
+        """Move the loop by *offset* (a vector along the wire), the mesh
+        angle untouched, and let any marker it has reached go past.
+        """
+        position = self._position.as_numpy.astype(np.float64) + offset
+        quat = np.array(self._angle.as_quat_float, dtype=np.float64)
+
+        self._apply_resolved(position, quat)
+        self._sync_stop_position()
+        self._last_centroid = self._world_centroid()
+
+        self._pass_markers()
+
+    @_check_types.do
+    def _corner_is_free(self, corner: "_pjt_point3d.PJTPoint3D") -> bool:
+        """Whether the loop may be carried past the waypoint *corner*: it must
+        be one the user placed. A waypoint that is a cavity's, a terminal's or
+        a splice's own point, or a wire guard, cannot be dragged
+        (``WireLayout.can_drag``) and the loop must not go past it either.
+        With no wire layout for it at all there is no telling what it is,
+        so it is not free.
+        """
+        for layout in self.mainframe.project.wire_layouts:
+            if layout.db_obj.position3d_id == corner.db_id:
+                return layout.obj3d.can_drag()
+
+        return False
+
+    @_check_types.do
+    def _hop(self, forward: bool, wire_a: "_wire.Wire", wire_b: "_wire.Wire") -> bool:
+        """Carry the loop round the bend in front of it (*forward*) or behind
+        it, and hand the waypoint at the bend to the wire the loop has left
+        behind. The loop is turned about the waypoint by the bend, so it
+        follows the new stretch, and set down on it with its trailing end
+        twice *gap* past the waypoint (its leading end is *gap* from the one
+        beyond, at the very most): twice so that moving back by the least bit
+        does not carry it straight back over (a hop is a jump of about two
+        loop lengths, which would otherwise flicker).
+
+        :returns: False, and nothing is touched, when it may not hop: no
+            waypoint there (the wire's end), a shared or routed one, a U-turn,
+            or a next stretch too short to hold the loop.
+        """
+        paths = self.mainframe.project.ptables.pjt_wire_paths_table
+
+        if forward:
+            waypoints = wire_b.db_obj.waypoints3d
+            if not waypoints:
+                return False
+
+            corner = waypoints[0]
+            row = paths.for_wire(wire_b.db_obj.db_id, '3d')[0]
+
+            if len(waypoints) > 1:
+                beyond = waypoints[1].point
+            else:
+                beyond = wire_b.obj3d.stop_position
+        else:
+            waypoints = wire_a.db_obj.waypoints3d
+            if not waypoints:
+                return False
+
+            corner = waypoints[-1]
+            row = paths.for_wire(wire_a.db_obj.db_id, '3d')[-1]
+
+            if len(waypoints) > 1:
+                beyond = waypoints[-2].point
+            else:
+                beyond = wire_a.obj3d.start_position
+
+        if row.bundle_id is not None or row.transition_id is not None:
+            return False
+
+        if len(paths.wire_ids_for_point('3d', corner.db_id)) > 1:
+            return False
+
+        if not self._corner_is_free(corner):
+            return False
+
+        roll = self.begin_wire_roll()
+        axis = roll.axis
+        p1 = roll.start
+
+        rear = float(np.dot(self._implied_stop() - p1, axis))
+        length = abs(rear)
+        gap = length / 2.0
+
+        corner_np = corner.point.as_numpy.astype(np.float64)
+        beyond_np = beyond.as_numpy.astype(np.float64)
+
+        # The direction of the wire on the stretch the loop is going onto
+        if forward:
+            new_axis = beyond_np - corner_np
+        else:
+            new_axis = corner_np - beyond_np
+
+        stretch = float(np.linalg.norm(new_axis))
+        if stretch < 3.0 * gap + length:
+            return False
+
+        new_axis = new_axis / stretch
+
+        # The turn that carries the old direction onto the new one
+        cross = np.cross(axis, new_axis)
+        sine = float(np.linalg.norm(cross))
+        cosine = float(np.dot(axis, new_axis))
+
+        if cosine < -0.9999:
+            return False
+
+        if sine < 1e-9:
+            bend = np.eye(3)
+        else:
+            x, y, z = cross
+            skew = np.array([[0.0, -z, y], [z, 0.0, -x], [-y, x, 0.0]], dtype=np.float64)
+            bend = np.eye(3) + skew + (skew @ skew) * ((1.0 - cosine) / (sine * sine))
+
+        # Turned about the corner the loop lies on the extension of the new
+        # stretch; slide it along the stretch till its trailing end (forward)
+        # or leading end (backward) is twice gap past (before) the corner
+        t_corner = float(np.dot(corner_np - p1, axis))
+
+        if forward:
+            shift = 2.0 * gap - (rear - t_corner)
+        else:
+            shift = t_corner - 2.0 * gap
+
+        new_start = corner_np + bend @ (p1 - corner_np) + shift * new_axis
+        new_matrix = bend @ roll.matrix
+
+        # Markers between the loop and the corner end up on the other side of
+        # the loop, so they go with the corner to the wire behind it
+        carried = []
+        for m in self._markers_on_attached_wires():
+            t = float(np.dot(m.obj3d.position.as_numpy.astype(np.float64) - p1, axis))
+
+            if forward:
+                if m.db_obj.wire_id == wire_b.db_obj.db_id and 0.0 < t < t_corner:
+                    carried.append(m)
+            elif m.db_obj.wire_id == wire_a.db_obj.db_id and t_corner < t < rear:
+                carried.append(m)
+
+        if forward:
+            paths.remove(wire_b.db_obj.db_id, '3d', corner.db_id)
+            paths.append(wire_a.db_obj.db_id, '3d', corner.db_id)
+            taker = wire_a
+        else:
+            paths.remove(wire_a.db_obj.db_id, '3d', corner.db_id)
+            paths.add(wire_b.db_obj.db_id, '3d', 0, corner.db_id)
+            taker = wire_b
+
+        for m in carried:
+            m.db_obj.wire_id = taker.db_obj.db_id
+
+        wire_a.obj3d.refresh_waypoints()
+        wire_b.obj3d.refresh_waypoints()
+
+        angle = _angle.Angle.from_matrix(new_matrix.astype(np.float32))
+
+        self._apply_resolved(new_start, np.array(angle.as_quat_float, dtype=np.float64))
+        self._sync_stop_position()
+        self._last_centroid = self._world_centroid()
+
+        # Every marker on either wire is bound to the points of the stretch it
+        # was on, which have changed
+        for m in self._markers_on_attached_wires():
+            m.obj3d.rebind_wire(m.db_obj.wire)
+
+        return True
+
+    @_check_types.do
+    def _pass_markers(self) -> None:
+        """Let the loop go past a wire marker it has come up against.
+
+        A marker rides its wire at a fixed fraction of the stretch between
+        two points, never closer to either than its own end buffer, so one
+        the loop is closing in on is carried ahead of it until the stretch
+        between the loop and the next point is too short for it. The marker
+        is bumped when it is within *gap* of that nearest position: it is
+        handed to the wire on the other side of the loop and set down at its
+        end buffer from the loop there.
+        """
+        wires = self._wires_either_side()
+        roll = self.begin_wire_roll()
+        if wires is None or roll is None:
+            return
+
+        wire_a, wire_b = wires
+        axis = roll.axis
+        p1 = roll.start
+
+        rear = float(np.dot(self._implied_stop() - p1, axis))
+        gap = abs(rear) / 2.0
+
+        for m in self._markers_on_attached_wires():
+            view = m.obj3d
+            offset = view.position.as_numpy.astype(np.float64) - p1
+            t = float(np.dot(offset, axis))
+
+            # One on another stretch of the wire, a bend away, is not on the
+            # loop's way
+            if float(np.linalg.norm(offset - axis * t)) > view.end_buffer:
+                continue
+
+            reach = view.end_buffer + gap
+            wire_id = m.db_obj.wire_id
+
+            if wire_id == wire_b.db_obj.db_id and 0.0 < t <= reach:
+                taker = wire_a
+            elif wire_id == wire_a.db_obj.db_id and rear - reach <= t < rear:
+                taker = wire_b
+            else:
+                continue
+
+            m.db_obj.wire_id = taker.db_obj.db_id
+            view.rebind_wire(taker.db_obj)
+
 
 @capturable()
 class WireServiceLoopStripe(_base_3d.Base3D):
@@ -1061,6 +1430,12 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
         action.setEnabled(selected.can_roll_on_wire)
         action.triggered.connect(self.on_rotate_on_wire)
 
+        action = self.addAction('Lock to Wire')
+        action.setCheckable(True)
+        action.setChecked(selected.lock_to_wire)
+        action.setEnabled(selected.can_roll_on_wire)
+        action.toggled.connect(self.on_lock_to_wire)
+
         self.addSeparator()
         action = self.addAction('Trace Circuit')
         action.triggered.connect(self.on_trace_circuit)
@@ -1103,6 +1478,13 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
             selected.start_wire_roll()
 
         QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_lock_to_wire(self, checked: bool) -> None:
+        """Make a drag slide this service loop along its wire (checked) or move
+        it freely (unchecked).
+        """
+        self.selected.lock_to_wire = checked
 
     @_check_types.do
     def on_trace_circuit(self) -> None:

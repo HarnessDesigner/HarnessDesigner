@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from ...gl import shaders as _shaders
     from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_bundle as _pjt_bundle
+    from ...database.project_db import pjt_concentric as _pjt_concentric
     from .. import bundle as _bundle
 
 
@@ -660,6 +661,10 @@ class BundleMenu(QtWidgets.QMenu):
         action.setEnabled(not self.selected.has_visible_table())
         action.triggered.connect(self.on_show_table)
 
+        action = self.addAction('Show Concentric Section')
+        action.setEnabled(not self.selected.concentric_section_visible(self._find_concentric()))
+        action.triggered.connect(self.on_show_concentric_section)
+
         self.addSeparator()
         action = self.addAction('Select')
         action.triggered.connect(self.on_select)
@@ -702,6 +707,31 @@ class BundleMenu(QtWidgets.QMenu):
         ``BasePegboard.show_table``).
         """
         self.selected.show_table()
+
+    @_check_types.do
+    def _find_concentric(self) -> _Union["_pjt_concentric.PJTConcentric", None]:
+        """The concentric this bundle uses (its own, or the one of the transition
+        branch it is plugged into), without making one."""
+        from ...handlers import concentric_handler as _concentric_handler  # NOQA -- avoid a cycle at import time
+
+        return _concentric_handler.find_concentric_for_bundle(self.selected.db_obj)
+
+    @_check_types.do
+    def on_show_concentric_section(self) -> None:
+        """Show this bundle's concentric section widget -- making the concentric
+        and the widget's row the first time (at the nearest free spot to the
+        bundle's midpoint), re-showing a closed one otherwise (see
+        ``BasePegboard.show_concentric_section``)."""
+        from ...handlers import concentric_handler as _concentric_handler  # NOQA -- avoid a cycle at import time
+
+        concentric = _concentric_handler.concentric_for_bundle(
+            self.selected.db_obj.table.db, self.selected.db_obj)
+
+        start = self.selected.start_position
+        stop = self.selected.stop_position
+        midpoint = _point.Point((start.x + stop.x) / 2.0, 0.0, (start.z + stop.z) / 2.0)
+
+        self.selected.show_concentric_section(concentric, midpoint)
 
     @_check_types.do
     def on_select(self) -> None:

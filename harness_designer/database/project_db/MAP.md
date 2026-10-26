@@ -42,7 +42,7 @@ Project-close cleanup sweep. Orphaned-point batch cleanup (removing peg-board po
 
 #### pjt_concentric.py
 
-`PJTConcentricsTable`/`PJTConcentric(PJTEntryBase, NotesMixin)` — a concentric-cable group row (`pjt_concentrics`).
+`PJTConcentricsTable`/`PJTConcentric(PJTEntryBase, NotesMixin)` — a concentric-cable group row (`pjt_concentrics`). Attached to a bundle, a transition branch, or both (a connected bundle and branch share one row). `pegboard_section` returns its peg-board widget row (`None` until placed) and `delete()` removes that widget row before the concentric itself. It still does NOT cascade to its layers / wires (pre-existing gap).
 
 #### pjt_concentric_layer.py
 
@@ -67,6 +67,10 @@ Project-close cleanup sweep. Orphaned-point batch cleanup (removing peg-board po
 #### pjt_note.py
 
 `PJTNote` — a free-floating project note (`pjt_notes`). The only `project_db` class using `Angle3DLockMixin` — a lock flag gating whether its `angle3d` participates in whatever would otherwise update it, alongside the full position/angle/visibility/scale mixin set (2D, 3D, and peg-board).
+
+#### pjt_pegboard_section.py
+
+`PJTPegboardSectionsTable`/`PJTPegboardSection(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin)` (NEW 2026-10-25) -- the position and size of a concentric-twist cross-section widget on the Peg Board (`pjt_pegboard_sections`). ONE row per concentric (`concentric_id` is UNIQUE; `PJTPegboardSectionsTable.for_concentric()` finds it, `insert()` creates it). Position = `position_pegboard` through `point_pegboard_id`, a point this row OWNS (created by `insert()` at `SECTION_DEPTH_Y = 49.0`, one below the wire tables so a table dragged over a section draws on top; removed by `PJTPegboardSection.delete()`). `size` is `(width, height)` in world mm, default `DEFAULT_SECTION_WIDTH`/`HEIGHT` = 120.0 / 60.0. Registered in `pjt_bases.py` (import, `__init__`, `load`, `_ordered_project_tables`, `pjt_pegboard_sections_table` accessor) and in `PJTPointPegboard.is_referenced`. `get_object`/`set_object` (weakref, as the other rows) hold the live `objects.pegboard_section.PegboardSection`; `PJTConcentric.delete()` goes through it when one exists, so the widget's GL textures and hidden host are freed.
 
 #### pjt_pegboard_table.py
 
