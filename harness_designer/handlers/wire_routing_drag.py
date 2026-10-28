@@ -259,39 +259,90 @@ def _route_companion_view(
     rule BUNDLE_PLACEMENT.md section 6 already uses for every other
     peg-board/3D interaction).
     """
-    for hop in hops:
-        if isinstance(hop, _wire_routing_handler.EndAtSplice):
-            _logger.warning(
-                'wire_routing_drag: companion-view routing skipped -- '
-                'EndAtSplice is not supported across views yet')
+    # Logged at ERROR level throughout, deliberately -- a companion-view
+    # routing failure must never be invisible the way a plain `warning()`
+    # can be (gated behind Config.log_warning, off in some configs/builds;
+    # confirmed 2026-10-28: a live test produced neither a DB write nor a
+    # single log line, `warning()` included, leaving no evidence at all
+    # of where this function actually stopped). This whole function is
+    # also wrapped so it can never raise out into the caller -- the
+    # PRIMARY view's route already committed successfully by the time
+    # this runs; a companion-view failure must degrade to "only one view
+    # got routed," never take down the drag that already succeeded.
+    try:
+        for hop in hops:
+            if isinstance(hop, _wire_routing_handler.EndAtSplice):
+                _logger.error(
+                    'wire_routing_drag: companion-view routing skipped -- '
+                    'EndAtSplice is not supported across views yet')
+                return
+
+        ptables = wire_obj.mainframe.project.ptables
+        companion_view = _OTHER_VIEW[view]
+        companion_entry = _companion_entry(entry, companion_view)
+        grabbed_position = _entry_position(companion_entry, companion_view)
+
+        _logger.error(
+            f'wire_routing_drag: routing companion view {companion_view!r} '
+            f'(primary was {view!r}), grabbed_position={grabbed_position!r}')
+
+        companion_walk = _wire_routing_handler.RouteWalk(
+            ptables, wire_obj, grabbed_position, companion_entry, companion_view)
+
+        for hop in hops:
+            if companion_walk.is_finished:
+                break
+            companion_walk.choose(hop)
+
+        if not companion_walk.is_finished:
+            _logger.error(
+                'wire_routing_drag: companion-view route did not finish -- '
+                'skeleton topology disagreed between views, leaving the '
+                'companion view unrouted')
             return
 
-    ptables = wire_obj.mainframe.project.ptables
-    companion_view = _OTHER_VIEW[view]
-    companion_entry = _companion_entry(entry, companion_view)
-    grabbed_position = _entry_position(companion_entry, companion_view)
+        companion_walk.commit()
+        _refresh_committed_wire(wire_obj, companion_view)
+        _refresh_routed_bundle_diameters(companion_walk)
 
-    companion_walk = _wire_routing_handler.RouteWalk(
-        ptables, wire_obj, grabbed_position, companion_entry, companion_view)
+        wire_db = wire_obj.db_obj
+        paths_table = ptables.pjt_wire_paths_table
 
-    for hop in hops:
-        if companion_walk.is_finished:
-            break
-        companion_walk.choose(hop)
+        def _route_summary() -> str:
+            rows = paths_table.for_wire(wire_db.db_id, companion_view)
+            return repr([(r.point_id.hex()[:8], r.bundle_id) for r in rows])
 
-    if not companion_walk.is_finished:
-        _logger.warning(
-            'wire_routing_drag: companion-view route did not finish -- '
-            'skeleton topology disagreed between views, leaving the '
-            'companion view unrouted')
-        return
+        # Bundle first, always (user's own rule, 2026-10-28): a bundle's
+        # own waypoints can only ever be added/removed by its OWN solve,
+        # never a wire's -- rope_pull_handler._reconcile_wire_through_
+        # bundle protects every point this wire shares with a bundle/
+        # transition, so calling realize_length_change on the WIRE here
+        # directly (the original approach) left the bundle's own shape
+        # whatever it already was, possibly stale/infeasible against
+        # this wire's new route. touched_bundles can be empty (a bare
+        # transition pass-through, no bundle plugged into either
+        # branch) -- then there is nothing to settle first, and the
+        # wire's own protected-run logic (transition tags, no bundle_id
+        # needed) still applies on its own.
+        touched_bundles = companion_walk.touched_bundles
+        _logger.error(
+            f'wire_routing_drag: companion-view commit done -- '
+            f'{companion_view} route: {_route_summary()}; '
+            f'touched_bundles={[b.db_id.hex()[:8] for b in touched_bundles]!r}')
 
-    companion_walk.commit()
-    _refresh_committed_wire(wire_obj, companion_view)
-    _refresh_routed_bundle_diameters(companion_walk)
+        if touched_bundles:
+            for bundle_db in touched_bundles:
+                _rope_pull_handler.realize_bundle_and_wires(
+                    wire_obj.mainframe, bundle_db, in_progress=False)
+        else:
+            _rope_pull_handler.realize_length_change(
+                wire_obj.mainframe, wire_db, in_progress=False)
 
-    _rope_pull_handler.realize_length_change(
-        wire_obj.mainframe, wire_obj.db_obj, in_progress=False)
+        _logger.error(
+            f'wire_routing_drag: length reconciliation done -- '
+            f'{companion_view} route: {_route_summary()}')
+    except Exception as err:  # NOQA
+        _logger.traceback(err, 'wire_routing_drag: companion-view routing failed')
 
 
 @_check_types.do

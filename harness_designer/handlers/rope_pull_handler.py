@@ -161,6 +161,7 @@ from ..database.project_db import pjt_bundle as _pjt_bundle
 from . import wire_routing_handler as _wire_routing_handler
 from .. import check_types as _check_types
 from .. import debug as _debug
+from .. import logger as _logger
 
 
 if TYPE_CHECKING:
@@ -379,6 +380,92 @@ def _wire_stub_length3d(wire_db_obj: "_pjt_wire.PJTWire", leading: int, trailing
 
 @_debug.logfunc
 @_check_types.do
+def _wire_protected_runs(
+    ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire", view: str,
+) -> list[tuple[int, int]]:
+    """Contiguous runs of *wire_db_obj*'s own interior *view* points that
+    a wire-level solve may never add, remove or reposition (user,
+    2026-10-28): every point tagged ``bundle_id``/``transition_id``/
+    ``transition_branch_id`` (shared with a bundle's own span, or a
+    transition branch/centre -- BUNDLE_DESIGN.md 2.6/2.7, "etched in
+    stone" until the wire is actually un-routed from it), plus its
+    bracketing guard stub(s) -- untagged themselves, but immediately
+    next to a tagged point (see ``wire_routing_handler.guard_points_at``/
+    ``is_guard_point`` for the same ``bundle_id``-only check; generalized
+    here to the transition tags too, since a bare transition pass-
+    through -- no bundle plugged into either branch -- tags its two
+    branch points and centre point but has no ``bundle_id`` anywhere).
+
+    Returns a list of ``(first_index, last_index)`` inclusive, in order,
+    indexing *wire_db_obj*'s own full interior point list for *view*
+    (index 0 = its first interior waypoint) -- NOT adjusted for any
+    terminal/cavity stub exclusion (:func:`_stub_boundary`), which the
+    caller reconciles separately.
+    """
+    rows = ptables.pjt_wire_paths_table.for_wire(wire_db_obj.db_id, view)
+    tagged = [
+        row.bundle_id is not None or row.transition_id is not None
+        or row.transition_branch_id is not None
+        for row in rows]
+
+    runs: list[tuple[int, int]] = []
+    n = len(tagged)
+    i = 0
+    while i < n:
+        if not tagged[i]:
+            i += 1
+            continue
+
+        start = i
+        while i < n and tagged[i]:
+            i += 1
+        end = i - 1
+
+        if start > 0 and not tagged[start - 1]:
+            start -= 1
+        if end < n - 1 and not tagged[end + 1]:
+            end += 1
+
+        if runs and start <= runs[-1][1] + 1:
+            runs[-1] = (runs[-1][0], max(runs[-1][1], end))
+        else:
+            runs.append((start, end))
+
+    return runs
+
+
+@_debug.logfunc
+@_check_types.do
+def _distance_sum(points: list) -> float:
+    """Total 3D length walking through *points* in order."""
+    total = 0.0
+    for a, b in zip(points, points[1:]):
+        total += _distance3d(a, b)
+    return total
+
+
+@_debug.logfunc
+@_check_types.do
+def _wire_bundle_length3d(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire") -> float:
+    """Total 3D length consumed by every bundle/transition-routed
+    protected run along *wire_db_obj*'s own 3D route (see
+    :func:`_wire_protected_runs`) -- fixed bundle/transition geometry,
+    never available as peg-board slack, exactly like a terminal stub's
+    own fixed length (:func:`_wire_stub_length3d`) but found anywhere in
+    the interior, not just the two ends.
+    """
+    runs = _wire_protected_runs(ptables, wire_db_obj, '3d')
+    if not runs:
+        return 0.0
+
+    points = [wire_db_obj.start_position3d, *(wp.point for wp in wire_db_obj.waypoints3d),
+              wire_db_obj.stop_position3d]
+
+    return sum(_distance_sum(points[start + 1:end + 2]) for start, end in runs)
+
+
+@_debug.logfunc
+@_check_types.do
 def _anchors_and_length(
     ptables: "_PJTPegboardTable", chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
 ) -> tuple[tuple[float, float], tuple[float, float], float, int, int]:
@@ -404,6 +491,18 @@ def _anchors_and_length(
     ``length_mm``, since that portion of the wire's real length is
     consumed by fixed housing/connector geometry, never available as 2D
     zigzag slack.
+
+    For a wire routed through a bundle/transition (see
+    :func:`_wire_protected_runs`), the fixed 3D length of every such
+    protected run is ALSO subtracted, same reasoning -- that portion is
+    consumed by fixed bundle/transition geometry the wire's own solve
+    never touches (:func:`_reconcile_wire_through_bundle` handles it
+    instead, see that function's own docstring). Unlike a terminal
+    stub, this never shifts *start*/*stop* themselves -- a protected run
+    sits somewhere in the MIDDLE of the interior (BUNDLE_PLACEMENT.md
+    section 12's own eligibility rule forbids grabbing a section
+    touching the wire's own start/stop), so the chain's own true
+    anchors are unaffected; only the available slack length shrinks.
     """
     start = chain_db_obj.start_position_pegboard
     stop = chain_db_obj.stop_position_pegboard
@@ -419,73 +518,37 @@ def _anchors_and_length(
         if trailing:
             stop = chain_db_obj.waypoints_pegboard[-trailing].point
 
+    if not isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+        length -= _wire_bundle_length3d(ptables, chain_db_obj)
+
     return (float(start.x), float(start.z)), (float(stop.x), float(stop.z)), length, leading, trailing
 
 
 @_debug.logfunc
 @_check_types.do
-def _reconcile_interior(
-    mainframe: "_ui.MainFrame",
-    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
-    path_table: _Union["_pjt_bundle_path.PJTBundlePathsTable", "_pjt_wire_path.PJTWirePathsTable"],
-    layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
-    layout_facade_cls: _Union[type["_bundle_layout.BundleLayout"], type["_wire_layout.WireLayout"]],
-    new_interior: list[tuple[float, float]],
-    pin_point_id: bytes | None,
-    pin_xz: tuple[float, float] | None,
-    leading: int = 0,
-    trailing: int = 0
-) -> None:
-    """Rewrite *chain_db_obj*'s peg-board interior waypoints to
-    *new_interior*, preserving *pin_point_id* (the point actively being
-    dragged, in the WAYPOINT case -- ``None``/``None`` for an anchor
-    drag, which has no pin) -- see the module docstring's own
-    "Reconciling..." section for why and how.
+def _reconcile_segment(
+    points_table: object, old_ids: list[bytes], new_interior: list[tuple[float, float]],
+    pin_point_id: bytes | None, pin_xz: tuple[float, float] | None,
+) -> tuple[list[bytes], list[int], list[bytes]]:
+    """Resolve ONE free segment's own old point ids against its own new
+    target positions -- the core reuse-by-position/insert/delete dance
+    :func:`_reconcile_interior` used to do inline for a chain's WHOLE
+    (single-segment) interior; factored out so
+    :func:`_reconcile_wire_through_bundle` can run it once per free
+    segment instead (see that function's own docstring for why a wire
+    with a bundle/transition-routed run needs more than one). *pin_xz*
+    is matched against *new_interior* by exact value (never fuzzy
+    float comparison) -- the solver echoes a dragged point's own target
+    back unmodified, so this is reliable; see the module docstring's
+    own "Reconciling..." section.
 
-    **Ordering matters here.** ``path_table.set_route(...)`` -- which
-    establishes which bundle/wire a given point id belongs to -- runs
-    BEFORE any new ``BundleLayout``/``WireLayout`` facade object is
-    constructed for a brand-new point, not after. A facade's own
-    ``__init__`` reads ``attached_bundles``/``attached_wires`` (backed
-    by this exact path table) to derive its real diameter/color;
-    constructing it first and calling ``set_route`` afterward (an
-    earlier version of this function did exactly that) left every
-    newly-added waypoint looking permanently unattached at the moment
-    it mattered, falling through to the neutral-gray "no bundle"
-    fallback color instead of the bundle's own -- confirmed live by the
-    user (2026-10-01): "spheres... not the same color as the bundle."
-
-    *leading*/*trailing* (``_anchors_and_length``'s own terminal-stub
-    exclusion counts, see :func:`_stub_boundary`) are how many of this
-    chain's own real interior point ids -- read fresh below, before
-    anything else happens -- are fixed terminal/cavity structural stubs
-    carved out before the reuse/insert/delete dance runs and spliced
-    back verbatim at the very end: never reused, repositioned, or
-    deleted here, same as *new_interior* itself never includes them
-    (the caller's own *start_xz*/*stop_xz* already stopped short of
-    them). Without this, collapsing a wire's free interior to zero
-    (a straight, taut run) could delete these two points outright,
-    which doesn't just mis-place them -- a wire with no interior
-    waypoints at a Terminal end renders as one single bare-conductor
-    segment end to end (``objects_pegboard.wire.Wire.render``'s own
-    ``_conductor_segment_ends``), losing its insulation color AND its
-    stripe, confirmed live, 2026-10-13, alongside the position
-    corruption this same gap caused.
+    :returns: ``(final_ids, new_indexes, removed_ids)`` -- *final_ids*
+        is parallel to *new_interior*; *new_indexes* are indexes into
+        it that got a freshly-inserted point (needing a new layout);
+        *removed_ids* are old ids no longer used (needing their layout
+        deleted).
     """
-    project = mainframe.project
-    points_table = project.ptables.pjt_points_pegboard_table
-
-    old_ids = list(path_table.point_ids(chain_db_obj.db_id, 'pegboard'))
-
-    if pin_point_id is not None and (leading or trailing):
-        boundary_ids = set(old_ids[:leading]) | set(old_ids[len(old_ids) - trailing:])
-        if pin_point_id in boundary_ids:
-            leading = trailing = 0
-
-    tail_start = len(old_ids) - trailing
-    structural_lead_ids = old_ids[:leading]
-    structural_tail_ids = old_ids[tail_start:]
-    old_ids = old_ids[leading:tail_start]
+    old_ids = list(old_ids)
 
     pin_new_index = None
     if pin_point_id is not None:
@@ -520,10 +583,10 @@ def _reconcile_interior(
         final_ids[new_index] = point_id
 
     # Only the raw point rows are inserted here -- the layout row and
-    # facade object for each come after set_route, below. Each insert()/
-    # delete() below runs inside the drag's own open gesture and defers
-    # into the project's row cache rather than touching the database
-    # per row -- see PJTTableBase.insert/delete's own comments.
+    # facade object for each come after set_route, in the caller. Each
+    # insert()/delete() below runs inside the drag's own open gesture
+    # and defers into the project's row cache rather than touching the
+    # database per row -- see PJTTableBase.insert/delete's own comments.
     new_indexes = []
     for i in range(reuse_count, len(remaining_new_indexes)):
         new_index = remaining_new_indexes[i]
@@ -533,6 +596,256 @@ def _reconcile_interior(
         new_indexes.append(new_index)
 
     removed_ids = remaining_old_ids[reuse_count:]
+    return final_ids, new_indexes, removed_ids
+
+
+@_debug.logfunc
+@_check_types.do
+def _reconcile_wire_through_bundle(
+    mainframe: "_ui.MainFrame", wire_db_obj: "_pjt_wire.PJTWire",
+    path_table: "_pjt_wire_path.PJTWirePathsTable",
+    layouts_table: "_pjt_wire_layout.PJTWireLayoutsTable",
+    layout_facade_cls: type["_wire_layout.WireLayout"],
+    protected_runs: list[tuple[int, int]],
+    pin_point_id: bytes | None, pin_xz: tuple[float, float] | None,
+    leading: int = 0, trailing: int = 0,
+) -> None:
+    """:func:`_reconcile_interior`'s own counterpart for a wire whose
+    peg-board interior has one or more bundle/transition-routed
+    protected runs (:func:`_wire_protected_runs`) -- splits the
+    interior into ``len(protected_runs) + 1`` independent free segments
+    around them and solves/applies each one separately
+    (:func:`_reconcile_segment`), splicing the protected runs back in
+    completely untouched.
+
+    User's own rule, 2026-10-28: a wire-level solve may only add/remove
+    waypoints in the free run after a bundle's own exit stub (or before
+    its entry stub) -- anything bundle/transition-tagged, or a guard
+    immediately next to it, is "etched in stone," touchable only by the
+    BUNDLE's own solve (a separate call, always run first -- see
+    :func:`realize_bundle_and_wires`).
+
+    *leading*/*trailing* are :func:`_anchors_and_length`'s own terminal-
+    stub exclusion counts (see :func:`_stub_boundary`), carried through
+    exactly like :func:`_reconcile_interior` does -- a wire CAN be
+    attached to a terminal at one or both ends AND routed through a
+    bundle somewhere in the middle at the same time; the two
+    protections are independent and both apply. *protected_runs* is
+    expressed against the FULL interior list (see
+    :func:`_wire_protected_runs`'s own docstring) and is shifted here
+    to be relative to the stub-excluded slice, same as the plain
+    reuse/insert/delete path already does for its own *new_interior*.
+    """
+    ptables = mainframe.project.ptables
+    points_table = ptables.pjt_points_pegboard_table
+
+    old_ids_full = list(path_table.point_ids(wire_db_obj.db_id, 'pegboard'))
+    runs3d_full = _wire_protected_runs(ptables, wire_db_obj, '3d')
+
+    if len(runs3d_full) != len(protected_runs):
+        _logger.error(
+            f'rope_pull_handler: wire {wire_db_obj.db_id!r} has '
+            f'{len(protected_runs)} peg-board protected run(s) but {len(runs3d_full)} '
+            f'in 3D -- refusing to reconcile rather than guess which points correspond')
+        return
+
+    if pin_point_id is not None and (leading or trailing):
+        boundary_ids = set(old_ids_full[:leading]) | set(old_ids_full[len(old_ids_full) - trailing:])
+        if pin_point_id in boundary_ids:
+            leading = trailing = 0
+
+    tail_start = len(old_ids_full) - trailing
+    structural_lead_ids = old_ids_full[:leading]
+    structural_tail_ids = old_ids_full[tail_start:]
+    old_ids = old_ids_full[leading:tail_start]
+    protected_runs = [(s - leading, e - leading) for s, e in protected_runs]
+
+    points3d_full = [wire_db_obj.start_position3d, *(wp.point for wp in wire_db_obj.waypoints3d),
+                      wire_db_obj.stop_position3d]
+    points3d = points3d_full[leading:len(points3d_full) - trailing]
+    runs3d = [(s - leading, e - leading) for s, e in runs3d_full]
+    diameter = _chain_diameter(wire_db_obj)
+
+    gap_count = len(protected_runs) + 1
+    gap_old_ids: list[list[bytes]] = []
+    gap_length3d: list[float] = []
+
+    prev_end = -1
+    prev_end3d = -1
+    for (start_idx, end_idx), (start3d, end3d) in zip(protected_runs, runs3d):
+        gap_old_ids.append(old_ids[prev_end + 1:start_idx])
+        gap_length3d.append(_distance_sum(points3d[prev_end3d + 1:start3d + 2]))
+        prev_end, prev_end3d = end_idx, end3d
+    gap_old_ids.append(old_ids[prev_end + 1:])
+    gap_length3d.append(_distance_sum(points3d[prev_end3d + 1:]))
+
+    if leading:
+        start_point = wire_db_obj.waypoints_pegboard[leading - 1].point
+    else:
+        start_point = wire_db_obj.start_position_pegboard
+    if trailing:
+        stop_point = wire_db_obj.waypoints_pegboard[-trailing].point
+    else:
+        stop_point = wire_db_obj.stop_position_pegboard
+    gap_start_xz = (float(start_point.x), float(start_point.z))
+    final_stop_xz = (float(stop_point.x), float(stop_point.z))
+
+    final_segments: list[list[bytes]] = []
+    new_layout_point_ids: list[bytes] = []
+    removed_point_ids: list[bytes] = []
+
+    for i in range(gap_count):
+        if i < len(protected_runs):
+            run_start_idx, _run_end_idx = protected_runs[i]
+            entry_point = points_table[old_ids[run_start_idx]].point
+            gap_stop_xz = (float(entry_point.x), float(entry_point.z))
+        else:
+            gap_stop_xz = final_stop_xz
+
+        gap_ids = gap_old_ids[i]
+        gap_pin_id = pin_point_id if pin_point_id is not None and pin_point_id in gap_ids else None
+        gap_pin_xz = pin_xz if gap_pin_id is not None else None
+
+        if gap_pin_id is not None:
+            drag_end, effective_target = _rope_pull.DragEnd.WAYPOINT, gap_pin_xz
+        else:
+            drag_end, effective_target = _rope_pull.DragEnd.START, gap_start_xz
+
+        result = _rope_pull.solve_chain(
+            gap_start_xz, gap_stop_xz, gap_length3d[i], drag_end, effective_target,
+            diameter, Config.zigzag_length_factor, Config.threshold_factor)
+
+        if not result.accepted:
+            _logger.error(
+                f'rope_pull_handler: wire {wire_db_obj.db_id!r} free segment {i} '
+                f'of {gap_count} is infeasible -- leaving its whole peg-board route untouched')
+            return
+
+        final_ids, new_indexes, removed_ids = _reconcile_segment(
+            points_table, gap_ids, result.points[1:-1], gap_pin_id, gap_pin_xz)
+
+        final_segments.append(final_ids)
+        new_layout_point_ids.extend(final_ids[idx] for idx in new_indexes)
+        removed_point_ids.extend(removed_ids)
+
+        if i < len(protected_runs):
+            run_start_idx, run_end_idx = protected_runs[i]
+            exit_point = points_table[old_ids[run_end_idx]].point
+            gap_start_xz = (float(exit_point.x), float(exit_point.z))
+
+    final_route: list[bytes] = list(structural_lead_ids)
+    for i, segment in enumerate(final_segments):
+        final_route.extend(segment)
+        if i < len(protected_runs):
+            run_start_idx, run_end_idx = protected_runs[i]
+            final_route.extend(old_ids[run_start_idx:run_end_idx + 1])
+    final_route.extend(structural_tail_ids)
+
+    path_table.set_route(wire_db_obj.db_id, 'pegboard', final_route)
+
+    for point_id in new_layout_point_ids:
+        layout_db = layouts_table.insert(point_pegboard_id=point_id)
+        layout_obj = layout_facade_cls(mainframe, layout_db)
+        mainframe.project.add_wire_layout(layout_obj)
+
+    for point_id in removed_point_ids:
+        layout_db = layouts_table.for_point_pegboard_id(point_id)
+        if layout_db is not None:
+            layout_obj = layout_db.get_object()
+            if layout_obj is not None:
+                layout_obj.delete()
+
+    wire_obj = wire_db_obj.get_object()
+    if wire_obj is not None:
+        wire_obj.objpegboard.refresh_waypoints()
+
+
+@_debug.logfunc
+@_check_types.do
+def _reconcile_interior(
+    mainframe: "_ui.MainFrame",
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
+    path_table: _Union["_pjt_bundle_path.PJTBundlePathsTable", "_pjt_wire_path.PJTWirePathsTable"],
+    layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
+    layout_facade_cls: _Union[type["_bundle_layout.BundleLayout"], type["_wire_layout.WireLayout"]],
+    new_interior: list[tuple[float, float]],
+    pin_point_id: bytes | None,
+    pin_xz: tuple[float, float] | None,
+    leading: int = 0,
+    trailing: int = 0
+) -> None:
+    """Rewrite *chain_db_obj*'s peg-board interior waypoints to
+    *new_interior*, preserving *pin_point_id* (the point actively being
+    dragged, in the WAYPOINT case -- ``None``/``None`` for an anchor
+    drag, which has no pin) -- see the module docstring's own
+    "Reconciling..." section for why and how.
+
+    A wire with one or more bundle/transition-routed protected runs
+    along its interior (see :func:`_wire_protected_runs`) is NOT
+    handled here at all -- :func:`_reconcile_wire_through_bundle` takes
+    over for it instead (user, 2026-10-28: those points are "etched in
+    stone," touchable only by the bundle's own solve, never a wire's),
+    since the reuse-by-position algorithm below has no concept of a
+    fixed run sitting in the MIDDLE of the interior -- only
+    *leading*/*trailing* at the two ends.
+
+    **Ordering matters here.** ``path_table.set_route(...)`` -- which
+    establishes which bundle/wire a given point id belongs to -- runs
+    BEFORE any new ``BundleLayout``/``WireLayout`` facade object is
+    constructed for a brand-new point, not after. A facade's own
+    ``__init__`` reads ``attached_bundles``/``attached_wires`` (backed
+    by this exact path table) to derive its real diameter/color;
+    constructing it first and calling ``set_route`` afterward (an
+    earlier version of this function did exactly that) left every
+    newly-added waypoint looking permanently unattached at the moment
+    it mattered, falling through to the neutral-gray "no bundle"
+    fallback color instead of the bundle's own -- confirmed live by the
+    user (2026-10-01): "spheres... not the same color as the bundle."
+
+    *leading*/*trailing* (``_anchors_and_length``'s own terminal-stub
+    exclusion counts, see :func:`_stub_boundary`) are how many of this
+    chain's own real interior point ids -- read fresh below, before
+    anything else happens -- are fixed terminal/cavity structural stubs
+    carved out before the reuse/insert/delete dance runs and spliced
+    back verbatim at the very end: never reused, repositioned, or
+    deleted here, same as *new_interior* itself never includes them
+    (the caller's own *start_xz*/*stop_xz* already stopped short of
+    them). Without this, collapsing a wire's free interior to zero
+    (a straight, taut run) could delete these two points outright,
+    which doesn't just mis-place them -- a wire with no interior
+    waypoints at a Terminal end renders as one single bare-conductor
+    segment end to end (``objects_pegboard.wire.Wire.render``'s own
+    ``_conductor_segment_ends``), losing its insulation color AND its
+    stripe, confirmed live, 2026-10-13, alongside the position
+    corruption this same gap caused.
+    """
+    ptables = mainframe.project.ptables
+
+    if not isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+        protected_runs = _wire_protected_runs(ptables, chain_db_obj, 'pegboard')
+        if protected_runs:
+            _reconcile_wire_through_bundle(
+                mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
+                protected_runs, pin_point_id, pin_xz, leading, trailing)
+            return
+
+    project = mainframe.project
+    points_table = ptables.pjt_points_pegboard_table
+
+    old_ids = list(path_table.point_ids(chain_db_obj.db_id, 'pegboard'))
+
+    if pin_point_id is not None and (leading or trailing):
+        boundary_ids = set(old_ids[:leading]) | set(old_ids[len(old_ids) - trailing:])
+        if pin_point_id in boundary_ids:
+            leading = trailing = 0
+
+    tail_start = len(old_ids) - trailing
+    structural_lead_ids = old_ids[:leading]
+    structural_tail_ids = old_ids[tail_start:]
+    old_ids = old_ids[leading:tail_start]
+
+    final_ids, new_indexes, removed_ids = _reconcile_segment(
+        points_table, old_ids, new_interior, pin_point_id, pin_xz)
 
     path_table.set_route(
         chain_db_obj.db_id, 'pegboard', structural_lead_ids + final_ids + structural_tail_ids)
@@ -2169,6 +2482,134 @@ def realize_length_change(
 
     _commit_points(mainframe, *result, in_progress=in_progress)
     return True
+
+
+@_debug.logfunc
+@_check_types.do
+def _resync_wire_bundle_span(
+    mainframe: "_ui.MainFrame", wire_db_obj: "_pjt_wire.PJTWire", bundle_db_obj: "_pjt_bundle.PJTBundle",
+) -> None:
+    """After *bundle_db_obj*'s own solve may have changed its interior
+    peg-board waypoint COUNT, re-sync *wire_db_obj*'s own protected run
+    for this SPECIFIC bundle (BUNDLE_DESIGN.md 2.7 point-sharing) to
+    match it -- MANDATORY, per the user's own rule, 2026-10-28: "if the
+    waypoint count changes in the bundle those changes need to be
+    reflected in every single wire in the bundle." Repositioning the
+    SAME points is already automatic (the literal same shared row, see
+    ``RouteWalk._advance``'s own construction in ``wire_routing_
+    handler.py``) -- this is only needed when the COUNT itself
+    changes, so a run that already matches the bundle's current
+    waypoint list exactly is left alone, no DB writes at all.
+
+    The run's own two END points (the bundle's start/stop) never
+    change identity -- they are anchors, protected from every solve,
+    the bundle's own included -- so only the INTERIOR entries between
+    them are ever replaced here. Uses the same whole-route read/
+    rebuild/``set_route``/reapply-tags dance
+    ``wire_routing_handler._commit_route`` already uses for the
+    initial routing, rather than a hand-rolled partial insert/delete --
+    ``PJTWirePathsTable.add``'s own docstring is explicit that ``idx``
+    should never be written by hand anywhere else, and deleting from
+    the middle of a route has the same problem in reverse.
+    """
+    ptables = mainframe.project.ptables
+    path_table = ptables.pjt_wire_paths_table
+
+    rows = path_table.for_wire(wire_db_obj.db_id, 'pegboard')
+    bundle_id = bundle_db_obj.db_id
+    run_indices = [i for i, row in enumerate(rows) if row.bundle_id == bundle_id]
+    if not run_indices:
+        return
+
+    run_start, run_end = run_indices[0], run_indices[-1]
+    if run_indices != list(range(run_start, run_end + 1)):
+        _logger.error(
+            f'rope_pull_handler: wire {wire_db_obj.db_id!r} own bundle_id run for bundle '
+            f'{bundle_id!r} is not contiguous -- refusing to resync')
+        return
+
+    first_point_id = rows[run_start].point_id
+    if first_point_id == bundle_db_obj.start_position_pegboard_id:
+        from_start = True
+    elif first_point_id == bundle_db_obj.stop_position_pegboard_id:
+        from_start = False
+    else:
+        _logger.error(
+            f'rope_pull_handler: wire {wire_db_obj.db_id!r} own run for bundle {bundle_id!r} '
+            f'does not start at either of the bundle\'s own ends -- refusing to resync')
+        return
+
+    waypoint_ids = [wp.db_id for wp in bundle_db_obj.waypoints_pegboard]
+    if not from_start:
+        waypoint_ids = list(reversed(waypoint_ids))
+
+    old_interior_ids = [rows[i].point_id for i in range(run_start + 1, run_end)]
+    if old_interior_ids == waypoint_ids:
+        return
+
+    old_tags = {
+        row.point_id: {
+            'bundle_id': row.bundle_id, 'concentric_id': row.concentric_id,
+            'transition_id': row.transition_id, 'transition_branch_id': row.transition_branch_id,
+        }
+        for row in rows}
+
+    old_ids = [row.point_id for row in rows]
+    new_ids = old_ids[:run_start + 1] + waypoint_ids + old_ids[run_end:]
+
+    path_table.set_route(wire_db_obj.db_id, 'pegboard', new_ids)
+
+    for row in path_table.for_wire(wire_db_obj.db_id, 'pegboard'):
+        tags = old_tags.get(row.point_id)
+        if tags is None:
+            # A genuinely new bundle waypoint, not previously on this
+            # wire's own route at all -- an ordinary interior point of
+            # the bundle's own span, never itself a transition branch
+            # (only the bundle's END points ever carry those tags).
+            tags = {'bundle_id': bundle_id, 'concentric_id': None,
+                     'transition_id': None, 'transition_branch_id': None}
+
+        row.bundle_id = tags.get('bundle_id')
+        row.concentric_id = tags.get('concentric_id')
+        row.transition_id = tags.get('transition_id')
+        row.transition_branch_id = tags.get('transition_branch_id')
+
+    wire_obj = wire_db_obj.get_object()
+    if wire_obj is not None:
+        wire_obj.objpegboard.refresh_waypoints()
+
+
+@_debug.logfunc
+@_check_types.do
+def realize_bundle_and_wires(
+    mainframe: "_ui.MainFrame", bundle_db_obj: "_pjt_bundle.PJTBundle", in_progress: bool = False
+) -> None:
+    """Reconcile *bundle_db_obj*'s own peg-board shape first, then every
+    wire routed through it (user's own rule, 2026-10-28): a bundle's
+    own waypoints can only ever be added/removed by the BUNDLE's own
+    solve, never a wire's (:func:`_reconcile_wire_through_bundle` never
+    touches them) -- a bundle obeys the exact same "peg-board length
+    conforms to 3D" rule a wire does, so it is just another
+    :func:`realize_length_change` call -- so the bundle must be settled
+    before any wire sharing its points can be reconciled against a
+    final shape. Once the bundle's own shape is written, every wire
+    through it sees REPOSITIONED points for free (the literal same
+    point rows, shared via ``RouteWalk``'s own construction -- see
+    ``wire_routing_handler.py``) -- but a waypoint COUNT change is not
+    automatic, so :func:`_resync_wire_bundle_span` runs for every wire
+    first (mandatory, user's own rule, 2026-10-28), before that wire's
+    own length reconciliation runs against the now-current shape.
+
+    A wire is always longer than the bundle segment it passes through,
+    so there is no equivalent ordering concern between several wires
+    sharing one bundle (dropped per user instruction, 2026-10-28) --
+    each wire's own call is independent once the bundle itself is done.
+    """
+    realize_length_change(mainframe, bundle_db_obj, in_progress=in_progress)
+
+    for wire_db_obj in bundle_db_obj.wires:
+        _resync_wire_bundle_span(mainframe, wire_db_obj, bundle_db_obj)
+        realize_length_change(mainframe, wire_db_obj, in_progress=in_progress)
 
 
 @_debug.logfunc
