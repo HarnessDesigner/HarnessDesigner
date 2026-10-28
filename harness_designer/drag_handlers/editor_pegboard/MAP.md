@@ -16,9 +16,11 @@
 
 `Wire(DragHandlerPegboard, WireDragMixin)` — segment-local drag; thin view-specific shell around `handlers.wire_drag_base.WireDragMixin`, shared with the 3D editor's own drag handler. **Known gap (2026-09-13, narrowed), not a bug to "just fix" without checking:** finalizing a live in-drag snap onto a TERMINAL or SPLICE on mouse-up does not yet work here (only a snap onto another wire's dangling end does) — `Terminal.add_wire`/`Splice.add_wire` and `commit_snap`'s splice branch remain 3D/2D-only. The live teleport-onto-a-probe during the drag itself already works for every snap kind. `handlers/wire_drag_base.py`'s own module docstring documents this as the authoritative source.
 
+⚠ A click anywhere on a wire's body here only ever has as many distinct grab-points as the wire has its OWN peg-board interior waypoints (`waypoints_pegboard`) — a wire with 3D-side bends but none in peg-board has exactly one "segment" (true start to true stop), so every click drags a true end (or nothing, if both ends are anchored), never a true middle. See `handlers/MAP.md`'s `wire_drag_base.py` entry for the full explanation and the fix (`Add Handle` in this view).
+
 #### wire_route.py
 
-`WireRoute(Wire, WireRouteMixin)` — peg-board mirror of `editor_3d.wire_route.WireRoute`; same `BUNDLE_PLACEMENT.md` section 12 mechanism, subclassing this view's own `Wire` instead of the 3D one.
+`WireRoute(Wire, WireRouteMixin)` — peg-board mirror of `editor_3d.wire_route.WireRoute`; same `BUNDLE_PLACEMENT.md` section 12 mechanism, subclassing this view's own `Wire` instead of the 3D one. Inherits the grab-point limitation from `wire.py` above directly: section 12's own eligibility rule additionally requires the grabbed pair to be two of THIS view's own real interior waypoints, never the true start/stop — so a wire needs at least 2 peg-board-side "Add Handle" waypoints before any peg-board drag-into-a-bundle is possible at all, regardless of how many 3D waypoints it already has.
 
 #### wire_snap.py
 

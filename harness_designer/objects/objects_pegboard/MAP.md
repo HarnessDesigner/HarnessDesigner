@@ -96,6 +96,8 @@ Peg-board routing/branch rendering; model-building itself is 3D-side, design in 
 
 One file per harness part, same `BasePegboard(parent, db_obj)` shape; part of the wire family with `wire_layout.py`/`wire_marker.py`/`wire_service_loop.py`.
 
+⚠ This wire's own interior waypoints (`waypoints_pegboard`, read via `WireTypeMixin._waypoints` in `objects_pegboard/mixins.py`) are a completely separate list from the SAME wire's 3D waypoints -- see `handlers/MAP.md`'s `wire_drag_base.py` entry for the full "why can I only drag by the ends in peg-board" explanation. A wire routed into a bundle via a 3D drag (`BUNDLE_PLACEMENT.md` section 12) can have zero peg-board waypoints of its own; dragging its body here before adding any will only ever move a true end (or nothing). `WireMenu.on_add_handle` (`Add Handle`, right-click) is how a peg-board-side interior waypoint gets created.
+
 #### wire_drop.py
 
 Finds the drop target for a wire dragged out of a peg-board wire table (NEW 2026-10-25). Both panels are GL textures drawn by canvas-level objects, not real widgets, so Qt's own drag and drop (which needs a real window for its loop) cannot carry the drag; `table.py`'s `Table` recognises the drag of a wire row itself and, while it lasts, asks `target_at(screen_pos)` which registered target is under the pointer (topmost by `render_id` wins). A target registers itself with `register` (a `WeakSet`) and needs `wire_drop_contains(screen_pos)`, `set_wire_drop_hover(flag)`, `accept_wire_drop(wire_id)` and `render_id`; today only `section.py`'s `Section`. Its own file because `table.py` and `section.py` share constants and so cannot import each other.
