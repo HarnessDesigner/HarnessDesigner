@@ -139,19 +139,43 @@ class WireServiceLoop(_ObjectBase):
 
     @_check_types.do
     def delete(self) -> None:
-        """Reconnect the two wires this loop sits between (undoing the
-        fork handlers.wire_service_loop_handler made when it was placed)
-        before actually deleting this loop -- see handlers.wire_topology.
-        merge_wires. Only the handler's own cancel() did this before;
-        deleting an already-placed loop (e.g. via its context menu) now
-        does too.
+        """Take this loop out of the wire it sits in and close the wire back
+        up: the two wires either side of it are merged into one (see
+        handlers.wire_topology.merge_wires_in_place), the two WireLayouts
+        split_wire_for_loop put at the loop's points go with it, and then the
+        loop itself.
+
+        No point row is deleted -- the loop's two points and the merged
+        wire's end points are shared with other things.
         """
+        from ..handlers import wire_topology as _wire_topology
+        from ..database.project_db import pjt_wire as _pjt_wire
+
+        project = self.mainframe.project
+        start_id = self.db_obj.start_position3d_id
+        stop_id = self.db_obj.stop_position3d_id
+
         wire_a = self.start_sibling
         wire_b = self.stop_sibling
+
         if wire_a is not None and wire_b is not None:
-            from ..handlers import wire_topology as _wire_topology
-            _wire_topology.merge_wires(self.mainframe.project, wire_a, wire_b)
+            # start_sibling/stop_sibling name the side of the LOOP each wire is on,
+            # not the order along the wire: the wire before the loop ends at one of
+            # its points and the one after it starts at the other (the saved
+            # projects have the wire before ending at the loop's STOP point, which
+            # makes it the stop_sibling). merge_wires_in_place wants them in
+            # running order, so go by which one ends at the loop.
+            if wire_a.db_obj.stop_position3d_id in (start_id, stop_id):
+                wire_before, wire_after = wire_a, wire_b
+            else:
+                wire_before, wire_after = wire_b, wire_a
+
+            _wire_topology.merge_wires_in_place(project, wire_before, wire_after)
+
+        layouts_table = project.ptables.pjt_wire_layouts_table
+        for point_id in (start_id, stop_id):
+            _pjt_wire.delete_layouts_at(layouts_table, 'point3d_id', point_id)
 
         super().delete()
-        self.mainframe.project.delete_wire_service_loop(self.db_obj.db_id)
+        project.delete_wire_service_loop(self.db_obj.db_id)
         self.db_obj.delete()

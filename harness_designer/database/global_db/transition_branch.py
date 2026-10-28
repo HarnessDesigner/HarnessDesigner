@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from . import bundle_cover as _bundle_cover
     from ...ui.prop_ctrls import events as _prop_events
     from PySide6 import QtWidgets
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
 
 
 class TransitionBranchesTable(TableBase):
@@ -41,7 +41,7 @@ class TransitionBranchesTable(TableBase):
         return transition_branches.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _: "_splash.Splash") -> None:
+    def _add_table_to_db(self, _: "_splash_screen.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.

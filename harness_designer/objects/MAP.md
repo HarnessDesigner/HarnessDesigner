@@ -102,7 +102,7 @@ Part of the wire family, all three views.
 
 #### wire_service_loop.py
 
-Part of the wire family, all three views.
+Part of the wire family, all three views. `delete()` (2026-10-26) takes the loop out of its wire: it merges the two wires either side of it with `handlers.wire_topology.merge_wires_in_place` (ordered by which one ENDS at one of the loop's points, not by `start_sibling`/`stop_sibling`: `start_sibling` is the wire AFTER the loop, the one that starts at its START point, and `stop_sibling` the wire BEFORE it -- `Project._reconcile_wire_sibling_graph` sets them from the saved ids), deletes the two `WireLayout`s `split_wire_for_loop` put at the loop's points, then the loop. No point row is deleted. The old call passed `start_sibling` first to `merge_wires`, whose first argument must be the wire before, so the merged wire ran from the loop's start point to its stop point and lost both of the original wire's ends.
 
 ## FOLDERS
 

@@ -104,7 +104,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.editor3d.editor.camera.position.x += 0.000001
 
     @_check_types.do
-    def __init__(self, splash: "_splash.Splash", logger: _Union["_logger.Log", types.ModuleType]):
+    def __init__(self, splash: "_splash_screen.Splash", logger: _Union["_logger.Log", types.ModuleType]):
         """
         Initialise the :class:`MainFrame` instance.
 
@@ -3484,7 +3484,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.logger.error(f'could not save project bounds: {err!r}')
 
     @_check_types.do
-    def open_database(self, splash: "_splash.Splash") -> None:
+    def open_database(self, splash: "_splash_screen.Splash") -> None:
         """
         Open the database.
 

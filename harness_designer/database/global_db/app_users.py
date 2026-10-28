@@ -11,7 +11,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
 
 
 class AppUsersTable(TableBase):
@@ -55,7 +55,7 @@ class AppUsersTable(TableBase):
         return app_users.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
+    def _add_table_to_db(self, splash: "_splash_screen.Splash") -> None:
         """Create the ``app_users`` table.
 
         :param splash: Value for ``splash``.

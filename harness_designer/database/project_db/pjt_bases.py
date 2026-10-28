@@ -93,7 +93,7 @@ def _schema_dependency_order() -> list[str]:
 if TYPE_CHECKING:
     from PySide6 import QtWidgets
     from ... import ui as _ui
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ...objects import object_base as _object_base
 
 
@@ -456,7 +456,7 @@ class PJTTableBase:
     __uses_uuid_id__: bool = True
 
     @_check_types.do
-    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: _Union["_splash.Splash", type]):
+    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: _Union["_splash_screen.Splash", type]):
         """Initialise the :class:`PJTTableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -468,7 +468,7 @@ class PJTTableBase:
         :param table_names: Value for ``table_names``.
         :type table_names: list['str']
         :param splash: Value for ``splash``.
-        :type splash: :class:`_splash.Splash`
+        :type splash: :class:`_splash_screen.Splash`
         """
         self.db = db
         self._con = db.connector
@@ -1281,7 +1281,7 @@ class PJTTables:
     """
 
     @_check_types.do
-    def __init__(self, splash: "_splash.Splash", mainframe: "_ui.MainFrame"):
+    def __init__(self, splash: "_splash_screen.Splash", mainframe: "_ui.MainFrame"):
         """Initialise the :class:`PJTTables` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

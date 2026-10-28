@@ -17,7 +17,7 @@ from .. import id_generator as _id_generator
 if TYPE_CHECKING:
     from PySide6 import QtWidgets
     from ... import ui as _ui
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ... import objects as _objects
 
 
@@ -255,7 +255,7 @@ class TableBase:
     __uses_uuid_id__: bool = True
 
     @_check_types.do
-    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool):
+    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash_screen.Splash", load_database: bool):
         """Initialise the :class:`TableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -265,7 +265,7 @@ class TableBase:
         :param table_names: Value for ``table_names``.
         :type table_names: list['str']
         :param splash: Value for ``splash``.
-        :type splash: :class:`_splash.Splash`
+        :type splash: :class:`_splash_screen.Splash`
         :param load_database: Value for ``load_database``.
         :type load_database: bool
         """
@@ -354,7 +354,7 @@ class TableBase:
         return rows
 
     @_check_types.do
-    def _load_database(self, splash: "_splash.Splash") -> None:
+    def _load_database(self, splash: "_splash_screen.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -377,7 +377,7 @@ class TableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
+    def _add_table_to_db(self, splash: "_splash_screen.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -964,7 +964,7 @@ class GLBTables:
     """
 
     @_check_types.do
-    def __init__(self, splash: "_splash.Splash", mainframe: "_ui.MainFrame"):
+    def __init__(self, splash: "_splash_screen.Splash", mainframe: "_ui.MainFrame"):
         """Initialise the :class:`GLBTables` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

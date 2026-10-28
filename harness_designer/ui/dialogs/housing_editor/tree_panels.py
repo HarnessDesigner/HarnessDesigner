@@ -262,7 +262,12 @@ class PlaneTreePanel(_TreeControlBase):
     contains), regardless of which node(s) it came from.
     """
 
-    addManualRequested: QtCore.SignalInstance = QtCore.Signal(int, str)
+    # Emitted with a term_plane_groups index when the user asks to open the
+    # 2-D paint dialog (cavity_paint_dialog.CavityPaintDialog) on that plane.
+    drawCavitiesRequested: QtCore.SignalInstance = QtCore.Signal(int)
+    # Indices into the dialog's manual_cavities list, from a selection in
+    # this tree's "Manually Drawn Cavities" section.
+    removeManualRequested: QtCore.SignalInstance = QtCore.Signal(list)
     # Plane-group indices whose "select holes instead of the surface" state
     # should be toggled (terminal side only).
     invertHolesRequested: QtCore.SignalInstance = QtCore.Signal(list)
@@ -283,14 +288,18 @@ class PlaneTreePanel(_TreeControlBase):
         # group index -> number of holes selected in place of that plane's
         # surface(s); a group appears here only while it is inverted.
         self._group_holes: dict[int, int] = {}
+        # Manually-drawn (paint-dialog) cavities, terminal side only --
+        # shown as their own "Manually Drawn Cavities" section so each one
+        # can be selected/removed individually instead of only via the
+        # whole-side "Remove All".
+        self._manual_cavities: list[dict] = []
 
         # Populated by _build_toolbar(); terminal-only widgets stay None on
         # the wire instance.
         self._btn_by_plane: QtWidgets.QPushButton | None = None
         self._btn_by_size: QtWidgets.QPushButton | None = None
         self._btn_remove_all: QtWidgets.QPushButton | None = None
-        self._btn_add_circle: QtWidgets.QPushButton | None = None
-        self._btn_add_rect: QtWidgets.QPushButton | None = None
+        self._btn_draw_cavities: QtWidgets.QPushButton | None = None
         self._btn_terminal: QtWidgets.QPushButton | None = None
         self._btn_clear_terminals: QtWidgets.QPushButton | None = None
 
@@ -345,22 +354,16 @@ class PlaneTreePanel(_TreeControlBase):
         if self._is_terminal:
             row2 = QtWidgets.QHBoxLayout()
 
-            self._btn_add_circle = QtWidgets.QPushButton('Add Circle', container)
-            self._btn_add_rect = QtWidgets.QPushButton('Add Rectangle', container)
+            self._btn_draw_cavities = QtWidgets.QPushButton('Draw Cavities...', container)
             self._btn_terminal = QtWidgets.QPushButton('Add Terminal', container)
 
-            self._btn_add_circle.setEnabled(False)
-            self._btn_add_rect.setEnabled(False)
+            self._btn_draw_cavities.setEnabled(False)
             self._btn_terminal.setCheckable(True)
 
-            self._btn_add_circle.clicked.connect(
-                lambda: self._emit_add_manual('circle'))
-            self._btn_add_rect.clicked.connect(
-                lambda: self._emit_add_manual('rect'))
+            self._btn_draw_cavities.clicked.connect(self._emit_draw_cavities)
             self._btn_terminal.toggled.connect(self.addTerminalToggled)
 
-            row2.addWidget(self._btn_add_circle)
-            row2.addWidget(self._btn_add_rect)
+            row2.addWidget(self._btn_draw_cavities)
             row2.addWidget(self._btn_terminal)
             row2.addStretch(1)
             outer.addLayout(row2)
@@ -380,10 +383,10 @@ class PlaneTreePanel(_TreeControlBase):
         self._btn_terminal.blockSignals(False)
 
     @_check_types.do
-    def _emit_add_manual(self, kind: str) -> None:
+    def _emit_draw_cavities(self) -> None:
         g = self._single_selected_plane_group()
         if g is not None:
-            self.addManualRequested.emit(g, kind)
+            self.drawCavitiesRequested.emit(g)
 
     @_check_types.do
     def _single_selected_plane_group(self) -> int | None:
@@ -413,6 +416,7 @@ class PlaneTreePanel(_TreeControlBase):
         surfaces: list["_mesh_surface.Surface"],
         areas: dict[int, float],
         group_holes: dict[int, int] | None = None,
+        manual_cavities: list[dict] | None = None,
     ) -> None:
         """
         Rebuild the tree from plane groups.
@@ -423,6 +427,9 @@ class PlaneTreePanel(_TreeControlBase):
         world-space area (used by the "Group by Size" view).
         group_holes maps the index of each inverted plane group to the
         number of holes selected in place of its surface(s).
+        manual_cavities (terminal side only) is the dialog's current list of
+        paint-dialog-drawn cavities, shown in their own section below the
+        plane groups.
         """
 
         self._groups = groups
@@ -434,6 +441,8 @@ class PlaneTreePanel(_TreeControlBase):
         else:
             self._group_holes = dict(group_holes)
 
+        self._manual_cavities = list(manual_cavities) if manual_cavities else []
+
         self._rebuild_tree()
         self._restore_selection_after_rebuild()
         self._on_selection_changed()
@@ -442,14 +451,18 @@ class PlaneTreePanel(_TreeControlBase):
     def _rebuild_tree(self) -> None:
         self._tree.clear()
 
-        if not self._groups:
+        if not self._groups and not self._manual_cavities:
             self._add_placeholder()
             return
 
-        if self._view_mode == 'size':
-            self._build_size_tree()
-        else:
-            self._build_plane_tree()
+        if self._groups:
+            if self._view_mode == 'size':
+                self._build_size_tree()
+            else:
+                self._build_plane_tree()
+
+        if self._is_terminal and self._manual_cavities:
+            self._build_manual_cavity_tree()
 
     @_check_types.do
     def _add_placeholder(self) -> None:
@@ -556,6 +569,35 @@ class PlaneTreePanel(_TreeControlBase):
 
             parent_item.setExpanded(True)
 
+    @staticmethod
+    @_check_types.do
+    def _manual_cavity_label(i: int, m: dict) -> str:
+        p = m['params']
+
+        if m['kind'] == 'circle':
+            dims = f"r={float(p['radius']):.3f}"
+            shape = 'Circle'
+        else:
+            dims = f"{float(p['half_w']) * 2:.3f} x {float(p['half_h']) * 2:.3f}"
+            shape = 'Rectangle'
+
+        return f'  {shape} {i + 1}  —  {dims}'
+
+    @_check_types.do
+    def _build_manual_cavity_tree(self) -> None:
+        header = QtWidgets.QTreeWidgetItem(self._tree, ['Manually Drawn Cavities'])
+        header.setData(0, QtCore.Qt.ItemDataRole.UserRole, ('manual_header', None))
+
+        font = header.font(0)
+        font.setBold(True)
+        header.setFont(0, font)
+
+        for i, m in enumerate(self._manual_cavities):
+            child = QtWidgets.QTreeWidgetItem(header, [self._manual_cavity_label(i, m)])
+            child.setData(0, QtCore.Qt.ItemDataRole.UserRole, ('manual_cavity', i))
+
+        header.setExpanded(True)
+
     # ── base-class hooks ─────────────────────────────────────────────────────
 
     @_check_types.do
@@ -568,12 +610,24 @@ class PlaneTreePanel(_TreeControlBase):
             return list(self._groups[payload])
         if kind == 'size_bucket':
             return list(payload)
+        if kind == 'manual_cavity':
+            # Negative-encoded so it can travel through the same
+            # int-list units/removeRequested plumbing as real surface
+            # indices (always >= 0) without ever colliding with one --
+            # _perform_removal below decodes it back out.
+            return [-(payload + 1)]
 
         return []
 
     @_check_types.do
     def _perform_removal(self, units: list[int]) -> None:
-        self.removeRequested.emit(units)
+        surface_units = [u for u in units if u >= 0]
+        manual_idxs = sorted({-(u + 1) for u in units if u < 0}, reverse=True)
+
+        if surface_units:
+            self.removeRequested.emit(surface_units)
+        if manual_idxs:
+            self.removeManualRequested.emit(manual_idxs)
 
     # ── misc handlers ────────────────────────────────────────────────────────
 
@@ -590,16 +644,15 @@ class PlaneTreePanel(_TreeControlBase):
     @_check_types.do
     def _on_selection_changed(self) -> None:
         super()._on_selection_changed()
-        self._update_add_shape_enabled()
+        self._update_draw_cavities_enabled()
 
     @_check_types.do
-    def _update_add_shape_enabled(self) -> None:
-        if self._btn_add_circle is None:
+    def _update_draw_cavities_enabled(self) -> None:
+        if self._btn_draw_cavities is None:
             return
 
-        enabled = self._single_selected_plane_group() is not None
-        self._btn_add_circle.setEnabled(enabled)
-        self._btn_add_rect.setEnabled(enabled)
+        self._btn_draw_cavities.setEnabled(
+            self._single_selected_plane_group() is not None)
 
     @_check_types.do
     def _selected_plane_groups(self) -> list[int]:
@@ -637,13 +690,9 @@ class PlaneTreePanel(_TreeControlBase):
         if (self._is_terminal and self._view_mode == 'plane' and
                 kind == 'plane_group'):
             menu.addSeparator()
-            act = menu.addAction('Add Circle Cavity')
+            act = menu.addAction('Draw Cavities on Surface...')
             act.triggered.connect(
-                lambda: self.addManualRequested.emit(payload, 'circle'))
-
-            act = menu.addAction('Add Rectangle Cavity')
-            act.triggered.connect(
-                lambda: self.addManualRequested.emit(payload, 'rect'))
+                lambda: self.drawCavitiesRequested.emit(payload))
 
         if self._is_terminal and self._view_mode == 'plane':
             group_idxs = self._selected_plane_groups()

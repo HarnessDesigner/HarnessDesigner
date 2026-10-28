@@ -9,7 +9,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ... import ui as _ui
 
 
@@ -40,7 +40,7 @@ class ConnectorBase:
         raise NotImplementedError
 
     @_check_types.do
-    def connect(self, splash: "_splash.Splash") -> bool:
+    def connect(self, splash: "_splash_screen.Splash") -> bool:
         """Establish the underlying database connection.
 
         :returns: ``True`` when the connection succeeds; otherwise ``False``.

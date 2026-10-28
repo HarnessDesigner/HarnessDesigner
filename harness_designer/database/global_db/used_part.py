@@ -17,7 +17,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
 
 
 class UsedPartsTable(TableBase):
@@ -30,7 +30,7 @@ class UsedPartsTable(TableBase):
         return _used_parts.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _: "_splash.Splash") -> None:
+    def _add_table_to_db(self, _: "_splash_screen.Splash") -> None:
         _used_parts.table.add_to_db(self)
 
     @_check_types.do

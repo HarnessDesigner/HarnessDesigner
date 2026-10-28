@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <!-- © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com> -->
+<!-- Template: build_pkg.sh swaps the repo-root LICENSE file (HTML-escaped) in for the
+     placeholder line inside the <pre> below, so this pane always shows the real license. -->
 <html>
 <body style="font-family: -apple-system, sans-serif; padding: 20px;">
 <h2>License Agreement</h2>
 <p>Please read the following license agreement carefully before installing Harness Designer.</p>
 <hr/>
 <pre style="font-size: 11px; white-space: pre-wrap;">
-<!-- Paste the contents of your LICENSE file here -->
+@@LICENSE_TEXT@@
 </pre>
 <p><em>This application also depends on PySide6/Qt (LGPLv3) -- its license is
 shown separately, with an Accept/Cancel choice, before installation

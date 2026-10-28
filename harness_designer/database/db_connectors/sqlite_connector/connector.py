@@ -28,7 +28,7 @@ from .... import __version__ as _version
 
 if TYPE_CHECKING:
     from .... import ui as _ui
-    from .... import splash as _splash
+    from .... import splash_screen as _splash_screen
 
 
 _NORMALIZE_LITERAL_RE = re.compile(r"'[^']*'|\b\d+\b")
@@ -186,7 +186,7 @@ class SQLConnector(_base.ConnectorBase):
         return column_names
 
     @_check_types.do
-    def connect(self, splash: "_splash.Splash") -> bool:
+    def connect(self, splash: "_splash_screen.Splash") -> bool:
         """
         Open the configured SQLite database and start update monitoring.
 

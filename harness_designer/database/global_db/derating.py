@@ -23,7 +23,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ..create_database import deratings as _deratings
     from . import bases as _glb_bases
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
 
 
 def _schema() -> "_deratings":
@@ -80,7 +80,7 @@ class DeratingsTable(TableBase):
     __table_name__ = 'deratings'
 
     @_check_types.do
-    def __init__(self, db: "_glb_bases.GLBTables", table_names: list[str], splash: "_splash.Splash",
+    def __init__(self, db: "_glb_bases.GLBTables", table_names: list[str], splash: "_splash_screen.Splash",
                  load_database: bool):
         """Create the table if it is missing and make sure a part's rows can be found without reading every row.
 
@@ -89,7 +89,7 @@ class DeratingsTable(TableBase):
         :param table_names: The tables the database already has.
         :type table_names: list[str]
         :param splash: The splash screen.
-        :type splash: :class:`_splash.Splash`
+        :type splash: :class:`_splash_screen.Splash`
         :param load_database: Whether to load the database.
         :type load_database: bool
         """
@@ -106,7 +106,7 @@ class DeratingsTable(TableBase):
         return _schema().table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _: "_splash.Splash") -> None:
+    def _add_table_to_db(self, _: "_splash_screen.Splash") -> None:
         _schema().table.add_to_db(self)
 
     @_check_types.do

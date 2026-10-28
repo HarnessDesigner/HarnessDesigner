@@ -115,12 +115,10 @@ def restore_wire_from_split(
     for layout_obj in (state.layout1, state.layout2):
         layout_obj.delete()
 
-    _wire_topology.merge_wires(project, state.wire1, state.wire2)
-
-    for wire_obj in (state.wire1, state.wire2):
-        if mainframe.get_selected() is wire_obj:
-            wire_obj.set_selected(False)
-        wire_obj.delete()
+    # wire1 is the wire AFTER the loop (see split_wire_for_loop) and wire2 the one before
+    # it, and merge_wires_in_place wants them in running order. It deletes the wire it
+    # absorbs (wire1) itself; wire2 is the merged wire and stays.
+    _wire_topology.merge_wires_in_place(project, state.wire2, state.wire1)
 
 
 class WireServiceLoop(_base.AddHandlerBase):
@@ -254,14 +252,20 @@ class WireServiceLoop(_base.AddHandlerBase):
     def _teardown_preview(self) -> None:
         if self.target is not None:
             self.target.obj3d.end_move_session()
-            self.target.delete()
-            self.target = None
 
+        # The wires are put back together BEFORE the loop is deleted: its own delete()
+        # merges the two wires it still has either side of it, and they have to be
+        # merged exactly once. Once this has merged them the loop no longer has both
+        # (the wire it absorbed is gone from its siblings), so its delete() leaves them be.
         if self._split_state is not None:
             with self.mainframe.editor3d.context:
                 restore_wire_from_split(self.mainframe, self._split_state)
 
             self._split_state = None
+
+        if self.target is not None:
+            self.target.delete()
+            self.target = None
 
     @_check_types.do
     def cancel(self) -> None:

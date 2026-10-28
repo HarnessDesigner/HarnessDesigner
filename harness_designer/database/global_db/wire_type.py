@@ -9,7 +9,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
 
 
 class WireTypesTable(TableBase):
@@ -24,7 +24,7 @@ class WireTypesTable(TableBase):
         return wire_types.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
+    def _add_table_to_db(self, splash: "_splash_screen.Splash") -> None:
         """Create the table and add its default rows.
 
         :param splash: Splash screen to report progress on.

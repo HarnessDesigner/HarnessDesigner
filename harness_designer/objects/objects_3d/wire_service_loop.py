@@ -81,6 +81,70 @@ def _wire_pivot(
     return axis, before + s * axis
 
 
+# The loop's frame is the mesh's own axes (shapes/cylinder_helix.create_vbo): +X is its
+# right (the coil's axis: the doughnut hole is seen from that side), +Y its top (the
+# loop's diameter) and +Z its front (the two straight leads). They are the columns of its
+# rotation matrix, and its Euler (Ry . Rx . Rz, see rotation_handlers/rotation_mesh.py)
+# is read straight off them -- see _frame_euler.
+
+# How near to straight up or down the front may point before _frame_euler stops reading
+# the yaw off it (the length of the front's horizontal part is what is compared).
+_GIMBAL_EPS = 3e-4
+
+
+@_check_types.do
+def _wrap_degrees(value: float) -> float:
+    """*value* in degrees brought into [-180, 180)."""
+    return (value + 180.0) % 360.0 - 180.0
+
+
+@_check_types.do
+def _frame_euler(matrix: np.ndarray, seed: tuple[float, float, float]) -> tuple[float, float, float]:
+    """The Euler (degrees, ``Ry . Rx . Rz``) of the loop whose rotation matrix is *matrix*,
+    read off its frame: the columns are where its right (+X), top (+Y) and front (+Z)
+    point in the world.
+
+    The front gives the pitch (``ex``: how far it tips out of the horizontal plane) and
+    the yaw (``ey``: its heading); the roll (``ez``) is how far the top has turned about
+    the front, read from the heights of the right and top vectors.
+
+    Two things the matrix alone can not decide are decided by *seed*, the Euler the loop
+    already has:
+
+    - every orientation has two Euler triples, ``(ex, ey, ez)`` and
+      ``(180 - ex, ey + 180, ez + 180)``; the one nearest the seed is used, so a loop
+      whose pitch is already past 90 degrees (the gizmo writes values up to +/-180) keeps
+      it.
+    - with the front straight up or down (a loop in a vertical wire) the yaw and the roll
+      turn the loop about the same line and only their sum is fixed; the roll is held at
+      the seed's and the yaw is the heading of the right vector with that roll undone.
+    """
+    right = matrix[:, 0]
+    top = matrix[:, 1]
+    front = matrix[:, 2]
+
+    flat = float(np.hypot(front[0], front[2]))
+    pitch = float(np.degrees(np.arctan2(-front[1], flat)))
+
+    if flat <= _GIMBAL_EPS:
+        roll = float(np.radians(seed[2]))
+        level = right * np.cos(roll) - top * np.sin(roll)
+        yaw = float(np.degrees(np.arctan2(-level[2], level[0])))
+
+        return _wrap_degrees(pitch), _wrap_degrees(yaw), _wrap_degrees(seed[2])
+
+    yaw = float(np.degrees(np.arctan2(front[0], front[2])))
+    roll = float(np.degrees(np.arctan2(right[1], top[1])))
+
+    first = (_wrap_degrees(pitch), _wrap_degrees(yaw), _wrap_degrees(roll))
+    second = (_wrap_degrees(180.0 - pitch), _wrap_degrees(yaw + 180.0), _wrap_degrees(roll + 180.0))
+
+    def away(triple: tuple[float, float, float]) -> float:
+        return sum(abs(_wrap_degrees(t - s)) for t, s in zip(triple, seed))
+
+    return first if away(first) <= away(second) else second
+
+
 class WireRoll:
     """A loop's roll about the wire it sits in, frozen at the pose the loop
     had when the roll began (see WireServiceLoop.begin_wire_roll).
@@ -351,6 +415,12 @@ class WireServiceLoop(_base_3d.Base3D):
         set_angle_from_housing: mutate the Euler fields inside the angle's
         own write-context, then correct _q/_matrix to the exact target
         rotation and manually re-fire callbacks.
+
+        target_angle has to carry its Euler (its cache is not derived from the
+        quaternion, so an Angle built by from_quat/from_matrix has none, and
+        (nan, nan, nan) was written into the loop's Euler while its quaternion
+        and matrix were exact: the rotation rings, which are planned from Euler,
+        lost their X and Z rings) -- see _angle_from_quat.
         """
         euler = target_angle.as_euler_float
         with self._angle:
@@ -364,6 +434,17 @@ class WireServiceLoop(_base_3d.Base3D):
         self._angle._q.y = target_angle._q.y  # NOQA
         self._angle._q.z = target_angle._q.z  # NOQA
         self._angle._process_callbacks()  # NOQA
+
+    @_check_types.do
+    def _angle_from_quat(self, quat: np.ndarray) -> _angle.Angle:
+        """The Angle for the ``[w, x, y, z]`` quaternion *quat*, carrying the Euler
+        that goes with it: read off the loop's frame (see _frame_euler), seeded by the
+        Euler the loop has now. The quaternion is never converted by Quaternion.as_euler.
+        """
+        matrix = _angle.Angle.from_quat(quat.tolist()).as_matrix_numpy.astype(np.float64)
+        euler = _frame_euler(matrix, self._angle.as_euler_float)
+
+        return _angle.Angle.from_quat(quat.tolist(), euler_angles=list(euler))
 
     @_check_types.do
     def _implied_stop(self) -> np.ndarray:
@@ -464,7 +545,7 @@ class WireServiceLoop(_base_3d.Base3D):
             self._angle.unbind(self._update_angle)
 
             try:
-                self._write_angle(_angle.Angle.from_quat(q_arr.tolist()))
+                self._write_angle(self._angle_from_quat(q_arr))
             finally:
                 self._angle.bind(self._update_angle)
 
@@ -686,7 +767,7 @@ class WireServiceLoop(_base_3d.Base3D):
         continuously throughout the drag that led here -- see
         _resolve_collision).
         """
-        target_angle = _angle.Angle.from_quat(quat.tolist())
+        target_angle = self._angle_from_quat(quat)
 
         self._position.unbind(self._update_position)
         self._angle.unbind(self._update_angle)
@@ -754,8 +835,13 @@ class WireServiceLoop(_base_3d.Base3D):
             facade.identify(preview_material)
 
             facade.set_siblings(split_state.wire1, split_state.wire2)
-            split_state.wire1.set_sibling(facade, split_state.wire1.obj3d.stop_position)
-            split_state.wire2.set_sibling(facade, split_state.wire2.obj3d.start_position)
+            # wire1 is the wire AFTER the loop (it starts at the loop's start point and
+            # keeps the original wire's stop end) and wire2 the one before it (it ends
+            # at the loop's stop point and keeps the original start end), so the loop
+            # is on wire1's START end and wire2's STOP end. The other ends keep
+            # whatever split_wire_at_point handed them (a terminal, a splice).
+            split_state.wire1.set_sibling(facade, split_state.wire1.obj3d.start_position)
+            split_state.wire2.set_sibling(facade, split_state.wire2.obj3d.stop_position)
 
             facade.obj3d.begin_move_session()
 

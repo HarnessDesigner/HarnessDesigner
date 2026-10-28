@@ -28,6 +28,9 @@
 #define AppSrcDir    "..\..\builder\scripts\dist\harness_designer"
 #define InstallerSrc "..\..\builder\scripts\dist\dep_installer.exe"
 #define AssetsDir    "assets"
+; Shown on the wizard's License page with an "I accept" radio button. Inno shows
+; it as plain text (or RTF), so keep the repo-root LICENSE plain text. The macOS
+; and Linux installers read this same file; see build_pkg.sh and install.sh.
 #define LicenseFile  "..\..\LICENSE"
 
 [Setup]

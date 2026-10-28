@@ -333,3 +333,102 @@ def merge_wires(
         w.delete()
 
     return merged_obj
+
+
+@_check_types.do
+def merge_wires_in_place(
+    project: "_project.Project",
+    wire_before: _wire.Wire,
+    wire_after: _wire.Wire,
+) -> _wire.Wire:
+    """Merge *wire_after* into *wire_before* and return *wire_before*.
+
+    Same result as :func:`merge_wires` (one wire from *wire_before*'s own start to
+    *wire_after*'s own stop, *wire_before*'s waypoints followed by *wire_after*'s), but
+    no new row is made: *wire_before* keeps its row, its object and whatever refers to
+    it, takes *wire_after*'s stop point ids in every view and rebinds its live stop
+    ends to them, and *wire_after*'s route rows are moved onto it (the row's ``wire_id``
+    and ``idx`` change; its bundle/transition tags stay). *wire_after*'s markers and
+    whatever its far end is attached to follow, then the emptied *wire_after* is
+    deleted.
+
+    No point row is deleted. The two points the wires met at (*wire_before*'s old stop
+    and *wire_after*'s old start) simply stop being used by either wire; they, and
+    every point the merged wire still uses, are shared with whatever else refers to
+    them. A wire service loop's own two points are these.
+
+    *wire_before* is the wire whose stop is at the junction and *wire_after* the one whose
+    start is: the order they run along the original wire. Peg-board geometry is merged
+    only when both wires have it at both ends.
+    """
+    from ..wire_routing import reroute as _wire_reroute  # NOQA -- avoid a cycle at import time
+
+    ptables = project.ptables
+    mainframe = project.mainframe
+    paths_table = ptables.pjt_wire_paths_table
+
+    before_db = wire_before.db_obj
+    after_db = wire_after.db_obj
+    before_id = before_db.db_id
+    after_id = after_db.db_id
+
+    pegboard = (
+        before_db.start_position_pegboard_id is not None
+        and before_db.stop_position_pegboard_id is not None
+        and after_db.start_position_pegboard_id is not None
+        and after_db.stop_position_pegboard_id is not None)
+
+    views = ['3d', '2d']
+    if pegboard:
+        views.append('pegboard')
+
+    # Whatever wire_after's far end is attached to takes over wire_before's new
+    # stop end (None for a dangling one, which clears the loop that was there).
+    far_sibling = wire_after.stop_sibling
+
+    # wire_after's route continues wire_before's: each row is handed over as it is,
+    # numbered on from the end of wire_before's.
+    for view in views:
+        end = len(paths_table.for_wire(before_id, view))
+
+        for offset, row in enumerate(paths_table.for_wire(after_id, view)):
+            row.wire_id = before_id
+            row.idx = end + offset
+
+    far_3d = after_db.stop_position3d_id
+    before_db.stop_position3d_id = far_3d
+    wire_before.obj3d.set_stop_position(ptables.pjt_points3d_table[far_3d].point)
+
+    if pegboard:
+        far_pegboard = after_db.stop_position_pegboard_id
+        before_db.stop_position_pegboard_id = far_pegboard
+        wire_before.objpegboard.set_stop_position(ptables.pjt_points_pegboard_table[far_pegboard].point)
+
+    # A free far end has no schematic point.
+    far_2d = after_db.stop_position2d_id
+    if far_2d is not None:
+        before_db.stop_position2d_id = far_2d
+        wire_before.objschematic.set_stop_position(ptables.pjt_points2d_table[far_2d].point)
+
+    wire_before.set_sibling(far_sibling, wire_before.obj3d.stop_position)
+    if far_sibling is not None:
+        far_sibling.replace_wire(wire_after, wire_before)
+
+    for marker in project.wire_markers:
+        if marker.db_obj.wire_id == after_id:
+            marker.db_obj.wire_id = before_id
+            marker.obj3d.rebind_wire(before_db)
+
+    # Its route rows and markers have all been moved, so its own delete() finds nothing
+    # of theirs left to clean up (see PJTWire.delete).
+    if mainframe.get_selected() is wire_after:
+        wire_after.set_selected(False)
+    wire_after.delete()
+
+    wire_before.obj3d.refresh_waypoints()
+    if pegboard:
+        wire_before.objpegboard.refresh_waypoints()
+
+    _wire_reroute.on_wire_attached(project, wire_before)
+
+    return wire_before

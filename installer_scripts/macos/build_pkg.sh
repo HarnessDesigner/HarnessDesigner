@@ -52,6 +52,7 @@ OUTPUT_DIR="$REPO_ROOT/dist/macos"
 
 APP_SRC="$BUILD_DIR/harness_designer.app"
 INSTALLER_SRC="$BUILD_DIR/dep_installer"
+LICENSE_SRC="$REPO_ROOT/LICENSE"
 PAYLOAD_DIR="$WORK_DIR/payload"
 INSTALL_APP="$PAYLOAD_DIR/Applications/$APP_NAME.app"
 COMPONENT_PKG="$WORK_DIR/$APP_NAME-component.pkg"
@@ -78,6 +79,11 @@ if [[ ! -f "$INSTALLER_SRC" ]]; then
     exit 1
 fi
 
+if [[ ! -s "$LICENSE_SRC" ]]; then
+    echo "Error: LICENSE is missing or empty. Expected: $LICENSE_SRC"
+    exit 1
+fi
+
 # ── Assemble payload ─────────────────────────────────────────────────────────
 
 echo "→ Assembling payload..."
@@ -95,6 +101,28 @@ RESOURCES_DIR="$INSTALL_APP/Contents/Resources"
 mkdir -p "$RESOURCES_DIR"
 cp "$INSTALLER_SRC" "$RESOURCES_DIR/dep_installer"
 chmod +x "$RESOURCES_DIR/dep_installer"
+
+# ── Stage installer resources ────────────────────────────────────────────────
+# resources/license.html is a template. The Installer's License pane (with its
+# Agree/Disagree prompt, declared in distribution.xml) must show the real
+# repo-root LICENSE, so it is HTML-escaped and substituted in here rather than
+# pasted into the template, where it would drift from LICENSE.
+
+echo "→ Staging installer resources..."
+
+RESOURCES_WORK_DIR="$WORK_DIR/resources"
+LICENSE_ESCAPED="$WORK_DIR/license_escaped.txt"
+
+cp -R "$SCRIPT_DIR/resources" "$RESOURCES_WORK_DIR"
+sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$LICENSE_SRC" > "$LICENSE_ESCAPED"
+sed -e "/@@LICENSE_TEXT@@/r $LICENSE_ESCAPED" \
+    -e "/@@LICENSE_TEXT@@/d" \
+    "$SCRIPT_DIR/resources/license.html" > "$RESOURCES_WORK_DIR/license.html"
+
+if grep -q '@@LICENSE_TEXT@@' "$RESOURCES_WORK_DIR/license.html"; then
+    echo "Error: the license placeholder was not replaced in license.html"
+    exit 1
+fi
 
 # ── Code sign the app (optional) ─────────────────────────────────────────────
 
@@ -136,7 +164,7 @@ echo "→ Building distribution package..."
 productbuild \
     --distribution "$SCRIPT_DIR/distribution.xml" \
     --package-path "$WORK_DIR" \
-    --resources "$SCRIPT_DIR/resources" \
+    --resources "$RESOURCES_WORK_DIR" \
     ${SIGN:+--sign "$DEVELOPER_ID_INSTALLER"} \
     "$FINAL_PKG"
 

@@ -13,11 +13,11 @@ from . import logger as _logger
 
 
 if TYPE_CHECKING:
-    from . import splash_screen as _splash
+    from . import splash_screen as _splash_screen
     from . import ui as _ui
 
 
-splash: _Union["_splash.Splash", None] = None
+splash: _Union["_splash_screen.Splash", None] = None
 _mainframe: _Union["_ui.MainFrame", None] = None
 _app = None
 

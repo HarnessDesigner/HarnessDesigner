@@ -14,6 +14,7 @@ from . import accessory_panel as _accessory_panel
 from . import connector_analysis as _analysis
 from . import analysis_panel as _analysis_panel
 from . import tree_panels as _tree_panels
+from . import cavity_paint_dialog as _cavity_paint_dialog
 from .. import dialog_base as _dialog_base
 from ....gl import canvas_3d as _canvas_3d
 from ....utils.mesh_surface_picker import MeshSurfacePicker as _MeshSurfacePicker
@@ -245,47 +246,12 @@ class SurfaceOverlay(QtWidgets.QWidget):
             else:
                 draw_shape(h['kind'], h['params'], 51, 153, 255, 140)
 
-        if dlg.draw_preview is not None:
-            # red = live drag
-            draw_shape(dlg.draw_preview['kind'],
-                       dlg.draw_preview['params'],
-                       255, 60, 60, 170)
-
         painter.end()
 
 
-@_check_types.do
-def _ray_plane_hit(
-    origin: np.ndarray, direction: np.ndarray,
-    normal: np.ndarray, point_on_plane: np.ndarray,
-) -> np.ndarray | None:
-    """
-    Intersect a world-space ray with an (unbounded) plane.
-
-    Unlike ``MeshSurfacePicker.pick_surface_at``, this does not require the
-    hit to land inside any particular triangle — used while dragging out a
-    manually-drawn cavity marker, since the shape can grow past the seed
-    triangle's own boundary.
-    """
-
-    denom = float(direction @ normal)
-    if abs(denom) < 1e-9:
-        return None
-
-    t = float((point_on_plane - origin) @ normal) / denom
-    if t < 0.0:
-        return None
-
-    return origin + t * direction
-
-
 class _SurfaceSelectFilter(QtCore.QObject):
-    """
-    Event filter installed on the inner canvas
-    to intercept clicks for surface picking, and (while ``dialog.draw_mode``
-    is set) press/drag/release for manually drawing a circle or rectangle
-    cavity marker on a selected terminal plane.
-    """
+    """Event filter installed on the inner canvas to intercept clicks for
+    surface picking."""
 
     @_check_types.do
     def __init__(self, dialog: "HousingEditorDialog"):
@@ -294,124 +260,6 @@ class _SurfaceSelectFilter(QtCore.QObject):
         self._is_moved = False
 
         dialog.canvas._canvas.installEventFilter(self)  # NOQA
-
-    # ── manual draw mode ─────────────────────────────────────────────────────
-
-    @_check_types.do
-    def _target_plane(self) -> tuple:
-        dlg = self._dialog
-        g = dlg.draw_group
-        if not (0 <= g < len(dlg.term_plane_seeds)):
-            return None, None
-
-        seed = dlg.term_plane_seeds[g]
-        if not (0 <= seed < len(dlg.surfaces)):
-            return None, None
-
-        surf = dlg.surfaces[seed]
-        normal = np.asarray(surf.normal, dtype=np.float64)
-        normal /= np.linalg.norm(normal) + 1e-12
-        point = normal * float(surf.plane_dist)
-
-        return normal, point
-
-    @_check_types.do
-    def _ray_at(self, event: QtGui.QMouseEvent) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
-        pos = event.position().toPoint()
-
-        return self._dialog._picker.compute_ray_world(pos.x(), pos.y())  # NOQA
-
-    @_check_types.do
-    def _start_draw(self, event: QtGui.QMouseEvent) -> None:
-        dlg = self._dialog
-        normal, point = self._target_plane()
-        if normal is None:
-            return
-
-        origin, direction = self._ray_at(event)
-        if origin is None:
-            return
-
-        hit = _ray_plane_hit(origin, direction, normal, point)
-        if hit is None:
-            return
-
-        u, v = _analysis.plane_frame(normal)
-        dlg._draw_center = hit
-        dlg._draw_normal = normal
-        dlg._draw_u = u
-        dlg._draw_v = v
-        dlg._draw_active = True
-        dlg.draw_preview = dict(
-            kind=dlg.draw_mode,
-            params=dict(
-                normal=normal.astype(np.float32), u=u.astype(np.float32),
-                v=v.astype(np.float32), center=hit.astype(np.float32),
-                radius=0.0, half_w=0.0, half_h=0.0))
-
-        if dlg.surface_overlay is not None:
-            dlg.surface_overlay.update()
-
-    @_check_types.do
-    def _update_draw(self, event: QtGui.QMouseEvent) -> None:
-        dlg = self._dialog
-        if dlg._draw_center is None:  # NOQA
-            return
-
-        origin, direction = self._ray_at(event)
-        if origin is None:
-            return
-
-        hit = _ray_plane_hit(origin, direction,
-                             dlg._draw_normal, dlg._draw_center)  # NOQA
-        if hit is None:
-            return
-
-        delta = hit - dlg._draw_center  # NOQA
-        du = float(delta @ dlg._draw_u)  # NOQA
-        dv = float(delta @ dlg._draw_v)  # NOQA
-        dlg.draw_preview = dict(
-            kind=dlg.draw_mode,
-            params=dict(
-                normal=dlg._draw_normal.astype(np.float32),  # NOQA
-                u=dlg._draw_u.astype(np.float32),   # NOQA
-                v=dlg._draw_v.astype(np.float32),  # NOQA
-                center=dlg._draw_center.astype(np.float32),  # NOQA
-                radius=float(np.hypot(du, dv)), half_w=abs(du), half_h=abs(dv)))
-
-        if dlg.surface_overlay is not None:
-            dlg.surface_overlay.update()
-
-    @_check_types.do
-    def _finish_draw(self) -> None:
-        dlg = self._dialog
-        preview = dlg.draw_preview
-
-        dlg._draw_active = False
-        dlg._draw_center = None
-        dlg._draw_normal = None
-        dlg._draw_u = None
-        dlg._draw_v = None
-
-        min_size = 0.05
-        if preview is not None:
-            p = preview['params']
-
-            if max(p['radius'], p['half_w'], p['half_h']) >= min_size:
-                dlg.manual_cavities.append(preview)
-                n = len(dlg.manual_cavities)
-                dlg.term_tree_panel.set_info(
-                    f'{n} cavity shape{"s" if n != 1 else ""} drawn manually.'
-                    f' Run Analyze when ready.')
-            else:
-                dlg.term_tree_panel.set_info('Draw too small — discarded.')
-
-        dlg.draw_preview = None
-        dlg.draw_mode = None
-        dlg.draw_group = -1
-
-        if dlg.surface_overlay is not None:
-            dlg.surface_overlay.update()
 
     # ── event filter ─────────────────────────────────────────────────────────
 
@@ -426,29 +274,6 @@ class _SurfaceSelectFilter(QtCore.QObject):
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent | QtGui.QMouseEvent) -> bool:
         dlg = self._dialog
         t = event.type()
-
-        if dlg.draw_mode is not None:
-            if t == QtCore.QEvent.Type.MouseButtonPress:
-                if event.button() == QtCore.Qt.MouseButton.LeftButton:
-                    self._start_draw(event)
-
-                    return True
-
-            elif t == QtCore.QEvent.Type.MouseMove:
-                if dlg._draw_active:  # NOQA
-                    self._update_draw(event)
-
-                    return True
-
-            elif t == QtCore.QEvent.Type.MouseButtonRelease:
-                if (
-                    event.button() == QtCore.Qt.MouseButton.LeftButton and
-                    dlg._draw_active  # NOQA
-                ):
-                    self._finish_draw()
-                    return True
-
-            return False
 
         if t == QtCore.QEvent.Type.MouseButtonPress:
             if event.button() == QtCore.Qt.MouseButton.LeftButton:
@@ -574,24 +399,11 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.surface_filter: _SurfaceSelectFilter | None = None
 
         # ── manual cavity drawing (single-plane housings) ──────────────────────
-        # Draw a circle/rect directly on a selected terminal plane when the
-        # housing has no distinct recessed mesh surface per cavity.
+        # Drawn through cavity_paint_dialog.CavityPaintDialog (a 2-D paint-
+        # style editor opened on a flattened projection of the selected
+        # terminal plane) when the housing has no distinct recessed mesh
+        # surface per cavity.
 
-        # 'circle' | 'rect' | None
-        self.draw_mode: str | None = None
-
-        # term_plane_groups index being drawn on
-        self.draw_group: int = -1
-
-        # live params while dragging
-        self.draw_preview: dict | None = None
-
-        # button currently held
-        self._draw_active: bool = False
-        self._draw_center: np.ndarray | None = None
-        self._draw_normal: np.ndarray | None = None
-        self._draw_u: np.ndarray | None = None
-        self._draw_v: np.ndarray | None = None
         # Finalized manual draws: [{'kind': 'circle'|'rect', 'params': {...}}]
         # params schema matches connector_analysis.classify_loop's output.
         self.manual_cavities: list[dict] = []
@@ -728,7 +540,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         self.term_tree_panel.selectionChanged.connect(self._on_term_sel_changed)
         self.term_tree_panel.removeRequested.connect(self._on_term_remove)
-        self.term_tree_panel.addManualRequested.connect(self._on_add_manual_cavity)
+        self.term_tree_panel.drawCavitiesRequested.connect(self._on_draw_cavities_requested)
+        self.term_tree_panel.removeManualRequested.connect(self._on_remove_manual_cavity)
         self.term_tree_panel.invertHolesRequested.connect(self._on_term_invert_holes)
         self.term_tree_panel.addTerminalToggled.connect(self._on_add_terminal_toggled)
         self.term_tree_panel.clearTerminalsRequested.connect(self._clear_terminals)
@@ -877,14 +690,120 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             self.term_tree_panel.set_info('')
 
     @_check_types.do
-    def _on_add_manual_cavity(self, group_idx: int, kind: str) -> None:
-        self.draw_mode = kind
-        self.draw_group = group_idx
-        self._draw_active = False
-        self.draw_preview = None
-        shape_name = 'circle' if kind == 'circle' else 'rectangle'
+    def _manual_cavity_idxs_for_plane(
+        self, normal: np.ndarray, plane_dist: float,
+    ) -> list[int]:
+        """Indices into self.manual_cavities whose own (normal, plane_dist)
+        match the given plane -- the same geometric match
+        _manual_covered_group_idxs uses, just returning manual_cavities
+        indices instead of term_plane_groups indices."""
+
+        tol = self.plane_tol
+        result = []
+
+        for i, m in enumerate(self.manual_cavities):
+            n = np.asarray(m['params']['normal'], dtype=np.float64)
+            n /= np.linalg.norm(n) + 1e-12
+            d = float(np.asarray(m['params']['center'], dtype=np.float64) @ n)
+
+            if float(np.dot(n, normal)) > 0.98 and abs(d - plane_dist) < tol:
+                result.append(i)
+
+        return result
+
+    @_check_types.do
+    def _on_draw_cavities_requested(self, group_idx: int) -> None:
+        if not (0 <= group_idx < len(self.term_plane_seeds)):
+            return
+
+        seed = self.term_plane_seeds[group_idx]
+        if not (0 <= seed < len(self.surfaces)):
+            return
+
+        surf = self.surfaces[seed]
+        normal = np.asarray(surf.normal, dtype=np.float64)
+        normal /= np.linalg.norm(normal) + 1e-12
+        plane_dist = float(surf.plane_dist)
+        anchor = normal * plane_dist
+        u, v = _analysis.plane_frame(normal)
+
+        tri_indices = [
+            ti for si in self.term_plane_groups[group_idx]
+            for ti in self.surfaces[si].tri_indices
+        ]
+        loops = _analysis.extract_boundary_loops(tri_indices, self.vertices)
+
+        outline_loops = []
+        for loop in loops:
+            rel = loop.astype(np.float64) - anchor
+            outline_loops.append(
+                [(float(p @ u), float(p @ v)) for p in rel])
+
+        existing_idxs = self._manual_cavity_idxs_for_plane(normal, plane_dist)
+        existing_shapes = []
+        for i in existing_idxs:
+            m = self.manual_cavities[i]
+            center = np.asarray(m['params']['center'], dtype=np.float64)
+            rel = center - anchor
+            shape = dict(kind=m['kind'], x=float(rel @ u), y=float(rel @ v))
+
+            if m['kind'] == 'circle':
+                shape['radius'] = float(m['params']['radius'])
+            else:
+                shape['half_w'] = float(m['params']['half_w'])
+                shape['half_h'] = float(m['params']['half_h'])
+
+            existing_shapes.append(shape)
+
+        dialog = _cavity_paint_dialog.CavityPaintDialog(
+            self, outline_loops, existing_shapes)
+
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+
+        for i in sorted(existing_idxs, reverse=True):
+            self.manual_cavities.pop(i)
+
+        for shape in dialog.result_shapes():
+            center = (anchor + shape['x'] * u + shape['y'] * v).astype(np.float32)
+            params = dict(
+                normal=normal.astype(np.float32), u=u.astype(np.float32),
+                v=v.astype(np.float32), center=center,
+                radius=float(shape['radius']),
+                half_w=float(shape['half_w']), half_h=float(shape['half_h']))
+
+            self.manual_cavities.append(dict(kind=shape['kind'], params=params))
+
+        self._reload_term_tree()
+        self._update_analyze_enabled()
+
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+        n = len(self.manual_cavities)
         self.term_tree_panel.set_info(
-            f'Click and drag on the plane to draw the {shape_name} cavity.')
+            f'{n} cavity shape{"s" if n != 1 else ""} drawn manually.'
+            f' Run Analyze when ready.' if n else 'No manually-drawn cavities.')
+
+    @_check_types.do
+    def _on_remove_manual_cavity(self, idxs: list) -> None:
+        if not idxs:
+            return
+
+        for i in sorted(set(idxs), reverse=True):
+            if 0 <= i < len(self.manual_cavities):
+                self.manual_cavities.pop(i)
+
+        self._reload_term_tree()
+        self._update_analyze_enabled()
+
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+        n = len(self.manual_cavities)
+        self.term_tree_panel.set_info(
+            f'{n} cavity shape{"s" if n != 1 else ""} drawn manually.'
+            if n else 'All manually-drawn cavities removed.')
 
     @_check_types.do
     def assign_surface(self, idx: int) -> None:
@@ -1002,7 +921,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                     if h['source_si'] in self.term_plane_groups[gi])
 
         self.term_tree_panel.load(
-            self.term_plane_groups, self.surfaces, areas, group_holes)
+            self.term_plane_groups, self.surfaces, areas, group_holes,
+            self.manual_cavities)
 
     @_check_types.do
     def _surface_holes(self, si: int) -> list[dict]:
@@ -1082,7 +1002,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     @_check_types.do
     def _update_analyze_enabled(self) -> None:
         enabled = bool(self.wire_plane_groups) and bool(
-            self.term_plane_groups or self.terminal_surf_idxs)
+            self.term_plane_groups or self.terminal_surf_idxs or
+            self.manual_cavities or self.hole_cavities)
 
         self._btn_analyze.setEnabled(enabled)
 
@@ -1438,14 +1359,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.manual_cavities = []
         self.term_inverted_seeds.clear()
         self.hole_cavities = []
-        self.draw_mode = None
-        self.draw_group = -1
-        self.draw_preview = None
-        self._draw_active = False
-        self._draw_center = None
-        self._draw_normal = None
-        self._draw_u = None
-        self._draw_v = None
 
         self.wire_tree_panel.clear_tree_selection()
         self.term_tree_panel.set_add_terminal_checked(False)

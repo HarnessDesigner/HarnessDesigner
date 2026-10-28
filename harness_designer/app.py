@@ -224,7 +224,7 @@ class App(QtCore.QObject):
 
         # Show splash
         try:
-            from .splash import Splash
+            from .splash_screen import Splash
             self.splash = _hd.splash = Splash(self._args, self.logger)
         except Exception as err:
             from . import critical_error_dialog as _ced

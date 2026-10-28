@@ -10,6 +10,8 @@
 #   sudo ./install.sh [--prefix /opt]   (system-wide, requires sudo)
 #         ./install.sh --user           (current user only, no sudo needed)
 #         ./install.sh --uninstall      (removes a previous installation)
+#   Add --accept-license to an install to accept the license without the prompt
+#   (scripted installs only; read the LICENSE file in the repo root first).
 
 set -euo pipefail
 
@@ -25,6 +27,7 @@ ICON_NAME="harness_designer"
 
 INSTALL_MODE="system"   # system | user
 UNINSTALL=0
+ACCEPT_LICENSE=0        # set by --accept-license
 PREFIX=""               # overridden by --prefix
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -34,8 +37,9 @@ while [[ $# -gt 0 ]]; do
         --user)         INSTALL_MODE="user";   shift   ;;
         --prefix)       PREFIX="$2";           shift 2 ;;
         --uninstall)    UNINSTALL=1;           shift   ;;
+        --accept-license) ACCEPT_LICENSE=1;    shift   ;;
         -h|--help)
-            sed -n '2,12p' "$0" | sed 's/^# \?//'
+            sed -n '2,14p' "$0" | sed 's/^# \?//'
             exit 0
             ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
@@ -95,14 +99,46 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="$REPO_ROOT/builder/scripts/dist"
 APP_SRC="$BUILD_DIR/$APP_NAME"
 ICON_SRC="$REPO_ROOT/harness_designer/image/icon_256x256.png"
+LICENSE_SRC="$REPO_ROOT/LICENSE"
 
-for path in "$APP_SRC" "$ICON_SRC"; do
+for path in "$APP_SRC" "$ICON_SRC" "$LICENSE_SRC"; do
     if [[ ! -e "$path" ]]; then
         echo "Error: expected build output not found: $path"
         echo "Run the builder first: python -m builder"
         exit 1
     fi
 done
+
+# ── License agreement ─────────────────────────────────────────────────────────
+# Shown before anything on disk is touched, like the Windows installer (Inno
+# Setup LicenseFile page) and the macOS one (distribution.xml <license> pane).
+# There is no GUI here, so the text goes through a pager and the user has to
+# type "yes". --accept-license is for scripted installs, where nobody is there
+# to type; without it, and without a terminal, the install stops.
+
+if [[ $ACCEPT_LICENSE -eq 1 ]]; then
+    echo "License accepted with --accept-license ($LICENSE_SRC)."
+elif [[ -t 0 && -t 1 ]]; then
+    echo "$APP_DISPLAY_NAME is distributed under the license below."
+    echo "Press space to page through it, q to finish reading."
+    echo ""
+    if command -v less &>/dev/null; then
+        less "$LICENSE_SRC"
+    else
+        cat "$LICENSE_SRC"
+    fi
+    echo ""
+    read -r -p "Do you accept the terms of this license? Type 'yes' to accept: " REPLY
+    case "$REPLY" in
+        [yY][eE][sS]) ;;
+        *) echo "License not accepted. Nothing was installed."; exit 1 ;;
+    esac
+else
+    echo "Error: the license must be shown to you before installing, and there is no terminal."
+    echo "Read $LICENSE_SRC, then run this installer again with --accept-license."
+    exit 1
+fi
+echo ""
 
 # ── Pre-install checks: running process, existing installation ────────────────
 # No separate GUI installer process on Linux -- these are plain terminal

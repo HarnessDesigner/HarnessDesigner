@@ -26,7 +26,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import temperature as _temperature
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
     from ...ui.prop_ctrls import events as _prop_events
 
 
@@ -68,7 +68,7 @@ class BundleCoversTable(TableBase):
         return bundle_covers.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
+    def _add_table_to_db(self, splash: "_splash_screen.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.

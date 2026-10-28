@@ -37,7 +37,7 @@ class IPRatingsTable(TableBase):
         return ip_ratings.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
+    def _add_table_to_db(self, splash: "_splash_screen.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.

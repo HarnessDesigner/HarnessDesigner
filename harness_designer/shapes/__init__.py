@@ -32,7 +32,7 @@ _sphere_vbo = None
 
 
 @_check_types.do
-def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash", None] = None) -> dict[str, Any] | None:
+def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash_screen.Splash", None] = None) -> dict[str, Any] | None:
     """Build every non-pooled primitive VBO (arrow/box/cylinder/sphere/etc.)
     plus the full text-glyph set, using *mainframe*'s already-current GL
     context. Called once, right after the mainframe first becomes visible
@@ -44,7 +44,7 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash"
     :param splash: If given, still-visible startup splash to post status
         text and a real progress bar (glyph count is known up front) to
         while these load. Left up to the caller to destroy afterward.
-    :type splash: _splash.Splash | None
+    :type splash: _splash_screen.Splash | None
     """
 
     from PySide6 import QtCore, QtWidgets

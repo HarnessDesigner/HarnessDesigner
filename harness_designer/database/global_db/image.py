@@ -15,7 +15,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
-    from ... import splash as _splash
+    from ... import splash_screen as _splash_screen
 
 
 class ImagesTable(TableBase):
@@ -37,7 +37,7 @@ class ImagesTable(TableBase):
         return _images.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _: "_splash.Splash") -> None:
+    def _add_table_to_db(self, _: "_splash_screen.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
