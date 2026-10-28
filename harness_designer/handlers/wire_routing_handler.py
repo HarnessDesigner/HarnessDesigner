@@ -633,7 +633,7 @@ class RouteWalk:
             self._bundle = entry.bundle
             self._current_point = entry.point
             self._entry_bundle_end = (self._bundle, self._current_point)
-            self._add(self._current_point.db_id, bundle_id=self._bundle.db_id)
+            self._add(self._current_point.db_id[:-2], bundle_id=self._bundle.db_id)
         elif isinstance(entry, EnterBranch):
             self._branch = entry.branch
             self._add(
@@ -673,7 +673,7 @@ class RouteWalk:
                 self._add(point_id, bundle_id=bundle.db_id)
 
             far_point = stop_point if self._current_point is start_point else start_point
-            far_point_id = far_point.db_id
+            far_point_id = far_point.db_id[:-2]
 
             far_branch = _branch_at_point(self._ptables, far_point_id, self._view)
             if far_branch is None:
@@ -766,7 +766,7 @@ class RouteWalk:
         # bundle's id") -- next_bundle must be resolved before this _add()
         # call, not after, or that tag is silently dropped.
         self._add(
-            branch_point.db_id,
+            branch_point.db_id[:-2],
             bundle_id=(next_bundle.db_id if next_bundle is not None else None),
             transition_id=transition.db_id, transition_branch_id=next_branch.db_id)
 
@@ -941,6 +941,20 @@ def _commit_route(
     entry_guard_row = points_table.insert(entry_guard_point.x, entry_guard_point.y, entry_guard_point.z)
     exit_guard_row = points_table.insert(exit_guard_point.x, exit_guard_point.y, exit_guard_point.z)
 
+    # Route the wire through the guards BEFORE either gets its own
+    # WireLayout marker (below) -- the view object's own diameter/color
+    # (objects_3d/objects_pegboard WireLayout.__init__) are read ONCE at
+    # construction from PJTWireLayout.attached_wires, which resolves via
+    # pjt_wire_paths_table.wire_ids_for_point. Creating the marker first
+    # and routing second left that lookup with nothing to find yet, so
+    # every guard fell back to WireLayout.__init__'s own hardcoded
+    # default (3.0mm plain gray plastic) instead of the wire's actual
+    # part diameter/color, permanently -- nothing re-reads it later.
+    detour = [entry_guard_row.db_id] + list(skeleton_point_ids) + [exit_guard_row.db_id]
+    new_interior_ids = existing_interior_ids[:section_idx] + detour + existing_interior_ids[section_idx:]
+
+    paths_table.set_route(wire_db.db_id, view, new_interior_ids)
+
     # Each guard gets a real WireLayout marker, like any other waypoint
     # (BUNDLE_DESIGN.md 2.7) -- so it renders and is reachable the same
     # way; whether it's a GUARD specifically (locked against a direct
@@ -953,11 +967,6 @@ def _commit_route(
         layout_db = layouts_table.insert(**point_kwargs)
         layout_obj = _wire_layout_obj.WireLayout(mainframe, layout_db)
         mainframe.project.add_wire_layout(layout_obj)
-
-    detour = [entry_guard_row.db_id] + list(skeleton_point_ids) + [exit_guard_row.db_id]
-    new_interior_ids = existing_interior_ids[:section_idx] + detour + existing_interior_ids[section_idx:]
-
-    paths_table.set_route(wire_db.db_id, view, new_interior_ids)
 
     new_rows = paths_table.for_wire(wire_db.db_id, view)
     new_tags_by_point = point_tags

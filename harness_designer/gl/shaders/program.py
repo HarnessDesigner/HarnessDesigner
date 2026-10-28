@@ -25,9 +25,19 @@ class Program:
 
     @_check_types.do
     def __enter__(self) -> None:
-        self._ref_count += 1
-        if self._ref_count == 1:
+        # glUseProgram is called BEFORE the ref count is bumped (2026-10-27
+        # fix): if it raises (e.g. the GL context invalidated this program
+        # object out from under us), __enter__ itself raises, which means
+        # Python never calls the matching __exit__ -- incrementing first
+        # left _ref_count permanently stuck off-by-one in that case, which
+        # then suppressed every future glUseProgram call for this program
+        # for the rest of the run (an unbroken cascade of GL_INVALID_
+        # OPERATION on every uniform set afterward, confirmed from a real
+        # crash log). Leaving the count untouched on failure lets the very
+        # next frame's __enter__ retry instead of wedging forever.
+        if self._ref_count == 0:
             GL.glUseProgram(self._program)
+        self._ref_count += 1
 
     @_check_types.do
     def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:

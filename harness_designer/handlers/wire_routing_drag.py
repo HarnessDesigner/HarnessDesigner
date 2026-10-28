@@ -69,11 +69,13 @@ import numpy as np
 from PySide6 import QtCore, QtWidgets
 
 from . import bundle_diameter as _bundle_diameter
+from . import rope_pull_handler as _rope_pull_handler
 from . import transition_handler as _transition_handler
 from . import wire_routing_handler as _wire_routing_handler
 from ..gl import object_picker as _object_picker
 from ..gl.canvas_base import interaction as _interaction
 from .. import check_types as _check_types
+from .. import logger as _logger
 from ..objects import bundle as _bundle_obj
 
 
@@ -161,6 +163,135 @@ def _refresh_routed_bundle_diameters(walk: "_wire_routing_handler.RouteWalk") ->
     """
     for bundle_db in walk.touched_bundles:
         _bundle_diameter.refresh_diameter(bundle_db.get_object())
+
+
+_OTHER_VIEW = {'3d': 'pegboard', 'pegboard': '3d'}
+
+
+@_check_types.do
+def _companion_entry(
+    entry: _Union["_wire_routing_handler.EnterBundle", "_wire_routing_handler.EnterBranch"],
+    companion_view: str,
+) -> _Union["_wire_routing_handler.EnterBundle", "_wire_routing_handler.EnterBranch"]:
+    """A fresh entry terminus for *companion_view*, naming the SAME
+    physical bundle free end / transition branch *entry* does.
+
+    ``EnterBranch`` needs no translation -- ``branch`` is the same row
+    in both views, and ``RouteWalk`` resolves its own point from
+    ``view`` internally (``_branch_point_id``). But ``EnterBundle.point``
+    is NOT view-translated by ``RouteWalk``: ``__init__`` takes it as
+    ``self._current_point`` verbatim, however it was built. Reusing the
+    ORIGINAL view's ``EnterBundle`` unchanged therefore silently fed the
+    companion ``RouteWalk`` a point from the WRONG view's table --
+    confirmed live, 2026-10-28: `commit()` raised ``IndexError`` the
+    moment it tried to look that point up in *companion_view*'s own
+    point table. Fixed by building a new ``EnterBundle`` wrapping the
+    same bundle but the companion view's own end point.
+
+    ``Point``'s own singleton-by-``db_id`` contract (``geometry/
+    point.py``) is what makes the ``is`` identity check below reliable
+    regardless of which view *entry* was originally built from.
+    """
+    if isinstance(entry, _wire_routing_handler.EnterBranch):
+        return entry
+
+    bundle = entry.bundle
+    is_start = (
+        entry.point is bundle.start_position3d
+        or entry.point is bundle.start_position_pegboard)
+
+    if companion_view == '3d':
+        point = bundle.start_position3d if is_start else bundle.stop_position3d
+    else:
+        point = bundle.start_position_pegboard if is_start else bundle.stop_position_pegboard
+
+    return _wire_routing_handler.EnterBundle(bundle, point)
+
+
+@_check_types.do
+def _entry_position(
+    entry: _Union["_wire_routing_handler.EnterBundle", "_wire_routing_handler.EnterBranch"],
+    view: str,
+) -> np.ndarray:
+    """*entry*'s own terminus position in *view* -- *entry* must
+    already be valid for *view* (see :func:`_companion_entry`), so this
+    is a real position to feed ``wire_routing_handler.RouteWalk`` as
+    its *grabbed_position* for a view with no actual drag/drop of its
+    own (see :func:`_route_companion_view`), not a guess.
+    """
+    if isinstance(entry, _wire_routing_handler.EnterBundle):
+        return entry.point.as_numpy
+
+    branch = entry.branch
+    point = branch.position3d if view == '3d' else branch.position_pegboard
+    return point.as_numpy
+
+
+@_check_types.do
+def _route_companion_view(
+    wire_obj: "_wire_obj.Wire",
+    entry: _Union["_wire_routing_handler.EnterBundle", "_wire_routing_handler.EnterBranch"],
+    hops: list, view: str,
+) -> None:
+    """Mirror a route that was just committed in *view* into
+    *wire_obj*'s OTHER view too (user, 2026-10-28: dropping a wire onto
+    a bundle in either the 3D or the peg-board view must route it
+    through that same bundle in BOTH views). *entry* is the
+    view-agnostic terminus the original drag resolved (wraps a real
+    ``PJTBundle``/``PJTTransitionBranch`` row, shared by both views);
+    *hops* is every ``ContinueBranch`` the user clicked through to get
+    there, in order -- replayed here unchanged, since whether a
+    transition's branch already has a bundle plugged in is a
+    project-wide topology fact, not a per-view one (see
+    ``compute_eligible_targets``'s own docstring). *view* is whichever
+    view the caller already routed and committed; this only handles the
+    other one.
+
+    An ``EndAtSplice`` hop is refused rather than guessed at -- splices
+    are not wired into this feature at all yet (module docstring), so
+    one can never actually appear in *hops* today; this only guards
+    against silently mis-routing if that ever changes.
+
+    Always finishes with ``rope_pull_handler.realize_length_change`` so
+    the peg-board side's length conforms to the 3D side's, regardless
+    of which view the user actually dragged in (user, 2026-10-28:
+    peg-board is adjusted either way, never the other direction -- same
+    rule BUNDLE_PLACEMENT.md section 6 already uses for every other
+    peg-board/3D interaction).
+    """
+    for hop in hops:
+        if isinstance(hop, _wire_routing_handler.EndAtSplice):
+            _logger.warning(
+                'wire_routing_drag: companion-view routing skipped -- '
+                'EndAtSplice is not supported across views yet')
+            return
+
+    ptables = wire_obj.mainframe.project.ptables
+    companion_view = _OTHER_VIEW[view]
+    companion_entry = _companion_entry(entry, companion_view)
+    grabbed_position = _entry_position(companion_entry, companion_view)
+
+    companion_walk = _wire_routing_handler.RouteWalk(
+        ptables, wire_obj, grabbed_position, companion_entry, companion_view)
+
+    for hop in hops:
+        if companion_walk.is_finished:
+            break
+        companion_walk.choose(hop)
+
+    if not companion_walk.is_finished:
+        _logger.warning(
+            'wire_routing_drag: companion-view route did not finish -- '
+            'skeleton topology disagreed between views, leaving the '
+            'companion view unrouted')
+        return
+
+    companion_walk.commit()
+    _refresh_committed_wire(wire_obj, companion_view)
+    _refresh_routed_bundle_diameters(companion_walk)
+
+    _rope_pull_handler.realize_length_change(
+        wire_obj.mainframe, wire_obj.db_obj, in_progress=False)
 
 
 @_check_types.do
@@ -441,12 +572,15 @@ class RouteSession:
     def __init__(
         self, canvas: "_canvas_base.CanvasBase", wire_obj: "_wire_obj.Wire",
         walk: "_wire_routing_handler.RouteWalk", wire_od: float, view: str,
+        entry: _Union["_wire_routing_handler.EnterBundle", "_wire_routing_handler.EnterBranch"],
     ):
         self.canvas = canvas
         self.target = wire_obj
         self._walk = walk
         self._wire_od = wire_od
         self._view = view
+        self._entry = entry
+        self._hops: list = []
         self._finished = False
         self._eligible_branches: list = []
         self._hovered_branch = None
@@ -560,12 +694,15 @@ class RouteSession:
 
             branch = self._hovered_branch
             self.delete()
-            self._walk.choose(_wire_routing_handler.ContinueBranch(branch.db_obj))
+            hop = _wire_routing_handler.ContinueBranch(branch.db_obj)
+            self._hops.append(hop)
+            self._walk.choose(hop)
 
             if self._walk.is_finished:
                 self._walk.commit()
                 _refresh_committed_wire(self.target, self._view)
                 _refresh_routed_bundle_diameters(self._walk)
+                _route_companion_view(self.target, self._entry, self._hops, self._view)
                 self._finished = True
             else:
                 self._highlight_current_transition()
@@ -615,6 +752,7 @@ def begin_route(
         walk.commit()
         _refresh_committed_wire(wire_obj, view)
         _refresh_routed_bundle_diameters(walk)
+        _route_companion_view(wire_obj, entry, [], view)
         return None
 
-    return RouteSession(canvas, wire_obj, walk, wire_od, view)
+    return RouteSession(canvas, wire_obj, walk, wire_od, view, entry)
