@@ -614,6 +614,35 @@ class RouteWalk:
         self._points_table = _points_table(ptables, view)
         self._section_idx = _wire_topology.segment_index(wire, grabbed_position, view)  # same helper split_wire_at_point uses
 
+        if view == 'pegboard':
+            # Companion-view routing (wire_routing_drag._route_companion_view)
+            # has no real click to constrain where the detour lands --
+            # segment_index just picks whichever existing segment is
+            # geometrically nearest the bundle/branch position, with no
+            # awareness that this wire's own leading/trailing peg-board
+            # interior points might be a terminal/cavity structural stub
+            # (rope_pull_handler._structural_stub_ids) rather than ordinary
+            # free slack. Splicing the detour BEFORE such a stub point (a
+            # raw section_idx of 0, or len(existing interior)) pushes that
+            # stub out of array position 0/-1 -- which defeats
+            # rope_pull_handler._stub_boundary's own by-POSITION identity
+            # check (it only ever reads old_ids[0]/old_ids[-1], never a
+            # tag) -- and the stub then gets reconciled away as ordinary,
+            # disposable slack the next time this wire's peg-board chain is
+            # re-solved (the exact class of corruption _structural_stub_ids
+            # was built to prevent, confirmed live 2026-10-13). A real
+            # interactive drag can never land here on its own -- its own
+            # eligibility precondition (WireRouteMixin._is_routing_eligible)
+            # already forbids a grab touching the wire's true start/stop --
+            # but nothing stops it from landing on the segment immediately
+            # next to a stub either, so this clamp is unconditional here,
+            # not companion-view-specific.
+            from . import rope_pull_handler as _rope_pull_handler  # NOQA -- avoid a cycle at import time
+
+            leading, trailing = _rope_pull_handler.stub_boundary_for_chain(ptables, wire.db_obj)
+            interior_count = len(wire.db_obj.waypoints_pegboard)
+            self._section_idx = max(leading, min(self._section_idx, interior_count - trailing))
+
         self._point_tags: dict[bytes, dict] = {}
         self._ordered: list[bytes] = []
         self._bundle = None
