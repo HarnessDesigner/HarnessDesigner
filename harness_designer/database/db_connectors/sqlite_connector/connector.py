@@ -45,7 +45,8 @@ _RowType = tuple[_ToPythonOutputTypes, ...]
 
 @_check_types.do
 def _enable_wal(connection: sqlite3.Connection) -> bool:
-    """Put *connection* in write-ahead-log mode with ``synchronous=NORMAL``.
+    """
+    Put *connection* in write-ahead-log mode with ``synchronous=NORMAL``.
 
     In SQLite's default rollback-journal mode every commit waits for the disk
     twice (journal, then database), which measured about 3 ms per commit
@@ -71,6 +72,7 @@ def _enable_wal(connection: sqlite3.Connection) -> bool:
         alone -- where it isn't possible (a network share, a read-only file, an
         in-memory database).
     """
+
     try:
         mode = connection.execute('PRAGMA journal_mode=WAL;').fetchone()[0]
     except sqlite3.Error as err:
@@ -78,8 +80,8 @@ def _enable_wal(connection: sqlite3.Connection) -> bool:
         return False
 
     if str(mode).lower() != 'wal':
-        _logger.warning(f'WAL journaling is not available here (journal mode is {mode!r}); '
-                        'keeping the default')
+        _logger.warning(f'WAL journaling is not available here '
+                        f'(journal mode is {mode!r}); keeping the default')
         return False
 
     connection.execute('PRAGMA synchronous=NORMAL;')
@@ -120,38 +122,126 @@ class SQLConnector(_base.ConnectorBase):
         self._shown_sql_errors: set[str] = set()
 
     @_check_types.do
+    def get_part_counts(self) -> dict[str, int]:
+        # 1. Fetch all table names dynamically using your utility function
+        all_tables = self.get_tables()
+
+        # Filter out tables that do not contain 'manufacturer_id'
+        part_tables = []
+        for table in all_tables:
+            if table == 'manufacturers':
+                continue
+
+            # Check columns using your pragma string evaluation helper
+            columns = self.get_table_column_names(table)
+            if 'mfg_id' in columns:
+                part_tables.append(table)
+
+        # 2. Build a dynamic master dictionary to hold in-memory counts
+        global_counts = {}
+
+        # 3. Scan each individual part type table sequentially
+        for table in part_tables:
+            self.execute(f"SELECT COUNT(*) FROM {table};")
+            for count in self.fetchall():
+                global_counts[table] = global_counts.get(table, 0) + count
+
+        return global_counts
+
+    @_check_types.do
+    def get_part_counts_by_manufacturer(self) -> dict[str, int]:
+
+        # 1. Fetch all table names dynamically using your utility function
+        all_tables = self.get_tables()
+
+        # Filter out tables that do not contain 'manufacturer_id'
+        part_tables = []
+        for table in all_tables:
+            if table == 'manufacturers':
+                continue
+
+            # Check columns using your pragma string evaluation helper
+            columns = self.get_table_column_names(table)
+            if 'mfg_id' in columns:
+                part_tables.append(table)
+
+        # 2. Build a dynamic master dictionary to hold in-memory counts
+        # Key: manufacturer_id, Value: running count
+        global_counts = {}
+
+        # 3. Scan each individual part type table sequentially
+        for table in part_tables:
+            self.execute(
+                f"SELECT mfg_id, COUNT(*) FROM {table} GROUP BY mfg_id;")
+
+            for m_id, count in self.fetchall():
+                if m_id is not None:
+                    global_counts[m_id] = global_counts.get(m_id, 0) + count
+
+        # 4. Map the ID counts back to the actual
+        #    Manufacturer Names for presentation
+        self.execute("SELECT id, name FROM manufacturers;")
+        manufacturer_names = dict(self.fetchall())
+
+        # 5. Compile the final aggregated results
+        final_report = {}
+        for m_id, total_count in global_counts.items():
+            name = manufacturer_names.get(m_id, f"Unknown ID: {m_id}")
+            final_report[name] = total_count
+
+        # Return sorted by highest part volume (item[1] extracts
+        # the value from the dict tuple)
+        return dict(
+            sorted(final_report.items(), key=lambda item: item[1], reverse=True))
+
+    @_check_types.do
     def reset_query_profile(self) -> None:
-        """Clear accumulated query-profile stats (see ``Config.debug.database.profile_queries``)."""
+        """
+        Clear accumulated query-profile stats
+        (see ``Config.debug.database.profile_queries``).
+        """
+
         self._query_profile = {}
 
     @_check_types.do
     def dump_query_profile(self, top_n: int = 30, label: str = '') -> None:
-        """Log a summary of queries recorded since the last reset.
+        """
+        Log a summary of queries recorded since the last reset.
 
         Reports the ``top_n`` normalized statements by total time and by
         call count, plus grand totals. No-op if nothing was recorded (e.g.
         profiling was off).
         """
+
         if not self._query_profile:
             return
 
         total_calls = sum(v[0] for v in self._query_profile.values())
         total_time = sum(v[1] for v in self._query_profile.values())
 
-        header = f'QUERY PROFILE{f" ({label})" if label else ""}: ' \
-                 f'{total_calls} calls, {total_time * 1000:.1f}ms total, ' \
-                 f'{len(self._query_profile)} distinct statements'
+        header = (f'QUERY PROFILE{f" ({label})" if label else ""}: '
+                  f'{total_calls} calls, {total_time * 1000:.1f}ms total, '
+                  f'{len(self._query_profile)} distinct statements')
+
         _logger.database(header)
 
-        by_time = sorted(self._query_profile.items(), key=lambda kv: kv[1][1], reverse=True)
-        _logger.database('-- top statements by total time --')
-        for sql, (count, secs) in by_time[:top_n]:
-            _logger.database(f'{secs * 1000:8.1f}ms  {count:6d}x  {secs / count * 1000:6.3f}ms/call  {sql}')
+        by_time = sorted(self._query_profile.items(),
+                         key=lambda kv: kv[1][1], reverse=True)
 
-        by_count = sorted(self._query_profile.items(), key=lambda kv: kv[1][0], reverse=True)
+        _logger.database('-- top statements by total time --')
+
+        for sql, (count, secs) in by_time[:top_n]:
+            _logger.database(f'{secs * 1000:8.1f}ms  {count:6d}x  '
+                             f'{secs / count * 1000:6.3f}ms/call  {sql}')
+
+        by_count = sorted(self._query_profile.items(),
+                          key=lambda kv: kv[1][0], reverse=True)
+
         _logger.database('-- top statements by call count --')
+
         for sql, (count, secs) in by_count[:top_n]:
-            _logger.database(f'{count:6d}x  {secs * 1000:8.1f}ms  {secs / count * 1000:6.3f}ms/call  {sql}')
+            _logger.database(f'{count:6d}x  {secs * 1000:8.1f}ms  '
+                             f'{secs / count * 1000:6.3f}ms/call  {sql}')
 
     @_check_types.do
     def get_tables(self) -> list[str]:
@@ -179,10 +269,11 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: list[str]
         """
 
-        self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                     f'pragma_table_info("{table_name}");')
+        self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" '
+                     f'from pragma_table_info("{table_name}");')
 
         column_names = list(eval(self.fetchall()[0][0]))
+
         return column_names
 
     @_check_types.do
@@ -194,7 +285,6 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: bool
         """
 
-        @_check_types.do
         def _download_data(url: str, label: str, dst: str) -> None:
             response = requests.get(url, stream=True)
 
@@ -242,6 +332,7 @@ class SQLConnector(_base.ConnectorBase):
                     timeout=10)
                 response.raise_for_status()
                 releases = response.json()
+
             except Exception as err:  # NOQA
                 _logger.error('failed to look up database releases:', err)
                 return None
@@ -271,17 +362,17 @@ class SQLConnector(_base.ConnectorBase):
                     best_release = release
 
             if best_release is None:
-                _logger.error(
-                    f'no database release found matching v{_version.MAJOR}.{_version.MINOR}.x')
+                _logger.error(f'no database release found matching '
+                              f'v{_version.MAJOR}.{_version.MINOR}.x')
+
                 return None
 
             for asset in best_release.get('assets', []):
                 if asset.get('name') == 'harness_designer_database.zip':
                     return asset.get('browser_download_url')
 
-            _logger.error(
-                f'database release {best_release.get("tag_name")} has no '
-                f'harness_designer_database.zip asset')
+            _logger.error(f'database release {best_release.get("tag_name")} has '
+                          f'no harness_designer_database.zip asset')
             return None
 
         downloaded = False
@@ -295,6 +386,7 @@ class SQLConnector(_base.ConnectorBase):
             if asset_url is None:
                 splash.SetText('Could not find a matching database download -- '
                                'starting with an empty database')
+
                 splash.flush()
             else:
                 try:
@@ -302,9 +394,12 @@ class SQLConnector(_base.ConnectorBase):
                     if db_name != 'harness_designer.db':
                         src = os.path.join(db_path, 'harness_designer.db')
                         os.rename(src, self.db_name)
+
                     downloaded = True
+
                 except Exception as err:  # NOQA
                     _logger.error('failed to download database:', err)
+
                     splash.SetText('Could not download the database -- '
                                    'starting with an empty database')
                     splash.flush()
@@ -321,10 +416,18 @@ class SQLConnector(_base.ConnectorBase):
             datasheet_path = os.path.join(db_path, 'datasheets')
             image_path = os.path.join(db_path, 'images')
 
-            self.execute(f'UPDATE settings SET value="{model_path}" WHERE name="model_path";')
-            self.execute(f'UPDATE settings SET value="{cad_path}" WHERE name="cad_path";')
-            self.execute(f'UPDATE settings SET value="{datasheet_path}" WHERE name="datasheet_path";')
-            self.execute(f'UPDATE settings SET value="{image_path}" WHERE name="image_path";')
+            self.execute(f'UPDATE settings SET value="{model_path}" '
+                         f'WHERE name="model_path";')
+
+            self.execute(f'UPDATE settings SET value="{cad_path}" '
+                         f'WHERE name="cad_path";')
+
+            self.execute(f'UPDATE settings SET value="{datasheet_path}" '
+                         f'WHERE name="datasheet_path";')
+
+            self.execute(f'UPDATE settings SET value="{image_path}" '
+                         f'WHERE name="image_path";')
+
             self.commit()
 
             if not os.path.exists(model_path):
@@ -392,7 +495,9 @@ class SQLConnector(_base.ConnectorBase):
         except AttributeError:
             pass
         except Exception as err:  # NOQA
-            _logger.error('SQLITE execute ERROR:', 'CMD:', operation, '\n', 'PARAMS:', params)
+            _logger.error('SQLITE execute ERROR:', 'CMD:',
+                          operation, '\n', 'PARAMS:', params)
+
             # err.__traceback__ is exactly one frame deep here (this line) --
             # a traceback only accumulates frames an exception actually
             # unwinds *through*, and this except clause catches it in the
@@ -404,8 +509,10 @@ class SQLConnector(_base.ConnectorBase):
             self._report_sql_error(err, operation, params, call_stack)
 
     @_check_types.do
-    def _report_sql_error(self, err: Exception, operation: str, params: _ParamsSequenceOrDictType | None,
+    def _report_sql_error(self, err: Exception, operation: str,
+                          params: _ParamsSequenceOrDictType | None,
                           call_stack: list | None = None) -> None:
+
         """Log a failed SQL statement's traceback and pop an error dialog.
 
         Never lets the exception itself propagate -- callers must keep
@@ -428,8 +535,14 @@ class SQLConnector(_base.ConnectorBase):
         shows which PJT*/global_db call actually built the failing
         statement; *call_stack* is what supplies that.
         """
-        stack_text = ''.join(traceback.format_list(call_stack)) if call_stack else None
-        _logger.traceback(err, msg=('Called from:\n' + stack_text) if stack_text else None)
+
+        if call_stack:
+            stack_text = ''.join(traceback.format_list(call_stack))
+            _logger.traceback(err, msg='Called from:\n' + stack_text)
+        else:
+            stack_text = None
+
+            _logger.traceback(err)
 
         key = _NORMALIZE_LITERAL_RE.sub('?', operation)
         if key in self._shown_sql_errors:
@@ -440,7 +553,10 @@ class SQLConnector(_base.ConnectorBase):
         from .... import app as _app
 
         @_check_types.do
-        def _do(e: Exception = err, op: str = operation, p: _ParamsSequenceOrDictType | None = params, stack: str | None = stack_text) -> None:
+        def _do(e: Exception = err, op: str = operation,
+                p: _ParamsSequenceOrDictType | None = params,
+                stack: str | None = stack_text) -> None:
+
             from .... import critical_error_dialog as _ced
 
             context = f'SQL: {op}\nPARAMS: {p}'
@@ -455,7 +571,9 @@ class SQLConnector(_base.ConnectorBase):
 
     @_check_types.do
     def executemany(
-        self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
+        self,
+        operation: str,
+        seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
     ) -> sqlite3.Cursor | None:
 
         """
@@ -472,13 +590,16 @@ class SQLConnector(_base.ConnectorBase):
 
         try:
             return self._cursor.executemany(operation, seq_params)
+
         except AttributeError:
-            return None
+            pass
+
         except Exception as err:  # NOQA
-            _logger.error('SQLITE executemany ERROR:', 'CMD:', operation, '\n', 'PARAMS:', seq_params)
+            _logger.error('SQLITE executemany ERROR:', 'CMD:',
+                          operation, '\n', 'PARAMS:', seq_params)
+
             call_stack = traceback.extract_stack()[:-1]
             self._report_sql_error(err, operation, seq_params, call_stack)
-            return None
 
     @property
     @_check_types.do

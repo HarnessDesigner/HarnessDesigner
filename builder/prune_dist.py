@@ -13,7 +13,7 @@ reads at runtime (Fortran/Cython/link-time files left over from how these
 packages compile their own extensions), and a handful of specific
 files/dirs confirmed unused by grepping harness_designer's own source
 (pandas is only ever used for plain DataFrame/read_csv, never .style/
-Styler; pyopencl only ever loads harness_designer's own bvh_kernel.cl,
+Styler; pyopencl only ever loads harness_designer's own kernel.cl,
 never pyopencl.clrandom/clmath).
 
 Deliberately does NOT touch *.dist-info/ (kept as-is, on request) or
@@ -96,7 +96,7 @@ _EXPLICIT_PATHS = [
     # pyopencl's own bundled OpenCL headers for its special-function/
     # random-number submodules (clmath, clrandom's Philox/Threefry).
     # harness_designer's ray_tracing/renderer.py only ever compiles its
-    # own bvh_kernel.cl and never imports clmath/clrandom, so pyopencl
+    # own kernel.cl and never imports clmath/clrandom, so pyopencl
     # never #includes any of these.
     os.path.join('pyopencl', 'cl'),
 

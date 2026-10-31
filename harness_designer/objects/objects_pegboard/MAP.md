@@ -14,6 +14,8 @@ Peg-board support for boots was deferred at the DB layer (`pjt_boot`, per CODEBA
 
 #### bundle.py
 
+2026-10-30: `_recalculate_geometry` now calls `_compute_obb()`/`_compute_aabb()` itself -- `_update_scale` is a no-op here, so the pick boxes used to stay at the bundle's creation-time shape (a bent/moved bundle was only clickable inside its original box).
+
 Bundles are 3D + peg-board only (no schematic) — design in `BUNDLE_DESIGN.md`/`BUNDLE_PLACEMENT.md`. `BundleMenu` has a "Show Concentric Section" action (2026-10-25): the concentric is the bundle's own, else that of a transition branch plugged into either end (`handlers/concentric_handler.find_concentric_for_bundle`), made only when the action is used; the widget is placed near the midpoint of the bundle's run. Disabled while the widget is showing, enabled (re-shows it) after the user closed it.
 
 #### bundle_layout.py
@@ -95,6 +97,8 @@ Peg-board routing/branch rendering; model-building itself is 3D-side, design in 
 #### wire.py
 
 One file per harness part, same `BasePegboard(parent, db_obj)` shape; part of the wire family with `wire_layout.py`/`wire_marker.py`/`wire_service_loop.py`.
+
+⚠ This wire's own interior waypoints (`waypoints_pegboard`, read via `WireTypeMixin._waypoints` in `objects_pegboard/mixins.py`) are a completely separate list from the SAME wire's 3D waypoints -- see `handlers/MAP.md`'s `wire_drag_base.py` entry for the full "why can I only drag by the ends in peg-board" explanation. A wire routed into a bundle via a 3D drag (`BUNDLE_PLACEMENT.md` section 12) can have zero peg-board waypoints of its own; dragging its body here before adding any will only ever move a true end (or nothing). `WireMenu.on_add_handle` (`Add Handle`, right-click) is how a peg-board-side interior waypoint gets created.
 
 #### wire_drop.py
 

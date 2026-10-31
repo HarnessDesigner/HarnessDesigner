@@ -44,8 +44,10 @@ or reports incompletely.
 path first tries that vendor's own SDK backend (`_collect_generic`, overwrites), then unconditionally runs
 the GL/table-based fallback as a *gap-fill* (`_collect_gaps`, only fills still-`'Unknown'` fields — never
 clobbers a real SDK measurement), then estimates from the configured OpenCL device (`_opencl_estimate`) if
-VRAM is still not usable. `get_chunk_size(width, height, target_usage)` is what `ray_tracing/renderer.py`
-actually calls: picks a render-chunk row count from free VRAM, clamped to `[50, height]`. `_opencl_estimate`
+VRAM is still not usable. `get_chunk_size(width, height, target_usage)` picks a render-chunk row count from free VRAM, clamped to
+`[50, height]`; it counts only the output buffer, so `ray_tracing/renderer.py` no longer calls it (it sizes chunks
+itself, see `ray_tracing/MAP.md`). **`detect()` needs a current OpenGL context on the calling thread** (see
+`gpu_vendor.py`) -- without one it quietly uses `_fallback()`'s guess. `_opencl_estimate`
 previously stored total VRAM in GiB (divided by 1024**3) while every vendor backend and `_fallback()` store
 bytes — broke `GPU.is_ok()`'s `isinstance(..., int)` check on any real float total and was inconsistent with
 the rest of the class; fixed to store bytes like everywhere else. The `multiplier` parameter's intended

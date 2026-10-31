@@ -349,6 +349,13 @@ class Project:
         # Back after MainFrame.unload() deleted the previous project's.
         mainframe.editor3d.editor.create_focal_target()
 
+        # The load below pumps the event loop, so the user can navigate the
+        # views while it runs. Any button press / wheel turn from here on
+        # makes the fit-to-project framing leave their camera alone.
+        mainframe.editor3d.editor.clear_user_input()
+        mainframe.editor2d.editor.clear_user_input()
+        mainframe.editor_pegboard.editor.clear_user_input()
+
         bounds_3d = db_obj.bounds_3d
         schematic_bounds = db_obj.bounds_schematic
         pegboard_bounds = db_obj.bounds_pegboard
@@ -561,6 +568,12 @@ class Project:
             mainframe.editor_pegboard.editor.request_fit_all()
 
         mainframe.editor_circuit.editor.load_project(self.ptables)
+
+        # Objects finished loading while the views may have painted only
+        # part of them (or none) -- redraw every view so all of it shows.
+        mainframe.editor3d.editor.Refresh()
+        mainframe.editor2d.editor.Refresh()
+        mainframe.editor_pegboard.editor.Refresh()
 
     @_check_types.do
     def begin_gesture(self) -> None:

@@ -4,6 +4,8 @@
 
 `DragHandler3D(DragHandlerBase)` — owns `_delta3d`/`_axis_locked_delta3d` (project an anchor to screen space, add the raw mouse delta, re-project to world space, optionally lock to the dominant axis) and the move-arrows gizmo render. Ported from `gl.canvas_3d.dragging.base.DragObjectBase`. Concrete per-object-type handlers each track their own notion of "anchor" and decide what the computed world-space delta actually moves. A free-orbit 3D camera makes a raw screen-space mouse delta ambiguous (it could mean movement along any of X/Y/Z), so every 3D drag locks to whichever single axis dominates once the first couple of events have settled past initial click jitter, and shows a directional-arrows gizmo (`drag_handlers.move_arrows.MoveArrows`) once that lock engages — the one piece of drag mechanics that's genuinely 3D-only, since the 2D-style editors (schematic/pegboard) have an unambiguous locked top-down projection and never need it.
 
+2026-10-30: once the axis lock engages, a handler that sets `self.cursor` (only `WireDragMixin.__call__` today) gets `_latched_delta3d`: the point on the locked axis line closest to the mouse ray, so the dragged wire stays under the pointer. Without a cursor (other handlers) the old per-frame delta is used.
+
 #### bundle.py
 
 `Bundle(DragHandler3D)` — rigid-translate drag; moves the start point, every interior waypoint, and the stop point together by the same world-space delta, anchored wherever the mouse actually grabbed the bundle's true path (via `WireTypeMixin.get_closest_point`). Unlike Wire, a Bundle always moves as one rigid body no matter where it's grabbed — no anchor semantics, nothing to snap onto. Ported from `gl.canvas_3d.dragging.base.PathDragObject`.

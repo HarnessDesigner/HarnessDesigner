@@ -311,13 +311,17 @@ def snap_point(kind: str, target: _Union["_terminal.Terminal", "_splice.Splice",
     """
     if kind == 'terminal':
         # wire_position3d (the terminal's own back point), NOT
-        # attach_position3d -- see SnapProbeSet's own docstring. If the
-        # terminal is seated, this is still correct: EndpointDragObject's
-        # own visual teleport-on-snap just needs *some* sensible point on
-        # or near the terminal to land the cursor on before commit_snap
-        # calls Terminal.add_wire() (which writes the real connection
-        # geometry using attach_position3d regardless of where the
-        # preview visually snapped to).
+        # attach_position3d -- see SnapProbeSet's own docstring.
+        #
+        # A SEATED terminal is inside its housing: the snap location is its cavity's wire-side
+        # surface (the cavity's wire point, the same one its snap probe sits on and the one the
+        # wire gets its extra waypoint at), never the terminal's own buried position
+        # (user, 2026-10-30). commit_snap/Terminal.add_wire still write the real connection
+        # geometry regardless of where the preview snapped to.
+        cavity = target.db_obj.cavity
+        if cavity is not None:
+            return cavity.wire_position3d
+
         return target.db_obj.wire_position3d
 
     if kind == 'splice':

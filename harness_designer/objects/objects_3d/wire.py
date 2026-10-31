@@ -568,6 +568,51 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 isinstance(self.parent.stop_sibling, _terminal.Terminal))
 
     @_check_types.do
+    def ray_trace_parts(self) -> Iterator[tuple]:
+        """Yield one tuple per piece of geometry ``render()`` draws, for the
+        ray tracer (``ray_tracing.scene.Scene.add_object``), which cannot use
+        this object's aggregate position/angle/scale -- only a straight
+        start->stop chord.
+
+        Tubes are ``(position, angle, scale, material)``, one per sub-segment
+        of the current path, with the crimp-end segments at the conductor's
+        own diameter/material.
+
+        The stripe, when it is drawn, adds a ``(position, angle, scale,
+        material, (start, stop), vbo)`` tuple after each non-crimp tube: the
+        stripe's own shared helix mesh, windowed to ``[start, stop]`` along
+        the wire exactly as ``render()`` windows it through the shader's
+        ``stripe_clip_start`` / ``stripe_clip_stop`` (the mesh's local Z is in
+        real units, not scaled, and re-based to ``start``).
+        """
+        stripe = self._stripe
+
+        if self.is_selected:
+            conductor_start = conductor_stop = False
+            draw_stripe = False
+        else:
+            conductor_start, conductor_stop = self._conductor_segment_ends()
+            draw_stripe = stripe is not None and stripe.is_visible
+
+        segments = list(self._segment_transforms())
+        last_idx = len(segments) - 1
+        offset = 0.0
+
+        for i, (position, angle, scale, seg_len) in enumerate(segments):
+            if (i == 0 and conductor_start) or (i == last_idx and conductor_stop):
+                yield (position, angle,
+                       _point.Point(self._conductor_dia, self._conductor_dia, seg_len),
+                       self._conductor_material)
+            else:
+                yield position, angle, scale, self.material
+
+                if draw_stripe:
+                    yield (position, angle, stripe.scale, stripe.material,
+                           (offset, offset + seg_len), stripe.vbo)
+
+            offset += seg_len
+
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render every sub-segment of the wire's current path.
 
@@ -1364,6 +1409,15 @@ class WireStripe(_base_3d.Base3D):
         Base3D._render_geometry, which defaults to flat shading when a
         subclass doesn't define this)."""
         return True
+
+    @_check_types.do
+    def ray_trace_parts(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, _materials.GLMaterial]]:
+        """Yield nothing: the stripe is windowed per wire segment, which only
+        the wire knows, so ``Wire.ray_trace_parts`` yields the stripe's pieces
+        itself. This stays empty so a stripe that is also in the scene's
+        object list is not added a second time.
+        """
+        yield from ()
 
     @_check_types.do
     def render_segment(self, shaders: "_shaders.ShaderProgram", clip_start: float, clip_stop: float) -> None:

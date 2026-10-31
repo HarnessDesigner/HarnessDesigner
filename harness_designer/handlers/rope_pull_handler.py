@@ -159,6 +159,7 @@ from ..objects import bundle_layout as _bundle_layout
 from ..objects import wire_layout as _wire_layout
 from ..database.project_db import pjt_bundle as _pjt_bundle
 from . import wire_routing_handler as _wire_routing_handler
+from . import bundle_wire_model as _bundle_wire_model
 from .. import check_types as _check_types
 from .. import debug as _debug
 from .. import logger as _logger
@@ -464,6 +465,42 @@ def _wire_bundle_length3d(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.
     return sum(_distance_sum(points[start + 1:end + 2]) for start, end in runs)
 
 
+# A point pulled exactly taut is stored as float32 (a few 1e-6 mm of error at ~50 mm),
+# so re-reading it from the database can put a taut stretch a hair past its length;
+# solve_chain's own default tolerance (1e-6) would then refuse it.
+_STRETCH_TOLERANCE_MM = 1e-3
+
+
+@_debug.logfunc
+@_check_types.do
+def _wire_gap_lengths3d(
+    ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire",
+    protected_runs: list[tuple[int, int]], leading: int, trailing: int,
+) -> list[float] | None:
+    """The real 3D length of each of *wire_db_obj*'s free stretches
+    (``len(protected_runs) + 1`` of them: start -> first run, between
+    runs, last run -> stop), terminal/cavity stubs excluded. ``None`` if
+    the 3D route doesn't have the same number of protected runs.
+    """
+    runs3d_full = _wire_protected_runs(ptables, wire_db_obj, '3d')
+    if len(runs3d_full) != len(protected_runs):
+        return None
+
+    points3d_full = [wire_db_obj.start_position3d, *(wp.point for wp in wire_db_obj.waypoints3d),
+                     wire_db_obj.stop_position3d]
+    points3d = points3d_full[leading:len(points3d_full) - trailing]
+
+    lengths: list[float] = []
+    prev_end3d = -1
+    for start3d, end3d in runs3d_full:
+        start3d -= leading
+        end3d -= leading
+        lengths.append(_distance_sum(points3d[prev_end3d + 1:start3d + 2]))
+        prev_end3d = end3d
+    lengths.append(_distance_sum(points3d[prev_end3d + 1:]))
+    return lengths
+
+
 @_debug.logfunc
 @_check_types.do
 def _anchors_and_length(
@@ -608,7 +645,7 @@ def _reconcile_wire_through_bundle(
     layout_facade_cls: type["_wire_layout.WireLayout"],
     protected_runs: list[tuple[int, int]],
     pin_point_id: bytes | None, pin_xz: tuple[float, float] | None,
-    leading: int = 0, trailing: int = 0,
+    leading: int = 0, trailing: int = 0, gap_lengths: list[float] | None = None,
 ) -> None:
     """:func:`_reconcile_interior`'s own counterpart for a wire whose
     peg-board interior has one or more bundle/transition-routed
@@ -660,24 +697,18 @@ def _reconcile_wire_through_bundle(
     old_ids = old_ids_full[leading:tail_start]
     protected_runs = [(s - leading, e - leading) for s, e in protected_runs]
 
-    points3d_full = [wire_db_obj.start_position3d, *(wp.point for wp in wire_db_obj.waypoints3d),
-                      wire_db_obj.stop_position3d]
-    points3d = points3d_full[leading:len(points3d_full) - trailing]
-    runs3d = [(s - leading, e - leading) for s, e in runs3d_full]
     diameter = _chain_diameter(wire_db_obj)
 
     gap_count = len(protected_runs) + 1
     gap_old_ids: list[list[bytes]] = []
-    gap_length3d: list[float] = []
+    gap_length3d = gap_lengths if gap_lengths is not None else _wire_gap_lengths3d(
+        ptables, wire_db_obj, [(s + leading, e + leading) for s, e in protected_runs], leading, trailing)
 
     prev_end = -1
-    prev_end3d = -1
-    for (start_idx, end_idx), (start3d, end3d) in zip(protected_runs, runs3d):
+    for start_idx, end_idx in protected_runs:
         gap_old_ids.append(old_ids[prev_end + 1:start_idx])
-        gap_length3d.append(_distance_sum(points3d[prev_end3d + 1:start3d + 2]))
-        prev_end, prev_end3d = end_idx, end3d
+        prev_end = end_idx
     gap_old_ids.append(old_ids[prev_end + 1:])
-    gap_length3d.append(_distance_sum(points3d[prev_end3d + 1:]))
 
     if leading:
         start_point = wire_db_obj.waypoints_pegboard[leading - 1].point
@@ -713,7 +744,7 @@ def _reconcile_wire_through_bundle(
 
         result = _rope_pull.solve_chain(
             gap_start_xz, gap_stop_xz, gap_length3d[i], drag_end, effective_target,
-            diameter, Config.zigzag_length_factor, Config.threshold_factor)
+            diameter, Config.zigzag_length_factor, Config.threshold_factor, _STRETCH_TOLERANCE_MM)
 
         if not result.accepted:
             _logger.error(
@@ -741,7 +772,22 @@ def _reconcile_wire_through_bundle(
             final_route.extend(old_ids[run_start_idx:run_end_idx + 1])
     final_route.extend(structural_tail_ids)
 
+    # set_route deletes and re-adds every row, losing the bundle/transition
+    # tags -- put them back, or the next reconcile sees an ordinary wire and
+    # collapses the whole routed run.
+    old_tags = {
+        row.point_id: (row.bundle_id, row.concentric_id, row.transition_id, row.transition_branch_id)
+        for row in path_table.for_wire(wire_db_obj.db_id, 'pegboard')}
+
     path_table.set_route(wire_db_obj.db_id, 'pegboard', final_route)
+
+    if gap_lengths is not None:
+        _wire_gap_split[wire_db_obj.db_id] = list(gap_lengths)
+
+    for row in path_table.for_wire(wire_db_obj.db_id, 'pegboard'):
+        tags = old_tags.get(row.point_id)
+        if tags is not None:
+            row.bundle_id, row.concentric_id, row.transition_id, row.transition_branch_id = tags
 
     for point_id in new_layout_point_ids:
         layout_db = layouts_table.insert(point_pegboard_id=point_id)
@@ -772,7 +818,8 @@ def _reconcile_interior(
     pin_point_id: bytes | None,
     pin_xz: tuple[float, float] | None,
     leading: int = 0,
-    trailing: int = 0
+    trailing: int = 0,
+    gap_lengths: list[float] | None = None
 ) -> None:
     """Rewrite *chain_db_obj*'s peg-board interior waypoints to
     *new_interior*, preserving *pin_point_id* (the point actively being
@@ -826,7 +873,7 @@ def _reconcile_interior(
         if protected_runs:
             _reconcile_wire_through_bundle(
                 mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                protected_runs, pin_point_id, pin_xz, leading, trailing)
+                protected_runs, pin_point_id, pin_xz, leading, trailing, gap_lengths)
             return
 
     project = mainframe.project
@@ -953,6 +1000,19 @@ def _chains_for_point(
 
     wire_ids = ptables.pjt_wire_paths_table.wire_ids_for_point('pegboard', point_id)
     if wire_ids:
+        # A bundle END sits in the route of every wire through the bundle, but it is the
+        # bundle that anchors there: solve it first, its wires follow (see _evaluate_points).
+        if cache is None:
+            index = _anchor_index(ptables)
+        else:
+            index = cache.get('anchor_index')
+            if index is None:
+                index = cache['anchor_index'] = _anchor_index(ptables)
+
+        bundles = [entry for entry in index.get(point_id, ()) if isinstance(entry[0], _pjt_bundle.PJTBundle)]
+        if bundles:
+            return bundles
+
         wire_db_obj = ptables.pjt_wires_table[wire_ids[0]]
         return [(
             wire_db_obj, ptables.pjt_wire_paths_table,
@@ -1225,12 +1285,21 @@ def _fixed_count_span(
 @_check_types.do
 def _evaluate_points(
     ptables: "_PJTPegboardTable", point_targets: list[tuple[bytes, tuple[float, float]]],
-    cascade: bool = True, chain_cache: dict | None = None,
+    cascade: bool = True, chain_cache: dict | None = None, seed_chains: list[tuple] | None = None,
+    held_ids: set[bytes] | None = None,
 ) -> tuple[list[tuple], dict[bytes, tuple[float, float]], dict[bytes, float]] | None:
     """Pure solve, no DB writes -- every ``(point_id, target_xz)`` pair
     in *point_targets* moving AT ONCE, cascading through whatever else
     needs to move as a result (see the module docstring's own "The
     cascade" section for the rule in plain words).
+
+    *seed_chains*: ``(chain_db_obj, path_table, layouts_table,
+    layout_facade_cls, drag_end)`` tuples (as :func:`_chains_for_point`
+    returns) evaluated with NO point held fixed -- used for a wire just
+    routed through a bundle, where either of the wire's own ends may
+    have to be pulled (see the bundle-wire branch in the loop below).
+    *held_ids*: point ids that must not be pulled back by that branch (the
+    wire end the user is dragging) -- the bundle is pulled instead.
 
     *chain_cache*: forwarded to every :func:`_chains_for_point` call
     this makes (see that function's own *cache* parameter). ``None``
@@ -1465,19 +1534,208 @@ def _evaluate_points(
 
         return pulled_xz
 
-    while pending:
-        point_id = pending.pop()
-        target_xz = fixed[point_id]
+    def eval_bundle_wire(
+        chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
+    ) -> str:
+        """Solve one wire through ONE bundle with :mod:`bundle_wire_model`
+        and turn its :class:`MovePlan` into pulls on the real points.
 
-        for chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end in _chains_for_point(
-            ptables, point_id, chain_cache
-        ):
+        :returns: ``'skip'`` (not a single-bundle wire -- caller falls back to
+            the plain chain solve), ``'infeasible'`` or ``'done'``.
+        """
+        protected_runs = _wire_protected_runs(ptables, chain_db_obj, 'pegboard')
+        if len(protected_runs) != 1:
+            return 'skip'
+
+        start_xz, stop_xz, required_length, leading, trailing = _anchors_and_length(ptables, chain_db_obj)
+        gap_lengths = _wire_gap_lengths3d(ptables, chain_db_obj, protected_runs, leading, trailing)
+        if gap_lengths is None:
+            return 'skip'
+
+        old_ids_full = list(path_table.point_ids(chain_db_obj.db_id, 'pegboard'))
+        route_rows = path_table.for_wire(chain_db_obj.db_id, 'pegboard')
+        run_start, run_end = protected_runs[0]
+
+        def tagged(i: int) -> bool:
+            row = route_rows[i]
+            return (row.bundle_id is not None or row.transition_id is not None
+                    or row.transition_branch_id is not None)
+
+        bundle_ids = {route_rows[i].bundle_id for i in range(run_start, run_end + 1)
+                      if route_rows[i].bundle_id is not None}
+        if len(bundle_ids) != 1:
+            return 'skip'
+
+        bundle_db = ptables.pjt_bundles_table[next(iter(bundle_ids))]
+        first_tagged = next(i for i in range(run_start, run_end + 1) if tagged(i))
+        last_tagged = next(i for i in range(run_end, run_start - 1, -1) if tagged(i))
+
+        bundle_end_ids = [bundle_db.start_position_pegboard_id, bundle_db.stop_position_pegboard_id]
+        end_a_id, end_b_id = old_ids_full[first_tagged], old_ids_full[last_tagged]
+        if end_a_id not in bundle_end_ids or end_b_id not in bundle_end_ids or end_a_id == end_b_id:
+            return 'skip'
+
+        a_end = bundle_end_ids.index(end_a_id)
+        guard_ids = {
+            0: old_ids_full[run_start] if run_start < first_tagged else None,
+            1: old_ids_full[run_end] if run_end > last_tagged else None}
+
+        def db_xz(pid: bytes) -> tuple[float, float]:
+            p_ = points_table[pid].point
+            return float(p_.x), float(p_.z)
+
+        def point_xz(pid: bytes) -> tuple[float, float]:
+            return fixed[pid] if pid in fixed else db_xz(pid)
+
+        def authoritative(pid: bytes) -> bool:
+            return pid in fixed and pid not in write_points
+
+        def moved_xz(pid: bytes, base_xz: tuple[float, float]) -> tuple[float, float]:
+            # A wire end's effective anchor after its raw point moved.
+            if pid not in fixed:
+                return base_xz
+            rx, rz = db_xz(pid)
+            return base_xz[0] + fixed[pid][0] - rx, base_xz[1] + fixed[pid][1] - rz
+
+        # The stubs as they are NOW (length and direction), per bundle end.
+        directions: list[tuple[float, float]] = []
+        stub_lengths: list[float] = []
+        for side, bundle_index in ((0, a_end), (1, 1 - a_end)):
+            guard_id = guard_ids[side]
+            end_id = bundle_end_ids[bundle_index]
+            if guard_id is None:
+                directions.append((0.0, 0.0))
+                stub_lengths.append(0.0)
+                continue
+
+            gx, gz = db_xz(guard_id)
+            ex, ez = db_xz(end_id)
+            length = math.hypot(gx - ex, gz - ez)
+            stub_lengths.append(length)
+            directions.append(((gx - ex) / length, (gz - ez) / length) if length > 1e-9 else (0.0, 0.0))
+
+        by_end_dir = [directions[0], directions[1]] if a_end == 0 else [directions[1], directions[0]]
+        by_end_len = [stub_lengths[0], stub_lengths[1]] if a_end == 0 else [stub_lengths[1], stub_lengths[0]]
+
+        start_id = chain_db_obj.start_position_pegboard_id
+        stop_id = chain_db_obj.stop_position_pegboard_id
+        a_xz = moved_xz(start_id, start_xz)
+        b_xz = moved_xz(stop_id, stop_xz)
+        ends0 = [point_xz(bundle_end_ids[0]), point_xz(bundle_end_ids[1])]
+
+        free_total = sum(gap_lengths)
+        stored = _wire_gap_split.get(chain_db_obj.db_id)
+        if stored is not None and len(stored) == 2 and abs(sum(stored) - free_total) <= 0.01:
+            split = (stored[0], stored[1])
+        else:
+            split = (gap_lengths[0], gap_lengths[1])
+
+        bundle_model = _bundle_wire_model.BundleModel(
+            ends0, float(bundle_db.length_mm),
+            (not authoritative(bundle_end_ids[0]), not authoritative(bundle_end_ids[1])),
+            (by_end_dir[0], by_end_dir[1]), (by_end_len[0], by_end_len[1]))
+        wire_model = _bundle_wire_model.WireModel(
+            a_xz, b_xz, not authoritative(start_id), not authoritative(stop_id), free_total, split, a_end)
+
+        held = None
+        if start_id in held_ids:
+            held = 'a'
+        elif stop_id in held_ids:
+            held = 'b'
+        elif authoritative(start_id):
+            held = 'a'
+        elif authoritative(stop_id):
+            held = 'b'
+
+        plan = _bundle_wire_model.Assembly(wire_model, bundle_model).plan(held)
+        if not plan.feasible:
+            _logger.error(
+                f'rope_pull_handler: wire {chain_db_obj.db_id!r} cannot be fitted through its bundle: {plan.reason}')
+            return 'infeasible'
+
+        def move(pid: bytes, frm: tuple[float, float], to: tuple[float, float]) -> bool:
+            if math.hypot(to[0] - frm[0], to[1] - frm[1]) <= 1e-6:
+                return True
+            return pull_node(pid, frm, to, chain_db_obj.db_id, pid in write_points)
+
+        if not (move(start_id, a_xz, plan.a) and move(stop_id, b_xz, plan.b)
+                and move(bundle_end_ids[0], ends0[0], plan.ends[0])
+                and move(bundle_end_ids[1], ends0[1], plan.ends[1])):
+            return 'infeasible'
+
+        # The stubs ride rigidly with their bundle ends: write where they now belong,
+        # so a dragged (not pulled) bundle end carries its stub too.
+        for side in (0, 1):
+            guard_id = guard_ids[side]
+            if guard_id is None:
+                continue
+            target = plan.guards[side]
+            if math.hypot(target[0] - db_xz(guard_id)[0], target[1] - db_xz(guard_id)[1]) > 1e-6:
+                write_points[guard_id] = (float(target[0]), float(target[1]))
+
+        # The bundle's own end points are only reachable through the WIRE (they sit in its
+        # route, not in the bundle's waypoint list), so nothing else would ever re-solve the
+        # bundle's interior after they moved: do it here, so it keeps its 3D length.
+        if bundle_db.db_id not in seen_chains and (
+                bundle_end_ids[0] in write_points or bundle_end_ids[1] in write_points
+                or _offline_store.overlay(bundle_db.db_id) is not None):
+            seen_chains.add(bundle_db.db_id)
+
+            b_start = point_xz(bundle_end_ids[0])
+            b_stop = point_xz(bundle_end_ids[1])
+            _, _, b_required, b_leading, b_trailing = _anchors_and_length(ptables, bundle_db)
+            b_result = _rope_pull.solve_chain(
+                b_start, b_stop, b_required, _rope_pull.DragEnd.START, b_start,
+                _chain_diameter(bundle_db), Config.zigzag_length_factor, Config.threshold_factor)
+
+            if not b_result.accepted:
+                return 'infeasible'
+
+            entries.append((
+                bundle_db, ptables.pjt_bundle_paths_table, ptables.pjt_bundle_layouts_table,
+                _bundle_layout.BundleLayout, _rope_pull.DragEnd.START, None, None, b_result,
+                b_start, b_stop, b_required, b_leading, b_trailing))
+
+        whole_result = _rope_pull.solve_chain(
+            plan.a, plan.b, required_length, drag_end, plan.a,
+            _chain_diameter(chain_db_obj), Config.zigzag_length_factor, Config.threshold_factor)
+
+        entries.append((
+            chain_db_obj, path_table, layouts_table, layout_facade_cls,
+            drag_end, point_id, target_xz, whole_result, plan.a, plan.b,
+            [plan.split[0], plan.split[1]], leading, trailing))
+        return 'done'
+
+    seed_queue = list(seed_chains or [])
+
+    held_ids = held_ids or set()
+
+    while pending or seed_queue:
+        if pending:
+            point_id = pending.pop()
+            target_xz = fixed[point_id]
+            chains = _chains_for_point(ptables, point_id, chain_cache)
+        else:
+            point_id = target_xz = None
+            chains = [seed_queue.pop()]
+
+        for chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end in chains:
             if chain_db_obj.db_id in seen_chains:
                 continue
             seen_chains.add(chain_db_obj.db_id)
 
             start_xz, stop_xz, required_length, leading, trailing = _anchors_and_length(
                 ptables, chain_db_obj)
+
+            # A wire routed through ONE bundle is solved as a bundle/wire
+            # assembly (bundle_wire_model), not as one start -> stop span.
+            if drag_end is not _rope_pull.DragEnd.WAYPOINT and not isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+                outcome = eval_bundle_wire(
+                    chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz)
+                if outcome == 'infeasible':
+                    return None
+                if outcome == 'done':
+                    continue
 
             # target_xz is where point_id -- the chain's own RAW
             # start/stop anchor (a terminal's attach_position_pegboard)
@@ -1554,8 +1812,31 @@ def _evaluate_points(
                 drag_end, point_id, target_xz, result, start_xz, stop_xz, required_length,
                 leading, trailing))
 
+            # Wires routed through this bundle follow it: their ends are pulled
+            # behind it, slack absorbed, exactly as when the wire itself is dragged.
+            if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+                for wire_db_obj in chain_db_obj.wires:
+                    if wire_db_obj.db_id in seen_chains:
+                        continue
+                    seen_chains.add(wire_db_obj.db_id)
+
+                    outcome = eval_bundle_wire(
+                        wire_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table,
+                        _wire_layout.WireLayout, _rope_pull.DragEnd.START, None, None)
+                    if outcome == 'infeasible':
+                        return None
+
     return entries, write_points, write_yaws
 
+
+# Per wire: how its free length (outside the bundle stubs) is currently split
+# between its stretches, so a drag slides slack through the bundle from where
+# it was left. Memory only; falls back to the 3D split when absent or stale.
+_wire_gap_split: dict[bytes, list[float]] = {}
+
+# Bundles whose wires are being re-fitted by _commit_points_body right now,
+# so a pull that reaches the same bundle again can't loop.
+_bundle_followups: set[bytes] = set()
 
 # How many _commit_points calls are on the stack right now -- see
 # is_committing(). Module level on purpose: the slack handler it protects
@@ -1670,6 +1951,20 @@ def _commit_points_body(
         # assignment never fires the bound callbacks that write the row back
         # to the DB and refresh every live view holding this Point.
         for point_id, (x, z) in write_points.items():
+            # A guard stub rides rigidly with the bundle end it is attached
+            # to, every frame (the exact tangent-based placement runs on the
+            # bundle's own commit) -- so a wire reconcile never sees a stale
+            # stub, mid-drag included.
+            old_point = points_table[point_id].point
+            move_dx, move_dz = x - float(old_point.x), z - float(old_point.z)
+            if move_dx != 0.0 or move_dz != 0.0:
+                for guard_id in _wire_routing_handler.guard_points_at(ptables, 'pegboard', point_id):
+                    if guard_id not in write_points:
+                        _move_point(
+                            points_table[guard_id].point,
+                            float(points_table[guard_id].point.x) + move_dx,
+                            float(points_table[guard_id].point.z) + move_dz)
+
             # _move_point's own no-op short-circuit applies here too: a
             # cascade-pulled anchor this solve decided doesn't actually
             # need to move (its own far-end delta already rounded to
@@ -1678,15 +1973,41 @@ def _commit_points_body(
             # a write that changes nothing.
             _move_point(points_table[point_id].point, x, z)
 
+        # Bundles first (user, 2026-10-29): a wire's reconcile reads its
+        # guard stubs, which only a finished bundle commit has repositioned.
+        ordered_entries = sorted(entries, key=lambda e: not isinstance(e[0], _pjt_bundle.PJTBundle))
+        committed_wire_ids = {e[0].db_id for e in entries if not isinstance(e[0], _pjt_bundle.PJTBundle)}
+        followup_bundles: list = []
+
         for (
             chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
             result, start_xz, stop_xz, required_length, leading, trailing
-        ) in entries:
+        ) in ordered_entries:
             interior = result.points[1:-1]
             pin_point_id = point_id if drag_end is _rope_pull.DragEnd.WAYPOINT else None
             pin_xz = target_xz if drag_end is _rope_pull.DragEnd.WAYPOINT else None
 
-            if in_progress or _offline_store.overlay(chain_db_obj.db_id) is not None:
+            # A wire routed through a bundle/transition never goes through the
+            # overlay: _apply_mid_drag/_place_active spread EVERY point of the
+            # route (the bundle's shared points included) over one start->stop
+            # shape, which shrinks the bundle and pulls the wire off it, and
+            # _commit_overlay's set_route drops the tags. The stretch-aware
+            # _reconcile_interior is the only thing that respects the run.
+            is_bundle_wire = (
+                drag_end is not _rope_pull.DragEnd.WAYPOINT
+                and not isinstance(chain_db_obj, _pjt_bundle.PJTBundle)
+                and bool(_wire_protected_runs(ptables, chain_db_obj, 'pegboard')))
+
+            if is_bundle_wire:
+                if _offline_store.overlay(chain_db_obj.db_id) is not None:
+                    _offline_store.release_overlay(chain_db_obj.db_id)
+                    _offline_store.release(chain_db_obj.db_id)
+
+                _reconcile_interior(
+                    mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
+                    interior, None, None, leading, trailing,
+                    required_length if isinstance(required_length, list) else None)
+            elif in_progress or _offline_store.overlay(chain_db_obj.db_id) is not None:
                 _apply_mid_drag(
                     mainframe, chain_db_obj, path_table, layouts_table,
                     drag_end, interior, start_xz, stop_xz, pin_point_id, pin_xz, leading, trailing)
@@ -1715,9 +2036,30 @@ def _commit_points_body(
                     ptables, chain_db_obj, chain_db_obj.start_position_pegboard, 'pegboard')
                 _wire_routing_handler.reposition_guards_for_bundle_end(
                     ptables, chain_db_obj, chain_db_obj.stop_position_pegboard, 'pegboard')
+
+                # The bundle's waypoint count may have changed: every wire
+                # through it follows (before any wire entry below runs).
+                for wire_db_obj in chain_db_obj.wires:
+                    _resync_wire_bundle_span(mainframe, wire_db_obj, chain_db_obj)
+
+                followup_bundles.append(chain_db_obj)
     finally:
         for objpegboard in suspended.values():
             objpegboard.resume_updates()
+
+    # Wires through a bundle that just moved/reshaped but were not part of
+    # this commit's own cascade still have to be fitted to it.
+    for bundle_db_obj in followup_bundles:
+        if bundle_db_obj.db_id in _bundle_followups:
+            continue
+
+        _bundle_followups.add(bundle_db_obj.db_id)
+        try:
+            for wire_db_obj in bundle_db_obj.wires:
+                if wire_db_obj.db_id not in committed_wire_ids:
+                    realize_length_change(mainframe, wire_db_obj, in_progress=False)
+        finally:
+            _bundle_followups.discard(bundle_db_obj.db_id)
 
 
 class _Waypoint:
@@ -2420,7 +2762,8 @@ def resolve_rigid_move(
 def realize_length_change(
     mainframe: "_ui.MainFrame",
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
-    in_progress: bool = False
+    in_progress: bool = False,
+    held_point_id: bytes | None = None
 ) -> bool:
     """Re-solve *chain_db_obj*'s peg-board chain after its real 3D
     length changed (a ``BundleLayout``/``WireLayout`` marker was dragged
@@ -2466,6 +2809,21 @@ def realize_length_change(
         guessed at.
     """
     ptables = mainframe.project.ptables
+    if not isinstance(chain_db_obj, _pjt_bundle.PJTBundle) and _wire_protected_runs(
+            ptables, chain_db_obj, 'pegboard'):
+        # Routed through a bundle/transition: nothing is held fixed, so
+        # either end of the wire may be pulled to reach it (see the
+        # bundle-wire branch in _evaluate_points).
+        result = _evaluate_points(
+            ptables, [], cascade=is_enabled(), held_ids={held_point_id} if held_point_id else None, seed_chains=[(
+                chain_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table,
+                _wire_layout.WireLayout, _rope_pull.DragEnd.START)])
+        if result is None:
+            return False
+
+        _commit_points(mainframe, *result, in_progress=in_progress)
+        return True
+
     raw_start = chain_db_obj.start_position_pegboard
     raw_start_xz = (float(raw_start.x), float(raw_start.z))
 

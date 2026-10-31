@@ -66,7 +66,9 @@ material calls in this module specifically have not been exercised.
 from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
+
 from PySide6 import QtCore, QtWidgets
+from ..geometry import point as _point
 
 from . import bundle_diameter as _bundle_diameter
 from . import rope_pull_handler as _rope_pull_handler
@@ -77,6 +79,7 @@ from ..gl.canvas_base import interaction as _interaction
 from .. import check_types as _check_types
 from .. import logger as _logger
 from ..objects import bundle as _bundle_obj
+from ..objects.objects_pegboard import base_pegboard as _base_pegboard
 
 
 if TYPE_CHECKING:
@@ -87,7 +90,6 @@ if TYPE_CHECKING:
     from ..objects.objects_pegboard import transition as _transition_pegboard
     from ..objects.objects_3d import bundle as _bundle_3d
     from ..objects.objects_pegboard import bundle as _bundle_pegboard
-    from ..geometry import point as _point
     from ..objects import project as _project
     from ..objects import transition as _transition_obj
     from ..objects import wire as _wire_obj
@@ -163,6 +165,9 @@ def _refresh_routed_bundle_diameters(walk: "_wire_routing_handler.RouteWalk") ->
     """
     for bundle_db in walk.touched_bundles:
         _bundle_diameter.refresh_diameter(bundle_db.get_object())
+        # The bundle's peg-board wire table bakes its wire ids in at
+        # construction; without this it never lists the newly routed wire.
+        _base_pegboard.notify_table_wires_changed(bundle_db)
 
 
 _OTHER_VIEW = {'3d': 'pegboard', 'pegboard': '3d'}
@@ -437,18 +442,28 @@ def find_drop_hit(
     """
     camera = canvas.camera
 
-    picked = _object_picker.find_object(mouse_pos, camera, canvas)
-    if picked is not None:
-        if isinstance(picked, _bundle_obj.Bundle):
-            candidates = [point for bndl, point in eligible_ends if bndl is picked]
-            if len(candidates) == 1:
-                return 'bundle', picked, candidates[0]
-            if candidates:
-                view_obj = _view_bundle(picked, view)
-                end_position = _closest_bundle_end(view_obj.start_position, view_obj.stop_position, moving[0])
-                return 'bundle', picked, end_position
-
     origin, direc = _object_picker.build_ray(mouse_pos, camera)
+
+    # The eligible bundles are tested directly, not through find_object: the dragged wire
+    # itself rides under the pointer now and would be the nearest pick, hiding the bundle.
+    if origin is not None:
+        tested: list = []
+        for bndl, _point_ in eligible_ends:
+            if any(bndl is done for done in tested):
+                continue
+
+            tested.append(bndl)
+            if not _view_bundle(bndl, view).hit_test_step3(origin, direc):
+                continue
+
+            candidates = [point for b, point in eligible_ends if b is bndl]
+            if len(candidates) == 1:
+                return 'bundle', bndl, candidates[0]
+
+            view_obj = _view_bundle(bndl, view)
+            end_position = _closest_bundle_end(view_obj.start_position, view_obj.stop_position, moving[0])
+            return 'bundle', bndl, end_position
+
     if origin is not None:
         for t_obj, branch in eligible_branches:
             candidate = _view_transition(t_obj, view).hit_test_branch_ray(origin, direc)
@@ -456,6 +471,38 @@ def find_drop_hit(
                 return 'branch', t_obj, branch
 
     return None
+
+
+@_check_types.do
+def _closest_point_on_path(path: list, origin: "np.ndarray", direc: "np.ndarray") -> "np.ndarray | None":
+    """The point on the polyline *path* (a list of xyz arrays) nearest the ray *origin*/*direc*."""
+    origin = np.asarray(origin, dtype=np.float64)
+    direc = np.asarray(direc, dtype=np.float64)
+    best = None
+    best_dist = None
+
+    for p0, p1 in zip(path, path[1:]):
+        p0 = np.asarray(p0, dtype=np.float64)
+        v = np.asarray(p1, dtype=np.float64) - p0
+        c = float(np.dot(v, v))
+        if c < 1e-12:
+            continue
+
+        w0 = origin - p0
+        b = float(np.dot(direc, v))
+        d = float(np.dot(direc, w0))
+        e = float(np.dot(v, w0))
+        denom = c - b * b
+        t = (e / c) if denom < 1e-12 else (e - b * d) / denom
+        t = max(0.0, min(1.0, t))
+
+        candidate = p0 + v * t
+        along = max(0.0, float(np.dot(direc, candidate - origin)))
+        dist = float(np.linalg.norm(origin + direc * along - candidate))
+        if best_dist is None or dist < best_dist:
+            best, best_dist = candidate, dist
+
+    return best
 
 
 @_check_types.do
@@ -504,6 +551,10 @@ class WireRouteMixin:
     _view: str | None = None  # '3d' or 'pegboard' -- set by the concrete subclass
 
     drop_hit = None
+    cursor = None
+    _lock_origin = None
+    anchor = None
+    last_pos = None
     _eligible_ends = None
     _eligible_branches = None
 
@@ -594,6 +645,37 @@ class WireRouteMixin:
         set_hover_highlight(self.drop_hit, _ELIGIBLE, self._view)
         set_hover_highlight(new_hit, _HOVERED, self._view)
         self.drop_hit = new_hit
+
+    @_check_types.do
+    def _snap_to_hovered_bundle(self, mouse_pos: "_point.Point") -> None:
+        """3D only: while a bundle is the hovered drop target, put the dragged section's grab
+        point on that bundle's centreline (the spot nearest the mouse ray). Every frame the
+        ordinary latched move puts the section back under the pointer first, so moving off the
+        bundle undoes the snap by itself."""
+        if self._view != '3d' or self.drop_hit is None or self.drop_hit[0] != 'bundle':
+            return
+
+        if self.cursor is None or self._lock_origin is None:
+            return
+
+        origin, direc = self.canvas.camera.get_mouse_ray(mouse_pos)
+        if origin is None:
+            return
+
+        bndl = self.drop_hit[1]
+        view_obj = _view_bundle(bndl, self._view)
+        path = [view_obj.start_position] + [wp.point for wp in bndl.db_obj.waypoints3d] + [view_obj.stop_position]
+
+        target = _closest_point_on_path([p.as_numpy for p in path], origin, direc)
+        if target is None:
+            return
+
+        shift = _point.Point(*(target - self.anchor.as_numpy))
+        for point in self.moving:
+            point += shift
+
+        self.anchor += shift
+        self.last_pos = self.anchor.copy()
 
     @_check_types.do
     def _disarm_routing(self) -> None:

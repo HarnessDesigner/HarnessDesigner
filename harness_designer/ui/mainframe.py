@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from .editor_schematic import editor_schematic as _editor_schematic
     from . import web_viewer as _web_viewer
     from . import editor_script as _editor_script
+    from .dialogs import ray_tracing_dialog as _ray_tracing_dialog
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
     from ..objects import project as _project
@@ -129,6 +130,7 @@ class MainFrame(QtWidgets.QMainWindow):
         # (show_scraper_browser), not at startup: it pulls in QtWebEngine.
         self.scraper_browser: _Union["_web_viewer.ScraperBrowser", None] = None
         self.scraper_editor: _Union["_editor_script.ScriptEditor", None] = None
+        self.ray_tracing_dialog: _Union["_ray_tracing_dialog.RayTracingDialog", None] = None
 
         splash.SetText('Startup logging ...')
         splash.flush()
@@ -814,6 +816,23 @@ class MainFrame(QtWidgets.QMainWindow):
             self._link_scraper_docks()
 
         self.scraper_editor.Show()
+
+    @_check_types.do
+    def show_ray_tracing(self) -> None:
+        """
+        Open the ray tracing dialog (settings and rendered image), creating
+        it the first time. It is not modal, so the 3D editor stays usable
+        while a render runs. Meant for a toolbar button or a menu entry.
+        """
+
+        if self.ray_tracing_dialog is None:
+            from .dialogs import ray_tracing_dialog
+
+            self.ray_tracing_dialog = ray_tracing_dialog.RayTracingDialog(self)
+
+        self.ray_tracing_dialog.show()
+        self.ray_tracing_dialog.raise_()
+        self.ray_tracing_dialog.activateWindow()
 
     @_check_types.do
     def _link_scraper_docks(self) -> None:

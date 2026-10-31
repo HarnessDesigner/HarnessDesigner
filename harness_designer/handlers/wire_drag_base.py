@@ -367,6 +367,29 @@ class WireDragMixin:
 
     @classmethod
     @_check_types.do
+    def _route_locked_point_ids(cls, project: "_project.Project", wire_obj: "_wire_object.Wire") -> set[bytes]:
+        """Ids of *wire_obj*'s route points (this view) that a drag of the
+        wire must never move: every bundle/transition-tagged point plus the
+        untagged guard point immediately next to a tagged one (same rule as
+        ``rope_pull_handler._wire_protected_runs``)."""
+        ptables = project.ptables
+        view = 'pegboard' if cls._points_table(project) is ptables.pjt_points_pegboard_table else '3d'
+        rows = ptables.pjt_wire_paths_table.for_wire(wire_obj.db_obj.db_id, view)
+
+        tagged = [
+            row.bundle_id is not None or row.transition_id is not None
+            or row.transition_branch_id is not None for row in rows]
+
+        locked: set[bytes] = set()
+        last = len(rows) - 1
+        for i, row in enumerate(rows):
+            if tagged[i] or (i > 0 and tagged[i - 1]) or (i < last and tagged[i + 1]):
+                locked.add(row.point_id)
+
+        return locked
+
+    @classmethod
+    @_check_types.do
     def wire_end_anchors(cls, project: "_project.Project",
                          wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
 
@@ -455,10 +478,20 @@ class WireDragMixin:
         last_idx = len(chain) - 1
         bounding = (seg_idx, seg_idx + 1)
 
+        # A point the wire shares with a bundle/transition, or the guard
+        # stub point next to one, is never moved by dragging the WIRE (user,
+        # 2026-10-29: only the bundle's own drag moves them) -- moving a
+        # shared bundle point from here resized the bundle.
+        locked = cls._route_locked_point_ids(project, wire_obj)
+
         moving = []
         for idx in bounding:
             point = chain[idx]
-            if not cls.is_anchor_point(project, point.db_id[:-2]):
+            point_id = point.db_id[:-2]
+            if point_id in locked:
+                continue
+
+            if not cls.is_anchor_point(project, point_id):
                 moving.append((idx, point))
 
         if not moving:
@@ -1003,6 +1036,9 @@ class WireDragMixin:
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
+        # Lets the 3D axis-locked move keep the dragged point under the pointer.
+        self.cursor = mouse_pos
+
         if self._snap_probes is not None:
             # Hit-test against the real cursor position, not a position
             # reconstructed from the (possibly axis-locked) dragged

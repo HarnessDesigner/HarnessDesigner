@@ -74,6 +74,27 @@ class BundleCutRow:
     length_with_excess_mm: float
 
 
+_MM_PER_INCH = 25.4
+
+
+@_check_types.do
+def format_length(length_mm: float) -> str:
+    """Format a length as inches, feet and inches, and millimetres, e.g.
+    ``70.0in (5'10")(1778mm)``. Cutable stock is bought by the foot, so the
+    feet-and-inches part is rounded to the nearest whole inch.
+
+    :param length_mm: The length in millimetres.
+    :type length_mm: float
+    :returns: The formatted length.
+    :rtype: str
+    """
+    inches = length_mm / _MM_PER_INCH
+    whole_inches = int(round(inches))
+    feet, rem_inches = divmod(whole_inches, 12)
+
+    return f'{inches:.1f}in ({feet}\'{rem_inches}")({length_mm:.0f}mm)'
+
+
 @_check_types.do
 def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> _image.Image:
     """Return a 100x25 wire-color swatch for *pjt_wire*, falling back to

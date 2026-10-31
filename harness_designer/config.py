@@ -782,6 +782,10 @@ class Config(metaclass=ConfigDB):
 
         enable_reflections = True
         enable_depth_of_field = True
+
+        # Render the 3D editor's own background colour and floor instead of the background settings
+        # below (which then apply to nothing but reflections' fallback).
+        match_viewport = True
         resolutions = [
             {'label': '640x360 (360p LD) (16:9)', 'width': 640, 'height': 360},
             {'label': '480x360 (360p LD) (4:3)', 'width': 480, 'height': 360},
@@ -870,6 +874,10 @@ class Config(metaclass=ConfigDB):
             """
 
             ambient_intensity = 0.2
+
+            # A white light at the camera, in addition to ``lights``. The default light below sits at
+            # the origin, which is usually inside or under the model and leaves everything dark.
+            camera_light = True
             lights = [
                 {
                     'position': [0.0, 0.0, 0.0],

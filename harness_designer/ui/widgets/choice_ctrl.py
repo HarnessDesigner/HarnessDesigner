@@ -51,8 +51,13 @@ class ChoiceCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _on_index_changed(self) -> None:
-        """Emit :attr:`valueChanged` with the text of the newly selected item."""
+    def _on_index_changed(self, _index: int) -> None:
+        """Emit :attr:`valueChanged` with the text of the newly selected item.
+
+        :param _index: New index from ``currentIndexChanged``; unused, the
+            text is read from the combo box instead.
+        :type _index: int
+        """
         self.valueChanged.emit(self.ctrl.currentText())
 
     # ------------------------------------------------------------------

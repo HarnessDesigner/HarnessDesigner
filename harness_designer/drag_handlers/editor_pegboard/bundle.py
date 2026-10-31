@@ -50,6 +50,8 @@ import math
 
 from .. import editor_pegboard as _editor_pegboard
 from .. import base as _base
+from ...handlers import rope_pull_handler as _rope_pull_handler
+from ...handlers import wire_slack_handler as _wire_slack_handler
 from ...geometry import point as _point
 from ... import debug as _debug
 from ... import check_types as _check_types
@@ -76,13 +78,15 @@ class SegmentDragPlan:
         bundle end with nothing further to clamp against.
     """
 
-    __slots__ = ('points', 'outer_budgets')
+    __slots__ = ('points', 'outer_budgets', 'point_ids')
 
     @_check_types.do
     def __init__(self, points: tuple[_point.Point, _point.Point],
                  outer_budgets: tuple[tuple[float, float, float] | None,
-                                       tuple[float, float, float] | None]):
+                                       tuple[float, float, float] | None],
+                 point_ids: tuple[bytes, bytes] | None = None):
         self.points = points
+        self.point_ids = point_ids
         self.outer_budgets = outer_budgets
 
 
@@ -175,7 +179,8 @@ def plan_segment_drag(project: "_project.Project", chain_db_obj: "_pjt_bundle.PJ
         nx, nz = positions[index + 2]
         outer_b = (nx, nz, budgets[index + 1])
 
-    return SegmentDragPlan(points=(point_a, point_b), outer_budgets=(outer_a, outer_b))
+    return SegmentDragPlan(points=(point_a, point_b), outer_budgets=(outer_a, outer_b),
+                           point_ids=(ids[index], ids[index + 1]))
 
 
 class Bundle(_editor_pegboard.DragHandlerPegboard):
@@ -215,6 +220,13 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
         self._last_x = float(world_pos.x)
         self._last_z = float(world_pos.z)
 
+        # Rope-pull drag: the two bounding points as one rigid unit, measured
+        # from where the drag began (see Generic and resolve_rigid_move).
+        self._start_x = self._last_x
+        self._start_z = self._last_z
+        self._applied = (0.0, 0.0)
+        self._starts = [(point_id, point.copy()) for point_id, point in zip(plan.point_ids, plan.points)]
+
         # Open the move gesture for this drag's whole lifetime -- see
         # drag_handlers.editor_pegboard.generic.Generic.__init__ for the
         # same hook and WRITE_DESIGN.md section 4.12. Closed in delete()
@@ -234,6 +246,11 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
             # gesture would silently stay open and defer every later
             # write app-wide until something else closes it.
             self.canvas.mainframe.project.end_gesture()
+
+        # The release frame: the real (not overlay) reconcile, so bends get their layouts.
+        if _rope_pull_handler.is_enabled() and self._applied != (0.0, 0.0):
+            _rope_pull_handler.resolve_rigid_move(
+                self.canvas.mainframe, self._starts, self._applied, in_progress=False)
 
     @staticmethod
     @_check_types.do
@@ -293,6 +310,24 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
         target_x, target_z = float(world_pos.x), float(world_pos.z)
+
+        if _rope_pull_handler.is_enabled():
+            full_delta = (target_x - self._start_x, target_z - self._start_z)
+            t = _rope_pull_handler.resolve_rigid_move(self.canvas.mainframe, self._starts, full_delta)
+
+            # resolve_rigid_move already reconciled every wire through this bundle;
+            # moving the points one by one must not re-run a reconcile per point.
+            self._applied = (full_delta[0] * t, full_delta[1] * t)
+            _wire_slack_handler.WireSlackHandler._reconciling_any = True
+            try:
+                for (_point_id, start), point in zip(self._starts, self._points):
+                    point += _point.Point(
+                        float(start.x) + full_delta[0] * t - float(point.x), 0.0,
+                        float(start.z) + full_delta[1] * t - float(point.z))
+            finally:
+                _wire_slack_handler.WireSlackHandler._reconciling_any = False
+
+            return
 
         # Incremental, from the last frame's (possibly budget-clamped)
         # world position -- NOT from either bounding point's own

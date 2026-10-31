@@ -1,292 +1,42 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Threaded helpers for building per-object BVH data.
+"""Build the one bounding volume hierarchy the OpenCL kernel traverses.
 
-This module coordinates worker threads that transform object geometry and then
-build acceleration structures with :mod:`bvh_fast`.
+``kernel.cl`` starts every ray at node 0 of a single hierarchy, so the whole
+scene has to be in one tree. The tree is built by :mod:`.bvh`, a Cython
+extension (``bvh.pyx``) that has to be compiled before this module can be
+imported.
 """
 
-# threaded_bvh_processor.py
-import threading
-import queue
-import time
 import numpy as np
-import bvh_fast
-from dataclasses import dataclass
-import types
 
+from . import bvh as _bvh
 from .. import check_types as _check_types
 
 
-@dataclass
-class ObjectData:
-    """Data for a single object to process"""
-    object_id: int
-    vertices: np.ndarray      # (N, 3) float32
-    faces: np.ndarray         # (M, 3) int32
-    normals: np.ndarray       # (M, 3) float32
-    position: np.ndarray      # (3,) float32
-    rotation: np.ndarray      # (3, 3) float32 or (4,) quaternion
-    material_id: int
+LEAF_THRESHOLD = 4
 
 
-@dataclass
-class ProcessedObject:
-    """Results from processing an object"""
-    object_id: int
-    vertices: np.ndarray  # Transformed vertices
-    faces: np.ndarray  # Original faces
-    normals: np.ndarray  # Transformed normals
-    bvh_bounds: np.ndarray  # BVH bounds
-    bvh_structure: np.ndarray  # BVH structure
-    bvh_indices: np.ndarray  # BVH indices
-    material_id: int
-    processing_time: float  # ms
+@_check_types.do
+def build_bvh(vertices: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build a BVH over world-space triangles.
 
+    :param vertices: ``(N, 3)`` float32 vertex positions.
+    :type vertices: numpy.ndarray
+    :param faces: ``(M, 3)`` int32 vertex indices, one row per triangle.
+    :type faces: numpy.ndarray
+    :returns: ``(bounds, structure, indices)`` -- six floats and four ints per
+        node, and the triangle order the leaves refer to.
+    :rtype: tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]
+    :raises ValueError: When there are no triangles to build a tree from.
+    """
+    if not len(faces):
+        raise ValueError('There is no geometry to build a BVH from')
 
-class BVHWorkerThread(threading.Thread):
-    """Worker thread that processes objects from queue"""
+    vertices = np.ascontiguousarray(vertices, dtype=np.float32)
+    faces = np.ascontiguousarray(faces, dtype=np.int32)
 
-    @_check_types.do
-    def __init__(self, thread_id: int, work_queue: queue.Queue,
-                 results_queue: queue.Queue, stats_lock: threading.Lock):
-        """Initialize the worker thread.
+    centroids = _bvh.calculate_centroids_parallel(vertices, faces)
+    builder = _bvh.FastBVHBuilder(vertices, faces, centroids, leaf_threshold=LEAF_THRESHOLD)
 
-        :param thread_id: Numeric identifier used in log output.
-        :type thread_id: int
-        :param work_queue: Queue supplying :class:`ObjectData` instances.
-        :type work_queue: :class:`queue.Queue`
-        :param results_queue: Queue receiving :class:`ProcessedObject` values.
-        :type results_queue: :class:`queue.Queue`
-        :param stats_lock: Lock protecting the per-thread statistics counters.
-        :type stats_lock: :class:`threading.Lock`
-        """
-        super().__init__(daemon=True)
-        self.thread_id = thread_id
-        self.work_queue = work_queue
-        self.results_queue = results_queue
-        self.stats_lock = stats_lock
-        self.objects_processed = 0
-        self.total_time = 0.0
-        self.running = True
-
-    @_check_types.do
-    def run(self) -> None:
-        """Main thread loop"""
-        while self.running:
-            try:
-                # Get work from queue (blocks until available)
-                obj_data = self.work_queue.get(timeout=0.1)
-
-                # Check for poison pill (shutdown signal)
-                if obj_data is None:
-                    print(f"[Thread {self.thread_id}] Received shutdown signal")
-                    break
-
-                # Process the object
-                start_time = time.time()
-                result = self._process_object(obj_data)
-                elapsed = (time.time() - start_time) * 1000
-
-                result.processing_time = elapsed
-
-                # Put result in results queue
-                self.results_queue.put(result)
-
-                # Update stats
-                with self.stats_lock:
-                    self.objects_processed += 1
-                    self.total_time += elapsed
-
-                # Mark task as done
-                self.work_queue.task_done()
-
-            except queue.Empty:
-                # No work available, loop continues
-                continue
-            except Exception as e:  # NOQA
-                import traceback
-                traceback.print_exc()
-                self.work_queue.task_done()
-
-        print(f"[Thread {self.thread_id}] Exiting "
-              f"(processed {self.objects_processed} objects, "
-              f"avg {self.total_time / max(1, self.objects_processed):.1f}ms/object)")
-
-    @_check_types.do
-    def _process_object(self, obj_data: ObjectData) -> ProcessedObject:  # NOQA
-        """Process a single object: transform + BVH build"""
-
-        # 1. Apply transforms (if not identity)
-        if not (np.allclose(obj_data.position, 0) and
-                np.allclose(obj_data.rotation, np.eye(3))):
-
-            # Handle quaternion if needed
-            if obj_data.rotation.shape == (4,):
-                rotation_mat = bvh_fast.quaternion_to_rotation_matrix(obj_data.rotation)
-            else:
-                rotation_mat = obj_data.rotation
-
-            # Transform vertices and normals
-            transformed_verts, transformed_normals = bvh_fast.apply_transform_parallel(
-                obj_data.vertices,
-                obj_data.normals,
-                obj_data.position,
-                rotation_mat
-            )
-        else:
-            # No transform needed (identity)
-            transformed_verts = obj_data.vertices
-            transformed_normals = obj_data.normals
-
-        # 2. Calculate centroids
-        centroids = bvh_fast.calculate_centroids_parallel(
-            transformed_verts,
-            obj_data.faces
-        )
-
-        # 3. Build BVH
-        bvh_builder = bvh_fast.FastBVHBuilder(
-            transformed_verts,
-            obj_data.faces,
-            centroids,
-            leaf_threshold=4
-        )
-        bvh_bounds, bvh_structure, bvh_indices = bvh_builder.build()
-
-        # 4. Return processed result
-        return ProcessedObject(
-            object_id=obj_data.object_id,
-            vertices=transformed_verts,
-            faces=obj_data.faces,
-            normals=transformed_normals,
-            bvh_bounds=bvh_bounds,
-            bvh_structure=bvh_structure,
-            bvh_indices=bvh_indices,
-            material_id=obj_data.material_id,
-            processing_time=0.0  # Will be set by caller
-        )
-
-
-class ThreadedBVHProcessor:
-    """Manages worker threads for parallel BVH processing"""
-
-    @_check_types.do
-    def __init__(self, num_threads: int = 10):
-        """Initialize the processor.
-
-        :param num_threads: Number of worker threads to launch when started.
-        :type num_threads: int
-        """
-        self.num_threads = num_threads
-        self.work_queue = queue.Queue()
-        self.results_queue = queue.Queue()
-        self.stats_lock = threading.Lock()
-        self.threads: list[BVHWorkerThread] = []
-        self.running = False
-
-        print(f"ThreadedBVHProcessor: {num_threads} threads")
-
-    @_check_types.do
-    def start(self) -> None:
-        """Start worker threads"""
-        if self.running:
-            return
-
-        print(f"Starting {self.num_threads} worker threads...")
-        start_time = time.time()
-
-        self.threads = []
-        for i in range(self.num_threads):
-            thread = BVHWorkerThread(
-                thread_id=i,
-                work_queue=self.work_queue,
-                results_queue=self.results_queue,
-                stats_lock=self.stats_lock
-            )
-            thread.start()
-            self.threads.append(thread)
-
-        self.running = True
-        elapsed = (time.time() - start_time) * 1000
-
-    @_check_types.do
-    def process_objects(self, objects: list[ObjectData]) -> list[ProcessedObject]:
-        """
-        Process multiple objects in parallel
-
-        Args:
-            objects: List of ObjectData to process
-
-        Returns:
-            List of ProcessedObject results (order preserved)
-        """
-        if not self.running:
-            raise RuntimeError("Threads not started! Call start() first.")
-
-        num_objects = len(objects)
-        start_time = time.time()
-
-        # 1. Submit all work to queue
-        for obj in objects:
-            self.work_queue.put(obj)
-
-        # 2. Wait for all work to complete
-        self.work_queue.join()
-
-        # 3. Collect results
-        results = []
-        while not self.results_queue.empty():
-            results.append(self.results_queue.get())
-
-        # 4. Sort results by object_id to preserve order
-        results.sort(key=lambda x: x.object_id)
-
-        total_time = (time.time() - start_time) * 1000
-
-        # Print statistics
-        total_processing_time = sum(r.processing_time for r in results)
-        avg_per_object = total_processing_time / num_objects
-        speedup = total_processing_time / total_time
-
-        print(f"  ✓ Completed in {total_time:.1f}ms")
-        print(f"    - Total processing time: {total_processing_time:.1f}ms")
-        print(f"    - Avg per object: {avg_per_object:.1f}ms")
-        print(f"    - Parallel speedup: {speedup:.1f}x")
-        print(f"    - Efficiency: {(speedup / self.num_threads) * 100:.1f}%")
-
-        return results
-
-    @_check_types.do
-    def shutdown(self) -> None:
-        """Gracefully shutdown all worker threads"""
-        if not self.running:
-            return
-
-        print("\nShutting down worker threads...")
-        start_time = time.time()
-
-        # Send poison pill to each thread
-        for _ in range(self.num_threads):
-            self.work_queue.put(None)
-
-        # Wait for all threads to finish
-        for thread in self.threads:
-            thread.join(timeout=5.0)
-
-        self.running = False
-        self.threads = []
-
-        elapsed = (time.time() - start_time) * 1000
-
-    @_check_types.do
-    def __enter__(self) -> "ThreadedBVHProcessor":
-        """Context manager support"""
-        self.start()
-        return self
-
-    @_check_types.do
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
-                 exc_tb: types.TracebackType | None) -> None:
-        """Context manager cleanup"""
-        self.shutdown()
+    return builder.build()

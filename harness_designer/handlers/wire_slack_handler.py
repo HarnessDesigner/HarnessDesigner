@@ -234,12 +234,14 @@ class WireSlackHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _on_pegboard_changed(self, point) -> None:  # NOQA -- point unused
-        self._reconcile()
+    def _on_pegboard_changed(self, point) -> None:
+        # The point that moved is the one the user is dragging: the rope-pull
+        # must not pull it back while something else can give.
+        self._reconcile(point.db_id[:-2])
 
     @_debug.logfunc
     @_check_types.do
-    def _reconcile(self) -> None:
+    def _reconcile(self, held_point_id: bytes | None = None) -> None:
         """Re-run this wire's own slack/rope-pull reconcile.
 
         Guarded against re-entry by :attr:`_reconciling_any` -- shared
@@ -314,7 +316,7 @@ class WireSlackHandler:
             mainframe = self._wire.mainframe
             in_progress = mainframe.project.ptables.gesture_depth > 0
             _rope_pull_handler.realize_length_change(
-                mainframe, self._wire.db_obj, in_progress=in_progress)
+                mainframe, self._wire.db_obj, in_progress=in_progress, held_point_id=held_point_id)
         finally:
             # The flag is cleared even when re-registering raises: left set, it would make every wire's reconcile return early for the
             # rest of the session.

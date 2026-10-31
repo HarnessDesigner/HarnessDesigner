@@ -51,6 +51,9 @@ class ViewMenu(QtWidgets.QMenu):
         self.script_editor = self.addAction('Script Editor')
         self.script_editor.triggered.connect(self.on_show_editor_script)
 
+        self.ray_tracing = self.addAction('Ray Tracing')
+        self.ray_tracing.triggered.connect(self.on_show_ray_tracing)
+
         self.addSeparator()
 
         self.general_toolbar = self.addAction('General Toolbar')
@@ -147,6 +150,14 @@ class ViewMenu(QtWidgets.QMenu):
 
         self.mainframe.editor_assembly.dock.show()
         self.mainframe.editor_assembly.dock.raise_()
+
+    @_check_types.do
+    def on_show_ray_tracing(self) -> None:
+        """
+        Handle the show ray tracing event.
+        """
+
+        self.mainframe.show_ray_tracing()
 
     @_check_types.do
     def on_show_editor_script(self) -> None:

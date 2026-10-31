@@ -241,6 +241,11 @@ class CanvasEventFilter(QtCore.QObject):
             QtCore.QEvent.Type.MouseMove,
             QtCore.QEvent.Type.Wheel
         ):
+            if t != QtCore.QEvent.Type.MouseMove and t != QtCore.QEvent.Type.MouseButtonRelease:
+                # A button press (or double click) or the wheel is the user
+                # taking over the camera -- see CanvasBase.user_input_seen.
+                self.canvas._user_input_seen = True  # NOQA
+
             self.canvas._mouse_handler.handle_event(event)  # NOQA
 
         elif t in (
@@ -439,6 +444,10 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         self.config = config
         self._mode = None
+
+        # Set by the event filter on any mouse button press or wheel turn,
+        # cleared by clear_user_input() -- see user_input_seen.
+        self._user_input_seen = False
 
         from .. import context as _context
 
@@ -765,6 +774,26 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             return
 
         self.update()
+
+    @property
+    @_check_types.do
+    def user_input_seen(self) -> bool:
+        """True if a mouse button was pressed or the wheel turned on this
+        canvas since the last :meth:`clear_user_input`.
+
+        A project load keeps pumping the event loop, so the user can move
+        the camera while it runs; the automatic fit-to-project framing
+        applied when the load finishes checks this so it doesn't yank the
+        camera away from where they put it.
+        """
+
+        return self._user_input_seen
+
+    @_check_types.do
+    def clear_user_input(self) -> None:
+        """Forget any mouse button press / wheel turn seen so far."""
+
+        self._user_input_seen = False
 
     # ------------------------------------------------------------------
     # Camera movement API (unchanged — called by mouse/key handlers)

@@ -4,6 +4,10 @@
 
 A condensed, always-loaded reminder of `dep_trace.py`'s usage (this directory is auto-read by Claude Code when working here) — the repo-root `CLAUDE.md` has the fuller version of the same mandate.
 
+#### bundle_wire_check.py
+
+Offline scenario + random-case check of `harness_designer/handlers/bundle_wire_model.py` (loads it by path, so no app/GUI needed). Prints each scenario's `MovePlan`, then asserts the invariants (bundle never longer than its length, stub length/direction fixed, wire within its free length, anchored ends never move, a held end moves only in the clamp step). Run it after any change to that model.
+
 #### compare_snapshots.py
 
 `main()`-driven script for diffing two snapshots of something (likely two `dep_trace.py` JSON dumps, or two memory/map states) — check its `--help`/source for the exact inputs it expects before relying on its output; no dedicated MEMORY.md entry describes its origin.

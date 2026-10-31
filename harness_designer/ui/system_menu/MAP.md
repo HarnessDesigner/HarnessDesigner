@@ -30,7 +30,7 @@ Re-exports the module as `_system_menu` only; no public symbols of its own.
 
 #### view.py
 
-`ViewMenu(QMenu)` -- View menu (dock/toolbar visibility toggles).
+`ViewMenu(QMenu)` -- View menu (dock/toolbar visibility toggles, and the Ray Tracing dialog).
 
 #### window.py
 

@@ -658,6 +658,19 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return False
 
     @_check_types.do
+    def ray_trace_parts(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, _materials.GLMaterial]]:
+        """Yield (position, angle, scale, material) for every straight tube
+        ``render()`` draws, one per sub-segment of the current path, so the
+        ray tracer can build the whole bundle instead of reading this
+        object's aggregate position/angle/scale, which is only a straight
+        start->stop chord.
+        """
+        material = self.material
+
+        for position, angle, scale, _seg_len in self._segment_transforms():
+            yield position, angle, scale, material
+
+    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render every sub-segment of the bundle's current path.
 

@@ -35,6 +35,7 @@ import numpy as np
 
 from ...handlers import wire_drag_base as _wire_drag_base
 from .. import editor_pegboard as _editor_pegboard
+from ...handlers import rope_pull_handler as _rope_pull_handler
 from ... import check_types as _check_types
 from . import wire_snap as _wire_snap
 
@@ -147,6 +148,14 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
     def delete(self) -> None:
         self._disarm_drag()
         _editor_pegboard.DragHandlerPegboard.delete(self)
+
+        # The release frame: a wire routed through a bundle gets its real (not overlay)
+        # reconcile now, so the bundle's bends get their layouts.
+        mainframe = self.canvas.mainframe
+        wire_db_obj = self.target.db_obj
+        rows = mainframe.project.ptables.pjt_wire_paths_table.for_wire(wire_db_obj.db_id, 'pegboard')
+        if any(row.bundle_id is not None for row in rows):
+            _rope_pull_handler.realize_length_change(mainframe, wire_db_obj, in_progress=False)
 
     @_check_types.do
     def __call__(self, delta: "_point.Point", mouse_pos: "_point.Point") -> None:

@@ -62,6 +62,11 @@ class DragHandler3D(_base.DragHandlerBase):
         self.pick_offset = None
         self._settle_events = 0
 
+        # Where the mouse is now (screen space), set by a handler that wants the dragged
+        # point latched to it; and where the axis lock engaged (see _axis_locked_delta3d).
+        self.cursor: _point.Point | None = None
+        self._lock_origin: _point.Point | None = None
+
     @_check_types.do
     def _delta3d(self, anchor: _point.Point, last_pos: _point.Point, delta: _point.Point) -> _point.Point:
         """Project *anchor* to screen space, add the raw mouse *delta*,
@@ -120,11 +125,52 @@ class DragHandler3D(_base.DragHandlerBase):
             else:
                 self.axis_lock.z = 1.0
 
+            self._lock_origin = anchor.copy()
             self.move_arrows = _move_arrows.MoveArrows(
                 anchor, dominant_axis, self.canvas.mainframe, aabb)
 
+        latched = self._latched_delta3d(anchor)
+        if latched is not None:
+            return latched
+
         delta3d *= self.axis_lock
         return delta3d
+
+    @_check_types.do
+    def _latched_delta3d(self, anchor: _point.Point) -> _point.Point | None:
+        """With the axis locked, the world delta that puts *anchor* on the
+        locked axis line at the spot closest to the mouse ray -- so the dragged
+        point stays under the pointer as far as one axis allows, instead of
+        drifting away by whatever part of the mouse motion the lock discards.
+
+        ``None`` when the handler gave no :attr:`cursor`, or the axis points
+        along the view ray (nothing to latch to): the caller falls back to the
+        plain locked delta.
+        """
+        if self.cursor is None or self._lock_origin is None:
+            return None
+
+        ray_origin, ray_dir = self.canvas.camera.get_mouse_ray(self.cursor)
+        if ray_origin is None:
+            return None
+
+        axis = np.array([self.axis_lock.x, self.axis_lock.y, self.axis_lock.z], dtype=np.float64)
+        origin = self._lock_origin.as_numpy.astype(np.float64)
+        ray_origin = np.asarray(ray_origin, dtype=np.float64)
+        ray_dir = np.asarray(ray_dir, dtype=np.float64)
+
+        w0 = origin - ray_origin
+        b = float(np.dot(axis, ray_dir))
+        d = float(np.dot(axis, w0))
+        e = float(np.dot(ray_dir, w0))
+        denom = 1.0 - b * b
+        if denom < 1e-6:
+            return None
+
+        s = (b * e - d) / denom
+        target = origin + axis * s
+
+        return _point.Point(*(target - anchor.as_numpy.astype(np.float64)))
 
     @_check_types.do
     def delete(self) -> None:

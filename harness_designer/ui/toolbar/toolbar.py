@@ -1479,6 +1479,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
 
     ID_BROWSER = _new_id()
     ID_SCRIPT_EDITOR = _new_id()
+    ID_RAY_TRACING = _new_id()
     ID_SETTINGS = _new_id()
     ID_TOOLS = _new_id()
     ID_CONNECT = _new_id()
@@ -1528,6 +1529,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         icons = _image.icons
         _push(self.ID_BROWSER, 'Internet', _make_icon(icons.internet), self.on_browser)
         _push(self.ID_SCRIPT_EDITOR, 'Script Editor', _make_icon(icons.note_pen), self.on_script_editor)
+        _push(self.ID_RAY_TRACING, 'Ray Tracing', _make_icon(icons.camera), self.on_ray_tracing)
         _push(self.ID_SETTINGS, 'Settings', _make_icon(icons.settings), self.on_settings)
         _push(self.ID_TOOLS, 'Tools', _make_icon(icons.tool), self.on_tools)
         _push(self.ID_CONNECT, 'Connect Database', _make_icon(icons.connect), self.on_database)
@@ -1552,6 +1554,15 @@ class GeneralToolbar(QtWidgets.QToolBar):
         :type checked: bool
         """
         self.mainframe.show_script_editor()
+
+    @_check_types.do
+    def on_ray_tracing(self, checked: bool = False) -> None:
+        """Open the ray tracing dialog (it is created the first time).
+
+        :param checked: Unused -- present to match the ``QAction.triggered`` signal.
+        :type checked: bool
+        """
+        self.mainframe.show_ray_tracing()
 
     @_check_types.do
     def on_settings(self, checked: bool = False) -> None:

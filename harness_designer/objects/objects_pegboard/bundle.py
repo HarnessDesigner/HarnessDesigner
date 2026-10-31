@@ -77,6 +77,11 @@ class Bundle(_base_pegboard.BasePegboard):
     _parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle"
 
+    # A wire routed through the bundle lies inside it: without this the wire wins the pick
+    # (and a click on an already selected bundle cycles to the wire), so the bundle could
+    # never be selected and dragged.
+    _pick_priority = 1
+
     # Cached result of :attr:`is_tight` (None = not computed yet).
     _is_tight: bool | None = None
     _TIGHT_TOLERANCE_MM: float = 0.001
@@ -416,13 +421,14 @@ class Bundle(_base_pegboard.BasePegboard):
         if total_length < 0.001:
             total_length = 0.001
 
-        # This assignment already computes the OBB/AABB via BaseVar's own
-        # _update_scale (bound to self._scale, fires on every Point.z
-        # set unconditionally) -- mirrors objects_pegboard.wire.Wire's
-        # identical fix exactly; see its own comment for why an explicit
-        # self._compute_obb()/_compute_aabb() call after this would just
-        # repeat the exact same computation a second time.
         self._scale.z = total_length
+
+        # This class overrides _update_scale as a no-op, so the assignment above no longer
+        # refreshes the pick boxes: without these two calls they stay at the shape the bundle
+        # had when it was created (2026-10-30: a bent/moved bundle could only be clicked
+        # inside its original straight box). Mirrors objects_3d.bundle.Bundle.
+        self._compute_obb()
+        self._compute_aabb()
 
     @_debug.logfunc
     @_check_types.do

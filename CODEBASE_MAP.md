@@ -871,11 +871,11 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - bvh.c
     - bvh.pyx
     - bvh_processor.py
-    - dialog.py
     - kernel.cl
     - light.py
     - renderer.py
     - scene.py
+    - settings.py
   - rope_pull/
     - __init__.py
     - offline_store.py
@@ -1404,6 +1404,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - project_dialog.py
       - project_model_dialog.py
       - properties_dialog.py
+      - ray_tracing_dialog.py
       - render_setings.py
       - transition_routing.py
       - housing_editor/

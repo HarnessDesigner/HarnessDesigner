@@ -76,6 +76,11 @@ float3 sample_environment(__global const uchar* env_map, int env_width, int env_
     return color;
 }
 
+// Reciprocal that stays finite for a direction component of exactly zero
+float safe_inverse(float v) {
+    return 1.0f / (fabs(v) < 1e-12f ? copysign(1e-12f, v) : v);
+}
+
 // Ray-AABB intersection
 bool intersect_aabb(
     float orig_x, float orig_y, float orig_z,
@@ -165,9 +170,9 @@ bool traverse_bvh(
     float* t_out,
     int* face_out
 ) {
-    float inv_dir_x = 1.0f / dir_x;
-    float inv_dir_y = 1.0f / dir_y;
-    float inv_dir_z = 1.0f / dir_z;
+    float inv_dir_x = safe_inverse(dir_x);
+    float inv_dir_y = safe_inverse(dir_y);
+    float inv_dir_z = safe_inverse(dir_z);
 
     int stack[64];
     int stack_ptr = 0;
@@ -252,9 +257,9 @@ bool is_occluded(
     float dir_x, float dir_y, float dir_z,
     float max_dist
 ) {
-    float inv_dir_x = 1.0f / dir_x;
-    float inv_dir_y = 1.0f / dir_y;
-    float inv_dir_z = 1.0f / dir_z;
+    float inv_dir_x = safe_inverse(dir_x);
+    float inv_dir_y = safe_inverse(dir_y);
+    float inv_dir_z = safe_inverse(dir_z);
 
     int stack[64];
     int stack_ptr = 0;
@@ -380,29 +385,95 @@ float calculate_ao(
     return 1.0f - (occlusion / samples);
 }
 
-__kernel void ray_trace_kernel(
+// ---- Viewport floor ------------------------------------------------------
+// The 3D editor's floor (gl/shaders/floor/fragment.frag) as a plane: checkerboard tiles, solid major
+// lines at the tile edges and dashed minor lines between them. ``fw`` is the world size of a pixel
+// on the floor, which anti-aliases the lines and fades the pattern out where it gets finer than a pixel.
+
+float positive_mod(float a, float b) {
+    return a - b * floor(a / b);
+}
+
+float line_coverage(float coord, float spacing, float half_w, float fw) {
+    float f = coord / spacing;
+    f = f - floor(f);
+    float dist = fmin(f, 1.0f - f) * spacing;
+    float hw = fmax(half_w, fw);
+    float coverage = fmin(half_w / fw, 1.0f);
+    return (1.0f - smoothstep(hw - fw, hw + fw, dist)) * coverage;
+}
+
+float4 floor_color(
+    __global const float* fp, uint stipple_pattern, int stipple_phase,
+    float wx, float wz, float fw
+) {
+    float tile = fp[3];
+    float minor_spacing = fp[4];
+    int has_minor = fp[5] > 0.5f;
+    float major_width = fp[6];
+    float minor_width = fp[7];
+
+    float4 color_a = (float4)(fp[8], fp[9], fp[10], fp[11]);
+    float4 color_b = (float4)(fp[12], fp[13], fp[14], fp[15]);
+    float4 major_color = (float4)(fp[16], fp[17], fp[18], fp[19]);
+    float4 minor_color = (float4)(fp[20], fp[21], fp[22], fp[23]);
+
+    float tx = floor(wx / tile);
+    float tz = floor(wz / tile);
+    float4 checker = (positive_mod(tx + tz, 2.0f) < 0.5f) ? color_a : color_b;
+
+    float tile_fade = smoothstep(0.25f, 1.0f, fw / tile);
+    float3 tile_color = mix(checker.xyz, (color_a.xyz + color_b.xyz) * 0.5f, tile_fade);
+
+    float major = fmax(line_coverage(wx, tile, major_width * 0.5f, fw),
+                       line_coverage(wz, tile, major_width * 0.5f, fw));
+
+    float minor = 0.0f;
+    if (has_minor) {
+        float min_hw = minor_width * 0.5f;
+        float min_fade = 1.0f - smoothstep(0.25f, 1.0f, fw / minor_spacing);
+
+        float near_x = line_coverage(wz, minor_spacing, min_hw, fw);
+        float shift_x = (float)stipple_phase * positive_mod(round(wz / minor_spacing), 2.0f) * tile * 0.5f;
+        float seg_x = positive_mod(wx + shift_x, tile) / tile;
+        uint bit_x = min((uint)(seg_x * 32.0f), 31u);
+        float dash_x = (float)((stipple_pattern >> bit_x) & 1u);
+
+        float near_z = line_coverage(wx, minor_spacing, min_hw, fw);
+        float shift_z = (float)stipple_phase * positive_mod(round(wx / minor_spacing), 2.0f) * tile * 0.5f;
+        float seg_z = positive_mod(wz + shift_z, tile) / tile;
+        uint bit_z = min((uint)(seg_z * 32.0f), 31u);
+        float dash_z = (float)((stipple_pattern >> bit_z) & 1u);
+
+        minor = fmax(near_x * dash_x, near_z * dash_z) * min_fade;
+    }
+
+    float3 color = mix(tile_color, minor_color.xyz, minor);
+    color = mix(color, major_color.xyz, major);
+
+    float alpha = mix(checker.w, minor_color.w, minor);
+    alpha = mix(alpha, major_color.w, major);
+
+    return (float4)(color, alpha);
+}
+
+// Shade the surface a ray hit: ambient (with optional occlusion), every light (with shadows), specular,
+// and the material's own reflection. ``cam_*`` is the ray's origin and ``ray_dir_*`` its direction.
+// With ``mirror`` set the lights are mirrored in the plane y = ``mirror_y``, for a reflection in the floor.
+float3 shade_hit(
     __global const float* vertices,
     __global const int* faces,
     __global const int* object_ids,
     __global const Material* materials,
-    int num_faces,
     __global const Light* lights,
     int num_lights,
     __global const float* bvh_bounds,
     __global const int* bvh_structure,
     __global const int* bvh_indices,
-    __global float* image,
-    int width,
-    int height,
+    int hit_face,
+    float min_dist,
     float cam_x, float cam_y, float cam_z,
-    float center_x, float center_y, float center_z,
-    float right_x, float right_y, float right_z,
-    float up_x, float up_y, float up_z,
-    float forward_x, float forward_y, float forward_z,
-    float scale,
-    float aspect_ratio,
-    int start_y,
-    int end_y,
+    float ray_dir_x, float ray_dir_y, float ray_dir_z,
     float ambient_intensity,
     float bg_top_r, float bg_top_g, float bg_top_b,
     float bg_bottom_r, float bg_bottom_g, float bg_bottom_b,
@@ -414,62 +485,13 @@ __kernel void ray_trace_kernel(
     int enable_reflections,
     int enable_shadows,
     int enable_ambient_occlusion,
-    int enable_depth_of_field,
     float ao_samples,
     float ao_radius,
-    float shadow_softness
+    uint seed_in,
+    int mirror,
+    float mirror_y
 ) {
-    int x = get_global_id(0);
-    int y = get_global_id(1) + start_y;
-
-    if (x >= width || y >= end_y || y >= height) return;
-
-    uint seed = (y * width + x) * 1103515245u + 12345u;
-
-    float px = (2.0f * (x + 0.5f) / width - 1.0f) * aspect_ratio * scale;
-    float py = (1.0f - 2.0f * (y + 0.5f) / height) * scale;
-
-    float ray_dir_x = forward_x + right_x * px + up_x * py;
-    float ray_dir_y = forward_y + right_y * px + up_y * py;
-    float ray_dir_z = forward_z + right_z * px + up_z * py;
-
-    float len = sqrt(ray_dir_x*ray_dir_x + ray_dir_y*ray_dir_y + ray_dir_z*ray_dir_z);
-    ray_dir_x /= len;
-    ray_dir_y /= len;
-    ray_dir_z /= len;
-
-    // Traverse BVH
-    float min_dist;
-    int hit_face;
-    bool hit = traverse_bvh(bvh_bounds, bvh_structure, bvh_indices, vertices, faces,
-                           cam_x, cam_y, cam_z,
-                           ray_dir_x, ray_dir_y, ray_dir_z,
-                           &min_dist, &hit_face);
-
-    int pixel_idx = ((y - start_y) * width + x) * 3;
-
-    // Background
-    if (!hit) {
-        if (enable_environment_map && environment_map != 0) {
-            float3 env_color = sample_environment(environment_map, env_width, env_height,
-                                                  ray_dir_x, ray_dir_y, ray_dir_z);
-            image[pixel_idx + 0] = env_color.x;
-            image[pixel_idx + 1] = env_color.y;
-            image[pixel_idx + 2] = env_color.z;
-        } else if (enable_gradient) {
-            float t = (ray_dir_y + 1.0f) * 0.5f;
-            t = clamp(t, 0.0f, 1.0f);
-
-            image[pixel_idx + 0] = bg_bottom_r + (bg_top_r - bg_bottom_r) * t;
-            image[pixel_idx + 1] = bg_bottom_g + (bg_top_g - bg_bottom_g) * t;
-            image[pixel_idx + 2] = bg_bottom_b + (bg_top_b - bg_bottom_b) * t;
-        } else {
-            image[pixel_idx + 0] = bg_top_r;
-            image[pixel_idx + 1] = bg_top_g;
-            image[pixel_idx + 2] = bg_top_b;
-        }
-        return;
-    }
+    uint seed = seed_in;
 
     // Hit something
     int object_id = object_ids[hit_face];
@@ -509,6 +531,13 @@ __kernel void ray_trace_kernel(
     normal_y /= normal_len;
     normal_z /= normal_len;
 
+    // Triangle winding is not guaranteed, so face the normal toward the viewer
+    if (normal_x*ray_dir_x + normal_y*ray_dir_y + normal_z*ray_dir_z > 0.0f) {
+        normal_x = -normal_x;
+        normal_y = -normal_y;
+        normal_z = -normal_z;
+    }
+
     float hit_x = cam_x + ray_dir_x * min_dist;
     float hit_y = cam_y + ray_dir_y * min_dist;
     float hit_z = cam_z + ray_dir_z * min_dist;
@@ -524,12 +553,22 @@ __kernel void ray_trace_kernel(
                          &seed);
     }
 
-    // Lighting
-    float total_diffuse = 0.0f;
-    float total_specular = 0.0f;
+    // Lighting. The sums are RGB because each light has a colour.
+    float3 albedo = (float3)(mat.r, mat.g, mat.b);
+    float3 total_diffuse = (float3)(0.0f, 0.0f, 0.0f);
+    float3 total_specular = (float3)(0.0f, 0.0f, 0.0f);
+
+    // A dielectric keeps a white highlight; a metal's is tinted by its own colour
+    // (the same rule GLMaterial uses for the rasterizer).
+    float3 specular_tint = (float3)(1.0f, 1.0f, 1.0f) + mat.metallic * (albedo - (float3)(1.0f, 1.0f, 1.0f));
 
     for (int i = 0; i < num_lights; i++) {
         Light light = lights[i];
+        if (mirror) {
+            // A reflection in the floor is lit by the lights as they are mirrored in it.
+            light.y = 2.0f * mirror_y - light.y;
+        }
+        float3 light_color = (float3)(light.r, light.g, light.b);
 
         float light_dir_x = light.x - hit_x;
         float light_dir_y = light.y - hit_y;
@@ -556,7 +595,7 @@ __kernel void ray_trace_kernel(
         if (!in_shadow) {
             // Diffuse
             float n_dot_l = fmax(0.0f, normal_x*light_dir_x + normal_y*light_dir_y + normal_z*light_dir_z);
-            total_diffuse += n_dot_l * light.intensity * mat.diffuse;
+            total_diffuse += light_color * (n_dot_l * light.intensity * mat.diffuse);
 
             // Specular (Blinn-Phong)
             float half_x = light_dir_x - ray_dir_x;
@@ -568,8 +607,9 @@ __kernel void ray_trace_kernel(
             half_z /= half_len;
 
             float n_dot_h = fmax(0.0f, normal_x*half_x + normal_y*half_y + normal_z*half_z);
-            float spec_power = pow(n_dot_h, mat.shininess);
-            total_specular += spec_power * light.intensity * mat.specular;
+            // The rasterizer uses Phong; a Blinn-Phong exponent of about 4x gives the same highlight size.
+            float spec_power = pow(n_dot_h, mat.shininess * 4.0f);
+            total_specular += light_color * specular_tint * (spec_power * light.intensity * mat.specular);
         }
     }
 
@@ -590,12 +630,18 @@ __kernel void ray_trace_kernel(
             reflection_color.x = bg_bottom_r + (bg_top_r - bg_bottom_r) * t;
             reflection_color.y = bg_bottom_g + (bg_top_g - bg_bottom_g) * t;
             reflection_color.z = bg_bottom_b + (bg_top_b - bg_bottom_b) * t;
+        } else {
+            reflection_color = (float3)(bg_top_r, bg_top_g, bg_top_b);
         }
     }
 
+    // A metal's reflection is tinted by its own colour; without this a polished copper or tin
+    // conductor reflects the sky unchanged and looks pale blue.
+    reflection_color *= (float3)(1.0f, 1.0f, 1.0f) + mat.metallic * (albedo - (float3)(1.0f, 1.0f, 1.0f));
+
     // Fresnel effect
     float fresnel = 0.0f;
-    if (mat.reflectivity > 0.01f) {
+    if (enable_reflections && mat.reflectivity > 0.01f) {
         float n_dot_v = fabs(normal_x*(-ray_dir_x) + normal_y*(-ray_dir_y) + normal_z*(-ray_dir_z));
         float f0 = mat.reflectivity;
         fresnel = f0 + (1.0f - f0) * pow(1.0f - n_dot_v, 5.0f);
@@ -604,15 +650,201 @@ __kernel void ray_trace_kernel(
     // Combine all lighting
     float ambient = mat.ambient * ambient_intensity * ao;
 
-    float base_r = mat.r * (ambient + total_diffuse);
-    float base_g = mat.g * (ambient + total_diffuse);
-    float base_b = mat.b * (ambient + total_diffuse);
+    float3 base = albedo * (ambient + total_diffuse);
+    float3 final_color = base * (1.0f - fresnel) + reflection_color * fresnel + total_specular;
 
-    float final_r = base_r * (1.0f - fresnel) + reflection_color.x * fresnel + total_specular;
-    float final_g = base_g * (1.0f - fresnel) + reflection_color.y * fresnel + total_specular;
-    float final_b = base_b * (1.0f - fresnel) + reflection_color.z * fresnel + total_specular;
+    // On overflow scale all three channels together so the colour keeps its hue; clamping each
+    // channel on its own shifts it (the rasterizer's fragment shader does the same).
+    float peak = fmax(final_color.x, fmax(final_color.y, final_color.z));
+    if (peak > 1.0f) {
+        final_color /= peak;
+    }
 
-    image[pixel_idx + 0] = clamp(final_r, 0.0f, 1.0f);
-    image[pixel_idx + 1] = clamp(final_g, 0.0f, 1.0f);
-    image[pixel_idx + 2] = clamp(final_b, 0.0f, 1.0f);
+    return final_color;
+}
+
+__kernel void ray_trace_kernel(
+    __global const float* vertices,
+    __global const int* faces,
+    __global const int* object_ids,
+    __global const Material* materials,
+    int num_faces,
+    __global const Light* lights,
+    int num_lights,
+    __global const float* bvh_bounds,
+    __global const int* bvh_structure,
+    __global const int* bvh_indices,
+    __global float* image,
+    int width,
+    int height,
+    float cam_x, float cam_y, float cam_z,
+    float center_x, float center_y, float center_z,
+    float right_x, float right_y, float right_z,
+    float up_x, float up_y, float up_z,
+    float forward_x, float forward_y, float forward_z,
+    float scale,
+    float aspect_ratio,
+    int start_y,
+    int end_y,
+    float ambient_intensity,
+    float bg_top_r, float bg_top_g, float bg_top_b,
+    float bg_bottom_r, float bg_bottom_g, float bg_bottom_b,
+    __global const uchar* environment_map,
+    int env_width,
+    int env_height,
+    int enable_gradient,
+    int enable_environment_map,
+    int enable_reflections,
+    int enable_shadows,
+    int enable_ambient_occlusion,
+    int enable_depth_of_field,
+    float ao_samples,
+    float ao_radius,
+    float shadow_softness,
+    __global const float* floor_params,
+    uint stipple_pattern,
+    int stipple_phase
+) {
+    int x = get_global_id(0);
+    int y = get_global_id(1) + start_y;
+
+    if (x >= width || y >= end_y || y >= height) return;
+
+    uint seed = (y * width + x) * 1103515245u + 12345u;
+
+    float px = (2.0f * (x + 0.5f) / width - 1.0f) * aspect_ratio * scale;
+    float py = (1.0f - 2.0f * (y + 0.5f) / height) * scale;
+
+    float ray_dir_x = forward_x + right_x * px + up_x * py;
+    float ray_dir_y = forward_y + right_y * px + up_y * py;
+    float ray_dir_z = forward_z + right_z * px + up_z * py;
+
+    float len = sqrt(ray_dir_x*ray_dir_x + ray_dir_y*ray_dir_y + ray_dir_z*ray_dir_z);
+    ray_dir_x /= len;
+    ray_dir_y /= len;
+    ray_dir_z /= len;
+
+    // Traverse BVH
+    float min_dist;
+    int hit_face;
+    bool hit = traverse_bvh(bvh_bounds, bvh_structure, bvh_indices, vertices, faces,
+                           cam_x, cam_y, cam_z,
+                           ray_dir_x, ray_dir_y, ray_dir_z,
+                           &min_dist, &hit_face);
+
+    // The viewport floor: a plane the ray may reach before any geometry (or with none behind it).
+    bool floor_in_front = false;
+    float floor_hit_x = 0.0f;
+    float floor_hit_z = 0.0f;
+    float3 floor_rgb = (float3)(0.0f, 0.0f, 0.0f);
+    float floor_alpha = 0.0f;
+
+    if (floor_params[0] > 0.5f && fabs(ray_dir_y) > 1e-6f) {
+        float t_floor = (floor_params[1] - cam_y) / ray_dir_y;
+        float floor_x = cam_x + ray_dir_x * t_floor;
+        float floor_z = cam_z + ray_dir_z * t_floor;
+        float half_size = floor_params[2];
+
+        if (t_floor > 1e-4f && fabs(floor_x) <= half_size && fabs(floor_z) <= half_size &&
+            (!hit || t_floor < min_dist)) {
+            float pixel_angle = 2.0f * scale / height;
+            float fw = fmax(t_floor * pixel_angle / fmax(fabs(ray_dir_y), 0.02f), 1e-5f);
+            float4 fc = floor_color(floor_params, stipple_pattern, stipple_phase, floor_x, floor_z, fw);
+
+            floor_rgb = fc.xyz;
+            floor_alpha = fc.w;
+            floor_in_front = true;
+            floor_hit_x = floor_x;
+            floor_hit_z = floor_z;
+        }
+    }
+
+    // What the floor reflects, as the viewport shows it: the scene mirrored in the floor, seen through
+    // the translucent floor at 75% (the rasterizer darkens its mirrored copies by that much).
+    bool floor_reflects = false;
+    float3 floor_reflection = (float3)(0.0f, 0.0f, 0.0f);
+
+    if (floor_in_front && enable_reflections && cam_y > floor_params[1]) {
+        float origin_y = floor_params[1] + 1e-3f;
+        float mirror_dir_y = -ray_dir_y;
+        float mirror_dist;
+        int mirror_face;
+
+        if (traverse_bvh(bvh_bounds, bvh_structure, bvh_indices, vertices, faces,
+                         floor_hit_x, origin_y, floor_hit_z,
+                         ray_dir_x, mirror_dir_y, ray_dir_z,
+                         &mirror_dist, &mirror_face)) {
+            floor_reflection = 0.75f * shade_hit(
+                vertices, faces, object_ids, materials, lights, num_lights,
+                bvh_bounds, bvh_structure, bvh_indices,
+                mirror_face, mirror_dist,
+                floor_hit_x, origin_y, floor_hit_z,
+                ray_dir_x, mirror_dir_y, ray_dir_z,
+                ambient_intensity,
+                bg_top_r, bg_top_g, bg_top_b,
+                bg_bottom_r, bg_bottom_g, bg_bottom_b,
+                environment_map, env_width, env_height,
+                enable_gradient, enable_environment_map, enable_reflections, enable_shadows,
+                0, ao_samples, ao_radius, seed,
+                1, floor_params[1]);
+            floor_reflects = true;
+        }
+    }
+
+    int pixel_idx = ((y - start_y) * width + x) * 3;
+
+    // Background
+    if (!hit) {
+        float3 background;
+
+        if (enable_environment_map && environment_map != 0) {
+            background = sample_environment(environment_map, env_width, env_height,
+                                            ray_dir_x, ray_dir_y, ray_dir_z);
+        } else if (enable_gradient) {
+            float t = (ray_dir_y + 1.0f) * 0.5f;
+            t = clamp(t, 0.0f, 1.0f);
+
+            background = (float3)(bg_bottom_r + (bg_top_r - bg_bottom_r) * t,
+                                  bg_bottom_g + (bg_top_g - bg_bottom_g) * t,
+                                  bg_bottom_b + (bg_top_b - bg_bottom_b) * t);
+        } else {
+            background = (float3)(bg_top_r, bg_top_g, bg_top_b);
+        }
+
+        if (floor_in_front) {
+            if (floor_reflects) {
+                background = floor_reflection;
+            }
+
+            background = mix(background, floor_rgb, floor_alpha);
+        }
+
+        image[pixel_idx + 0] = background.x;
+        image[pixel_idx + 1] = background.y;
+        image[pixel_idx + 2] = background.z;
+        return;
+    }
+
+    float3 final_color = shade_hit(
+        vertices, faces, object_ids, materials, lights, num_lights,
+        bvh_bounds, bvh_structure, bvh_indices,
+        hit_face, min_dist,
+        cam_x, cam_y, cam_z,
+        ray_dir_x, ray_dir_y, ray_dir_z,
+        ambient_intensity,
+        bg_top_r, bg_top_g, bg_top_b,
+        bg_bottom_r, bg_bottom_g, bg_bottom_b,
+        environment_map, env_width, env_height,
+        enable_gradient, enable_environment_map, enable_reflections, enable_shadows,
+        enable_ambient_occlusion, ao_samples, ao_radius, seed,
+        0, 0.0f);
+
+    // A translucent floor in front of the geometry lets it show through.
+    if (floor_in_front) {
+        final_color = mix(final_color, floor_rgb, floor_alpha);
+    }
+
+    image[pixel_idx + 0] = final_color.x;
+    image[pixel_idx + 1] = final_color.y;
+    image[pixel_idx + 2] = final_color.z;
 }

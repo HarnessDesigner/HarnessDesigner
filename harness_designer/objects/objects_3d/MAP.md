@@ -14,7 +14,7 @@ One file per harness part, a `Base3D` subclass taking `(parent, db_obj)` — sam
 
 #### bundle.py
 
-3D + peg-board only (no schematic view); design in `BUNDLE_DESIGN.md`/`BUNDLE_PLACEMENT.md`.
+3D + peg-board only (no schematic view); design in `BUNDLE_DESIGN.md`/`BUNDLE_PLACEMENT.md`. `ray_trace_parts()` yields one `(position, angle, scale, material)` per path segment for the ray tracer, which cannot use the aggregate `position`/`angle`/`scale` (a straight chord).
 
 #### bundle_layout.py
 
@@ -88,7 +88,7 @@ Model-building design in `TRANSITION_DESIGN.md` — read it in full before touch
 
 Part of the wire family (with `wire_layout.py`/`wire_marker.py`/`wire_service_loop.py`).
 
-`segment_obbs()` is the public per-section box a collision test needs: `(S, 8, 3)`, one oriented box per wire section in the bounds pool's corner order (0 = min corner, 1 toggles x, 3 toggles y, 4 toggles z). **A wire's pool OBB (`obb`, from `_compute_obb`) is NOT that**: it is the axis-aligned union envelope of every section, so a diagonal or bent wire's `obb` is a far larger box than the wire — fine for picking, wrong for collision. `_segment_world_corners` (the min/max source for `obb` and `aabb`) reuses `segment_obbs`.
+`segment_obbs()` is the public per-section box a collision test needs: `(S, 8, 3)`, one oriented box per wire section in the bounds pool's corner order (0 = min corner, 1 toggles x, 3 toggles y, 4 toggles z). **A wire's pool OBB (`obb`, from `_compute_obb`) is NOT that**: it is the axis-aligned union envelope of every section, so a diagonal or bent wire's `obb` is a far larger box than the wire — fine for picking, wrong for collision. `_segment_world_corners` (the min/max source for `obb` and `aabb`) reuses `segment_obbs`. `ray_trace_parts()` yields what `render()` draws for `ray_tracing.scene.Scene.add_object`: a `(position, angle, scale, material)` per tube (crimp ends at the conductor diameter/material), and after each non-crimp tube -- unless the wire is selected -- the stripe as `(position, angle, scale, material, (start, stop), vbo)`, the same offsets `render()` passes to `render_segment`. `WireStripe.ray_trace_parts()` yields nothing so a stripe that is also in the visible-object list is not added twice.
 
 #### wire_layout.py
 

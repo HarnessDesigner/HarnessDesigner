@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Skeleton-first wire routing -- the engine half of BUNDLE_DESIGN.md
+"""
+Skeleton-first wire routing -- the engine half of BUNDLE_DESIGN.md
 section 2.7. Read that section (and 2.6, the ``pjt_wire_paths`` storage
 design) in full before touching this module.
 
@@ -113,7 +114,7 @@ if TYPE_CHECKING:
     from ..database.project_db import pjt_point3d as _pjt_point3d
     from ..database.project_db import pjt_point_pegboard as _pjt_point_pegboard
     from ..database.project_db import pjt_wire as _pjt_wire
-    from ..database.project_db.pjt_bases import ProjectTables as _ProjectTables
+    from ..database.project_db.pjt_bases import PJTTables as _ProjectTables
     from ..database.project_db.pjt_bundle import PJTBundle as _PJTBundle
     from ..database.project_db.pjt_transition_branch import PJTTransitionBranch as _PJTTransitionBranch
     from ..database.project_db.pjt_transition import PJTTransition as _PJTTransition
@@ -134,53 +135,87 @@ _VIEW_BRANCH_COLUMN = {'3d': 'point3d_id', 'pegboard': 'point_pegboard_id'}
 
 @_check_types.do
 def check_view(view: str) -> None:
-    """Public (not module-private) because handlers.wire_routing_drag
-    calls this from outside this module."""
+    """
+    Public (not module-private) because handlers.wire_routing_drag
+    calls this from outside this module.
+    """
+
     if view not in _VIEWS:
         raise ValueError(f"view must be one of {_VIEWS!r}, got {view!r}")
 
 
 @_check_types.do
-def _points_table(ptables: "_ProjectTables", view: str) -> _Union["_pjt_point3d.PJTPoints3DTable", "_pjt_point_pegboard.PJTPointsPegboardTable"]:
-    """The ptables point table for *view* -- ``pjt_points3d_table`` or
+def _points_table(
+    ptables: "_ProjectTables",
+    view: str
+) -> _Union["_pjt_point3d.PJTPoints3DTable",
+            "_pjt_point_pegboard.PJTPointsPegboardTable"]:
+
+    """
+    The ptables point table for *view* -- ``pjt_points3d_table`` or
     ``pjt_points_pegboard_table``.
     """
+
     check_view(view)
     if view == '3d':
         return ptables.pjt_points3d_table
+
     return ptables.pjt_points_pegboard_table
 
 
 @_check_types.do
 def _branch_point_id(branch: "_PJTTransitionBranch", view: str) -> bytes:
-    """*branch*'s own position point id for *view*."""
+    """
+    *branch*'s own position point id for *view*.
+    """
+
     check_view(view)
+
     return branch.position3d_id if view == '3d' else branch.position_pegboard_id
 
 
 @_check_types.do
-def _transition_centre_point_id(transition: "_PJTTransition", view: str) -> bytes:
-    """*transition*'s own centre point id for *view*."""
+def _transition_centre_point_id(transition: "_PJTTransition",
+                                view: str) -> bytes:
+    """
+    *transition*'s own centre point id for *view*.
+    """
+
     check_view(view)
-    return transition.position3d_id if view == '3d' else transition.position_pegboard_id
+    if view == '3d':
+        return transition.position3d_id
+
+    return transition.position_pegboard_id
 
 
 @_check_types.do
-def _wire_end_point(wire_db: "_pjt_wire.PJTWire", is_start: bool, view: str) -> _Point:
-    """*wire_db*'s own start/stop ``Point`` for *view*."""
+def _wire_end_point(wire_db: "_pjt_wire.PJTWire",
+                    is_start: bool, view: str) -> _Point:
+
+    """
+    *wire_db*'s own start/stop ``Point`` for *view*.
+    """
+
     check_view(view)
     if view == '3d':
-        return wire_db.start_position3d if is_start else wire_db.stop_position3d
+        if is_start:
+            return wire_db.start_position3d
 
-    return wire_db.start_position_pegboard if is_start else wire_db.stop_position_pegboard
+        return wire_db.stop_position3d
+
+    if is_start:
+        return wire_db.start_position_pegboard
+
+    return wire_db.stop_position_pegboard
 
 
 class EnterBundle:
-    """Entry terminus: a bundle's own free end.
+    """
+    Entry terminus: a bundle's own free end.
 
     :param bundle: The bundle being entered.
     :param point: The actual ``Point`` of whichever of the bundle's own
-        ends is free and being entered -- not a 'start'/'stop' label.
+                  ends is free and being entered -- not a 'start'/'stop' label.
     """
 
     @_check_types.do
@@ -190,7 +225,8 @@ class EnterBundle:
 
 
 class EnterBranch:
-    """Entry terminus: a transition's own free branch, with no bundle
+    """
+    Entry terminus: a transition's own free branch, with no bundle
     plugged into it -- the route enters the transition directly.
 
     :param branch: The free branch being entered.
@@ -202,7 +238,8 @@ class EnterBranch:
 
 
 class ContinueBranch:
-    """A hop choice: at the transition just reached, continue the route
+    """
+    A hop choice: at the transition just reached, continue the route
     down this branch (must belong to that same transition). If the
     branch already has a bundle attached, the walk continues down it
     automatically; if the branch is free, the route ends there.
@@ -216,16 +253,18 @@ class ContinueBranch:
 
 
 class EndAtSplice:
-    """A hop choice: at the transition just reached, end the route here
+    """
+    A hop choice: at the transition just reached, end the route here
     by attaching to a splice located inside that transition (the
     BUNDLE_DESIGN.md 2.4e splice-placement rule), rather than continuing
     down another branch.
 
     :param point_id: The splice's own connection point -- a row id in
-        whichever view's point table (``pjt_points3d``/
-        ``pjt_points_pegboard``) the enclosing :func:`route_wire` call's
-        own ``view`` names. Which of the splice's own points that is is
-        resolved by the caller (see this module's own docstring, gap 2).
+                     whichever view's point table (``pjt_points3d``/
+                     ``pjt_points_pegboard``) the enclosing :func:`route_wire`
+                     call's own ``view`` names. Which of the splice's own points
+                     that is is resolved by the caller
+                     (see this module's own docstring, gap 2).
     """
 
     @_check_types.do
@@ -235,7 +274,8 @@ class EndAtSplice:
 
 @_check_types.do
 def guard_distance(diameter: float) -> float:
-    """The shared standoff-distance floor BUNDLE_DESIGN.md 2.7 defines
+    """
+    The shared standoff-distance floor BUNDLE_DESIGN.md 2.7 defines
     for both a wire guard's distance from the bundle end it attaches to,
     and (reused as the housing breakout point's own lower clamp) a
     housing breakout point's distance from the back of the housing: the
@@ -244,16 +284,21 @@ def guard_distance(diameter: float) -> float:
     diameter when there is no bundle -- see the callers below). View-
     independent: a bundle's physical diameter does not change per view.
     """
+
     cfg = _config.Config.bundle.routing
-    return max(cfg.guard_distance_min_mm, cfg.guard_distance_diameter_multiple * diameter)
+
+    return max(cfg.guard_distance_min_mm,
+               cfg.guard_distance_diameter_multiple * diameter)
 
 
 @_check_types.do
 def _centroid(points: list[_Point]) -> np.ndarray:
-    """Plain centroid of *points* -- used both for a housing breakout
+    """
+    Plain centroid of *points* -- used both for a housing breakout
     point's cavity-point centroid and (degenerate, single/zero-member
     case covered by the callers) a guard's free-group centroid.
     """
+
     if not points:
         raise ValueError('need at least one point')
 
@@ -265,8 +310,11 @@ def _centroid(points: list[_Point]) -> np.ndarray:
 
 
 @_check_types.do
-def _bundle_end_direction(bundle: "_PJTBundle", end_point: _Point, view: str) -> np.ndarray:
-    """The unit vector pointing OUTWARD from *bundle*'s own end
+def _bundle_end_direction(bundle: "_PJTBundle",
+                          end_point: _Point, view: str) -> np.ndarray:
+
+    """
+    The unit vector pointing OUTWARD from *bundle*'s own end
     (*end_point*, the actual Point -- not a 'start'/'stop' label),
     continuing the direction of its own last section there -- the
     direction a wire guard's stub should travel in, per BUNDLE_PLACEMENT.md
@@ -279,18 +327,38 @@ def _bundle_end_direction(bundle: "_PJTBundle", end_point: _Point, view: str) ->
     at that end, else the bundle's OTHER end (a bundle with no waypoints
     at all is just the one straight section between its two ends).
     """
+
     check_view(view)
 
-    start_point = bundle.start_position3d if view == '3d' else bundle.start_position_pegboard
+    if view == '3d':
+        start_point = bundle.start_position3d
+    else:
+        start_point = bundle.start_position_pegboard
 
     if end_point is start_point:
-        other_point = bundle.stop_position3d if view == '3d' else bundle.stop_position_pegboard
-        waypoints = bundle.waypoints3d if view == '3d' else bundle.waypoints_pegboard
-        adjacent = waypoints[0].point if waypoints else other_point
+        if view == '3d':
+            other_point = bundle.stop_position3d
+            waypoints = bundle.waypoints3d
+        else:
+            other_point = bundle.stop_position_pegboard
+            waypoints = bundle.waypoints_pegboard
+
+        if waypoints:
+            adjacent = waypoints[0].point
+        else:
+            adjacent = other_point
     else:
         other_point = start_point
-        waypoints = bundle.waypoints3d if view == '3d' else bundle.waypoints_pegboard
-        adjacent = waypoints[-1].point if waypoints else other_point
+
+        if view == '3d':
+            waypoints = bundle.waypoints3d
+        else:
+            waypoints = bundle.waypoints_pegboard
+
+        if waypoints:
+            adjacent = waypoints[-1].point
+        else:
+            adjacent = other_point
 
     direction = end_point.as_numpy - adjacent.as_numpy
     length = float(np.linalg.norm(direction))
@@ -306,10 +374,14 @@ def _bundle_end_direction(bundle: "_PJTBundle", end_point: _Point, view: str) ->
 
 @_check_types.do
 def compute_guard_position(
-    bundle_end: _Point, group_center: np.ndarray, diameter: float,
-    direction_override: np.ndarray | None = None,
+    bundle_end: _Point,
+    group_center: np.ndarray,
+    diameter: float,
+    direction_override: np.ndarray | None = None
 ) -> _Point:
-    """A guard's position, :func:`guard_distance` (*diameter*) out from
+
+    """
+    A guard's position, :func:`guard_distance` (*diameter*) out from
     *bundle_end*.
 
     When *direction_override* is given (the bundle's own outward end
@@ -326,12 +398,18 @@ def compute_guard_position(
     thing the guard stays bound to (see this module's own docstring, gap
     4) -- so there is nothing to hold a reference to.
     """
+
     end_pos = bundle_end.as_numpy
 
     if direction_override is not None:
         length = float(np.linalg.norm(direction_override))
-        direction = direction_override if length >= 1e-9 else None
+
+        if length >= 1e-9:
+            direction = direction_override
+        else:
+            direction = None
     else:
+        length = 0
         direction = None
 
     if direction is None:
@@ -355,8 +433,11 @@ def compute_guard_position(
 
 
 @_check_types.do
-def guard_points_at(ptables: "_ProjectTables", view: str, point_id: bytes) -> list[bytes]:
-    """Every guard point sitting immediately next to *point_id* (usually
+def guard_points_at(ptables: "_ProjectTables",
+                    view: str, point_id: bytes) -> list[bytes]:
+
+    """
+    Every guard point sitting immediately next to *point_id* (usually
     a bundle's own start/stop point -- what actually moved) in some
     wire's route for *view*, de-duplicated.
 
@@ -374,6 +455,7 @@ def guard_points_at(ptables: "_ProjectTables", view: str, point_id: bytes) -> li
     *point_id* by -- the whole of BUNDLE_PLACEMENT.md section 12's "only
     movable when the bundle moves" rule.
     """
+
     paths_table = ptables.pjt_wire_paths_table
     guard_ids: list[bytes] = []
     seen: set = set()
@@ -403,8 +485,11 @@ def guard_points_at(ptables: "_ProjectTables", view: str, point_id: bytes) -> li
 
 
 @_check_types.do
-def is_guard_point(ptables: "_ProjectTables", view: str, point_id: bytes) -> bool:
-    """Whether *point_id* is itself a guard waypoint in some wire's
+def is_guard_point(ptables: "_ProjectTables",
+                   view: str, point_id: bytes) -> bool:
+
+    """
+    Whether *point_id* is itself a guard waypoint in some wire's
     route for *view* -- the direct lock check for a ``WireLayout``'s own
     ``can_drag()`` (BUNDLE_PLACEMENT.md section 12: a guard cannot be
     dragged directly). Mirrors :func:`guard_points_at`'s own neighbor
@@ -412,6 +497,7 @@ def is_guard_point(ptables: "_ProjectTables", view: str, point_id: bytes) -> boo
     tag of its own, but sits immediately next to a point that does, in
     the same wire's route.
     """
+
     paths_table = ptables.pjt_wire_paths_table
 
     for wire_id in paths_table.wire_ids_for_point(view, point_id):
@@ -427,15 +513,25 @@ def is_guard_point(ptables: "_ProjectTables", view: str, point_id: bytes) -> boo
             continue  # part of a bundle's own span itself, not a guard
 
         for neighbor_idx in (idx - 1, idx + 1):
-            if 0 <= neighbor_idx < len(ordered) and ordered[neighbor_idx].bundle_id is not None:
+            if (
+                0 <= neighbor_idx < len(ordered) and
+                ordered[neighbor_idx].bundle_id is not None
+            ):
                 return True
 
     return False
 
 
 @_check_types.do
-def reposition_guards_for_bundle_end(ptables: "_ProjectTables", bundle: "_PJTBundle", end_position: _Point, view: str) -> None:
-    """Move every guard at *bundle*'s own end (*end_position*, the actual
+def reposition_guards_for_bundle_end(
+    ptables: "_ProjectTables",
+    bundle: "_PJTBundle",
+    end_position: _Point,
+    view: str
+) -> None:
+
+    """
+    Move every guard at *bundle*'s own end (*end_position*, the actual
     Point -- not a 'start'/'stop' label) to where it belongs NOW -- call
     whenever something changes the bundle's SHAPE near that end (the end
     itself moved independently of the rest of the bundle -- an attached
@@ -452,15 +548,25 @@ def reposition_guards_for_bundle_end(ptables: "_ProjectTables", bundle: "_PJTBun
     on every drag frame that could matter; a no-op when *end_position* has
     no guards at all.
     """
+
     check_view(view)
 
     if view == '3d':
-        start_id, stop_id = bundle.start_position3d_id, bundle.stop_position3d_id
+        start_id, stop_id = (bundle.start_position3d_id,
+                             bundle.stop_position3d_id)
     else:
-        start_id, stop_id = bundle.start_position_pegboard_id, bundle.stop_position_pegboard_id
+        start_id, stop_id = (bundle.start_position_pegboard_id,
+                             bundle.stop_position_pegboard_id)
 
-    start_point = bundle.start_position3d if view == '3d' else bundle.start_position_pegboard
-    end_point_id = start_id if end_position is start_point else stop_id
+    if view == '3d':
+        start_point = bundle.start_position3d
+    else:
+        start_point = bundle.start_position_pegboard
+
+    if end_position is start_point:
+        end_point_id = start_id
+    else:
+        end_point_id = stop_id
 
     direction = _bundle_end_direction(bundle, end_position, view)
     diameter = float(bundle.diameter)
@@ -468,16 +574,24 @@ def reposition_guards_for_bundle_end(ptables: "_ProjectTables", bundle: "_PJTBun
 
     for guard_id in guard_points_at(ptables, view, end_point_id):
         guard_point = points_table[guard_id].point
-        target = compute_guard_position(end_position, np.zeros(3), diameter, direction)
+
+        target = compute_guard_position(
+            end_position, np.zeros(3), diameter, direction)
+
         delta = target.as_numpy - guard_point.as_numpy
         guard_point += _Point(float(delta[0]), float(delta[1]), float(delta[2]))
 
 
 @_check_types.do
 def compute_housing_breakout_point(
-    housing: "_PJTHousing", cavity_points: list[_Point], diameter: float, view: str = '3d',
+    housing: "_PJTHousing",
+    cavity_points: list[_Point],
+    diameter: float,
+    view: str = '3d',
 ) -> _Point:
-    """BUNDLE_DESIGN.md 2.7's housing-breakout-point algorithm: centroid
+
+    """
+    BUNDLE_DESIGN.md 2.7's housing-breakout-point algorithm: centroid
     *C* of *cavity_points*, *R* = the furthest of them from *C*, pulled
     away from the housing (along its own local -Z -- see this module's
     docstring, gap 5) by ``max(sqrt(3) * R, guard_distance(diameter))``.
@@ -491,6 +605,7 @@ def compute_housing_breakout_point(
     housing's own angle properties (``angle3d``/``angle_pegboard``)
     supplies the "local -Z" rotation.
     """
+
     check_view(view)
     center = _centroid(cavity_points)
 
@@ -502,9 +617,14 @@ def compute_housing_breakout_point(
 
     distance = max(np.sqrt(3.0) * r, guard_distance(diameter))
 
-    angle = housing.angle3d if view == '3d' else housing.angle_pegboard
+    if view == '3d':
+        angle = housing.angle3d
+    else:
+        angle = housing.angle_pegboard
+
     local_back = np.array([0.0, 0.0, -1.0])
-    direction = local_back @ angle.matrix
+    direction = local_back @ angle.as_matrix_numpy
+
     norm = float(np.linalg.norm(direction))
     if norm < 1e-9:
         direction = local_back
@@ -517,15 +637,24 @@ def compute_housing_breakout_point(
 
 
 @_check_types.do
-def _branch_at_point(ptables: "_ProjectTables", point_id: bytes, view: str) -> _Union["_PJTTransitionBranch", None]:
-    """Whether *point_id* (a row in *view*'s own point table) is a
+def _branch_at_point(
+    ptables: "_ProjectTables",
+    point_id: bytes,
+    view: str
+) -> _Union["_PJTTransitionBranch", None]:
+
+    """
+    Whether *point_id* (a row in *view*'s own point table) is a
     transition branch's own position -- the same query shape as
     ``handlers.transition_handler.is_bundle_end_free``, just returning
     the branch itself instead of a bool.
     """
+
     check_view(view)
     column = _VIEW_BRANCH_COLUMN[view]
-    rows = ptables.pjt_transition_branches_table.select('id', **{column: point_id})
+    rows = ptables.pjt_transition_branches_table.select(
+        'id', **{column: point_id})
+
     if not rows:
         return None
 
@@ -538,7 +667,9 @@ def _group_center_for_wire_point(
     point: _Point,
     view: str,
 ) -> np.ndarray:
-    """The guard group-center for the single wire being routed right
+
+    """
+    The guard group-center for the single wire being routed right
     now: the housing's own center if *sibling* is a seated Terminal; the
     terminal's own center if it is a free (cavity-less) Terminal; else
     *point*'s own position (the free/single-wire case, and also the case
@@ -548,31 +679,42 @@ def _group_center_for_wire_point(
     ends to form a real multi-wire centroid yet. *view* selects the
     housing's/terminal's own ``position3d``/``position_pegboard``.
     """
+
     check_view(view)
 
     if isinstance(sibling, _terminal_obj.Terminal):
         cavity = sibling.db_obj.cavity
         if cavity is not None:
             housing = cavity.housing
-            pos = housing.position3d if view == '3d' else housing.position_pegboard
-            return pos.as_numpy
+            if view == '3d':
+                return housing.position3d.as_numpy
 
-        pos = sibling.db_obj.position3d if view == '3d' else sibling.db_obj.position_pegboard
-        return pos.as_numpy
+            return housing.position_pegboard.as_numpy
+
+        if view == '3d':
+            return sibling.db_obj.position3d.as_numpy
+
+        return sibling.db_obj.position_pegboard.as_numpy
 
     return point.as_numpy
 
 
 @_check_types.do
-def _diameter_of_terminus(entry: _Union[EnterBundle, EnterBranch, "_PJTBundle", "_PJTTransitionBranch"]) -> float:
-    """The diameter to drive :func:`guard_distance` with for whichever
+def _diameter_of_terminus(
+    entry: _Union[EnterBundle, EnterBranch, "_PJTBundle", "_PJTTransitionBranch"]
+) -> float:
+
+    """
+    The diameter to drive :func:`guard_distance` with for whichever
     terminus *entry* names -- a bundle's own (wire-driven/branch-floor)
     diameter, or a free branch's own project-level diameter when there
     is no bundle there at all. View-independent (a bundle/branch's own
     diameter is a single project fact, not per-view).
     """
+
     if isinstance(entry, EnterBundle):
         return float(entry.bundle.diameter)
+
     if isinstance(entry, EnterBranch):
         return float(entry.branch.diameter)
 
@@ -585,7 +727,8 @@ def _diameter_of_terminus(entry: _Union[EnterBundle, EnterBranch, "_PJTBundle", 
 
 
 class RouteWalk:
-    """Resumable version of the skeleton chain-walk -- lets an
+    """
+    Resumable version of the skeleton chain-walk -- lets an
     interactive session (the drag-and-drop UI, BUNDLE_PLACEMENT.md
     section 12) drive the engine ONE hop at a time, pausing at each
     transition reached (:attr:`pending_transition`) instead of requiring
@@ -603,16 +746,59 @@ class RouteWalk:
 
     @_check_types.do
     def __init__(
-        self, ptables: "_ProjectTables", wire: "_wire_obj.Wire",
-        grabbed_position: np.ndarray, entry: _Union[EnterBundle, EnterBranch], view: str,
+        self,
+        ptables: "_ProjectTables",
+        wire: "_wire_obj.Wire",
+        grabbed_position: np.ndarray,
+        entry: _Union[EnterBundle, EnterBranch],
+        view: str,
     ):
+
         check_view(view)
 
         self._ptables = ptables
         self._wire = wire
         self._view = view
         self._points_table = _points_table(ptables, view)
-        self._section_idx = _wire_topology.segment_index(wire, grabbed_position, view)  # same helper split_wire_at_point uses
+
+        # same helper split_wire_at_point uses
+        self._section_idx = _wire_topology.segment_index(
+            wire, grabbed_position, view)
+
+        if view == 'pegboard':
+            # Companion-view routing (wire_routing_drag._route_companion_view)
+            # has no real click to constrain where the detour lands --
+            # segment_index just picks whichever existing segment is
+            # geometrically nearest the bundle/branch position, with no
+            # awareness that this wire's own leading/trailing peg-board
+            # interior points might be a terminal/cavity structural stub
+            # (rope_pull_handler._structural_stub_ids) rather than ordinary
+            # free slack. Splicing the detour BEFORE such a stub point (a
+            # raw section_idx of 0, or len(existing interior)) pushes that
+            # stub out of array position 0/-1 -- which defeats
+            # rope_pull_handler._stub_boundary's own by-POSITION identity
+            # check (it only ever reads old_ids[0]/old_ids[-1], never a
+            # tag) -- and the stub then gets reconciled away as ordinary,
+            # disposable slack the next time this wire's peg-board chain is
+            # re-solved (the exact class of corruption _structural_stub_ids
+            # was built to prevent, confirmed live 2026-10-13). A real
+            # interactive drag can never land here on its own -- its own
+            # eligibility precondition (WireRouteMixin._is_routing_eligible)
+            # already forbids a grab touching the wire's true start/stop --
+            # but nothing stops it from landing on the segment immediately
+            # next to a stub either, so this clamp is unconditional here,
+            # not companion-view-specific.
+
+            # avoid a cycle at import time
+            from . import rope_pull_handler as _rope_pull_handler
+
+            leading, trailing = _rope_pull_handler.stub_boundary_for_chain(
+                ptables, wire.db_obj)
+
+            interior_count = len(wire.db_obj.waypoints_pegboard)
+
+            self._section_idx = max(
+                leading, min(self._section_idx, interior_count - trailing))
 
         self._point_tags: dict[bytes, dict] = {}
         self._ordered: list[bytes] = []
@@ -633,12 +819,16 @@ class RouteWalk:
             self._bundle = entry.bundle
             self._current_point = entry.point
             self._entry_bundle_end = (self._bundle, self._current_point)
-            self._add(self._current_point.db_id[:-2], bundle_id=self._bundle.db_id)
+
+            self._add(self._current_point.db_id[:-2],
+                      bundle_id=self._bundle.db_id)
+
         elif isinstance(entry, EnterBranch):
             self._branch = entry.branch
-            self._add(
-                _branch_point_id(self._branch, view),
-                transition_id=self._branch.transition_id, transition_branch_id=self._branch.db_id)
+
+            self._add(_branch_point_id(self._branch, view),
+                      transition_id=self._branch.transition_id,
+                      transition_branch_id=self._branch.db_id)
         else:
             raise TypeError('entry must be EnterBundle or EnterBranch')
 
@@ -655,15 +845,23 @@ class RouteWalk:
 
     @_check_types.do
     def _advance(self) -> None:
-        """Auto-walk ``self._bundle`` (if any) to its far end, then
+        """
+        Auto-walk ``self._bundle`` (if any) to its far end, then
         either finish (a genuinely free end reached) or add the
         transition centre at ``self._branch`` and pause there, waiting
         for :meth:`choose`.
         """
+
         if self._bundle is not None:
             bundle = self._bundle
-            start_point = bundle.start_position3d if self._view == '3d' else bundle.start_position_pegboard
-            stop_point = bundle.stop_position3d if self._view == '3d' else bundle.stop_position_pegboard
+
+            if self._view == '3d':
+                start_point = bundle.start_position3d
+                stop_point = bundle.stop_position3d
+
+            else:
+                start_point = bundle.start_position_pegboard
+                stop_point = bundle.stop_position_pegboard
 
             waypoint_ids = self._ptables.pjt_bundle_paths_table.point_ids(bundle.db_id, self._view)
             if self._current_point is not start_point:
@@ -672,7 +870,11 @@ class RouteWalk:
             for point_id in waypoint_ids:
                 self._add(point_id, bundle_id=bundle.db_id)
 
-            far_point = stop_point if self._current_point is start_point else start_point
+            if self._current_point is start_point:
+                far_point = stop_point
+            else:
+                far_point = start_point
+
             far_point_id = far_point.db_id[:-2]
 
             far_branch = _branch_at_point(self._ptables, far_point_id, self._view)
@@ -682,16 +884,19 @@ class RouteWalk:
                 self._exit_bundle_end = (bundle, far_point)
                 self._finished = True
                 self._bundle = None
+
                 return
 
-            self._add(
-                far_point_id, bundle_id=bundle.db_id,
-                transition_id=far_branch.transition_id, transition_branch_id=far_branch.db_id)
+            self._add(far_point_id, bundle_id=bundle.db_id,
+                      transition_id=far_branch.transition_id,
+                      transition_branch_id=far_branch.db_id)
+
             self._branch = far_branch
             self._bundle = None
 
         transition = self._branch.transition
-        self._add(_transition_centre_point_id(transition, self._view), transition_id=transition.db_id)
+        self._add(_transition_centre_point_id(transition, self._view),
+                  transition_id=transition.db_id)
 
     @property
     @_check_types.do
@@ -701,14 +906,18 @@ class RouteWalk:
     @property
     @_check_types.do
     def pending_transition(self) -> _Union["_PJTTransition", None]:
-        """The transition currently awaiting a :meth:`choose` call, or
-        ``None`` once :attr:`is_finished`."""
+        """
+        The transition currently awaiting a :meth:`choose` call, or
+        ``None`` once :attr:`is_finished`.
+        """
+
         return None if self._finished else self._branch.transition
 
     @property
     @_check_types.do
     def touched_bundles(self) -> list["_PJTBundle"]:
-        """Every bundle this walk actually routed the wire through, in
+        """
+        Every bundle this walk actually routed the wire through, in
         walk order, de-duplicated -- read from the ``bundle_id`` tags
         collected while walking (section 2.6), so the common case of
         entering directly onto a free end (no transition in the way)
@@ -716,6 +925,7 @@ class RouteWalk:
         :meth:`commit` to refresh each bundle's own wire-driven diameter
         (``handlers.bundle_diameter.refresh_diameter``).
         """
+
         bundles_table = self._ptables.pjt_bundles_table
         ids: list[bytes] = []
         seen = set()
@@ -729,7 +939,8 @@ class RouteWalk:
 
     @_check_types.do
     def choose(self, hop: _Union[ContinueBranch, EndAtSplice]) -> None:
-        """Resolve the hop at :attr:`pending_transition`. May finish the
+        """
+        Resolve the hop at :attr:`pending_transition`. May finish the
         walk immediately (a free exit branch, or an
         :class:`EndAtSplice`), or may need another :meth:`choose` call if
         the chosen branch's own attached bundle leads to yet another
@@ -739,6 +950,7 @@ class RouteWalk:
         ``ValueError`` if the chosen branch does not belong to
         :attr:`pending_transition`.
         """
+
         if self._finished:
             raise RuntimeError('walk is already finished')
 
@@ -756,10 +968,15 @@ class RouteWalk:
 
         next_branch = hop.branch
         if next_branch.transition_id != transition.db_id:
-            raise ValueError('chosen branch does not belong to the transition just reached')
+            raise ValueError(
+                'chosen branch does not belong to the transition just reached')
 
         next_bundle = next_branch.bundle
-        branch_point = next_branch.position3d if self._view == '3d' else next_branch.position_pegboard
+
+        if self._view == '3d':
+            branch_point = next_branch.position3d
+        else:
+            branch_point = next_branch.position_pegboard
 
         # A branch's own point row carries the attached bundle's id too
         # (2.6: "a branch with a bundle plugged in always carries that
@@ -768,7 +985,8 @@ class RouteWalk:
         self._add(
             branch_point.db_id[:-2],
             bundle_id=(next_bundle.db_id if next_bundle is not None else None),
-            transition_id=transition.db_id, transition_branch_id=next_branch.db_id)
+            transition_id=transition.db_id,
+            transition_branch_id=next_branch.db_id)
 
         if next_bundle is None:
             self._exit_diameter = _diameter_of_terminus(next_branch)
@@ -787,9 +1005,11 @@ class RouteWalk:
 
     @_check_types.do
     def commit(self) -> None:
-        """Write the finished route into ``pjt_wire_paths``. Call
+        """
+        Write the finished route into ``pjt_wire_paths``. Call
         exactly once, only once :attr:`is_finished`.
         """
+
         if not self._finished:
             raise RuntimeError('cannot commit an unfinished route walk')
 
@@ -801,7 +1021,8 @@ class RouteWalk:
             entry_point=first_point, entry_diameter=self._entry_diameter,
             exit_point=last_point, exit_diameter=self._exit_diameter,
             skeleton_point_ids=self._ordered, point_tags=self._point_tags,
-            entry_bundle_end=self._entry_bundle_end, exit_bundle_end=self._exit_bundle_end)
+            entry_bundle_end=self._entry_bundle_end,
+            exit_bundle_end=self._exit_bundle_end)
 
 
 @_check_types.do
@@ -813,7 +1034,9 @@ def route_wire(
     hops: list,
     view: str = '3d',
 ) -> None:
-    """Route *wire* into the skeleton, starting at *entry* and consuming
+
+    """
+    Route *wire* into the skeleton, starting at *entry* and consuming
     *hops* (a list of :class:`ContinueBranch`/:class:`EndAtSplice`, one
     per transition the walk reaches, in order) until the route reaches a
     genuinely free end or an :class:`EndAtSplice` hop, then commits the
@@ -846,6 +1069,7 @@ def route_wire(
     enforces by construction (a route can only ever walk real skeleton
     edges).
     """
+
     walk = RouteWalk(ptables, wire, grabbed_position, entry, view)
 
     for hop in hops:
@@ -855,22 +1079,29 @@ def route_wire(
 
     if not walk.is_finished:
         transition = walk.pending_transition
-        raise ValueError(
-            f'route reached transition {transition.db_id!r} with no hop supplied for it')
+        raise ValueError(f'route reached transition {transition.db_id!r} '
+                         f'with no hop supplied for it')
 
     walk.commit()
 
 
 @_check_types.do
 def _commit_route(
-    ptables: "_ProjectTables", wire: "_wire_obj.Wire", section_idx: int, view: str,
-    entry_point: _Point, entry_diameter: float,
-    exit_point: _Point, exit_diameter: float,
-    skeleton_point_ids: list[bytes], point_tags: dict,
+    ptables: "_ProjectTables",
+    wire: "_wire_obj.Wire",
+    section_idx: int, view: str,
+    entry_point: _Point,
+    entry_diameter: float,
+    exit_point: _Point,
+    exit_diameter: float,
+    skeleton_point_ids: list[bytes],
+    point_tags: dict,
     entry_bundle_end: _Union[tuple["_PJTBundle", _Point], None],
     exit_bundle_end: _Union[tuple["_PJTBundle", _Point], None],
 ) -> None:
-    """Splice [entry guard, *skeleton_point_ids*, exit guard] into
+
+    """
+    Splice [entry guard, *skeleton_point_ids*, exit guard] into
     *wire*'s own *view* interior waypoint list at *section_idx* (see
     ``handlers.wire_topology.segment_index`` for what that index means
     against ``[start] + interior + [stop]``), preserving every OTHER
@@ -886,6 +1117,7 @@ def _commit_route(
     remaining path. Each guard also gets a real ``WireLayout`` marker, so
     it renders and behaves like any other waypoint.
     """
+
     wire_db = wire.db_obj
     paths_table = ptables.pjt_wire_paths_table
     points_table = _points_table(ptables, view)
@@ -894,8 +1126,10 @@ def _commit_route(
     existing_interior_ids = [row.point_id for row in existing_rows]
     old_tags = {
         row.point_id: {
-            'bundle_id': row.bundle_id, 'concentric_id': row.concentric_id,
-            'transition_id': row.transition_id, 'transition_branch_id': row.transition_branch_id,
+            'bundle_id': row.bundle_id,
+            'concentric_id': row.concentric_id,
+            'transition_id': row.transition_id,
+            'transition_branch_id': row.transition_branch_id,
         }
         for row in existing_rows
     }
@@ -923,23 +1157,31 @@ def _commit_route(
     else:
         p_i1_point = points_table[existing_interior_ids[section_idx]].point
 
-    entry_group_center = _group_center_for_wire_point(p_i_sibling, p_i_point, view)
-    exit_group_center = _group_center_for_wire_point(p_i1_sibling, p_i1_point, view)
+    entry_group_center = _group_center_for_wire_point(
+        p_i_sibling, p_i_point, view)
+
+    exit_group_center = _group_center_for_wire_point(
+        p_i1_sibling, p_i1_point, view)
 
     entry_direction = (
         _bundle_end_direction(entry_bundle_end[0], entry_bundle_end[1], view)
         if entry_bundle_end is not None else None)
+
     exit_direction = (
         _bundle_end_direction(exit_bundle_end[0], exit_bundle_end[1], view)
         if exit_bundle_end is not None else None)
 
     entry_guard_point = compute_guard_position(
         entry_point, entry_group_center, entry_diameter, entry_direction)
+
     exit_guard_point = compute_guard_position(
         exit_point, exit_group_center, exit_diameter, exit_direction)
 
-    entry_guard_row = points_table.insert(entry_guard_point.x, entry_guard_point.y, entry_guard_point.z)
-    exit_guard_row = points_table.insert(exit_guard_point.x, exit_guard_point.y, exit_guard_point.z)
+    entry_guard_row = points_table.insert(
+        entry_guard_point.x, entry_guard_point.y, entry_guard_point.z)
+
+    exit_guard_row = points_table.insert(
+        exit_guard_point.x, exit_guard_point.y, exit_guard_point.z)
 
     # Route the wire through the guards BEFORE either gets its own
     # WireLayout marker (below) -- the view object's own diameter/color
@@ -950,8 +1192,12 @@ def _commit_route(
     # every guard fell back to WireLayout.__init__'s own hardcoded
     # default (3.0mm plain gray plastic) instead of the wire's actual
     # part diameter/color, permanently -- nothing re-reads it later.
-    detour = [entry_guard_row.db_id] + list(skeleton_point_ids) + [exit_guard_row.db_id]
-    new_interior_ids = existing_interior_ids[:section_idx] + detour + existing_interior_ids[section_idx:]
+    detour = ([entry_guard_row.db_id] +
+              list(skeleton_point_ids) +
+              [exit_guard_row.db_id])
+
+    new_interior_ids = (existing_interior_ids[:section_idx] +
+                        detour + existing_interior_ids[section_idx:])
 
     paths_table.set_route(wire_db.db_id, view, new_interior_ids)
 
@@ -963,7 +1209,12 @@ def _commit_route(
     layouts_table = ptables.pjt_wire_layouts_table
     mainframe = wire.mainframe
     for guard_row in (entry_guard_row, exit_guard_row):
-        point_kwargs = {'point3d_id': guard_row.db_id} if view == '3d' else {'point_pegboard_id': guard_row.db_id}
+
+        if view == '3d':
+            point_kwargs = {'point3d_id': guard_row.db_id}
+        else:
+            point_kwargs = {'point_pegboard_id': guard_row.db_id}
+
         layout_db = layouts_table.insert(**point_kwargs)
         layout_obj = _wire_layout_obj.WireLayout(mainframe, layout_db)
         mainframe.project.add_wire_layout(layout_obj)

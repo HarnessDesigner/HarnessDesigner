@@ -99,7 +99,7 @@ class _FlatListTree(QtWidgets.QTreeWidget):
     def load(self, rows: list[_bom.BomLineItem]) -> None:
         self.clear()
         for row in rows:
-            qty_text = f'{row.quantity:.1f} mm' if row.is_length else str(int(row.quantity))
+            qty_text = _bom.format_length(row.quantity) if row.is_length else str(int(row.quantity))
             QtWidgets.QTreeWidgetItem(
                 self, [row.manufacturer, row.part_number, row.description, qty_text])
 
@@ -157,8 +157,8 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
         self.setColumnCount(10)
         self.setHeaderLabels([
             'Manufacturer', 'Part Number', 'Description', 'AWG', 'mm²',
-            'Conductors', 'Shielded', 'Color', 'Exact Length (mm)',
-            'Length w/ Excess (mm)'])
+            'Conductors', 'Shielded', 'Color', 'Exact Length',
+            'Length w/ Excess'])
         self.header().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
@@ -170,7 +170,8 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
                 row.manufacturer, row.part_number, row.description,
                 str(row.awg), f'{row.mm2:.4f}', str(row.num_conductors),
                 'Yes' if row.shielded else 'No', '',
-                f'{row.exact_length_mm:.1f}', f'{row.length_with_excess_mm:.1f}'])
+                _bom.format_length(row.exact_length_mm),
+                _bom.format_length(row.length_with_excess_mm)])
 
             item.setIcon(self._COLOR_COLUMN, QtGui.QIcon(row.icon.pixmap))
 
@@ -186,7 +187,7 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
         self.setColumnCount(7)
         self.setHeaderLabels([
             'Manufacturer', 'Part Number', 'Description', 'Diameter Min (mm)',
-            'Diameter Max (mm)', 'Exact Length (mm)', 'Length w/ Excess (mm)'])
+            'Diameter Max (mm)', 'Exact Length', 'Length w/ Excess'])
         self.header().setSectionResizeMode(
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
@@ -197,7 +198,8 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
             QtWidgets.QTreeWidgetItem(self, [
                 row.manufacturer, row.part_number, row.description,
                 f'{row.dia_min_mm:.2f}', f'{row.dia_max_mm:.2f}',
-                f'{row.exact_length_mm:.1f}', f'{row.length_with_excess_mm:.1f}'])
+                _bom.format_length(row.exact_length_mm),
+                _bom.format_length(row.length_with_excess_mm)])
 
 
 # ---------------------------------------------------------------------------

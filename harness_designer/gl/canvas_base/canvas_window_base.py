@@ -212,6 +212,16 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._try_fit_all()
 
     @_check_types.do
+    def clear_user_input(self) -> None:
+        """
+        Start watching for the user taking over the camera: a fit
+        requested after this is skipped if a mouse button is pressed or
+        the wheel turned in the meantime. Called as a project load begins.
+        """
+
+        self._canvas.clear_user_input()
+
+    @_check_types.do
     def _camera_state(self) -> tuple[float, ...]:
         """
         Everything a fit sets on the camera, compared before/after to tell
@@ -279,6 +289,13 @@ class CanvasWindowBase(QtWidgets.QWidget):
         """
 
         if not self._fit_requested:
+            return
+
+        if self._canvas.user_input_seen:
+            # A mouse button was pressed or the wheel turned since the
+            # fit was armed (a project load pumps the event loop, so the
+            # user can navigate while it runs) -- don't fight them.
+            self._fit_requested = False
             return
 
         if self._fit_state is not None and self._camera_state() != self._fit_state:

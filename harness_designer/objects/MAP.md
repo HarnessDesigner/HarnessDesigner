@@ -6,7 +6,7 @@ Package init for the scene-objects layer: one wrapper class per harness part typ
 
 #### bom.py
 
-Bill-of-materials support: `BomLineItem`, `HousingTreeNode`, `WireCutRow`, `BundleCutRow`, `resolve_wire_icon()`. Not a scene-object wrapper — shared data-shaping for BOM views built from the scene graph.
+Bill-of-materials support: `BomLineItem`, `HousingTreeNode`, `WireCutRow`, `BundleCutRow`, `format_length()` (mm -> `70.0in (5'10")(1778mm)`, feet/inches rounded to the nearest inch), `resolve_wire_icon()`. Not a scene-object wrapper — shared data-shaping for BOM views built from the scene graph.
 
 #### boot.py
 

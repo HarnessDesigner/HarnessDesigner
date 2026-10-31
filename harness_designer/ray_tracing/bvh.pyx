@@ -1,5 +1,3 @@
-# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-
 # bvh_fast.pyx
 # cython: language_level=3
 # cython: boundscheck=False
