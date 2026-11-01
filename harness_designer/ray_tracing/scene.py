@@ -91,30 +91,118 @@ def fit_field_of_view(fov: float, view_aspect: float | None, image_aspect: float
     return math.degrees(2.0 * math.atan(tan_half))
 
 
-def _clip_polygon(polygon: list[np.ndarray], z: float, keep_above: bool) -> list[np.ndarray]:
-    """Cut a convex polygon with the plane ``Z == z`` (Sutherland-Hodgman), keeping one side.
+def _clip_triangles(triangles: np.ndarray, z: float, keep_above: bool) -> np.ndarray:
+    """Cut triangles with the plane ``Z == z``, keeping one side (every triangle at once).
 
-    :param polygon: Corners, each a length 3 array.
+    A triangle with all three corners on the kept side stays as it is, one with none is dropped, one with
+    a single corner there is cut down to a smaller triangle, and one with two becomes a quad, which is split
+    into two triangles. The winding order is kept.
+
+    :param triangles: ``(N, 3, C)`` array of corners. Column 2 is Z; the other columns (a normal, say) are
+        carried along and blended at a cut, the same way the position is.
     :param z: Where to cut.
     :param keep_above: Keep the ``Z >= z`` side if true, the ``Z <= z`` side otherwise.
-    :returns: The corners of what is kept; empty when nothing is.
+    :returns: ``(M, 3, C)`` array of the triangles that are kept; empty when nothing is.
     """
-    def kept(point: np.ndarray) -> bool:
-        return point[2] >= z if keep_above else point[2] <= z
+    depth = (triangles[:, :, 2] - z) * (1.0 if keep_above else -1.0)
+    kept = depth >= 0.0
+    count = kept.sum(axis=1)
 
-    result = []
+    pieces = [triangles[count == 3]]
 
-    for i, current in enumerate(polygon):
-        previous = polygon[i - 1]
+    one = np.flatnonzero(count == 1)
+    if len(one):
+        rows = np.arange(len(one))
+        corners = triangles[one]
+        d = depth[one]
 
-        if kept(current) != kept(previous):
-            t = (z - previous[2]) / (current[2] - previous[2])
-            result.append(previous + (current - previous) * t)
+        # Rotate so that the one kept corner comes first (a cyclic shift keeps the winding).
+        k = np.argmax(kept[one], axis=1)
+        a, b, c = (corners[rows, (k + shift) % 3] for shift in range(3))
+        da, db, dc = (d[rows, (k + shift) % 3] for shift in range(3))
 
-        if kept(current):
-            result.append(current)
+        p_ab = a + (b - a) * (da / (da - db))[:, None]
+        p_ac = a + (c - a) * (da / (da - dc))[:, None]
+        pieces.append(np.stack((a, p_ab, p_ac), axis=1))
 
-    return result
+    two = np.flatnonzero(count == 2)
+    if len(two):
+        rows = np.arange(len(two))
+        corners = triangles[two]
+        d = depth[two]
+
+        # Rotate so that the one dropped corner comes last.
+        k = np.argmin(kept[two], axis=1)
+        a, b, c = (corners[rows, (k + shift) % 3] for shift in (1, 2, 0))
+        da, db, dc = (d[rows, (k + shift) % 3] for shift in (1, 2, 0))
+
+        p_bc = b + (c - b) * (db / (db - dc))[:, None]
+        p_ca = c + (a - c) * (dc / (dc - da))[:, None]
+        pieces.append(np.stack((a, b, p_bc), axis=1))
+        pieces.append(np.stack((a, p_bc, p_ca), axis=1))
+
+    return np.concatenate(pieces)
+
+
+class _WindowedMesh:
+
+    """A triangle soup indexed along its local Z, so a window of it can be cut out without going over all of it.
+
+    A wire's stripe is one long helix mesh (tens of triangles per mm of wire) shared by every segment of every
+    wire, and each segment needs only its own stretch of it. The triangles are sorted by their lowest Z once;
+    a window is then a contiguous run of them, found with a binary search.
+    """
+
+    def __init__(self, local: np.ndarray, normals: np.ndarray):
+        """
+        :param local: ``(N, 3)`` triangle soup, local space.
+        :param normals: ``(N, 3)`` normals of those vertices.
+        """
+        # Position and normal travel together as one 6-vector per corner, so a cut blends both.
+        triangles = np.concatenate((local, normals), axis=1).reshape(-1, 3, 6)
+
+        low = triangles[:, :, 2].min(axis=1)
+        order = np.argsort(low, kind='stable')
+
+        self._triangles = triangles[order]
+        self._low = low[order]
+        self._high = self._triangles[:, :, 2].max(axis=1)
+
+        # A triangle can only reach the window if it starts no further below it than the longest one is tall.
+        self._span = float((self._high - self._low).max())
+
+    def cut(self, start: float, stop: float) -> np.ndarray | None:
+        """Return the part of the mesh between two Z values.
+
+        A triangle inside is kept whole. One that crosses an edge of the window is cut exactly at it
+        (keeping whole triangles instead overshoots by several mm: the helix's triangles are long, and the
+        overshoot would poke past the end of a segment at a bend).
+
+        :param start: Lower edge of the window.
+        :param stop: Upper edge of the window.
+        :returns: ``(M, 6)`` corners (position then normal), three per triangle; ``None`` when nothing is inside.
+        """
+        first = int(np.searchsorted(self._low, start - self._span, side='left'))
+        last = int(np.searchsorted(self._low, stop, side='right'))
+
+        if first >= last:
+            return None
+
+        low = self._low[first:last]
+        high = self._high[first:last]
+        triangles = self._triangles[first:last]
+
+        inside = (low >= start) & (high <= stop)
+        crossing = ~inside & (high >= start) & (low <= stop)
+
+        pieces = [triangles[inside]]
+
+        if crossing.any():
+            cut = _clip_triangles(triangles[crossing], start, keep_above=True)
+            pieces.append(_clip_triangles(cut, stop, keep_above=False))
+
+        corners = np.concatenate(pieces).reshape(-1, 6)
+        return corners if len(corners) else None
 
 
 class SceneObject(Protocol):
@@ -139,6 +227,7 @@ class SceneData:
 
     vertices: np.ndarray        # (N, 3) float32, world space
     faces: np.ndarray           # (M, 3) int32
+    vertex_normals: np.ndarray | None   # (N, 3) float32, world space; zero for a vertex without one; None if nothing is smooth
     bvh_bounds: np.ndarray      # float32, 6 per node
     bvh_structure: np.ndarray   # int32, 4 per node
     bvh_indices: np.ndarray     # int32, triangle order used by the leaves
@@ -190,7 +279,13 @@ class Scene:
         self.fov = fit_field_of_view(fov, view_aspect, self.width / self.height)
 
         self._vertices: list[np.ndarray] = []
+        self._normals: list[np.ndarray | None] = []
         self._materials: list[np.ndarray] = []
+
+        # A mesh is read from its VBO once however many objects share it (every segment of every wire
+        # shares one cylinder and one helix). The VBO is kept in the value so its id stays unique.
+        self._meshes: dict[int, tuple[object, tuple[np.ndarray, np.ndarray] | None]] = {}
+        self._windowed_meshes: dict[int, _WindowedMesh] = {}
 
     @property
     @_check_types.do
@@ -208,7 +303,11 @@ class Scene:
         The mesh is read from the object's VBO handler, which holds it in
         local space as a triangle soup (three vertices per triangle, no index
         buffer); position, angle and scale are applied here the same way
-        ``BaseVar._compute_aabb`` applies them.
+        ``BaseVar._compute_aabb`` applies them. An object the viewport draws
+        smooth (its ``smooth`` is true) also keeps the VBO's per-vertex smooth
+        normals, so the renderer shades it the way the viewport does instead of
+        showing the facets of a curved low-poly surface; a wire's stripe is
+        always smooth.
 
         Most objects are one placement of their mesh. A wire or bundle is a
         chain of straight tubes, one per segment of its path, all sharing the
@@ -234,7 +333,9 @@ class Scene:
         else:
             parts = get_parts()
 
-        meshes: dict[int, np.ndarray | None] = {}
+        # Base3D draws an object flat unless it says otherwise.
+        object_smooth = bool(getattr(obj, 'smooth', False))
+
         added = False
 
         for position, angle, scale, material, *extra in parts:
@@ -242,24 +343,35 @@ class Scene:
             vbo = extra[1] if len(extra) > 1 else obj.vbo
 
             key = id(vbo)
-            if key not in meshes:
-                meshes[key] = self._local_mesh(vbo)
+            if key not in self._meshes:
+                self._meshes[key] = (vbo, self._local_mesh(vbo))
 
-            local = meshes[key]
-            if local is None:
+            mesh = self._meshes[key][1]
+            if mesh is None:
                 continue
+
+            local, local_normals = mesh
 
             if window is None:
                 vertices = local * scale.as_numpy
+                normals = local_normals if object_smooth else None
+                normal_scale = scale.as_numpy
             else:
-                vertices = self._add_windowed(local, scale, window)
-                if vertices is None:
+                if key not in self._windowed_meshes:
+                    self._windowed_meshes[key] = _WindowedMesh(local, local_normals)
+
+                windowed = self._place_window(self._windowed_meshes[key], scale, window)
+                if windowed is None:
                     continue
+
+                vertices, normals = windowed
+                normal_scale = np.array((scale.x, scale.y, 1.0), dtype=np.float32)
 
             vertices @= angle
             vertices += position.as_numpy
 
             self._vertices.append(vertices)
+            self._normals.append(None if normals is None else self._world_normals(normals, normal_scale, angle))
             self._materials.append(material.cl_array)
             added = True
 
@@ -267,13 +379,14 @@ class Scene:
 
     @staticmethod
     @_check_types.do
-    def _local_mesh(vbo: "_vbo.VBOHandlerBase | None") -> np.ndarray | None:
-        """Return a VBO's local-space triangle soup as ``(N, 3)`` float32.
+    def _local_mesh(vbo: "_vbo.VBOHandlerBase | None") -> tuple[np.ndarray, np.ndarray] | None:
+        """Return a VBO's local-space triangle soup and its smooth normals, each ``(N, 3)`` float32.
 
         :param vbo: The VBO handler.
         :type vbo: VBOHandlerBase | None
-        :returns: The vertices, or ``None`` when there are no whole triangles.
-        :rtype: numpy.ndarray | None
+        :returns: ``(vertices, smooth_normals)``, or ``None`` when there are no whole triangles. A mesh
+            that has fewer normals than vertices gets zero vectors for the missing ones.
+        :rtype: tuple[numpy.ndarray, numpy.ndarray] | None
         """
         data = getattr(vbo, 'vertices', None)
         if data is None:
@@ -283,58 +396,93 @@ class Scene:
         if not count:
             return None
 
-        return np.array(data[:count], dtype=np.float32).reshape(-1, 3)
+        vertices = np.array(data[:count], dtype=np.float32).reshape(-1, 3)
+
+        normals = np.zeros((count,), dtype=np.float32)
+        smooth = getattr(vbo, 'smooth_normals', None)
+
+        if smooth is not None:
+            available = min(count, len(smooth))
+            normals[:available] = smooth[:available]
+
+        return vertices, normals.reshape(-1, 3)
 
     @staticmethod
     @_check_types.do
-    def _add_windowed(local: np.ndarray, scale: "_point.Point", window: tuple[float, float]) -> np.ndarray | None:
+    def _world_normals(normals: np.ndarray, scale: np.ndarray, angle: "_angle.Angle") -> np.ndarray:
+        """Carry local-space normals into world space the way the faces vertex shader does.
+
+        A normal is divided by the scale (not multiplied, as a position is) so that it stays
+        perpendicular to a surface that was stretched unevenly, then rotated and made unit
+        length again. A zero vector, the mark of a vertex without a normal, stays zero.
+
+        :param normals: ``(N, 3)`` local-space normals.
+        :type normals: numpy.ndarray
+        :param scale: ``(3,)`` scale applied to the mesh.
+        :type scale: numpy.ndarray
+        :param angle: Orientation of the placement.
+        :type angle: Angle
+        :returns: ``(N, 3)`` float32 unit normals (or zero vectors).
+        :rtype: numpy.ndarray
+        """
+        divisor = np.where(scale == 0.0, 1.0, scale).astype(np.float32)
+
+        world = (normals / divisor).astype(np.float32)
+        world @= angle
+
+        length = np.linalg.norm(world, axis=1, keepdims=True)
+        np.divide(world, length, out=world, where=length > 1e-12)
+        return world
+
+    @staticmethod
+    @_check_types.do
+    def _add_windowed(local: np.ndarray, normals: np.ndarray, scale: "_point.Point",
+                      window: tuple[float, float]) -> tuple[np.ndarray, np.ndarray] | None:
+        """Cut a mesh down to a window along its local Z and place it (:meth:`_place_window` on a one-off mesh).
+
+        :param local: ``(N, 3)`` triangle soup, local space.
+        :type local: numpy.ndarray
+        :param normals: ``(N, 3)`` normals of those vertices, local space.
+        :type normals: numpy.ndarray
+        :param scale: Only X and Y are used.
+        :type scale: Point
+        :param window: ``(start, stop)`` along local Z.
+        :type window: tuple[float, float]
+        :returns: See :meth:`_place_window`.
+        :rtype: tuple[numpy.ndarray, numpy.ndarray] | None
+        """
+        return Scene._place_window(_WindowedMesh(local, normals), scale, window)
+
+    @staticmethod
+    def _place_window(mesh: "_WindowedMesh", scale: "_point.Point",
+                      window: tuple[float, float]) -> tuple[np.ndarray, np.ndarray] | None:
         """Cut a shared mesh down to a window along its local Z and place it.
 
         This is what the faces vertex shader does for a wire's stripe
         (``stripeClipStart`` / ``stripeClipStop``): the helix mesh's local Z is
         in real units, so only X and Y are scaled, Z is re-based so the window
         starts at 0, and everything outside the window is dropped. A triangle
-        that crosses the window's edge is cut exactly at it. (Keeping whole
-        triangles instead overshoots by several mm: the helix's triangles are
-        long, and the overshoot would poke past the end of a segment at a bend.)
+        that crosses the window's edge is cut exactly at it, its normals blended
+        across the cut.
 
-        :param local: ``(N, 3)`` triangle soup, local space.
-        :type local: numpy.ndarray
+        :param mesh: The shared mesh.
         :param scale: Only X and Y are used.
-        :type scale: Point
         :param window: ``(start, stop)`` along local Z.
-        :type window: tuple[float, float]
-        :returns: Scaled, re-based vertices ready for the angle and position, or ``None`` when nothing is inside.
-        :rtype: numpy.ndarray | None
+        :returns: ``(vertices, normals)``: the vertices scaled and re-based, ready for the angle and position,
+            and the normals still in local space (not unit length where a cut blended them); ``None`` when
+            nothing is inside.
         """
         start, stop = window
 
-        triangles = local.reshape(-1, 3, 3)
-        low = triangles[:, :, 2].min(axis=1)
-        high = triangles[:, :, 2].max(axis=1)
-
-        inside = (low >= start) & (high <= stop)
-        crossing = ~inside & (high >= start) & (low <= stop)
-
-        pieces = [triangles[inside].reshape(-1, 3)]
-
-        for triangle in triangles[crossing]:
-            polygon = _clip_polygon(list(triangle), start, keep_above=True)
-            polygon = _clip_polygon(polygon, stop, keep_above=False)
-
-            # A convex polygon is cut into a fan of triangles from its first corner.
-            for i in range(1, len(polygon) - 1):
-                pieces.append(np.array((polygon[0], polygon[i], polygon[i + 1]), dtype=np.float32))
-
-        vertices = np.concatenate(pieces)
-        if not len(vertices):
+        corners = mesh.cut(start, stop)
+        if corners is None:
             return None
 
-        vertices = vertices.astype(np.float32, copy=True)
+        vertices = corners[:, :3].astype(np.float32, copy=True)
         vertices[:, 0] *= scale.x
         vertices[:, 1] *= scale.y
         vertices[:, 2] -= start
-        return vertices
+        return vertices, np.ascontiguousarray(corners[:, 3:], dtype=np.float32)
 
     @_check_types.do
     def _environment_map(self) -> np.ndarray | None:
@@ -400,6 +548,15 @@ class Scene:
         vertices = np.concatenate(self._vertices)
         faces = np.arange(len(vertices), dtype=np.int32).reshape(-1, 3)
 
+        # One normal per vertex, zero where an object is flat. Nothing at all when no object is smooth,
+        # so a scene of flat parts does not pay for a second vertex-sized buffer.
+        vertex_normals = None
+
+        if any(normals is not None for normals in self._normals):
+            vertex_normals = np.concatenate([
+                np.zeros_like(verts) if normals is None else normals
+                for verts, normals in zip(self._vertices, self._normals)])
+
         object_ids = np.concatenate([
             np.full(len(verts) // 3, index, dtype=np.int32)
             for index, verts in enumerate(self._vertices)])
@@ -418,6 +575,7 @@ class Scene:
         return SceneData(
             vertices=vertices,
             faces=faces,
+            vertex_normals=vertex_normals,
             bvh_bounds=bvh_bounds,
             bvh_structure=bvh_structure,
             bvh_indices=bvh_indices,

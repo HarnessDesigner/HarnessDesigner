@@ -11,6 +11,10 @@ from ... import check_types as _check_types
 
 Config = _config.Config.ray_trace
 
+# Range of the passes-per-pixel setting.
+MIN_SAMPLES = 1
+MAX_SAMPLES = 1024
+
 # World-space limits and step for a light's X/Y/Z, and its intensity range. FloatCtrl derives its
 # decimal places from the step, and a step of 1 or more gives it no slider range, so keep them below 1.
 POSITION_LIMIT = 5000.0
@@ -55,6 +59,19 @@ class RenderSettingsPanel(QtWidgets.QWidget):
 
         res_row.addWidget(self.resolution, 1)
         main_sizer.addLayout(res_row)
+
+        # Multisampling
+        samples_row = QtWidgets.QHBoxLayout()
+        samples_row.addWidget(QtWidgets.QLabel('Samples per pixel:', self))
+        self.samples_spin = QtWidgets.QSpinBox(self)
+        self.samples_spin.setRange(MIN_SAMPLES, MAX_SAMPLES)
+        self.samples_spin.setValue(int(Config.samples))
+        self.samples_spin.setToolTip(
+            'Passes per pixel. Each pass looks through a different point inside every pixel and the\n'
+            'passes are averaged: more passes smooth jagged edges and fine floor lines, and take\n'
+            'proportionally longer. 1 is a single pass.')
+        samples_row.addWidget(self.samples_spin, 1)
+        main_sizer.addLayout(samples_row)
 
         # Background group
         bg_box = QtWidgets.QGroupBox("Background", self)
@@ -180,6 +197,7 @@ class RenderSettingsPanel(QtWidgets.QWidget):
         Config.lighting.camera_light = self.camera_light_check.isChecked()
         Config.lighting.lights = self.lights.GetValue()
         Config.default_resolution = self.resolution.currentText()
+        Config.samples = self.samples_spin.value()
 
 
 class RenderSettingsDialog(_dialog_base.BaseDialog):

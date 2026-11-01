@@ -786,6 +786,10 @@ class Config(metaclass=ConfigDB):
         # Render the 3D editor's own background colour and floor instead of the background settings
         # below (which then apply to nothing but reflections' fallback).
         match_viewport = True
+
+        # Passes per pixel. Each looks through a different point inside the pixel and the passes are
+        # averaged, which anti-aliases edges and evens out the floor; 1 is a single pass at the pixel centre.
+        samples = 4
         resolutions = [
             {'label': '640x360 (360p LD) (16:9)', 'width': 640, 'height': 360},
             {'label': '480x360 (360p LD) (4:3)', 'width': 480, 'height': 360},

@@ -108,6 +108,14 @@ bool intersect_aabb(
     return tmax >= fmax(0.0f, tmin) && tmin < t_max;
 }
 
+// How far past a triangle's edge (in barycentric units) a ray still counts as hitting it. Rounding in the
+// test can put a ray that crosses the shared edge of two triangles outside both; for a long thin triangle
+// (a wire is 0.03 mm wide and hundreds of mm long) that error is large in the narrow direction. A ray
+// that slips through such a crack sees the inside of the far wall instead of the surface. Neighbouring
+// triangles overlapping by this much costs nothing, since the nearest hit wins. (The bigger cause of such
+// cracks is a far-away ray origin, see ``approach_origin``.)
+#define BARY_EPS 1e-5f
+
 // Ray-triangle intersection (Möller-Trumbore)
 bool intersect_triangle(
     float orig_x, float orig_y, float orig_z,
@@ -139,14 +147,14 @@ bool intersect_triangle(
     float s_z = orig_z - v0_z;
 
     float u = f * (s_x * h_x + s_y * h_y + s_z * h_z);
-    if (u < 0.0f || u > 1.0f) return false;
+    if (u < -BARY_EPS || u > 1.0f + BARY_EPS) return false;
 
     float q_x = s_y * edge1_z - s_z * edge1_y;
     float q_y = s_z * edge1_x - s_x * edge1_z;
     float q_z = s_x * edge1_y - s_y * edge1_x;
 
     float v = f * (dir_x * q_x + dir_y * q_y + dir_z * q_z);
-    if (v < 0.0f || u + v > 1.0f) return false;
+    if (v < -BARY_EPS || u + v > 1.0f + BARY_EPS) return false;
 
     float t = f * (edge2_x * q_x + edge2_y * q_y + edge2_z * q_z);
 
@@ -385,6 +393,97 @@ float calculate_ao(
     return 1.0f - (occlusion / samples);
 }
 
+// Distance along the ray to where it first meets the scene's bounding box (the BVH root), less a margin;
+// 0 when the origin is already inside or the box is behind it. A ray that misses the box returns false.
+//
+// Every triangle test subtracts a vertex from the ray origin, so with the camera tens of metres from the
+// model each of those subtractions is off by the rounding at that distance (about 2e-3 mm at 30 m), which
+// is about as wide as a wire's thin triangles: the test then misses the surface and the ray finds the
+// inside of the far wall (black speckles, worse the further out you zoom). Starting the ray at the model
+// keeps the arithmetic at the model's own scale.
+bool approach_distance(
+    __global const float* bvh_bounds,
+    float orig_x, float orig_y, float orig_z,
+    float dir_x, float dir_y, float dir_z,
+    float* start_out
+) {
+    float min_x, min_y, min_z, max_x, max_y, max_z;
+    get_node_bounds(bvh_bounds, 0, &min_x, &min_y, &min_z, &max_x, &max_y, &max_z);
+
+    float t1 = (min_x - orig_x) * safe_inverse(dir_x);
+    float t2 = (max_x - orig_x) * safe_inverse(dir_x);
+    float tmin = fmin(t1, t2);
+    float tmax = fmax(t1, t2);
+
+    t1 = (min_y - orig_y) * safe_inverse(dir_y);
+    t2 = (max_y - orig_y) * safe_inverse(dir_y);
+    tmin = fmax(tmin, fmin(t1, t2));
+    tmax = fmin(tmax, fmax(t1, t2));
+
+    t1 = (min_z - orig_z) * safe_inverse(dir_z);
+    t2 = (max_z - orig_z) * safe_inverse(dir_z);
+    tmin = fmax(tmin, fmin(t1, t2));
+    tmax = fmin(tmax, fmax(t1, t2));
+
+    if (tmax < 0.0f || tmax < tmin) return false;
+
+    float extent = fmax(max_x - min_x, fmax(max_y - min_y, max_z - min_z));
+    *start_out = fmax(0.0f, tmin - 0.01f * extent - 1.0f);
+    return true;
+}
+
+// ---- Multisampling ----------------------------------------------------------
+// Each pass of a render looks through a different point inside every pixel and the passes are averaged.
+
+float fraction(float v) {
+    return v - floor(v);
+}
+
+// Offset inside the pixel for pass ``sample_index`` of ``sample_count``: the R2 low-discrepancy sequence, shifted
+// by a per-pixel random amount so neighbouring pixels do not share one pattern. A single pass samples the
+// pixel centre.
+float2 pixel_jitter(int x, int y, int width, int sample_index, int sample_count) {
+    if (sample_count <= 1) return (float2)(0.5f, 0.5f);
+
+    uint h = (uint)(y * width + x) * 747796405u + 2891336453u;
+    h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
+    h = (h >> 22u) ^ h;
+
+    float shift_x = (float)(h & 0xFFFFu) / 65536.0f;
+    float shift_y = (float)((h >> 16) & 0xFFFFu) / 65536.0f;
+    float k = (float)(sample_index + 1);
+
+    return (float2)(fraction(0.7548776662f * k + shift_x), fraction(0.5698402910f * k + shift_y));
+}
+
+// Write one pass's colour: the first pass stores it, later passes fold it into the running average. A
+// colour that is not a number (a degenerate triangle, a zero-length vector) is dropped instead of
+// turning the pixel black for good.
+void store_pixel(__global float* image, int index, float3 color, int sample_index) {
+    if (!isfinite(color.x) || !isfinite(color.y) || !isfinite(color.z)) {
+        if (sample_index == 0) {
+            image[index + 0] = 0.0f;
+            image[index + 1] = 0.0f;
+            image[index + 2] = 0.0f;
+        }
+        return;
+    }
+
+    color = clamp(color, 0.0f, 1.0f);
+
+    if (sample_index == 0) {
+        image[index + 0] = color.x;
+        image[index + 1] = color.y;
+        image[index + 2] = color.z;
+        return;
+    }
+
+    float weight = 1.0f / (float)(sample_index + 1);
+    image[index + 0] += (color.x - image[index + 0]) * weight;
+    image[index + 1] += (color.y - image[index + 1]) * weight;
+    image[index + 2] += (color.z - image[index + 2]) * weight;
+}
+
 // ---- Viewport floor ------------------------------------------------------
 // The 3D editor's floor (gl/shaders/floor/fragment.frag) as a plane: checkerboard tiles, solid major
 // lines at the tile edges and dashed minor lines between them. ``fw`` is the world size of a pixel
@@ -403,9 +502,54 @@ float line_coverage(float coord, float spacing, float half_w, float fw) {
     return (1.0f - smoothstep(hw - fw, hw + fw, dist)) * coverage;
 }
 
+// Sub-samples per axis the floor pattern is averaged over in each pixel (FLOOR_SAMPLES x FLOOR_SAMPLES).
+// The pattern is cheap to evaluate (no BVH), and averaging it is what keeps fine tiles and lines from
+// turning into moire.
+#define FLOOR_SAMPLES 4
+
+// Where the ray through pixel position (pixel_x, pixel_y) meets the floor plane, if it does inside the floor.
+bool floor_intersect(
+    float cam_x, float cam_y, float cam_z,
+    float forward_x, float forward_y, float forward_z,
+    float right_x, float right_y, float right_z,
+    float up_x, float up_y, float up_z,
+    float scale, float aspect_ratio, int width, int height,
+    float floor_y, float half_size, float pixel_x, float pixel_y,
+    float* out_x, float* out_z, float* out_t
+) {
+    float px = (2.0f * pixel_x / width - 1.0f) * aspect_ratio * scale;
+    float py = (1.0f - 2.0f * pixel_y / height) * scale;
+
+    float dx = forward_x + right_x * px + up_x * py;
+    float dy = forward_y + right_y * px + up_y * py;
+    float dz = forward_z + right_z * px + up_z * py;
+
+    float len = sqrt(dx * dx + dy * dy + dz * dz);
+    dx /= len;
+    dy /= len;
+    dz /= len;
+
+    if (fabs(dy) < 1e-6f) return false;
+
+    float t = (floor_y - cam_y) / dy;
+    if (t <= 1e-4f) return false;
+
+    float x = cam_x + dx * t;
+    float z = cam_z + dz * t;
+    if (fabs(x) > half_size || fabs(z) > half_size) return false;
+
+    *out_x = x;
+    *out_z = z;
+    *out_t = t;
+    return true;
+}
+
+// The floor at world position (wx, wz). ``fwx`` / ``fwz`` are how far the sample's footprint reaches along
+// each axis (GLSL fwidth), which anti-aliases the lines and fades the tiles and the dash pattern to their
+// average where they are finer than the footprint.
 float4 floor_color(
     __global const float* fp, uint stipple_pattern, int stipple_phase,
-    float wx, float wz, float fw
+    float wx, float wz, float fwx, float fwz
 ) {
     float tile = fp[3];
     float minor_spacing = fp[4];
@@ -418,32 +562,41 @@ float4 floor_color(
     float4 major_color = (float4)(fp[16], fp[17], fp[18], fp[19]);
     float4 minor_color = (float4)(fp[20], fp[21], fp[22], fp[23]);
 
+    float fw_max = fmax(fwx, fwz);
+
     float tx = floor(wx / tile);
     float tz = floor(wz / tile);
     float4 checker = (positive_mod(tx + tz, 2.0f) < 0.5f) ? color_a : color_b;
 
-    float tile_fade = smoothstep(0.25f, 1.0f, fw / tile);
+    float tile_fade = smoothstep(0.25f, 1.0f, fw_max / tile);
     float3 tile_color = mix(checker.xyz, (color_a.xyz + color_b.xyz) * 0.5f, tile_fade);
 
-    float major = fmax(line_coverage(wx, tile, major_width * 0.5f, fw),
-                       line_coverage(wz, tile, major_width * 0.5f, fw));
+    float major = fmax(line_coverage(wx, tile, major_width * 0.5f, fwx),
+                       line_coverage(wz, tile, major_width * 0.5f, fwz));
 
     float minor = 0.0f;
     if (has_minor) {
         float min_hw = minor_width * 0.5f;
-        float min_fade = 1.0f - smoothstep(0.25f, 1.0f, fw / minor_spacing);
+        float min_fade = 1.0f - smoothstep(0.25f, 1.0f, fw_max / minor_spacing);
 
-        float near_x = line_coverage(wz, minor_spacing, min_hw, fw);
+        // One bit of the dash pattern is tile / 32 long; once that is finer than the footprint the dashes
+        // are just a lighter line, so use the pattern's average coverage instead.
+        float bit_length = tile / 32.0f;
+        float dash_average = (float)popcount(stipple_pattern) / 32.0f;
+
+        float near_x = line_coverage(wz, minor_spacing, min_hw, fwz);
         float shift_x = (float)stipple_phase * positive_mod(round(wz / minor_spacing), 2.0f) * tile * 0.5f;
         float seg_x = positive_mod(wx + shift_x, tile) / tile;
         uint bit_x = min((uint)(seg_x * 32.0f), 31u);
-        float dash_x = (float)((stipple_pattern >> bit_x) & 1u);
+        float dash_x = mix((float)((stipple_pattern >> bit_x) & 1u), dash_average,
+                           smoothstep(0.5f, 1.5f, fwx / bit_length));
 
-        float near_z = line_coverage(wx, minor_spacing, min_hw, fw);
+        float near_z = line_coverage(wx, minor_spacing, min_hw, fwx);
         float shift_z = (float)stipple_phase * positive_mod(round(wx / minor_spacing), 2.0f) * tile * 0.5f;
         float seg_z = positive_mod(wz + shift_z, tile) / tile;
         uint bit_z = min((uint)(seg_z * 32.0f), 31u);
-        float dash_z = (float)((stipple_pattern >> bit_z) & 1u);
+        float dash_z = mix((float)((stipple_pattern >> bit_z) & 1u), dash_average,
+                           smoothstep(0.5f, 1.5f, fwz / bit_length));
 
         minor = fmax(near_x * dash_x, near_z * dash_z) * min_fade;
     }
@@ -462,6 +615,8 @@ float4 floor_color(
 // With ``mirror`` set the lights are mirrored in the plane y = ``mirror_y``, for a reflection in the floor.
 float3 shade_hit(
     __global const float* vertices,
+    __global const float* vertex_normals,
+    int has_vertex_normals,
     __global const int* faces,
     __global const int* object_ids,
     __global const Material* materials,
@@ -531,6 +686,12 @@ float3 shade_hit(
     normal_y /= normal_len;
     normal_z /= normal_len;
 
+    // Kept as it is for the barycentric weights below (normal_len is twice the triangle's area).
+    float geo_x = normal_x;
+    float geo_y = normal_y;
+    float geo_z = normal_z;
+    float double_area = normal_len;
+
     // Triangle winding is not guaranteed, so face the normal toward the viewer
     if (normal_x*ray_dir_x + normal_y*ray_dir_y + normal_z*ray_dir_z > 0.0f) {
         normal_x = -normal_x;
@@ -541,6 +702,75 @@ float3 shade_hit(
     float hit_x = cam_x + ray_dir_x * min_dist;
     float hit_y = cam_y + ray_dir_y * min_dist;
     float hit_z = cam_z + ray_dir_z * min_dist;
+
+    // Origin + direction * distance cannot place the hit better than about a float's rounding at that
+    // distance (~2e-3 mm at 30 m), which is more than a thin wire's shadow offset: the shadow ray then
+    // starts inside the wire and hits its own far wall, so the pixel loses its direct light and the wire
+    // turns speckled with dark spots the further away it is. Snap the point back onto the triangle's own
+    // plane (the vertices are near the geometry, so their precision does not depend on the camera) ...
+    float plane_distance = (hit_x - v0_x) * normal_x + (hit_y - v0_y) * normal_y + (hit_z - v0_z) * normal_z;
+    hit_x -= normal_x * plane_distance;
+    hit_y -= normal_y * plane_distance;
+    hit_z -= normal_z * plane_distance;
+
+    // ... and lift shadow rays off it by more than the rounding of the coordinates they start from.
+    float shadow_bias = fmax(1e-3f, 1e-6f * fmax(fabs(hit_x), fmax(fabs(hit_y), fabs(hit_z))));
+
+    // The normal the surface is shaded with: the face normal, or, for an object drawn smooth in the viewport,
+    // its vertex normals blended by where in the triangle the ray hit (what the rasterizer interpolates).
+    // Rays are still offset along the face normal, which is the one that is exact for the geometry.
+    float shade_x = normal_x;
+    float shade_y = normal_y;
+    float shade_z = normal_z;
+
+    if (has_vertex_normals && double_area > 0.0f) {
+        float p_x = hit_x - v0_x;
+        float p_y = hit_y - v0_y;
+        float p_z = hit_z - v0_z;
+
+        // Barycentric weights from cross products rather than from dot products: a thin sliver of a
+        // triangle (a wire's) loses most of its precision to cancellation in the dot-product form.
+        float c1_x = p_y * edge2_z - p_z * edge2_y;
+        float c1_y = p_z * edge2_x - p_x * edge2_z;
+        float c1_z = p_x * edge2_y - p_y * edge2_x;
+
+        float c2_x = edge1_y * p_z - edge1_z * p_y;
+        float c2_y = edge1_z * p_x - edge1_x * p_z;
+        float c2_z = edge1_x * p_y - edge1_y * p_x;
+
+        float w1 = clamp((c1_x * geo_x + c1_y * geo_y + c1_z * geo_z) / double_area, 0.0f, 1.0f);
+        float w2 = clamp((c2_x * geo_x + c2_y * geo_y + c2_z * geo_z) / double_area, 0.0f, 1.0f);
+        float w0 = fmax(0.0f, 1.0f - w1 - w2);
+
+        float w_sum = w0 + w1 + w2;
+        w0 /= w_sum;
+        w1 /= w_sum;
+        w2 /= w_sum;
+
+        float smooth_x = vertex_normals[idx0 + 0] * w0 + vertex_normals[idx1 + 0] * w1 + vertex_normals[idx2 + 0] * w2;
+        float smooth_y = vertex_normals[idx0 + 1] * w0 + vertex_normals[idx1 + 1] * w1 + vertex_normals[idx2 + 1] * w2;
+        float smooth_z = vertex_normals[idx0 + 2] * w0 + vertex_normals[idx1 + 2] * w1 + vertex_normals[idx2 + 2] * w2;
+
+        float smooth_len = sqrt(smooth_x * smooth_x + smooth_y * smooth_y + smooth_z * smooth_z);
+
+        // No vertex normals (a flat object, or a piece of mesh that was cut) leave a zero vector: keep the face normal.
+        if (smooth_len > 1e-4f) {
+            smooth_x /= smooth_len;
+            smooth_y /= smooth_len;
+            smooth_z /= smooth_len;
+
+            // Same side as the face normal, which already faces the viewer.
+            if (smooth_x * normal_x + smooth_y * normal_y + smooth_z * normal_z < 0.0f) {
+                smooth_x = -smooth_x;
+                smooth_y = -smooth_y;
+                smooth_z = -smooth_z;
+            }
+
+            shade_x = smooth_x;
+            shade_y = smooth_y;
+            shade_z = smooth_z;
+        }
+    }
 
     // Ambient occlusion
     float ao = 1.0f;
@@ -582,9 +812,9 @@ float3 shade_hit(
         // Check shadows with BVH
         bool in_shadow = false;
         if (enable_shadows) {
-            float shadow_orig_x = hit_x + normal_x * 0.001f;
-            float shadow_orig_y = hit_y + normal_y * 0.001f;
-            float shadow_orig_z = hit_z + normal_z * 0.001f;
+            float shadow_orig_x = hit_x + normal_x * shadow_bias;
+            float shadow_orig_y = hit_y + normal_y * shadow_bias;
+            float shadow_orig_z = hit_z + normal_z * shadow_bias;
 
             in_shadow = is_occluded(bvh_bounds, bvh_structure, bvh_indices, vertices, faces,
                                    shadow_orig_x, shadow_orig_y, shadow_orig_z,
@@ -594,7 +824,7 @@ float3 shade_hit(
 
         if (!in_shadow) {
             // Diffuse
-            float n_dot_l = fmax(0.0f, normal_x*light_dir_x + normal_y*light_dir_y + normal_z*light_dir_z);
+            float n_dot_l = fmax(0.0f, shade_x*light_dir_x + shade_y*light_dir_y + shade_z*light_dir_z);
             total_diffuse += light_color * (n_dot_l * light.intensity * mat.diffuse);
 
             // Specular (Blinn-Phong)
@@ -606,7 +836,7 @@ float3 shade_hit(
             half_y /= half_len;
             half_z /= half_len;
 
-            float n_dot_h = fmax(0.0f, normal_x*half_x + normal_y*half_y + normal_z*half_z);
+            float n_dot_h = fmax(0.0f, shade_x*half_x + shade_y*half_y + shade_z*half_z);
             // The rasterizer uses Phong; a Blinn-Phong exponent of about 4x gives the same highlight size.
             float spec_power = pow(n_dot_h, mat.shininess * 4.0f);
             total_specular += light_color * specular_tint * (spec_power * light.intensity * mat.specular);
@@ -616,10 +846,10 @@ float3 shade_hit(
     // Reflection
     float3 reflection_color = (float3)(0, 0, 0);
     if (enable_reflections && mat.reflectivity > 0.01f) {
-        float n_dot_v = normal_x*(-ray_dir_x) + normal_y*(-ray_dir_y) + normal_z*(-ray_dir_z);
-        float reflect_x = ray_dir_x + 2.0f * n_dot_v * normal_x;
-        float reflect_y = ray_dir_y + 2.0f * n_dot_v * normal_y;
-        float reflect_z = ray_dir_z + 2.0f * n_dot_v * normal_z;
+        float n_dot_v = shade_x*(-ray_dir_x) + shade_y*(-ray_dir_y) + shade_z*(-ray_dir_z);
+        float reflect_x = ray_dir_x + 2.0f * n_dot_v * shade_x;
+        float reflect_y = ray_dir_y + 2.0f * n_dot_v * shade_y;
+        float reflect_z = ray_dir_z + 2.0f * n_dot_v * shade_z;
 
         if (enable_environment_map && environment_map != 0) {
             reflection_color = sample_environment(environment_map, env_width, env_height,
@@ -642,7 +872,7 @@ float3 shade_hit(
     // Fresnel effect
     float fresnel = 0.0f;
     if (enable_reflections && mat.reflectivity > 0.01f) {
-        float n_dot_v = fabs(normal_x*(-ray_dir_x) + normal_y*(-ray_dir_y) + normal_z*(-ray_dir_z));
+        float n_dot_v = fabs(shade_x*(-ray_dir_x) + shade_y*(-ray_dir_y) + shade_z*(-ray_dir_z));
         float f0 = mat.reflectivity;
         fresnel = f0 + (1.0f - f0) * pow(1.0f - n_dot_v, 5.0f);
     }
@@ -703,17 +933,25 @@ __kernel void ray_trace_kernel(
     float shadow_softness,
     __global const float* floor_params,
     uint stipple_pattern,
-    int stipple_phase
+    int stipple_phase,
+    int sample_index,
+    int sample_count,
+    __global const float* vertex_normals,
+    int has_vertex_normals
 ) {
     int x = get_global_id(0);
     int y = get_global_id(1) + start_y;
 
     if (x >= width || y >= end_y || y >= height) return;
 
-    uint seed = (y * width + x) * 1103515245u + 12345u;
+    uint seed = (y * width + x) * 1103515245u + 12345u + (uint)sample_index * 2654435761u;
 
-    float px = (2.0f * (x + 0.5f) / width - 1.0f) * aspect_ratio * scale;
-    float py = (1.0f - 2.0f * (y + 0.5f) / height) * scale;
+    float2 jitter = pixel_jitter(x, y, width, sample_index, sample_count);
+    float jx = jitter.x;
+    float jy = jitter.y;
+
+    float px = (2.0f * (x + jx) / width - 1.0f) * aspect_ratio * scale;
+    float py = (1.0f - 2.0f * (y + jy) / height) * scale;
 
     float ray_dir_x = forward_x + right_x * px + up_x * py;
     float ray_dir_y = forward_y + right_y * px + up_y * py;
@@ -724,13 +962,27 @@ __kernel void ray_trace_kernel(
     ray_dir_y /= len;
     ray_dir_z /= len;
 
-    // Traverse BVH
-    float min_dist;
-    int hit_face;
-    bool hit = traverse_bvh(bvh_bounds, bvh_structure, bvh_indices, vertices, faces,
-                           cam_x, cam_y, cam_z,
+    // Traverse BVH, starting the ray where it reaches the model (see approach_distance). ``min_dist`` is
+    // measured from there; ``hit_total`` from the camera.
+    float start_t = 0.0f;
+    bool reaches_scene = approach_distance(bvh_bounds, cam_x, cam_y, cam_z,
+                                           ray_dir_x, ray_dir_y, ray_dir_z, &start_t);
+    float ray_ox = cam_x + ray_dir_x * start_t;
+    float ray_oy = cam_y + ray_dir_y * start_t;
+    float ray_oz = cam_z + ray_dir_z * start_t;
+
+    float min_dist = 0.0f;
+    int hit_face = 0;
+    bool hit = false;
+
+    if (reaches_scene) {
+        hit = traverse_bvh(bvh_bounds, bvh_structure, bvh_indices, vertices, faces,
+                           ray_ox, ray_oy, ray_oz,
                            ray_dir_x, ray_dir_y, ray_dir_z,
                            &min_dist, &hit_face);
+    }
+
+    float hit_total = start_t + min_dist;
 
     // The viewport floor: a plane the ray may reach before any geometry (or with none behind it).
     bool floor_in_front = false;
@@ -739,23 +991,75 @@ __kernel void ray_trace_kernel(
     float3 floor_rgb = (float3)(0.0f, 0.0f, 0.0f);
     float floor_alpha = 0.0f;
 
-    if (floor_params[0] > 0.5f && fabs(ray_dir_y) > 1e-6f) {
-        float t_floor = (floor_params[1] - cam_y) / ray_dir_y;
-        float floor_x = cam_x + ray_dir_x * t_floor;
-        float floor_z = cam_z + ray_dir_z * t_floor;
+    if (floor_params[0] > 0.5f) {
+        float floor_y = floor_params[1];
         float half_size = floor_params[2];
+        float wx0, wz0, t0;
 
-        if (t_floor > 1e-4f && fabs(floor_x) <= half_size && fabs(floor_z) <= half_size &&
-            (!hit || t_floor < min_dist)) {
-            float pixel_angle = 2.0f * scale / height;
-            float fw = fmax(t_floor * pixel_angle / fmax(fabs(ray_dir_y), 0.02f), 1e-5f);
-            float4 fc = floor_color(floor_params, stipple_pattern, stipple_phase, floor_x, floor_z, fw);
+        if (floor_intersect(cam_x, cam_y, cam_z, forward_x, forward_y, forward_z,
+                            right_x, right_y, right_z, up_x, up_y, up_z,
+                            scale, aspect_ratio, width, height, floor_y, half_size,
+                            x + jx, y + jy, &wx0, &wz0, &t0) &&
+            (!hit || t0 < hit_total)) {
 
-            floor_rgb = fc.xyz;
-            floor_alpha = fc.w;
-            floor_in_front = true;
-            floor_hit_x = floor_x;
-            floor_hit_z = floor_z;
+            // How far one pixel reaches along each floor axis (like GLSL fwidth), from the floor point
+            // under the neighbouring pixels. Where a neighbour misses the floor, estimate it instead.
+            float wx1, wz1, t1, wx2, wz2, t2;
+            float fwx, fwz;
+
+            bool next_x = floor_intersect(cam_x, cam_y, cam_z, forward_x, forward_y, forward_z,
+                                          right_x, right_y, right_z, up_x, up_y, up_z,
+                                          scale, aspect_ratio, width, height, floor_y, half_size,
+                                          x + jx + 1.0f, y + jy, &wx1, &wz1, &t1);
+            bool next_y = floor_intersect(cam_x, cam_y, cam_z, forward_x, forward_y, forward_z,
+                                          right_x, right_y, right_z, up_x, up_y, up_z,
+                                          scale, aspect_ratio, width, height, floor_y, half_size,
+                                          x + jx, y + jy + 1.0f, &wx2, &wz2, &t2);
+
+            if (next_x && next_y) {
+                fwx = fabs(wx1 - wx0) + fabs(wx2 - wx0);
+                fwz = fabs(wz1 - wz0) + fabs(wz2 - wz0);
+            } else {
+                fwx = fwz = t0 * (2.0f * scale / height) / fmax(fabs(ray_dir_y), 0.02f);
+            }
+
+            fwx = fmax(fwx, 1e-5f);
+            fwz = fmax(fwz, 1e-5f);
+
+            // Average the pattern over the pixel. Colour is summed premultiplied by alpha, so the
+            // result composites exactly as the average of the samples would.
+            float3 sum_rgb = (float3)(0.0f, 0.0f, 0.0f);
+            float sum_alpha = 0.0f;
+
+            // With several passes each one already looks through a different point of the pixel, so the
+            // floor needs fewer sub-samples per pass.
+            int floor_n = sample_count > 1 ? max(1, FLOOR_SAMPLES / 2) : FLOOR_SAMPLES;
+
+            for (int j = 0; j < floor_n; j++) {
+                for (int i = 0; i < floor_n; i++) {
+                    float sample_wx, sample_wz, sample_t;
+
+                    if (floor_intersect(cam_x, cam_y, cam_z, forward_x, forward_y, forward_z,
+                                        right_x, right_y, right_z, up_x, up_y, up_z,
+                                        scale, aspect_ratio, width, height, floor_y, half_size,
+                                        x + (i + jx) / floor_n, y + (j + jy) / floor_n,
+                                        &sample_wx, &sample_wz, &sample_t)) {
+                        float4 fc = floor_color(floor_params, stipple_pattern, stipple_phase,
+                                                sample_wx, sample_wz,
+                                                fwx / floor_n, fwz / floor_n);
+                        sum_rgb += fc.xyz * fc.w;
+                        sum_alpha += fc.w;
+                    }
+                }
+            }
+
+            if (sum_alpha > 0.0f) {
+                floor_rgb = sum_rgb / sum_alpha;
+                floor_alpha = sum_alpha / (floor_n * floor_n);
+                floor_in_front = true;
+                floor_hit_x = wx0;
+                floor_hit_z = wz0;
+            }
         }
     }
 
@@ -775,7 +1079,7 @@ __kernel void ray_trace_kernel(
                          ray_dir_x, mirror_dir_y, ray_dir_z,
                          &mirror_dist, &mirror_face)) {
             floor_reflection = 0.75f * shade_hit(
-                vertices, faces, object_ids, materials, lights, num_lights,
+                vertices, vertex_normals, has_vertex_normals, faces, object_ids, materials, lights, num_lights,
                 bvh_bounds, bvh_structure, bvh_indices,
                 mirror_face, mirror_dist,
                 floor_hit_x, origin_y, floor_hit_z,
@@ -819,17 +1123,15 @@ __kernel void ray_trace_kernel(
             background = mix(background, floor_rgb, floor_alpha);
         }
 
-        image[pixel_idx + 0] = background.x;
-        image[pixel_idx + 1] = background.y;
-        image[pixel_idx + 2] = background.z;
+        store_pixel(image, pixel_idx, background, sample_index);
         return;
     }
 
     float3 final_color = shade_hit(
-        vertices, faces, object_ids, materials, lights, num_lights,
+        vertices, vertex_normals, has_vertex_normals, faces, object_ids, materials, lights, num_lights,
         bvh_bounds, bvh_structure, bvh_indices,
         hit_face, min_dist,
-        cam_x, cam_y, cam_z,
+        ray_ox, ray_oy, ray_oz,
         ray_dir_x, ray_dir_y, ray_dir_z,
         ambient_intensity,
         bg_top_r, bg_top_g, bg_top_b,
@@ -844,7 +1146,5 @@ __kernel void ray_trace_kernel(
         final_color = mix(final_color, floor_rgb, floor_alpha);
     }
 
-    image[pixel_idx + 0] = final_color.x;
-    image[pixel_idx + 1] = final_color.y;
-    image[pixel_idx + 2] = final_color.z;
+    store_pixel(image, pixel_idx, final_color, sample_index);
 }

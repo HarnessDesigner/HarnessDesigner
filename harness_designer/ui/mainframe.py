@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from . import web_viewer as _web_viewer
     from . import editor_script as _editor_script
     from .dialogs import ray_tracing_dialog as _ray_tracing_dialog
+    from .dialogs import pegboard_print_dialog as _pegboard_print_dialog
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
     from ..objects import project as _project
@@ -131,6 +132,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.scraper_browser: _Union["_web_viewer.ScraperBrowser", None] = None
         self.scraper_editor: _Union["_editor_script.ScriptEditor", None] = None
         self.ray_tracing_dialog: _Union["_ray_tracing_dialog.RayTracingDialog", None] = None
+        self.pegboard_print_dialog: _Union["_pegboard_print_dialog.PegboardPrintDialog", None] = None
 
         splash.SetText('Startup logging ...')
         splash.flush()
@@ -833,6 +835,23 @@ class MainFrame(QtWidgets.QMainWindow):
         self.ray_tracing_dialog.show()
         self.ray_tracing_dialog.raise_()
         self.ray_tracing_dialog.activateWindow()
+
+    @_check_types.do
+    def show_pegboard_print(self) -> None:
+        """
+        Open the dialog that prints the Peg Board Editor at a chosen scale,
+        creating it the first time. It is modal: the print renders through the
+        peg board's own canvas, so the editor is left alone until it is done.
+        Meant for a menu entry.
+        """
+
+        if self.pegboard_print_dialog is None:
+            from .dialogs import pegboard_print_dialog
+
+            self.pegboard_print_dialog = pegboard_print_dialog.PegboardPrintDialog(self)
+
+        self.pegboard_print_dialog.refresh()
+        self.pegboard_print_dialog.exec()
 
     @_check_types.do
     def _link_scraper_docks(self) -> None:

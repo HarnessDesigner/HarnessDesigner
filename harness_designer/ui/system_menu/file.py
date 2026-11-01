@@ -28,6 +28,8 @@ class FileMenu(QtWidgets.QMenu):
         self.mainframe = mainframe
 
         self.addAction('Load Project...').triggered.connect(self.on_load_project)
+        self.addSeparator()
+        self.addAction('Print Peg Board...').triggered.connect(self.on_print_pegboard)
 
     @_check_types.do
     def on_load_project(self) -> None:
@@ -36,3 +38,11 @@ class FileMenu(QtWidgets.QMenu):
         """
 
         self.mainframe.load_project()
+
+    @_check_types.do
+    def on_print_pegboard(self) -> None:
+        """
+        Handle the print peg board action.
+        """
+
+        self.mainframe.show_pegboard_print()

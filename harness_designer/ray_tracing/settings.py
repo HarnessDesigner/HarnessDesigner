@@ -41,6 +41,9 @@ class RenderSettings:
 
     camera_light: bool = True
 
+    # Passes per pixel (multisampling).
+    samples: int = 1
+
     # The 3D editor's floor (``Config.editor_3d.floor``), as the kernel's ``floor_params``: enable, y,
     # half size, tile size, minor spacing, has minor, major width, minor width, then the RGBA of
     # tile A, tile B, major line and minor line. The dash pattern needs all 32 bits, which a float
@@ -95,6 +98,7 @@ class RenderSettings:
             ambient_occlusion_radius=float(Config.ambient_occlusion.radius),
             enable_depth_of_field=bool(Config.enable_depth_of_field),
             camera_light=bool(Config.lighting.camera_light),
+            samples=max(1, int(Config.samples)),
             lights=lights
         )
 

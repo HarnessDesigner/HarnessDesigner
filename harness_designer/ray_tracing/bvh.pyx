@@ -19,6 +19,9 @@ Features:
 - Returns NumPy arrays for OpenCL compatibility
 """
 
+import os
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 cimport numpy as cnp
 from cython.parallel import prange
@@ -84,6 +87,76 @@ def calculate_centroids_parallel(
     return centroids
 
 
+# Trees with fewer triangles than this are built on one thread; a thread pool would cost more than it saves.
+cdef int PARALLEL_MIN_PRIMITIVES = 20000
+
+# The top of a big tree is split on one thread down to this depth, then the 2 ** depth subtrees below it are
+# built in parallel.
+cdef int PARALLEL_SPLIT_DEPTH = 6
+
+
+cdef int count_nodes(int n, int leaf_threshold) noexcept nogil:
+    """
+    Number of nodes of the tree FastBVHBuilder makes for ``n`` primitives, without building it.
+
+    A node holding more than ``leaf_threshold`` primitives is split into halves of ``n // 2`` and the rest, so
+    the shape of the tree depends only on the counts. Knowing it lets every subtree be given its own range of
+    node indices before it is built, which is what allows the subtrees to be built at the same time.
+
+    Each level of the tree holds only two sizes, ``size`` and ``size + 1``, so it is walked level by level.
+    """
+    cdef:
+        long total = 0
+        long size = n
+        long count_a = 1
+        long count_b = 0
+        long sizes[4]
+        long counts[4]
+        long base, next_a, next_b, s, c, half
+        int found, k, m
+
+    while count_a + count_b > 0:
+        total += count_a + count_b
+        found = 0
+
+        for k in range(2):
+            c = count_a if k == 0 else count_b
+            s = size + k
+
+            if c == 0 or s <= leaf_threshold:
+                continue
+
+            half = s // 2
+            sizes[found] = half
+            counts[found] = c
+            found += 1
+            sizes[found] = s - half
+            counts[found] = c
+            found += 1
+
+        if found == 0:
+            break
+
+        base = sizes[0]
+        for m in range(1, found):
+            if sizes[m] < base:
+                base = sizes[m]
+
+        next_a = 0
+        next_b = 0
+        for m in range(found):
+            if sizes[m] == base:
+                next_a += counts[m]
+            else:
+                next_b += counts[m]
+
+        size = base
+        count_a = next_a
+        count_b = next_b
+
+    return <int>total
+
+
 cdef class FastBVHBuilder:
     """
     Fast BVH builder using C structs and no-GIL recursion
@@ -92,7 +165,9 @@ cdef class FastBVHBuilder:
         builder = FastBVHBuilder(vertices, faces, centroids)
         bounds, structure, indices = builder.build()
 
-    Performance: ~2-5 seconds for 12M triangles
+    Each node is split at the median centroid of its longest axis. The median is found with a selection
+    (quickselect, O(n) per level) rather than a sort, every triangle's bounding box is computed once up front,
+    and for a big scene the subtrees below the top few levels are built in parallel (a thread pool).
     """
 
     # C-level member variables (no Python overhead)
@@ -100,11 +175,17 @@ cdef class FastBVHBuilder:
         FLOAT[:, ::1] vertices      # Memory view of vertices
         INT[:, ::1] faces           # Memory view of faces
         FLOAT[:, ::1] centroids     # Memory view of centroids
+        FLOAT[:, ::1] tri_bounds    # Per triangle: min x, y, z, max x, y, z
         INT[::1] indices            # Reorderable primitive indices
         BVHNodeC* nodes             # Pre-allocated C array of nodes
         int node_count              # Current node count
         int max_nodes               # Maximum nodes allocated
         int leaf_threshold          # Max primitives per leaf
+        int* task_nodes             # Subtrees left for the parallel phase: node index,
+        int* task_starts            # first primitive
+        int* task_ends              # and end of its range
+        int task_count
+        int task_capacity
 
     def __init__(
         self,
@@ -137,15 +218,41 @@ cdef class FastBVHBuilder:
         self.centroids = centroids
         self.leaf_threshold = leaf_threshold
 
-        cdef int num_faces = <int>faces.shape[0]
+        self.nodes = NULL
+        self.task_nodes = NULL
+        self.task_starts = NULL
+        self.task_ends = NULL
+        self.task_count = 0
+        self.task_capacity = 0
+
+        cdef:
+            int num_faces = <int>faces.shape[0]
+            Py_ssize_t i
+            int a, b, c
+            cnp.ndarray[FLOAT, ndim=2] bounds = np.empty((num_faces, 6), dtype=np.float32)
+            FLOAT[:, ::1] bounds_view = bounds
+
+        # Each triangle's box, once: a node's box is then a min/max over contiguous rows instead of nine
+        # scattered vertex reads per triangle at every level of the tree.
+        for i in prange(num_faces, nogil=True, schedule='static'):
+            a = self.faces[i, 0]
+            b = self.faces[i, 1]
+            c = self.faces[i, 2]
+
+            bounds_view[i, 0] = fminf(self.vertices[a, 0], fminf(self.vertices[b, 0], self.vertices[c, 0]))
+            bounds_view[i, 1] = fminf(self.vertices[a, 1], fminf(self.vertices[b, 1], self.vertices[c, 1]))
+            bounds_view[i, 2] = fminf(self.vertices[a, 2], fminf(self.vertices[b, 2], self.vertices[c, 2]))
+            bounds_view[i, 3] = fmaxf(self.vertices[a, 0], fmaxf(self.vertices[b, 0], self.vertices[c, 0]))
+            bounds_view[i, 4] = fmaxf(self.vertices[a, 1], fmaxf(self.vertices[b, 1], self.vertices[c, 1]))
+            bounds_view[i, 5] = fmaxf(self.vertices[a, 2], fmaxf(self.vertices[b, 2], self.vertices[c, 2]))
+
+        self.tri_bounds = bounds_view
 
         # Initialize primitive indices (will be reordered during build)
         self.indices = np.arange(num_faces, dtype=np.int32)
 
-        # Pre-allocate node array
-        # Worst case: perfect binary tree = 2 * num_primitives - 1 nodes
-        # We allocate 2 * num_primitives for safety
-        self.max_nodes = 2 * num_faces
+        # The tree's shape is fixed by the primitive count, so its node count is known exactly.
+        self.max_nodes = count_nodes(num_faces, leaf_threshold)
         self.nodes = <BVHNodeC*>malloc(self.max_nodes * sizeof(BVHNodeC))
         if self.nodes == NULL:
             raise MemoryError(f"Failed to allocate {self.max_nodes} BVH nodes")
@@ -161,6 +268,18 @@ cdef class FastBVHBuilder:
             free(self.nodes)
             self.nodes = NULL
 
+        if self.task_nodes != NULL:
+            free(self.task_nodes)
+            self.task_nodes = NULL
+
+        if self.task_starts != NULL:
+            free(self.task_starts)
+            self.task_starts = NULL
+
+        if self.task_ends != NULL:
+            free(self.task_ends)
+            self.task_ends = NULL
+
     def build(self):
         """
         Build BVH and return arrays for OpenCL
@@ -171,48 +290,68 @@ cdef class FastBVHBuilder:
                 - structure: int32 array (num_nodes * 4,) - flattened node structure
                 - indices: int32 array (num_faces,) - reordered primitive indices
 
-        Performance: Releases GIL during tree construction for max speed
+        Performance: releases the GIL, and builds the subtrees of a big scene on all cores
         """
-        cdef int root_idx
-        cdef int num_faces = <int>self.faces.shape[0]
+        cdef:
+            int num_faces = <int>self.faces.shape[0]
+            int split_depth = 1 << 30
 
         print(f"Building BVH tree...")
 
-        # Build tree recursively WITHOUT GIL (true parallel execution possible)
+        if num_faces >= PARALLEL_MIN_PRIMITIVES:
+            split_depth = PARALLEL_SPLIT_DEPTH
+            self.task_capacity = (1 << split_depth) + 1
+            self.task_nodes = <int*>malloc(self.task_capacity * sizeof(int))
+            self.task_starts = <int*>malloc(self.task_capacity * sizeof(int))
+            self.task_ends = <int*>malloc(self.task_capacity * sizeof(int))
+            if self.task_nodes == NULL or self.task_starts == NULL or self.task_ends == NULL:
+                raise MemoryError("Failed to allocate the BVH task list")
+
+        self.task_count = 0
+
         with nogil:
-            root_idx = self.build_recursive_nogil(0, num_faces)
+            # The top levels, on this thread. Below split_depth a node is only noted down.
+            self.build_node(0, 0, num_faces, 0, split_depth)
+
+        # Each noted subtree owns its own range of nodes and primitives, so they can be built at once. This
+        # is a thread pool and not OpenMP's prange: the project's builder compiles without OpenMP, where a
+        # prange would quietly run on one thread, and _build_task holds no GIL.
+        if self.task_count:
+            with ThreadPoolExecutor(max_workers=min(self.task_count, os.cpu_count() or 1)) as pool:
+                list(pool.map(self._build_task, range(self.task_count)))
+
+        self.node_count = self.max_nodes
 
         print(f"BVH tree built: {self.node_count} nodes")
 
         # Convert C structs to NumPy arrays for OpenCL
         return self._convert_to_numpy_arrays()
 
-    cdef int build_recursive_nogil(self, int start, int end) noexcept nogil:
+    def _build_task(self, int task):
+        """Build one subtree left for the parallel phase (called from a worker thread)."""
+        with nogil:
+            self.build_node(self.task_nodes[task], self.task_starts[task], self.task_ends[task], 0, 1 << 30)
+
+    cdef void build_node(self, int node_idx, int start, int end, int depth, int split_depth) noexcept nogil:
         """
-        Recursively build BVH tree (GIL-free for performance)
+        Build the node ``node_idx`` over ``indices[start:end]`` and everything below it.
 
-        Args:
-            start: Start index in self.indices
-            end: End index in self.indices
-
-        Returns:
-            Node index of created node
+        The left subtree takes the node indices right after this one and the right subtree the ones after
+        that, so a subtree's range is known before it is built. Past ``split_depth`` the node is not built:
+        it is put on the task list for the parallel phase.
         """
         cdef:
-            int node_idx = self.node_count
             BVHNodeC* node = &self.nodes[node_idx]
-            int i, j, face_idx, vert_idx
             int num_prims = end - start
+            int i, face_idx, axis, mid, left_idx, right_idx
             float extent[3]
-            int axis, mid
 
-        # Increment node count (allocate this node)
-        self.node_count += 1
-
-        # Safety check
-        if self.node_count > self.max_nodes:
-            # Can't raise exception in nogil, just return
-            return -1
+        if depth >= split_depth and num_prims > self.leaf_threshold:
+            self.task_nodes[self.task_count] = node_idx
+            self.task_starts[self.task_count] = start
+            self.task_ends[self.task_count] = end
+            self.task_count += 1
+            return
 
         # Initialize node bounds to infinity
         node.min_bounds[0] = node.min_bounds[1] = node.min_bounds[2] = INFINITY
@@ -222,29 +361,22 @@ cdef class FastBVHBuilder:
         node.first_prim = -1
         node.prim_count = 0
 
-        # Calculate bounding box for all primitives in this node
+        # Bounding box of every primitive in this node
         for i in range(start, end):
             face_idx = self.indices[i]
 
-            # For each vertex in the triangle
-            for j in range(3):
-                vert_idx = self.faces[face_idx, j]
-
-                # Update min bounds
-                node.min_bounds[0] = fminf(node.min_bounds[0], self.vertices[vert_idx, 0])
-                node.min_bounds[1] = fminf(node.min_bounds[1], self.vertices[vert_idx, 1])
-                node.min_bounds[2] = fminf(node.min_bounds[2], self.vertices[vert_idx, 2])
-
-                # Update max bounds
-                node.max_bounds[0] = fmaxf(node.max_bounds[0], self.vertices[vert_idx, 0])
-                node.max_bounds[1] = fmaxf(node.max_bounds[1], self.vertices[vert_idx, 1])
-                node.max_bounds[2] = fmaxf(node.max_bounds[2], self.vertices[vert_idx, 2])
+            node.min_bounds[0] = fminf(node.min_bounds[0], self.tri_bounds[face_idx, 0])
+            node.min_bounds[1] = fminf(node.min_bounds[1], self.tri_bounds[face_idx, 1])
+            node.min_bounds[2] = fminf(node.min_bounds[2], self.tri_bounds[face_idx, 2])
+            node.max_bounds[0] = fmaxf(node.max_bounds[0], self.tri_bounds[face_idx, 3])
+            node.max_bounds[1] = fmaxf(node.max_bounds[1], self.tri_bounds[face_idx, 4])
+            node.max_bounds[2] = fmaxf(node.max_bounds[2], self.tri_bounds[face_idx, 5])
 
         # Leaf node check
         if num_prims <= self.leaf_threshold:
             node.first_prim = start
             node.prim_count = num_prims
-            return node_idx
+            return
 
         # Choose split axis (longest extent)
         extent[0] = node.max_bounds[0] - node.min_bounds[0]
@@ -257,106 +389,74 @@ cdef class FastBVHBuilder:
         if extent[2] > extent[axis]:
             axis = 2
 
-        # Sort primitives along chosen axis by their centroids
-        self.sort_indices_by_centroid_nogil(start, end, axis)
-
-        # Split at midpoint
+        # Split at the median centroid: only the middle element has to be in place, the halves need no order.
         mid = start + num_prims // 2
+        self.select_nth_nogil(start, end, mid, axis)
 
-        # Recursively build left and right children
-        node.left_child = self.build_recursive_nogil(start, mid)
-        node.right_child = self.build_recursive_nogil(mid, end)
+        left_idx = node_idx + 1
+        right_idx = left_idx + count_nodes(mid - start, self.leaf_threshold)
+        node.left_child = left_idx
+        node.right_child = right_idx
 
-        return node_idx
+        self.build_node(left_idx, start, mid, depth + 1, split_depth)
+        self.build_node(right_idx, mid, end, depth + 1, split_depth)
 
-    cdef void sort_indices_by_centroid_nogil(self, int start, int end, int axis) noexcept nogil:
+    cdef void select_nth_nogil(self, int start, int end, int nth, int axis) noexcept nogil:
         """
-        Sort primitive indices by centroid coordinate along given axis
-
-        Uses quicksort for O(n log n) performance
-        Could also use insertion sort for small ranges (faster constant factors)
-
-        Args:
-            start: Start index in self.indices
-            end: End index in self.indices
-            axis: Axis to sort along (0=x, 1=y, 2=z)
+        Reorder ``indices[start:end]`` so that element ``nth`` is the one a full sort by centroid would put
+        there, everything before it is not greater and everything after it is not smaller (Hoare's quickselect).
         """
-        cdef int length = end - start
-
-        # Use insertion sort for small ranges (faster due to cache locality)
-        if length <= 16:
-            self.insertion_sort_nogil(start, end, axis)
-        else:
-            self.quicksort_nogil(start, end, axis)
-
-    cdef void insertion_sort_nogil(self, int start, int end, int axis) noexcept nogil:
-        """Insertion sort (fast for small ranges)"""
         cdef:
-            int i, j
-            int temp_idx
-            float pivot
+            int left = start
+            int right = end - 1
+            int i, j, temp, middle
+            float pivot, a, b, c
 
-        for i in range(start + 1, end):
-            temp_idx = self.indices[i]
-            pivot = self.centroids[temp_idx, axis]
-            j = i - 1
+        while left < right:
+            # Median of three, so data that is already in order does not make it quadratic.
+            middle = left + (right - left) // 2
+            a = self.centroids[self.indices[left], axis]
+            b = self.centroids[self.indices[middle], axis]
+            c = self.centroids[self.indices[right], axis]
 
-            while j >= start and self.centroids[self.indices[j], axis] > pivot:
-                self.indices[j + 1] = self.indices[j]
-                j -= 1
+            if a < b:
+                if b < c:
+                    pivot = b
+                elif a < c:
+                    pivot = c
+                else:
+                    pivot = a
+            else:
+                if a < c:
+                    pivot = a
+                elif b < c:
+                    pivot = c
+                else:
+                    pivot = b
 
-            self.indices[j + 1] = temp_idx
+            i = left
+            j = right
 
-    cdef void quicksort_nogil(self, int start, int end, int axis) noexcept nogil:
-        """Quicksort (fast for large ranges)"""
-        if end - start <= 1:
-            return
+            while i <= j:
+                while self.centroids[self.indices[i], axis] < pivot:
+                    i += 1
 
-        cdef int pivot_idx = self.partition_nogil(start, end, axis)
+                while self.centroids[self.indices[j], axis] > pivot:
+                    j -= 1
 
-        self.quicksort_nogil(start, pivot_idx, axis)
-        self.quicksort_nogil(pivot_idx + 1, end, axis)
+                if i <= j:
+                    temp = self.indices[i]
+                    self.indices[i] = self.indices[j]
+                    self.indices[j] = temp
+                    i += 1
+                    j -= 1
 
-    cdef int partition_nogil(self, int start, int end, int axis) noexcept nogil:
-        """Partition for quicksort"""
-        cdef:
-            int pivot_idx = start + (end - start) // 2
-            float pivot_value = self.centroids[self.indices[pivot_idx], axis]
-            int i = start
-            int j = end - 1
-            int temp
-
-        # Move pivot to end
-        temp = self.indices[pivot_idx]
-        self.indices[pivot_idx] = self.indices[j]
-        self.indices[j] = temp
-
-        pivot_idx = j
-        j -= 1
-
-        while True:
-            # Move i forward
-            while i < pivot_idx and self.centroids[self.indices[i], axis] <= pivot_value:
-                i += 1
-
-            # Move j backward
-            while j >= start and self.centroids[self.indices[j], axis] > pivot_value:
-                j -= 1
-
-            if i >= j:
+            if nth <= j:
+                right = j
+            elif nth >= i:
+                left = i
+            else:
                 break
-
-            # Swap
-            temp = self.indices[i]
-            self.indices[i] = self.indices[j]
-            self.indices[j] = temp
-
-        # Move pivot to final position
-        temp = self.indices[i]
-        self.indices[i] = self.indices[pivot_idx]
-        self.indices[pivot_idx] = temp
-
-        return i
 
     cdef tuple _convert_to_numpy_arrays(self):
         """Convert C structs to NumPy arrays for OpenCL"""

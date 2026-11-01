@@ -14,7 +14,7 @@ Re-exports the module as `_system_menu` only; no public symbols of its own.
 
 #### file.py
 
-`FileMenu(QMenu)` -- File menu (new/open/save project, export, etc.).
+`FileMenu(QMenu)` -- File menu (new/open/save project, export, etc.). Also "Print Peg Board..." (2026-10-31), which opens `MainFrame.show_pegboard_print()`.
 
 #### help.py
 

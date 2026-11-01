@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Union as _Union
 
 import os
 import threading
+import time
 import warnings
 
 import numpy as np
@@ -39,6 +40,9 @@ MEMORY_FRACTION = 0.8
 BYTES_PER_PIXEL = 3 * 4
 
 GIB = 1024 ** 3
+
+# Longest the picture goes without being refreshed while a chunk's passes are still running.
+PREVIEW_INTERVAL = 0.15
 
 # Floats in the kernel's ``floor_params`` (see ``RenderSettings.floor_params``).
 FLOOR_PARAMS = 24
@@ -291,6 +295,11 @@ class Renderer:
 
         try:
             vertices_buf = upload(data.vertices)
+
+            # Smooth normals, for the objects the viewport draws smooth. A scene with none uploads a token
+            # buffer rather than spend memory on a second vertex-sized array.
+            has_normals = data.vertex_normals is not None
+            normals_buf = upload(data.vertex_normals if has_normals else np.zeros(3, dtype=np.float32))
             faces_buf = upload(data.faces)
             object_ids_buf = upload(data.object_ids)
             materials_buf = upload(data.materials)
@@ -327,6 +336,9 @@ class Renderer:
             chunk_buf = cl.Buffer(self.ctx, mf.WRITE_ONLY, chunk_image.nbytes)
             buffers.append(chunk_buf)
 
+            samples = max(1, int(settings.samples))
+            last_preview = 0.0
+
             for chunk_idx in range(num_chunks):
                 if self._cancel.is_set():
                     return
@@ -335,54 +347,73 @@ class Renderer:
                 end_y = min(start_y + chunk_size, height)
                 chunk_height = end_y - start_y
 
-                kernel.set_args(
-                    vertices_buf,
-                    faces_buf,
-                    object_ids_buf,
-                    materials_buf,
-                    np.int32(len(data.faces)),
-                    lights_buf,
-                    np.int32(len(data.lights)),
-                    bvh_bounds_buf,
-                    bvh_structure_buf,
-                    bvh_indices_buf,
-                    chunk_buf,
-                    np.int32(width),
-                    np.int32(height),
-                    *(np.float32(item) for item in scene.camera_origin),
-                    *(np.float32(item) for item in scene.camera_target),
-                    *(np.float32(item) for item in right),
-                    *(np.float32(item) for item in up),
-                    *(np.float32(item) for item in forward),
-                    np.float32(scale),
-                    np.float32(aspect_ratio),
-                    np.int32(start_y),
-                    np.int32(end_y),
-                    np.float32(settings.ambient_intensity),
-                    *(np.float32(item) for item in settings.background_color1),
-                    *(np.float32(item) for item in settings.background_color2),
-                    env_buf,
-                    np.int32(env_width),
-                    np.int32(env_height),
-                    np.int32(settings.enable_gradient),
-                    np.int32(data.environment_map is not None),
-                    np.int32(settings.enable_reflections),
-                    np.int32(settings.enable_shadows),
-                    np.int32(settings.enable_ambient_occlusion),
-                    np.int32(settings.enable_depth_of_field),
-                    np.float32(settings.ambient_occlusion_samples),
-                    np.float32(settings.ambient_occlusion_radius),
-                    np.float32(settings.shadow_softness),
-                    floor_buf,
-                    np.uint32(settings.floor_stipple_pattern),
-                    np.int32(settings.floor_stipple_phase)
-                )
+                # Each pass looks through a different point of every pixel in the band and is folded into a
+                # running average in the band's buffer. Passes are separate launches, so a long render
+                # neither runs one huge kernel nor goes quiet.
+                for pass_index in range(samples):
+                    if self._cancel.is_set():
+                        return
 
-                cl.enqueue_nd_range_kernel(self.queue, kernel, (width, chunk_height), None)
-                cl.enqueue_copy(self.queue, chunk_image, chunk_buf).wait()
+                    kernel.set_args(
+                        vertices_buf,
+                        faces_buf,
+                        object_ids_buf,
+                        materials_buf,
+                        np.int32(len(data.faces)),
+                        lights_buf,
+                        np.int32(len(data.lights)),
+                        bvh_bounds_buf,
+                        bvh_structure_buf,
+                        bvh_indices_buf,
+                        chunk_buf,
+                        np.int32(width),
+                        np.int32(height),
+                        *(np.float32(item) for item in scene.camera_origin),
+                        *(np.float32(item) for item in scene.camera_target),
+                        *(np.float32(item) for item in right),
+                        *(np.float32(item) for item in up),
+                        *(np.float32(item) for item in forward),
+                        np.float32(scale),
+                        np.float32(aspect_ratio),
+                        np.int32(start_y),
+                        np.int32(end_y),
+                        np.float32(settings.ambient_intensity),
+                        *(np.float32(item) for item in settings.background_color1),
+                        *(np.float32(item) for item in settings.background_color2),
+                        env_buf,
+                        np.int32(env_width),
+                        np.int32(env_height),
+                        np.int32(settings.enable_gradient),
+                        np.int32(data.environment_map is not None),
+                        np.int32(settings.enable_reflections),
+                        np.int32(settings.enable_shadows),
+                        np.int32(settings.enable_ambient_occlusion),
+                        np.int32(settings.enable_depth_of_field),
+                        np.float32(settings.ambient_occlusion_samples),
+                        np.float32(settings.ambient_occlusion_radius),
+                        np.float32(settings.shadow_softness),
+                        floor_buf,
+                        np.uint32(settings.floor_stipple_pattern),
+                        np.int32(settings.floor_stipple_phase),
+                        np.int32(pass_index),
+                        np.int32(samples),
+                        normals_buf,
+                        np.int32(has_normals)
+                    )
 
-                rgb = (chunk_image[:chunk_height] * 255).astype(np.uint8)
-                self.on_chunk(start_y, rgb, (chunk_idx + 1) / num_chunks * 100)
+                    cl.enqueue_nd_range_kernel(self.queue, kernel, (width, chunk_height), None)
+                    self.queue.finish()
+
+                    finished_band = pass_index == samples - 1
+                    now = time.monotonic()
+
+                    if finished_band or now - last_preview >= PREVIEW_INTERVAL:
+                        last_preview = now
+
+                        cl.enqueue_copy(self.queue, chunk_image, chunk_buf).wait()
+                        rgb = (chunk_image[:chunk_height] * 255).astype(np.uint8)
+                        progress = (chunk_idx + (pass_index + 1) / samples) / num_chunks * 100
+                        self.on_chunk(start_y, rgb, progress)
         finally:
             for buf in buffers:
                 buf.release()

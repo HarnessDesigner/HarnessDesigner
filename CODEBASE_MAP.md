@@ -866,6 +866,12 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
     - clean_creds/
       - __init__.py
       - win.py
+  - pegboard_print/
+      - __init__.py
+      - job.py
+      - layout.py
+      - marks.py
+      - renderer.py
   - ray_tracing/
     - __init__.py
     - bvh.c
@@ -1404,6 +1410,7 @@ file/directory now live in that directory's `MAP.md`, and the genuinely cross-cu
       - project_dialog.py
       - project_model_dialog.py
       - properties_dialog.py
+      - pegboard_print_dialog.py
       - ray_tracing_dialog.py
       - render_setings.py
       - transition_routing.py
