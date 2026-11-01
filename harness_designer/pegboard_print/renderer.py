@@ -17,12 +17,16 @@ floor, clear colour) is put back before it returns, with no event processing in
 between, so the editor never paints in the print state.
 """
 
+import contextlib
+import math
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 from OpenGL import GL
 from PySide6 import QtGui, QtOpenGL
 
 from ..geometry import point as _point
+from ..ui.pegboard_table import mdi_host as _mdi_host
 
 if TYPE_CHECKING:
     from ..gl.canvas_pegboard import canvas as _canvas
@@ -71,6 +75,39 @@ def content_bounds(canvas: "_canvas.Canvas") -> tuple[float, float, float, float
         return None
 
     return x0, z0, x1, z1
+
+
+@contextlib.contextmanager
+def sharp_tables(canvas: "_canvas.Canvas", dpi: int, scale: float) -> Iterator[None]:
+    """Re-capture the floating tables and sections finer for the length of a print.
+
+    The tables are live widgets drawn into a texture at ``mdi_host.PIXELS_PER_MM``
+    pixels per mm (about 150 dpi), which is soft once printed at 300 dpi or
+    more. This has each one painted again at a whole-number multiple that gives
+    the texture about one pixel per printed pixel; they are put back on exit.
+
+    :param canvas: The peg board's canvas.
+    :param dpi: Resolution the peg board is rendered at.
+    :param scale: Paper millimetres per world millimetre.
+    """
+    wanted = math.ceil(dpi * scale / (25.4 * _mdi_host.PIXELS_PER_MM))
+
+    views = []
+    if wanted > 1:
+        for obj in list(canvas._objects):  # NOQA
+            view = canvas._get_view_object(obj)  # NOQA
+            if hasattr(view, 'set_print_quality'):
+                views.append(view)
+
+    try:
+        for view in views:
+            view.set_print_quality(wanted)
+
+        yield
+
+    finally:
+        for view in views:
+            view.set_print_quality(1)
 
 
 def _make_fbo(width: int, height: int) -> QtOpenGL.QOpenGLFramebufferObject:

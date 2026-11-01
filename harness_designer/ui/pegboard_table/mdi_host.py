@@ -95,6 +95,49 @@ _SUB_WINDOW_REST_POINT = QtCore.QPoint(
 PIXELS_PER_MM = 6.0
 
 
+# A print-quality capture (see grab_scaled) is kept inside what any GPU takes as a
+# texture side and inside a sane amount of memory: a large table at a high
+# multiple would otherwise be hundreds of megabytes.
+_PRINT_MAX_SIDE = 8192
+_PRINT_MAX_PIXELS = 36_000_000
+
+
+def print_factor(size: QtCore.QSize, wanted: int) -> int:
+    """The whole-number pixel multiple a table of *size* may be captured at.
+
+    :param size: The hosted sub-window's size, logical pixels.
+    :param wanted: The multiple the print would like.
+    :returns: *wanted*, lowered until the capture fits (never below 1).
+    """
+    width = max(1, size.width())
+    height = max(1, size.height())
+
+    return max(1, min(int(wanted), _PRINT_MAX_SIDE // max(width, height),
+                      int((_PRINT_MAX_PIXELS / (width * height)) ** 0.5)))
+
+
+def grab_scaled(widget: QtWidgets.QWidget, rect: QtCore.QRect, factor: int) -> QtGui.QImage:
+    """``widget.grab(rect)`` with *factor* times as many pixels each way.
+
+    The widget is not laid out again; it is painted onto a bigger device, so
+    text and lines are drawn sharp at the finer density instead of enlarged.
+
+    :param widget: Widget to capture.
+    :param rect: The part of it to capture, logical pixels.
+    :param factor: Pixel multiple.
+    :returns: A premultiplied ARGB image, transparent where nothing is drawn.
+    """
+    ratio = widget.devicePixelRatio() * factor
+    image = QtGui.QImage(
+        QtCore.QSize(round(rect.width() * ratio), round(rect.height() * ratio)),
+        QtGui.QImage.Format.Format_ARGB32_Premultiplied)
+    image.setDevicePixelRatio(ratio)
+    image.fill(QtCore.Qt.GlobalColor.transparent)
+    widget.render(image, QtCore.QPoint(), QtGui.QRegion(rect))
+
+    return image
+
+
 class _CursorAndCloseFilter(QtCore.QObject):
     """Installed on a widget from outside (see module docstring for why)
     to observe two events that otherwise have no way to reach code
@@ -276,7 +319,7 @@ class PegboardTableHost(QtWidgets.QMdiArea):
         self.sub_window.move(_SUB_WINDOW_REST_POINT)
 
     @_check_types.do
-    def grab_rgba(self) -> tuple[bytes, int, int]:
+    def grab_rgba(self, factor: int = 1) -> tuple[bytes, int, int]:
         """Capture the sub-window's current appearance.
 
         Grabs only the sub-window's own rectangle out of the (much
@@ -297,6 +340,8 @@ class PegboardTableHost(QtWidgets.QMdiArea):
         and matches an identical finding from this feature's own
         scratch prototype.
 
+        :param factor: Pixel multiple; 1 is the normal capture, more is for
+            printing (see :func:`grab_scaled`).
         :returns: Raw RGBA8888 bytes, width, height -- ready for
             ``glTexImage2D``.
         :rtype: tuple[bytes, int, int]
@@ -304,7 +349,11 @@ class PegboardTableHost(QtWidgets.QMdiArea):
         QtWidgets.QApplication.processEvents()
 
         rect = QtCore.QRect(SUB_WINDOW_ANCHOR, self.sub_window.size())
-        pixmap = self.grab(rect)
-        image = pixmap.toImage().convertToFormat(QtGui.QImage.Format.Format_RGBA8888)
+        if factor > 1:
+            image = grab_scaled(self, rect, factor)
+        else:
+            image = self.grab(rect).toImage()
+
+        image = image.convertToFormat(QtGui.QImage.Format.Format_RGBA8888)
 
         return bytes(image.constBits()), image.width(), image.height()

@@ -137,9 +137,11 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
         self.setActiveSubWindow(self.sub_window)
 
     @_check_types.do
-    def grab_rgba(self) -> tuple[bytes, int, int]:
+    def grab_rgba(self, factor: int = 1) -> tuple[bytes, int, int]:
         """Capture the sub-window's current appearance.
 
+        :param factor: Pixel multiple; 1 is the normal capture, more is for
+            printing (see :func:`~..pegboard_table.mdi_host.grab_scaled`).
         :returns: Raw RGBA8888 bytes, width, height -- ready for
             ``glTexImage2D``.
         :rtype: tuple[bytes, int, int]
@@ -148,8 +150,12 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
         QtWidgets.QApplication.processEvents()
 
         rect = QtCore.QRect(SUB_WINDOW_ANCHOR, self.sub_window.size())
-        pixmap = self.grab(rect)
-        image = pixmap.toImage().convertToFormat(QtGui.QImage.Format.Format_RGBA8888)
+        if factor > 1:
+            image = _mdi_host.grab_scaled(self, rect, factor)
+        else:
+            image = self.grab(rect).toImage()
+
+        image = image.convertToFormat(QtGui.QImage.Format.Format_RGBA8888)
 
         return bytes(image.constBits()), image.width(), image.height()
 

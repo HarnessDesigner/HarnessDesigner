@@ -234,6 +234,9 @@ class Table(_base_pegboard.BasePegboard):
     _hover_cursor_active = False
     _swallow_release = False
 
+    # Pixel multiple the texture is captured at: 1, except while printing
+    _print_factor = 1
+
     # A wire dragged out of this table onto a concentric section widget (see
     # wire_drop): the wire row a press landed on and where, whether that has
     # become a drag, the section the pointer is over, and whether this table
@@ -616,7 +619,7 @@ class Table(_base_pegboard.BasePegboard):
 
             self._host.reset_sub_window_position()
 
-        rgba, width, height = self._host.grab_rgba()
+        rgba, width, height = self._host.grab_rgba(self._print_factor)
 
         with self.pegboard.context:
             GL.glBindTexture(GL.GL_TEXTURE_2D, self._texture_id)
@@ -647,14 +650,28 @@ class Table(_base_pegboard.BasePegboard):
         # pixels specifically, same as _screen_to_panel_local's inverse
         # conversion.
         host_dpr = self._host.devicePixelRatio()
-        world_w = (width / host_dpr) / _mdi_host.PIXELS_PER_MM
-        world_h = (height / host_dpr) / _mdi_host.PIXELS_PER_MM
+        world_w = (width / host_dpr / self._print_factor) / _mdi_host.PIXELS_PER_MM
+        world_h = (height / host_dpr / self._print_factor) / _mdi_host.PIXELS_PER_MM
         if (self._scale.x, self._scale.z) != (world_w, world_h):
             with self._scale:
                 self._scale.x = world_w
                 self._scale.z = world_h
 
             self.db_obj.size = (world_w, world_h)
+
+    @_check_types.do
+    def set_print_quality(self, factor: int) -> None:
+        """Capture this table at *factor* times the pixels, for printing.
+
+        The finer capture replaces the texture until this is called again with
+        ``1``; every later re-capture (a hover, a refresh) keeps the factor, so
+        the quad and its texture never disagree. The footprint is unchanged.
+
+        :param factor: Pixel multiple wanted; lowered to what fits in a texture
+            and in memory (see ``mdi_host.print_factor``).
+        """
+        self._print_factor = _mdi_host.print_factor(self._host.sub_window.size(), factor)
+        self._regrab_texture()
 
     # ------------------------------------------------------------------
     # Rendering
@@ -735,8 +752,8 @@ class Table(_base_pegboard.BasePegboard):
             # is the SAME GL program _render_selection_border uses, and
             # uniform values persist across draw calls until set again.
             shaders.texture.quad_size_px = self._texture_px_size
-            shaders.texture.corner_radius_px = (
-                0.0, 0.0, _BOTTOM_CORNER_RADIUS_PX, _BOTTOM_CORNER_RADIUS_PX)
+            radius = _BOTTOM_CORNER_RADIUS_PX * self._print_factor
+            shaders.texture.corner_radius_px = (0.0, 0.0, radius, radius)
             shaders.texture.ring_thickness_px = 0.0
             shaders.texture.bottom_corner_trim_px = 0.0
             self._render_geometry(shaders.texture)

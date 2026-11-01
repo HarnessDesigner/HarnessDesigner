@@ -84,24 +84,26 @@ def print_layout(canvas: "_canvas.Canvas", printer: QtPrintSupport.QPrinter,
 
     finished = False
     try:
-        for index, tile in enumerate(layout.tiles):
-            if progress is not None and not progress(index, layout.page_count):
-                printer.abort()
-                return False
+        # The tables are captured finer for the whole job, not once per page.
+        with _renderer.sharp_tables(canvas, dpi, layout.scale):
+            for index, tile in enumerate(layout.tiles):
+                if progress is not None and not progress(index, layout.page_count):
+                    printer.abort()
+                    return False
 
-            image = _renderer.render_tile(
-                canvas, tile.x0, tile.z0, width_px, height_px, mm_per_pixel)
+                image = _renderer.render_tile(
+                    canvas, tile.x0, tile.z0, width_px, height_px, mm_per_pixel)
 
-            if index:
-                printer.newPage()
+                if index:
+                    printer.newPage()
 
-            painter.save()
-            painter.setClipRect(area)
-            painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
-            painter.drawImage(target, image)
-            painter.restore()
+                painter.save()
+                painter.setClipRect(area)
+                painter.setRenderHint(QtGui.QPainter.RenderHint.SmoothPixmapTransform)
+                painter.drawImage(target, image)
+                painter.restore()
 
-            _marks.draw_page_marks(painter, layout, tile, px_per_mm)
+                _marks.draw_page_marks(painter, layout, tile, px_per_mm)
 
         finished = True
 
