@@ -55,3 +55,24 @@ Mesh surface picking (ray/triangle hit testing). `split_into_components()`'s vec
 #### wire_conversions.py
 
 AWG / mm² / diameter conversions for wire sizing. This is the single sanctioned place for wire-size derivation — don't inline a fallback chain elsewhere. Wire size columns (`wire_size_dia`/`wire_size_cross`/`wire_size_awg` on `wires`, similarly on `seals`/`terminals`) can be NULL even though derivable from a sibling column; the plan is a standalone maintenance utility (invoked from an app menu, eventually also run automatically when a new part is added) that scans for NULLs and backfills via this module — *not* a 3-way dia←cross←awg fallback chain added into handler/query code. Code reading a wire-size column that could be NULL should add NULL-safety (`IS NULL OR` guards, skip-if-None) only, and leave derivation to the maintenance utility.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Wire-size NULL backfill plan
+Wire size columns (`wire_size_dia`/`wire_size_cross`/`wire_size_awg` on `wires`, similarly on `seals`/`terminals`) can be NULL even though derivable from a sibling column (conversion helpers exist in `utils/wire_conversions.py`).
+
+As of 2026-07-09: don't add a 3-way fallback-calculation chain (dia ← cross ← awg) into handler/query code. The user is writing a standalone maintenance utility (invoked from an app menu) that scans for NULLs and backfills via `utils/wire_conversions.py`; later this will also run automatically when a new part is added.
+
+**How to apply:** When writing queries/logic reading a wire-size column that could be NULL, do not add derivation-from-other-columns logic inline — assume the maintenance utility will keep these populated, only add NULL-safety (`IS NULL OR` guards, skip-if-None). If asked for the actual backfill utility later, that's a separate feature using `utils/wire_conversions.py`.
+
+#### Saved numpy files are `.hdm` files with a copyright header (user, 2026-10-25)
+Every numpy file the app saves (imported 3D models `<model_path>/<uuid[:2]>/<uuid>.hdm`, one array; per-name primitive meshes `<appdata>/<name>.hdm`; the glyph cache `glyph_cache.hdm`) uses the extension `.hdm` ("harness designer model") and a text header: the copyright line, then a line saying the data comes from unknown sources and the copyright covers only the way it is written, not the data. There is no `.hdma`; every file gets the header.
+- `utils/hdm.py` (re-exported from `utils` as `save_hdm`, `load_hdm`, `save_hdm_arrays`, `load_hdm_arrays`, `migrate_hdm`, `HDM_EXTENSION`) is the only code that may read or write these files; nothing else calls `np.load`/`np.save`/`np.savez` on them. A header line starts with `#` and a numpy payload never does (`\x93NUMPY` or `PK`), so lines can be added to `HEADER` without touching a reader. `gl/vbo.create_model_vbo` memory-maps via `load_hdm(path, mmap_mode='r')`.
+- Old files upgrade via `migrate_hdm` where the path is built (`Model3D.data_path`, the caches); loaders read only `.hdm` (the user's "no fallback paths"). A `<uuid>.npy` model is copied byte for byte behind the header (the source CAD file is deleted after conversion, so it cannot be rebuilt), size-checked, then the `.npy` deleted. A lock serialises conversions (Windows cannot replace a file another thread has open). A cache that fails to convert is a miss and rebuilds; a model that fails raises out of `data_path`.
+- Not run in the real app; the six model loaders were compiled and read only. Existing, unchanged: importing `harness_designer.database.global_db.model3d` as the very first import hits a circular import (`global_db.mixins` <-> `ui`); import `harness_designer.ui` first when scripting.

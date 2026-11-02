@@ -73,3 +73,14 @@ wrapped by `program.TextureProgram` — not documented anywhere in the repo-root
 
 Compiles the vertex-point-marker program (`vertex.vert` + `geometry.geom` + `fragment.frag`)
 wrapped by `program.VerticesProgram`.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### A real app crash: `Program.__enter__`'s ref count could get permanently stuck (found + fixed 2026-10-27)
+After ~14 idle minutes `GL.glUseProgram(28)` (a face program that had worked all session) raised `GLError(1282)` inside `Program.__enter__` (`gl/shaders/program.py`), cascading into 104 "object render error" entries in under a second (one `glUseProgram` error then 101 `glUniform4fv` ones) and a hard `access violation` crash in `canvas.repaint()` (faulthandler dump `crash_*.log`; no Python-visible cause). Root cause: `__enter__` incremented `_ref_count` BEFORE calling `glUseProgram` with no `try`; when it raised, Python never called `__exit__`, leaving the count stuck at 1, so the `if self._ref_count == 1: glUseProgram(...)` rebind never fired again and every later `material.set(...)` ran with no program current. **Fix:** `glUseProgram` is called first (when `_ref_count == 0`) and the count is incremented only after it succeeds, so a failure is retried next frame. What first invalidated the program id is unknown (no TDR or power event in the Windows logs). `Program` and its subclasses in `gl/shaders/program.py` are the only place meant to call `glUseProgram`; route any other direct call through a `Program` `with` block. The same increment-after-success ordering applies to any first GL call inside `__enter__`/`__exit__` (e.g. `canvas_base.py`'s `self.context` wrapper, not audited).

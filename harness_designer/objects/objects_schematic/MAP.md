@@ -74,7 +74,7 @@ One file per harness part, same `BaseSchematic(parent, db_obj)` shape.
 
 #### terminal.py
 
-Explicitly built to cope with `cavity is None` — hosts the free-standing (cavity-less) terminal rendering as a shared flat ring VBO, not a separate view class (MEMORY.md "Empty-space right-click menus"); **NOT yet run in the GUI**.
+Explicitly built to cope with `cavity is None` — hosts the free-standing (cavity-less) terminal rendering as a shared flat ring VBO, not a separate view class (`harness_designer/ui/widgets/MAP.md` DESIGN NOTES "Empty-space right-click menus"); **NOT yet run in the GUI**.
 
 #### tpa_lock.py
 
@@ -105,3 +105,18 @@ Part of the wire family.
 #### mixins/
 
 Empty package (`__init__.py` only) — see `mixins/MAP.md` for why.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+#### 2D schematic scope
+Mechanical housing accessories — boot, cover, cpa_lock, tpa_lock, seal — never get a 2D schematic representation. Confirmed 2026-07-25: "those are not going to have any visuals as they are mechanical accessories and should not be displayed in a wiring schematic."
+
+**Why:** A wiring schematic shows electrical/logical connectivity, not physical hardware.
+
+**How to apply:** `objects/objects2d/boot.py`, `cover.py`, `cpa_lock.py`, `tpa_lock.py`, `seal.py` stay on the inert legacy contract (`Base2D.__init__(..., None, None, None, None, None)`) permanently — not a "not yet done" gap.
+
+Still genuinely open (not yet decided): whether `transition.py`, `bundle.py`, `bundle_layout.py`, `wire_service_loop.py` (routing/grouping, not accessories) and `note.py` (already has real position/angle wired up, needs a VBO — `objects3d/note.py` is a ready-made reference) get real 2D visuals. Ask before building those.

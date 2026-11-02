@@ -56,7 +56,7 @@ Supports full numeric-operator overloading (`__iadd__`/`__add__`, `__isub__`/`__
 `Quaternion` directly. `set_angle`/`get_angle` convert to/from an `Angle` relative to an origin
 point. `attach()`/`detach()` implement a **self-healing-alias mechanism** (a point's identity
 permanently merges into another's) — this is explicitly a *different* concept from the
-`parent_point_id` child-tracking mechanism described in MEMORY.md's "Wire-snap feature" entry:
+`parent_point_id` child-tracking mechanism described in `harness_designer/handlers/MAP.md` DESIGN NOTES's "Wire-snap feature" entry:
 `attach()` is a permanent self-healing alias used for wire-placement-preview point merging, while
 `parent_point_id` (a `pjt_points3d`/`pjt_points2d`/`pjt_points_peg` DB column, not anything in this
 file) is a *different*, independently-written row that just also tracks a parent's position going

@@ -3,7 +3,7 @@
 #### __init__.py
 
 `from . import canvas_window as _canvas_window` — package construction entry point, same pattern
-`canvas_3d/`/`canvas_pegboard/` use. This is the landed, renamed home of what MEMORY.md's
+`canvas_3d/`/`canvas_pegboard/` use. This is the landed, renamed home of what `harness_designer/gl/canvas_base/MAP.md` DESIGN NOTES's
 "`new_canvas2d`" entries describe as an in-progress unification effort between the old `canvas2d`
 (schematic) and `canvas_pegboard` directories — confirmed by directory layout and by
 `canvas_base/camera_base.py` still containing a stray "new_canvas2d" comment (see that folder's
@@ -25,7 +25,7 @@ objects for others (e.g. corner-label text, cavity-slot rectangles) rather than 
 rather than just duplicate. `add_object()` calls `self.Refresh()` itself after registering an
 object, unlike the 3D/pegboard canvases (whose repaint during load happens via their model's own
 `_set_model()` callback) — schematic objects have no model-load step to piggyback on, so this
-canvas needs the explicit repaint (see MEMORY.md "Stored project bounds" — "Schematic repaint
+canvas needs the explicit repaint (see `harness_designer/gl/canvas_base/MAP.md` DESIGN NOTES "Stored project bounds" — "Schematic repaint
 gotcha").
 
 #### canvas_window.py

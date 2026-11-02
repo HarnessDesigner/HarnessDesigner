@@ -17,13 +17,8 @@ since Qt stylesheet URLs don't accept backslashes even on Windows), and applies 
 
 #### Dark/
 
-One `.qss` stylesheet (`Dark.qss`) and nothing else — unlike `Light/`, it has no `icons/` subdirectory of
-its own, so whatever icon references its stylesheet contains resolve against Light's icon set or a Qt
-resource path rather than a per-theme icon folder. Worth double-checking against `themes.py`'s
-`:/qss_icons/dark/rc` rewrite if dark-theme icons ever look wrong.
+The dark theme: `Dark.qss` plus its own `icons/` folder of UI chrome glyphs. Same layout as `Light/`.
 
 #### Light/
 
-`Light.qss` plus a large `icons/` subdirectory of the UI chrome glyphs (window controls, tree-view
-branch/arrow icons, etc., each usually in `@1x`/`@2x` and normal/disabled/focus/pressed variants) that
-`themes.py`'s path rewrite points the stylesheet at.
+The light theme: `Light.qss` plus its own `icons/` folder of UI chrome glyphs (window controls, tree-view branch/arrow icons, checkbox/radio states), each usually in `@1x`/`@2x` and normal/disabled/focus/pressed variants.

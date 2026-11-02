@@ -69,3 +69,37 @@ Orchestration: reads `[project]` from `pyproject.toml` (`tomllib`/`tomli`), stag
 #### scripts/
 
 Small standalone scripts bundled *into* the frozen app (not build-time tooling) — see `scripts/MAP.md`.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Build system: custom PEP 517 backend, no setuptools
+The build went through three iterations (install-then-mutate site-packages; `setup.py` + `setuptools.build_meta`; final: a fully custom PEP 517 backend) because setuptools is fragile and the real need (uniform flags across ~475 auto-discovered `.py` modules + 2 hand-written `.pyx`) doesn't need its generality. `pyproject.toml`: `build-backend = "builder._backend"`, `backend-path = ["."]`, `[build-system] requires` = Cython, numpy, wheel, packaging, pyMSVC (Windows only). CI only calls `pip install .`.
+- `compiler.py`: per-platform compile/link. POSIX flags come from `sysconfig.get_config_var`; Windows is a hardcoded list (`/c /nologo /O2 /W3 /GL /DNDEBUG /MD` to compile; `/DLL /INCREMENTAL:NO /LTCG /LIBPATH:<py>\libs /EXPORT:PyInit_<name> /IMPLIB:<redirected>` to link), validated against captured CI command lines on all three platforms. MSVC/SDK paths come from `INCLUDE`/`LIB` set by `pyMSVC.setup_environment()` (via `msvc_env.py`). Compiles are parallel (`ThreadPoolExecutor` over `spawn.py`; thread-safe).
+- `cython_build.py`: file discovery (`discover_modules()`) + `cythonize_to_c()`. **Gotcha:** `Cython.Build.cythonize(paths, build_dir=...)` silently ignores `build_dir` for absolute source paths (warns, writes `.c` beside the source), so paths must be repo-root-relative with cwd at the repo root.
+- `wheel_build.py`: reads `[project]` via `tomllib`/`tomli`, stages a build dir (`__init__.py`/`__main__.py` + non-source assets, replacing `MANIFEST.in`), cythonizes + compiles, hand-writes `METADATA`/`WHEEL`, and lets `wheel.wheelfile.WheelFile.write_files()` compute RECORD.
+- `_backend.py`: the hooks (`build_wheel`/`build_sdist`/`get_requires_for_build_*`). `pip install . --config-settings cythonize=false` gives a fast uncompiled dev build (plain `.py`; `bvh.pyx` and the culling `.pyx` always compile, no fallback).
+- If the build breaks, `compiler.py`'s hand-maintained recipes are the likeliest fragile point: compare with a fresh captured CI log, especially after a Python version bump or a Windows Python installer layout change.
+
+#### PyAssimp PyPI initiative (plan)
+Upstream pyassimp does not publish to PyPI. Stopgap: `builder/build_native_deps.py` builds assimp from the `libs/assimp` submodule with CMake/Ninja, pip-installs the bindings from that path with `--no-build-isolation` and copies the shared libraries next to them. setuptools is still in CI only because upstream `port/PyAssimp/setup.py` does `from distutils.core import setup` (works via setuptools' vendored distutils shim). Plan: the user publishes their own pyassimp with a custom PEP 517 backend following `builder/_backend.py`/`wheel_build.py`; then remove setuptools from all three CI workflows' "Install build tools" step and expect `build_native_deps.py` to shrink to a plain `pip install`.
+
+#### PyInstaller `--collect-all`/`collect_submodules` silently drops a subtree on ANY import-time exception (found 2026-10-19; pyinstaller/pyinstaller#9495, filed-and-closed-not-planned)
+The installed app was missing most of `harness_designer/ui/` (toolbar, docks, system_menu...) with only a bare `ImportError: cannot import name 'toolbar'`. Cause: the app is almost entirely compiled `.pyd` (everything but `__init__.py`/`__main__.py`, see `cython_build.py`'s `_SKIP_STEMS`), and modulegraph cannot see inside a `.pyd`, so `--collect-all=harness_designer` is the ONLY thing that discovers the internal import graph. `collect_submodules()` really `__import__`s every subpackage; on ANY `Exception` (not just `ImportError`) the default `on_error='warn once'` logs one warning for the whole build, then ignores all later failures, and a failed subpackage is dropped whole with its children. So any import-time bug anywhere under `harness_designer` can silently remove an unrelated subpackage with no build-time signal. The trigger this time was the `claude` -> `claude_ai` rename leaving broken imports in `ui/editor_script/`, `scraping/` and `claude_ai/`. The robust rule: every subpackage must be importable standalone.
+Pre-flight check to run (with the build env's Python) before packaging; it reports every broken subpackage with its traceback in one pass, unlike PyInstaller:
+```python
+import sys, pkgutil, traceback
+import harness_designer
+fails = []
+for info in pkgutil.walk_packages(harness_designer.__path__, 'harness_designer.',
+                                   onerror=lambda n: fails.append((n, sys.exc_info()))):
+    pass
+for name, exc in fails:
+    traceback.print_exception(*exc, limit=3)
+```
+`builder/` has no such check yet; adding it to `build.py` as a fail-loud pre-flight step is still open.

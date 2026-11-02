@@ -10,7 +10,7 @@ Package init; no real logic of its own.
 
 #### row_id_functions.py
 
-DDL for the MySQL-side row-id generation mechanism — the server-side counterpart of `database/id_generator.py`'s client-side SQLite generation (`next_project_row_id`). Row ids are generated differently per backend: SQLite ids come from the client, MySQL ids come from the server here. If a second id-generating process is ever introduced, both sides of this split need re-checking together, not just one (see MEMORY.md's "Project row-id collision safety" note).
+DDL for the MySQL-side row-id generation mechanism — the server-side counterpart of `database/id_generator.py`'s client-side SQLite generation (`next_project_row_id`). Row ids are generated differently per backend: SQLite ids come from the client, MySQL ids come from the server here. If a second id-generating process is ever introduced, both sides of this split need re-checking together, not just one (see `harness_designer/database/MAP.md` DESIGN NOTES's "Project row-id collision safety" note).
 
 #### settings_dialog.py
 

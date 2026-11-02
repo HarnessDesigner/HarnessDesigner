@@ -58,7 +58,7 @@ its own real `objschematic`/`obj3d`/`objpegboard` children directly, the same sh
 `objects.housing.Housing` uses. Because it owns slots in all three bounds pools, `Canvas`'s
 `delete_focal_target()`/`create_focal_target()` must bracket any `bounds_manager.reset()` call —
 resetting while it still exists leaves it with dead slot indices and raises `IndexError` in
-`mark_visible` (see MEMORY.md "Stored project bounds + fit-to-project camera").
+`mark_visible` (see `harness_designer/gl/canvas_base/MAP.md` DESIGN NOTES "Stored project bounds + fit-to-project camera").
 
 #### headlight.py
 
@@ -74,3 +74,14 @@ every camera move to keep pointing from eye to focal target; `set()` pushes the 
 `_get_view_object`, returning `obj.obj3d`. Every other mouse behavior (dispatch to
 `CanvasBase.active_handler_obj`, selection, camera drag, wheel easing) is inherited unchanged from
 the shared `canvas_base.mouse_handler_base.MouseHandlerBase`.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Camera._send_event is a deliberate universal extension point
+`Camera._send_event(type_)` is called at the end of every camera-movement method (`Reset`, `Rotate`, `PanTilt`, `Zoom`, `Walk`, `TruckPedestal`), originally just to emit a `GLCameraEvent`. The user confirmed (2026-08-05) it was built as a single funnel so camera-triggered behaviour can be hooked in one place. It is now used by `Camera._refresh_active_hover()`, which re-runs the active `EndpointDragObject`'s pick test (zero delta) or the active object handler's `hover()` (mouse position via `QCursor.pos()`) after every camera move, because mouse-wheel zoom and the keyboard camera controls can move the camera with the mouse perfectly still and never reach `on_mouse_motion`. When a feature must react to "the camera just moved, whatever caused it", hook `_send_event`/`_refresh_active_hover` instead of scattering hooks across the wheel handler, `key_handler.py` and drag-to-orbit.

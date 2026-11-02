@@ -46,6 +46,6 @@ shell the way the three main render shaders were.
 `MouseHandler(MouseHandlerBase)` — the only override is `_get_view_object`, returning
 `obj.objpegboard`. The old pegboard-only `_find_anchor_at_point` AABB hit-test is gone from current
 source: this file is now exactly as thin as the 3D/schematic editors' and goes through the same
-shared `gl.object_picker`/`MouseHandlerBase` dispatch they do — this closes the one gap MEMORY.md's
+shared `gl.object_picker`/`MouseHandlerBase` dispatch they do — this closes the one gap `harness_designer/gl/canvas_base/MAP.md` DESIGN NOTES's
 "new_canvas2d" notes (2026-08-12) had flagged as still open, so that specific claim there is now
 stale.

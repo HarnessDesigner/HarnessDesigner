@@ -2,7 +2,7 @@
 
 #### __init__.py
 
-Package docstring only; no code. Notes this mirrors `add_handlers.editor_3d`'s own package shape (one module per object type), but only supports a subset: `housing`, `splice`, `terminal`, and `wire`. No `bundle`/`transition`/`bundle_layout`/`wire_layout`/`wire_service_loop` module exists here — those object types have no 2D schematic representation at all (see MEMORY.md "2D schematic scope": mechanical accessories and routing/grouping types are deliberately excluded from the wiring schematic).
+Package docstring only; no code. Notes this mirrors `add_handlers.editor_3d`'s own package shape (one module per object type), but only supports a subset: `housing`, `splice`, `terminal`, and `wire`. No `bundle`/`transition`/`bundle_layout`/`wire_layout`/`wire_service_loop` module exists here — those object types have no 2D schematic representation at all (see `harness_designer/objects/objects_schematic/MAP.md` DESIGN NOTES "2D schematic scope": mechanical accessories and routing/grouping types are deliberately excluded from the wiring schematic).
 
 #### housing.py
 

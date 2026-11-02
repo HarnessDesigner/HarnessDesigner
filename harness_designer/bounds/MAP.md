@@ -30,7 +30,7 @@ unless something else explicitly marks its slot visible. This produced a real re
 (2026-10-08): the pooled-bounds picking refactor (`cb1d9cc`/`20aa1bb`, 2026-09-19) silently broke
 every invisible wire-snap probe in `wire_snap`/`snap_probe_set`/`pseudo_wire_layout`, fixed via a
 `db_obj.is_snap_probe` flag that `BaseVar.render()` checks (try/except `AttributeError`) to call
-`mark_visible` without drawing — see MEMORY.md's "Wire-snap feature" entry for the full incident
+`mark_visible` without drawing — see `harness_designer/handlers/MAP.md` DESIGN NOTES's "Wire-snap feature" entry for the full incident
 writeup; any new kind of invisible-but-pickable object needs the same flag, not just a registered
 OBB/AABB slot. Frustum culling (`gl.culling.cull`) and bounds-pool registration both happen
 unconditionally regardless of `is_visible3d`; only the per-frame `mark_visible` call is gated on
@@ -45,7 +45,7 @@ holding long-lived references to a `View`/pool don't go stale across a project u
 an object with a live slot index across a reset (e.g. a `FocalTarget` that isn't torn down via
 `ObjectBase.delete()`) will hit `IndexError` in `mark_visible`, which is why `FocalTarget` is
 explicitly deleted/recreated around every `Manager.reset()` call rather than just surviving it (see
-MEMORY.md's "Stored project bounds + fit-to-project camera" entry). Project-level bounds storage
+`harness_designer/gl/canvas_base/MAP.md` DESIGN NOTES's "Stored project bounds + fit-to-project camera" entry). Project-level bounds storage
 (`projects.bounds_3d`/`bounds_schematic`/`bounds_pegboard`, read at project load / written at
 unload via `View.aabb.extent()`) is a separate, DB-persisted concept from the live in-memory pools
 here — see that same MEMORY.md section for the load/unload ordering and the camera-fitting half,

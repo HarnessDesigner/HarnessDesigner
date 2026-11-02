@@ -11,7 +11,7 @@ plain module-level calls while actually being backed by exactly one process-wide
 building their own pool — canvas updates can only ever happen serially anyway (everything runs on
 the main thread), so a per-canvas pool (each spinning up its own 10 persistent worker threads)
 would have been pure duplication, not a real parallelism win. This module is also the current,
-relocated home of the architecture MEMORY.md's "CullingThreadPool.cull() index-mismatch" note
+relocated home of the architecture this file's DESIGN NOTES's "CullingThreadPool.cull() index-mismatch" note
 still describes by its old path (`gl/canvas3d/culling.pyx`) — the class and the fix below are
 unchanged, just moved here.
 
@@ -50,3 +50,14 @@ or re-parsing the `.pyx` source.
 The compiled Cython extension that actually runs at runtime (CPython 3.11, win_amd64 ABI) — must
 be regenerated from `culling.pyx` after any source change via the project's real build recipe
 (`builder/cython_build.py`/`builder/compiler.py`), never hand-edited.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### CullingThreadPool.cull() index-mismatch: a real deadlock, not a GL/context issue (2026-08-08)
+`CullingThreadPool` runs per-frame AABB-frustum culling on a fixed set of 10 persistent worker threads, each with a `Queue(maxsize=1)`; `Canvas._object_data` is a permanent list of 10 containers and `add_object()`/`remove_object()` fill the smallest / remove from the holder with no rebalancing. The bug (app hang at 0% CPU, immune to Ctrl+C, only on finalizing a wire-to-wire snap merge via `handlers.wire_handler.merge_wire_into`): the dispatch loop skipped workers with empty containers but only counted jobs (`num_jobs`), then the gather loop called `.finish()` (blocks on `Queue.get()`) for workers `0..num_jobs-1`, so once an early container emptied while a later one did not, it blocked forever on a worker never dispatched to. Debug `print()` placement had no causal effect; what varied was the object distribution at the next cull. Fixed by tracking the actually dispatched worker indices (`dispatched` list appended beside each `worker.cull(...)`) and gathering from exactly those. **Invariant to preserve:** the workers gathered from must exactly match the workers dispatched to. It is a `.pyx`, so a source edit does nothing until the `.c`/`.pyd` is regenerated (`builder/cython_build.py`/`compiler.py`), with the project's Python 3.11 at `C:\python3.11.14` (a mismatched Python/Cython fails with unrelated errors such as a missing `libc.math.fabsf` pxd), and a loaded `.pyd` cannot be overwritten on Windows until every process that imported it (the app, orphaned processes) is closed.

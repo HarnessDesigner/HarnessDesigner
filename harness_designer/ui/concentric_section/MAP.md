@@ -31,3 +31,18 @@ Plain-data description of a bundle cross-section; touches neither the database n
 #### wire_painter.py
 
 QPainter drawing of one cable, in millimetres (the caller has translated to the cable's centre and scaled). `paint_conductor` = the insulation disc (the OD, primary colour), the stripe's cross-section (a piece of the insulation ring, `STRIPE_ARC_DEG` wide and `STRIPE_DEPTH_FRACTION` of the wall deep) and the metal conductor disc. `paint_cable` = jacket disc, shield ring (with a dotted line so it reads as a braid), the core fill, then every conductor at its place in the pack; a coax is the same drawing (one conductor whose "insulation" is the dielectric, plus shield and jacket). Outlines are 1 px cosmetic pens, so they stay 1 px at any zoom.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Wire bundle packing requirements (2026-10-25 baseline; design doc `CONCENTRIC_TWIST_DESIGN.md` in the repo root)
+Read `CONCENTRIC_TWIST_DESIGN.md` in full before touching anything concentric and add new concentric decisions THERE, not here.
+- **Spec:** MIL-STD-339(AT) Section 600, Table XXI (lay pattern calculations; Table XXII is the filler-factor table); NOT MIL-STD-681 or MIL-W-5088.
+- **Solver:** not reducible to chained closed-form formulas (an interstitial filler's contact points shift as its own radius changes), so use a numeric/geometric relaxation solver (circles repel when overlapping and settle toward the layer radius) seeded from layer-based construction, running locally. A Copilot packer for ~75 wires took ~10 min with ~30% good results (unconstrained stochastic search without a deterministic seed); a deterministic solver should be well under a second for hundreds of wires. Claude's role if embedded is the orchestration/judgment layer (repack vs filler vs shorter lay length at branch voids, explaining tradeoffs from solver output), not runtime compute.
+- **Technique:** interstitial filler wires sit in gaps between same-layer wires below the flanking wires' apex; max filler diameter = flanking wire diameter / 4 (tangent-circle derivation; cross-checked against a public filler-factor table, asymptote 0.25 for 25+ wires per layer). Real harnesses do NOT keep the concentric pack through a branch: the bundle bulbs/widens (also strain relief), so the model needs two cross-section behaviours, concentric pack (trunk) and transition bulb (branch).
+- **Hard requirement:** a cross-section view must be renderable at every location where bundle composition changes (every branch/pin-out), tied into the 2D/3D editors for a visual sanity check.

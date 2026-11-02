@@ -94,12 +94,12 @@ checks in the mouse handler with per-object-type polymorphism; this directory's 
 The shared base-class package (`camera_base.py`, `canvas_base.py`, `canvas_window_base.py`,
 `key_handler.py`, `floor_base.py`, `scene_light.py`, `mouse_handler_base.py`, `interaction.py`)
 that `canvas_3d/`, `canvas_schematic/`, and `canvas_pegboard/` all subclass from. This is the
-landed, renamed form of what MEMORY.md's "`gl/new_canvas_base` — the shared base class, started
+landed, renamed form of what `harness_designer/gl/canvas_base/MAP.md` DESIGN NOTES's "`gl/new_canvas_base` — the shared base class, started
 (2026-08-12)" entry describes as just-starting scaffolding — on-disk evidence (directory names,
 and a stray "`new_canvas2d` is dedicated to the flat schematic/pegboard views" comment still
 sitting inside current `camera_base.py`) confirms the rename (`new_canvas_base`→`canvas_base`,
 `new_canvas2d`→`canvas_schematic`, with `canvas_pegboard` kept as its own sibling rather than
-merged into one combined 2D package) has fully landed; that MEMORY.md entry (and the sibling
+merged into one combined 2D package) has fully landed; that `harness_designer/ui/editor_pegboard/MAP.md` DESIGN NOTES entry (and the sibling
 "`new_canvas2d`: unifying schematic + pegboard canvases" entry) is now stale and a candidate for
 removal/consolidation.
 
@@ -119,7 +119,7 @@ old `canvas2d` directory described in the repo-root `CODEBASE_MAP.md`'s stale "#
 
 One process-wide `CullingThreadPool()` instance (not per-canvas), reached through a
 module-replacement singleton trick so `gl.culling.cull(...)` reads as a plain function call. Moved
-out from under `gl/canvas_3d/` (superseding the old `canvas3d/culling.pyx` location MEMORY.md's
+out from under `gl/canvas_3d/` (superseding the old `canvas3d/culling.pyx` location `harness_designer/gl/culling/MAP.md` DESIGN NOTES's
 CullingThreadPool note still refers to by that old path) once it became clear canvas culling can
 only ever run serially anyway (everything is on the main thread), making a per-canvas pool pure
 duplication.
@@ -144,3 +144,20 @@ to be the *only* place in the app calling `GL.glGetUniformLocation`/raw `GL.glUn
 `GL.glUseProgram` directly. ⚠ One piece of the repo-root `CODEBASE_MAP.md`'s old description of
 this folder is now actively wrong, not just renamed: `shader_program.ShaderProgram` is NOT a
 process-wide singleton — see `shader_program.py`'s own paragraph.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### GLContext is `with`-only: manual acquire()/release() removed (2026-07-29)
+`gl/canvas_base`'s `GLContext` (the re-entrant, thread-safe wrapper around a `QOpenGLWidget`'s `makeCurrent()`/`doneCurrent()`) has no public `acquire()`/`release()`; they are private `_acquire()`/`_release()` used only by `__enter__`/`__exit__`. Always `with some_widget.context: <GL work>` (re-entrant, safe across early returns and exceptions). Why: call sites used to do `ctx.acquire(); <GL work>; ctx.release()` with no `try/finally`; Qt silently swallows an exception raised in a slot or callback, so `release()` was skipped and `GLContext.ref` leaked upward permanently. Every later `acquire()` then saw `ref != 0`, trusted "already current" and skipped the real `makeCurrent()`, surfacing as random `RuntimeError: context has not been acquired` or "Cannot make QOpenGLContext current in a different thread" crashes at unrelated moments (model downloads, app close). Catching at each call site would not fix it; only `with`/`__exit__` guarantees cleanup. VBO handlers' own `.acquire()`/`.release()` on `PooledVBOHandler`/`NonPooledVBOHandler` are NOT `GLContext` and were left alone. For any acquire/work/release pattern where an exception between the steps leaves shared state wrong, prefer a context manager.
+
+#### `gl/*/__init__.py` TODO audit comments go stale fast
+The `canvas_3d`, `canvas_schematic` and `canvas_pegboard` `__init__.py` files carry a hand-maintained "TODO: re-audit (Nth pass)" bullet list. In the 2026-08-17 pass roughly half the bullets were already fixed or inaccurate (the files had been renamed and restructured). Verify each bullet against the current source (grep the symbol, read the code) before presenting or "fixing" it. Remove a stale bullet; when a fix is applied, replace the bullet with a short "FIXED: ..." note to keep the audit trail (the user has consistently approved both).
+
+#### Legacy fixed-function immediate-mode GL calls silently render nothing under the shader pipeline (2026-08-21)
+Code that draws with `glUseProgram(0)` + `glEnableClientState(GL_VERTEX_ARRAY)` + `glVertexPointer` + `glColor4f` produces no pixels once objects render through the VAO + shader pipeline (`faces_program`/`edges_program`/`vertices_program`): the left-over bound VAO does not mix with client-side arrays (probably `GL_INVALID_OPERATION`, unseen because nothing checks `glGetError()`). The cavity overlay hit this (the pick logic worked, only the draw no-opped). Search for those four calls together. Rebuild such geometry as a small `NonPooledVBOHandler` (packed layout: positions, smooth normals, face normals, each `count*3` floats; `.update(data, count)` re-uploads into the same buffer for a per-frame decal) and draw through the faces/edges program the real geometry uses, with an identity object transform if the positions are world-space. Reference: `Housing3D._draw_overlay_faces`, which threads `faces_program` through `render_surface_overlay`/`render_marker_overlay`/`_render_cavity_markers`/`_render_terminal_overlays`/`Terminal.render_cavity_overlay`. Gotcha: `color.Color(r, g, b, a)` treats a FLOAT channel as 0.0-1.0 (x255 internally) and an INT channel as 0-255, so pass raw 0.0-1.0 floats (`Color(*color)`), never pre-multiplied. `ui/dialogs/housing_editor/housing_editor.py`'s `SurfaceOverlay` sidesteps the trap with a `QPainter` screen-space overlay.

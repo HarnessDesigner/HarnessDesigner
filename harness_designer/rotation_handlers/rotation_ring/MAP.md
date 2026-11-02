@@ -27,3 +27,14 @@
 #### torus_ring.py
 
 `TorusRing` — the always-visible, click-to-activate ring for one axis. Round-tube cross-section (unlike the flat disc rings) because a torus tube only stays circular under uniform scale, and this ring's diameter must match whatever object it's wrapped around — builds its own sized mesh rather than reusing the shared unit VBO the disc-based rings use. Clicking anywhere on the band activates that axis's protractor.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Rotation-ring redesign direction (discussed 2026-08-17; the protractor gizmo has since been rebuilt)
+The direction the user wanted for `rotation_ring`: a physical-protractor look (disc, tick marks and numbers, pointer arm), muted ring colours and smaller diameter via `Config.rotation_rings`, a translucent (~0.1-0.2 opacity) light-blue glowing disc plus a 0-degree reference line on the dragged axis (`GlowingMaterial`, `floor.py`'s `GL_BLEND` pattern, `HANDLE_LOCAL_DIRS[axis]`), and NO small grab-handle spheres: the ring itself is the drag target, because a single-point handle can sit on the far/occluded side of the object while some part of a full ring is always visible. Consequence for picking: the blanket `RotationRings` exclusion in `MouseHandlerBase._pick_exclusions()` must be selective (a click on the ring band registers, a click past it falls through to the object behind). Check the current code for how much of this was built.

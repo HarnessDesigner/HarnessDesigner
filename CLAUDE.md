@@ -4,8 +4,9 @@
 1. **`MEMORY.md`** (repo root, full file) — persistent project memory: user background, coding
    conventions, feedback on how to work in this repo, architecture decisions. Read it in full
    before doing anything else.
-2. **`CODEBASE_MAP.md`** (repo root) — a bare directory/file tree, no descriptions, just for
-   orientation. It is NOT where file/directory documentation lives anymore (see next point).
+2. **`CODEBASE_MAP.md`** (repo root) — a small folder-only tree with a brief outline of what each
+   directory holds, as breadcrumbs to the right place. It lists no file names; the file lists
+   live in each directory's own `MAP.md` (see next point).
 
 ## MANDATORY: read a directory's own `MAP.md` before working in it
 Every real directory under `harness_designer/`, `builder/`, and `diagnostics/` has its own
@@ -13,9 +14,9 @@ Every real directory under `harness_designer/`, `builder/`, and `diagnostics/` h
 header per file and a `## FOLDERS` section with one `####` header per subdirectory, each followed
 by a short paragraph covering what it's for and any known oddities/pitfalls. **Before reading or
 editing code in a directory, read that directory's `MAP.md` in full** — it's more reliable and
-more current than `CODEBASE_MAP.md`'s bare tree or guessing from file names. Update it in the same
-change whenever a file is added, removed, or renamed in that directory; update `CODEBASE_MAP.md`'s
-tree too if a whole directory was added/removed/renamed.
+more current than `CODEBASE_MAP.md`'s folder outlines or guessing from file names. Update it in the
+same change whenever a file is added, removed, or renamed in that directory; update
+`CODEBASE_MAP.md` too only if a whole directory was added, removed or renamed.
 
 ## Locating code: use `diagnostics/dep_trace.py`, not grep-and-read
 

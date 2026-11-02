@@ -13,7 +13,7 @@ itself via a PCA/eigen-decomposition (`_calculate_obb`, `np.cov` + `np.linalg.ei
 reusing a model's already-computed OBB elsewhere in the app. ⚠ Unlike every canvas built on
 `canvas_base/`, this one was never migrated onto the modern VAO+shader pipeline — it still issues
 legacy fixed-function immediate-mode GL calls directly (confirmed in source: `GL.glColorMaterial`,
-`GL.glColor4f`, `GLU.gluPerspective`/`gluLookAt`). MEMORY.md documents a confirmed 2026-08-21 case
+`GL.glColor4f`, `GLU.gluPerspective`/`gluLookAt`). `harness_designer/gl/MAP.md` DESIGN NOTES documents a confirmed 2026-08-21 case
 (`objects/objects_3d/housing.py`'s old cavity-overlay draw) where this exact call pattern
 (`glEnableClientState`/`glVertexPointer`/`glColor4f` after `glUseProgram(0)`) silently rendered
 nothing once a VAO from the real shader-pipeline rendering was left bound on the same GL context —

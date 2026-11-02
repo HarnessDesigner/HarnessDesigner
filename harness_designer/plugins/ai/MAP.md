@@ -62,3 +62,30 @@ explicit, distinct user action, never inferred from message content.
 and logic-checked, but there is no concrete backend wired to this contract yet — don't assume a
 Claude-via-`plugins.ai` or Gemini backend exists just because this package does. No Qt, no provider SDK is
 imported anywhere in this package.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+#### AI plugin contract: `harness_designer/plugins/ai/`; design in `plugins/ai/AI_PLUGIN_DESIGN.md` (started 2026-10-18)
+User wants more than one AI backend available (Claude today, Google AI/Gemini next -- free tier, so no cost
+outside a Claude subscription, user supplies their own key same as Claude), selectable so the app's two AI call
+sites (scraper assistant, concentric twisting) don't need to know which is active. Worked out over a long
+conversation: vocabulary (**Session** = one open-ended activity holding history, maps onto `claude.Conversation`/
+Google AI's `ChatSession`; **Job** = one instruction, ends `complete`/`error`; **steering** = anything that
+continues the current Job rather than starting a new one -- answering a tool's question, or "Send now"
+interrupting a running Job -- a genuinely new Job only ever comes from an explicit, distinct user action, never
+inferred from message content); threading (one plain Python thread per Session, owned by `AIBase`, no `QThread`,
+`app.CallAfter` is always the `Job` subclass's own call); cancellation (`CancelToken` generalized from
+`claude/cancel.py`, with a reason so a steering cancel never reports as a Job error). "Asking the user" turned
+out to need no new tracked state once checked against what `claude/qt/gui_call.call_in_gui()` already does
+(blocks the worker thread, not the GUI thread) -- that's the pattern formalized, not reinvented. Read
+`plugins/ai/AI_PLUGIN_DESIGN.md` (and `plugins/PLUGIN_DESIGN.md` for the generic registration mechanism it sits
+on, deliberately not inherited from directly -- `_PluginMeta` needs a registration right before every `Plugin`
+subclass, which `AIBase` as an abstract intermediate base can't supply) in full before touching anything under
+`plugins/`, and add new decisions THERE, not here. User is building a settings-panel base class for plugins in
+parallel (not done here). Status: `Job`/`Session`/`AIBase`/`CancelToken` built and logic-checked with a
+throwaway script (deleted after, not committed -- "Do not write unit tests" applies here too); no concrete
+backend (Claude, Google AI) wired to it yet, and `claude/` itself is untouched by this work.

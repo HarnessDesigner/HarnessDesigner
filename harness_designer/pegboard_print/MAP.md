@@ -23,3 +23,15 @@ Pure maths, no Qt/GL (checkable on its own): `PageGeometry`, `Tile`, `PrintLayou
 ## FOLDERS
 
 None.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+#### Print Peg Board: true-scale, tiled, with alignment marks (built 2026-10-31; layout/marks/PDF tested headless, GL render NOT yet run in the app)
+User request: print the peg board view 1:1 mm-for-mm (scale adjustable), alignment marks on every page so sheets can be glued, tables included. Lives in `harness_designer/pegboard_print/` (see its MAP.md) + `ui/dialogs/pegboard_print_dialog.py`, opened from File > "Print Peg Board..." (`MainFrame.show_pegboard_print`). Each sheet is a tile of the board rendered offscreen through the pegboard canvas's own camera at `mm_per_pixel = 25.4 / (dpi * scale)` (that camera's zoom is `distance / 1000` mm per pixel), so tables/sections come along because they are canvas objects. Pages overlap by a configurable strip (default 12 mm); crosshair marks half an overlap in from each edge land on the identical board point on neighbouring sheets. Verified: layout maths (overlaps exactly = setting, marks coincide), PDF output through QPrinter with a stand-in renderer (10 mm grid measures 10 mm, 100 mm lines 100 mm apart), dialog construction and fit-to-pages. NOT verified: the real GL offscreen render in the running app (FBO + `_on_draw` state swap in `renderer.render_tile`), and a physical printer. Tables/sections are re-captured sharper for the length of a print (`renderer.sharp_tables`, `set_print_quality` on Table/Section: whole-number multiple of the 6 px/mm texture, capped at 8192 px a side and 36 Mpx; checked only with a plain Qt table, not yet with the real ones in the app). Known limits: bitmap icons in a table stay at 1x, a selected wire's blue highlight prints, content area is always the whole board (no "current view only"), dialog settings are not persisted.
+
+**Why:** user wants a physical full-size formboard template to build harnesses on.
+**How to apply:** if a print shows garbage/blank tiles or the editor looks wrong afterwards, suspect `render_tile`'s save/restore of canvas state first (size, camera dirty flag, selection, `_render_floor_after`), then the FBO default-framebuffer rebind.

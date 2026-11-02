@@ -14,7 +14,7 @@ One-file-per-part wrapper, same shape as `housing.py` — `ObjectBase` subclass 
 
 #### bundle.py
 
-Wrapper for bundles; 3D + peg-board only, no schematic view (MEMORY.md "Bundles: design lives in BUNDLE_DESIGN.md"). Placement/cross-view reaction rules are in `BUNDLE_PLACEMENT.md`; the rest of the bundle design (create-from-wire, extend, shared-waypoint, 1-to-1 layout spec) is in `BUNDLE_DESIGN.md` — read both before touching bundle code and add new decisions there.
+Wrapper for bundles; 3D + peg-board only, no schematic view (`harness_designer/handlers/MAP.md` DESIGN NOTES "Bundles: design lives in BUNDLE_DESIGN.md"). Placement/cross-view reaction rules are in `BUNDLE_PLACEMENT.md`; the rest of the bundle design (create-from-wire, extend, shared-waypoint, 1-to-1 layout spec) is in `BUNDLE_DESIGN.md` — read both before touching bundle code and add new decisions there.
 
 #### bundle_layout.py
 
@@ -42,7 +42,7 @@ Catch-all one-file-per-part wrapper shape, used for part types without a dedicat
 
 #### housing.py
 
-The most heavily-loaded wrapper: owns cavities, tpa/cpa locks, seal, cover, and boot, across all three views. `Housing.__init__` constructs this housing's `Cavity` wrappers **synchronously** (not deferred via `CallLater`) — see MEMORY.md's 2026-09-04 fix entry for why a deferred construction raced against the 3D model's synchronous download-complete callback and left a freshly-added housing's cavities unselectable until project reload. **Circular import trap** (MEMORY.md, "Objects3D context menu architecture"): `objects/<type>.py` modules like this one import their `objects_3d/<type>.py` sibling at module level, `handlers` imports `objects`, and `ui` imports `handlers` — so `objects_3d` modules must import `handlers`, `ui.dialogs`, and sibling `objects` classes **lazily, inside callbacks**, never at module level. Importing `harness_designer.objects.housing` before `harness_designer.ui` also fails on a separate, pre-existing cycle via `objects_schematic` -> `ui.widgets`; the app always imports `ui` first.
+The most heavily-loaded wrapper: owns cavities, tpa/cpa locks, seal, cover, and boot, across all three views. `Housing.__init__` constructs this housing's `Cavity` wrappers **synchronously** (not deferred via `CallLater`) — see MEMORY.md's 2026-09-04 fix entry for why a deferred construction raced against the 3D model's synchronous download-complete callback and left a freshly-added housing's cavities unselectable until project reload. **Circular import trap** (`harness_designer/objects/objects_3d/MAP.md` DESIGN NOTES, "Objects3D context menu architecture"): `objects/<type>.py` modules like this one import their `objects_3d/<type>.py` sibling at module level, `handlers` imports `objects`, and `ui` imports `handlers` — so `objects_3d` modules must import `handlers`, `ui.dialogs`, and sibling `objects` classes **lazily, inside callbacks**, never at module level. Importing `harness_designer.objects.housing` before `harness_designer.ui` also fails on a separate, pre-existing cycle via `objects_schematic` -> `ui.widgets`; the app always imports `ui` first.
 
 #### note.py
 
@@ -50,7 +50,7 @@ One-file-per-part wrapper, same shape as `generic.py`.
 
 #### object_base.py
 
-`ObjectBase` — the base wrapper class every per-part wrapper derives from. Holds the view membership flags (`is_in_3dview`/`is_in_2dview`/`is_in_pegboardview`), selection state (fanned out to whichever views the object is in), angle-lock, delete/close, and the object-browser tree-item binding. `Base3D`/`BaseSchematic`/`BasePegboard`'s `.parent` points back to the owning `ObjectBase` — context menus receive the *view* object as `self.selected`, so `ObjectBase`-level ops (select, clone, rotate) must go through `.parent` (MEMORY.md, "Objects3D context menu architecture").
+`ObjectBase` — the base wrapper class every per-part wrapper derives from. Holds the view membership flags (`is_in_3dview`/`is_in_2dview`/`is_in_pegboardview`), selection state (fanned out to whichever views the object is in), angle-lock, delete/close, and the object-browser tree-item binding. `Base3D`/`BaseSchematic`/`BasePegboard`'s `.parent` points back to the owning `ObjectBase` — context menus receive the *view* object as `self.selected`, so `ObjectBase`-level ops (select, clone, rotate) must go through `.parent` (`harness_designer/objects/objects_3d/MAP.md` DESIGN NOTES, "Objects3D context menu architecture").
 
 #### pegboard_table.py
 
@@ -66,7 +66,7 @@ One-file-per-part wrapper, same shape as `generic.py`.
 
 #### project_model.py
 
-Wrapper for the project's own loaded 3D model (as opposed to a catalog part) — set via "Add/Edit Project Model" (`ui/dialogs/project_model_dialog.py`). Note it has no position/scale/angle columns of its own today; `objects_3d/project_model.py` hardcodes the model at the origin (MEMORY.md, "Empty-space right-click menus" entry).
+Wrapper for the project's own loaded 3D model (as opposed to a catalog part) — set via "Add/Edit Project Model" (`ui/dialogs/project_model_dialog.py`). Note it has no position/scale/angle columns of its own today; `objects_3d/project_model.py` hardcodes the model at the origin (this file's DESIGN NOTES, "Empty-space right-click menus" entry).
 
 #### seal.py
 
@@ -78,7 +78,7 @@ One-file-per-part wrapper, same shape as `generic.py`.
 
 #### terminal.py
 
-All three views; also imports `wire_routing/reroute.py` and `wire_layout.py`. Owns `detach_wires()` (deleting a terminal cuts every attached wire free in all three views) and the free-standing (cavity-less) terminal / reconnect machinery — both **built 2026-09-25 and NOT yet run in the GUI** (MEMORY.md, "Terminal delete / wire detach / reconnect" and "Empty-space right-click menus + free-standing terminals"). Key facts carried from those entries: which wire point is the real attach point (`attach_position*`, 1/3 up from back) vs. an interior waypoint (`wire_position*`); the `free` flag (not `cavity is None`) is the discriminator for a genuinely free-standing terminal vs. a hidden placement preview about to be seated; known gaps include cut ends left behind if the housing moves after a delete, and an orphaned back-point row on the deleted terminal.
+All three views; also imports `wire_routing/reroute.py` and `wire_layout.py`. Owns `detach_wires()` (deleting a terminal cuts every attached wire free in all three views) and the free-standing (cavity-less) terminal / reconnect machinery — both **built 2026-09-25 and NOT yet run in the GUI** (this file's DESIGN NOTES, "Terminal delete / wire detach / reconnect" and "Empty-space right-click menus + free-standing terminals"). Key facts carried from those entries: which wire point is the real attach point (`attach_position*`, 1/3 up from back) vs. an interior waypoint (`wire_position*`); the `free` flag (not `cavity is None`) is the discriminator for a genuinely free-standing terminal vs. a hidden placement preview about to be seated; known gaps include cut ends left behind if the housing moves after a delete, and an orphaned back-point row on the deleted terminal.
 
 #### tpa_lock.py
 
@@ -125,3 +125,35 @@ The schematic (2D) renderable views. Named `objects2d` in CODEBASE_MAP.md — th
 #### objectsvar/
 
 `BaseVar`, the common ancestor of every per-view base class (`Base3D`, `BaseSchematic`, `BasePegboard`). See `objectsvar/MAP.md`.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Housing/cavity callback ordering bug (known, don't touch)
+On a freshly added housing, `Housing2D.__init__` runs `_recompute()`/`_layout_children()` against zero cavities: `objects/housing.py`'s `Housing.__init__` builds `obj2d` first and cavity creation only happens later. No cavity/terminal gets a real `position2d`/`angle2d` from the housing's layout on first add, and `_bind_callbacks` binds to an empty list; reloading the project hides it. The user said he is building a "cavity added" callback himself, so do not fix this unless asked; if asked to work on 2D housing/cavity/terminal code, point to this note first. Possibly stale (2026-09-11): `update_cavities()` was rewritten that day, so re-verify against the current code. Its 3D sibling was fixed, see the next note.
+
+#### Housing cavities and their 3D selection overlay (fixed 2026-09-04; rules)
+- **Construct a housing's cavities synchronously in `objects/housing.py`'s `Housing.__init__`**, right after `self.objschematic` is assigned and strictly BEFORE `self.obj3d = _housing_3d.Housing(...)`, gated on `not project_load` (project load builds every `Cavity` earlier in its own pass, which deliberately loads all `PJTCavity` rows before any `PJTHousing`). Reason: `Model3D.load()` calls its callback synchronously when the model file is already on disk (the common case), so `_set_model` -> `match_cavity_surfaces()` ran before a deferred `CallLater` had built any `Cavity`, leaving `Housing3D.cavities` empty and the surface/marker maps built against zero cavities. `PJTHousingsTable.insert()` already batch-inserts the cavity rows before the facade exists and `cache_names()` (top of `__init__`) fills `_stored_cavities`, so the synchronous order is the intended design.
+- **Do not reintroduce a deferred or "re-run `match_cavity_surfaces()` afterwards" shape.** Two such attempts broke click-to-drop placement because the add-housing handler constructs the facade the moment placement mode starts (a live drag preview), and re-entering the GL context (`with editor3d.context:`) from a `CallLater` mid-drag breaks it.
+- **Cavity selection/overlay state lives on `Cavity3D`** (`objects/objects_3d/cavity.py`), derived from the generic `is_selected` / `render_selected_overlay()` path, not on `Housing3D`. `Cavity3D.render_selected_overlay` guards on `is_selected` only (its placeholder mesh is deliberately invisible, same reason `Wire`/`Bundle` override it); each `Cavity3D` owns its `_terminal_marker`/`_wire_marker` (`_CavityMarker`), and `Housing3D.match_cavity_surfaces()` assigns markers onto the cavity. The housing keeps only shared mesh primitives (`_picker`, `render_surface_overlay`, `render_marker_overlay(shaders, marker, color)` keyed by `id(marker)`, `_draw_overlay_faces`). `try_pick_cavity`/`on_surface_selected`/`_pick_marker` are pure lookups that resolve a ray to a `Cavity3D` (and set `_selected_is_wire_side` for `CavityMenu`'s "Add Wire" gating); selection goes through `set_selected`. A child selected by a ray test against a shared parent mesh should follow the same split.
+- If a similar "works after reload, not on fresh add" report comes up for another housing-owned child (terminal, seal) with a one-shot mesh-analysis pass, check whether its rows are batch-inserted before its facade exists; if so construct the facade before the parent's `obj3d`.
+
+#### Rigid-child positioning convention: offset @ parent.angle3d + parent.position3d
+Any object positioned as a rigid child of another placed object (cavity-in-housing, terminal-in-cavity, anything relative to those) computes its world position from its IMMEDIATE parent's already-correct values:
+```python
+pos = local_offset
+pos @= parent.angle3d
+pos += parent.position3d
+```
+Never re-derive from further up the chain (grandparent position plus a catalog-local offset). Evidence: `PJTCavitiesTable.insert()` computes a cavity's `position3d` as `c_position3d @ h_angle3d; += h_position3d` (verified to 5 decimals against a real row), and `PJTHousing._update_angle3d/_update_position3d` move a terminal in the same rigid group as its cavity and set `terminal.angle3d` to mirror the cavity's exactly. `handlers/terminal_handler._male_terminal_position/_female_terminal_position` once re-derived from `pjt_cavity.part.position3d` and the housing, giving a silent, plausible-looking wrong position; they now use `pos @= pjt_cavity.angle3d; pos += pjt_cavity.position3d`. For any "plausible but wrong position" report, check this first.
+
+#### Terminal delete / wire detach / reconnect (built 2026-09-25, NOT yet run in the GUI)
+Deleting a terminal cuts every attached wire free in all three views (`objects/terminal.py` `Terminal.detach_wires`, called from `delete()`). Which wire point is which (`Terminal.add_wire`): `attach_position*` (crimp, 1/3 up from the back) is the wire's real start/stop; the terminal's `wire_position*` (back-face centre) and the cavity's `wire_position*` are interior waypoints, each with a `WireLayout`. Schematic has no waypoints: the wire's end is the terminal's `wire_position2d`.
+- 3D/pegboard: trim back to the cavity's wire point if seated, else the terminal's own; the wire gets a NEW point row there as its free end; waypoints at/inside it lose their layouts; canonical rows are only untagged (`wire_id`/`idx` = None), never deleted (the cavity keeps its point); `parent_point_id` child rows are deleted. Which end = the wire's sibling graph, not proximity. Schematic: the wire keeps the stub-end location on its own new 2D point (the user wanted the cut at the shared point so a re-added terminal lands near it).
+- `Terminal.reconnect_free_wires` (after every terminal placement) matches unattached wire ends within `_RECONNECT_TOLERANCE` (0.5, my guess) of the cavity's wire point or the terminal's back point, then `add_wire`s them and deletes the stale free-end rows. Free-end "Add Terminal" (3D + pegboard wire menus, `Terminal.add_at_wire_end`) places a cavity-less terminal with its back face on the wire end; `terminal_handler.reposition_from_model` has a cavity-None branch. The schematic menu is deliberately not done.
+- Known gaps: moving the housing after a delete leaves cut ends behind; the deleted terminal's back-point row is orphaned; whether schematic terminal objects cope with `cavity is None` is unverified.

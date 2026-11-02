@@ -10,7 +10,7 @@ Offline scenario + random-case check of `harness_designer/handlers/bundle_wire_m
 
 #### compare_snapshots.py
 
-`main()`-driven script for diffing two snapshots of something (likely two `dep_trace.py` JSON dumps, or two memory/map states) — check its `--help`/source for the exact inputs it expects before relying on its output; no dedicated MEMORY.md entry describes its origin.
+Diffs two heap snapshots saved by the `"heap_snapshot"` diagnostics command (`harness_designer/memory_diagnostics.py`). Unlike the live `"growth"` command it works on snapshots taken arbitrarily far apart, even across a process restart, because each snapshot is a file under `Config.debug.memory.snapshot_dir`.
 
 #### cython_hint_audit.py
 
@@ -30,7 +30,7 @@ An AST-based codemod helper for fixing string/quoted type annotations (`_flatten
 
 #### query_memory.py
 
-A `main()`-driven script for querying/searching this project's MEMORY.md (or the auto-memory store) programmatically rather than by eye. No dedicated MEMORY.md entry describes its origin.
+Queries a running app's live memory diagnostics (`tracemalloc`, `objects`, `growth`, ...). Only works while the app is running with `Config.debug.memory.enabled` set to True (see `harness_designer/config.py` and `harness_designer/memory_diagnostics.py`); otherwise there is no listener to connect to.
 
 #### type_audit_report.py
 

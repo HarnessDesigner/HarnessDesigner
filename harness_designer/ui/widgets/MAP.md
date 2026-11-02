@@ -101,3 +101,25 @@ No imports found -- a plain empty package marker, no re-exports.
 #### resources/
 
 Pure image assets (no Python) used by widgets in this directory -- e.g. the up/down reorder button icons used by list-style controls. See `resources/MAP.md`.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Selection interaction convention
+For list-style widgets: `itemSelected(row)` fires on any selection or selection change; `itemUnselected()` fires only on the transition from something-selected to nothing-selected (including programmatic clears like filter/sort resets). Deselection must always be possible: click the selected row to toggle off, click empty area, or press Escape.
+
+**Why:** Qt delivers the first click of a double-click as a normal press, so naive click-to-deselect breaks double-click activation. The user wants: double-click on a selected row keeps it selected and activates it.
+
+**How to apply:** Defer the toggle-deselect on a single-shot timer, cancel it in `mouseDoubleClickEvent`. The wait adapts to the user's measured double-click speed — rolling 5-sample window, trim min/max, blend in stored average, persist via a `ConfigDB` config class (see `EditorDBConfig.double_click_average` and `EditorList` in `harness_designer/ui/editor_db/base.py` as the reference implementation). Reuse that pattern rather than reinventing it in other widgets.
+
+#### Empty-space right-click menus + free-standing terminals (built 2026-09-25, NOT yet run in the GUI)
+- New event `EVT_GL_EMPTY_RIGHT_CLICK` (declared in `gl/events.py`, `gl/__init__.py`, and as a Signal on `canvas_base.py`; every `EVT_GL_*` name must also be a Signal there), fired from `mouse_handler_base.on_right_up` only when nothing is under the cursor. Mainframe shows `ui/widgets/empty_space_menus.py`'s per-view menu and hands it the click Point.
+- "Place at the click": each `start_add` gained `mouse_pos` and, after arming its session, calls `add_handlers.base.click_at`, which replays MOVE + LEFT_UP at that Point through the view object's `handle_interaction` (a housing finishes at once; a wire drops its first point and stays armed). Reuse this rather than adding per-handler initial-position plumbing.
+- Free-standing (cavity-less) terminals: `objects_3d/terminal.py` `Terminal._create_free` (shared by `add_at_wire_end` and `add_free`); a 3D-placed one gets pegboard (x, 0, z) and vice versa, like housings. `PJTTerminal.sync_free_wire_points(view)` re-derives its crimp/back-face points (+ `parent_point_id` children) from position/angle, called from `_update_position`/`_update_angle` overrides; a no-op for seated terminals (cached `self.cavity` guard).
+- Schematic free terminal: the existing `objects_schematic/terminal.py` `Terminal` handles it (user's explicit wish; every view's terminal `__init__` must cope with `cavity is None`). `free: bool` (the facade passes `free or (project_load and db_obj.cavity is None)`) is the discriminator, because a cavity-less terminal built without `free` is just a hidden placement preview. Free = one shared flat ring VBO (`shapes/torus.py` `create_flat_ring_vbo`, scaled by `Config.editor_schematic.object_sizes.free_terminal.diameter`, colour `colors.free_terminal`), `wire_position2d` on the ring centre (reconnect matching only), each attached wire on its own 2D point at one of four ring-edge slots (`attach_wire_point`; a 5th shares), no `_detach_wire_2d` cut. No type-based glyphs (the terminals table has no type column) and no name label yet.
+- Project model: `Project.model_id`/`color_id` only, no position/scale/angle columns, so "Add/Edit Project Model" (`ui/dialogs/project_model_dialog.py`, `objects/project.py` `set_project_model`) sets file + colour but the model stays at the origin (`objects_3d/project_model.py` hardcodes the transform). Placing it at the click needs new columns in BOTH `harness_designer/database/create_database/` and the sibling repo's `builder\create_database\`; asked, not done.

@@ -2,7 +2,7 @@
 
 #### __init__.py
 
-Package init for the peg-board views — same one-file-per-part layout as `objects_3d`/`objects_schematic`. Already named `objects_pegboard` (with the underscore) in CODEBASE_MAP.md, so no rename drift here, but CODEBASE_MAP.md's coverage of this directory is thin (two files called out by name — `table.py` and `wire_highlight.py` — plus a generic "same layout" line). See `objects/MAP.md` for the circular-import trap and the rigid-child positioning convention, both of which apply here too. The "Peg Board / project-switch" memory-leak audit (MEMORY.md, "Per-table control widgets are class-level singletons") found the one non-self-pruning cache in an otherwise-clean teardown path during peg-board project-switch work — not specific to this directory's own code, but relevant context if debugging a peg-board-related memory leak.
+Package init for the peg-board views — same one-file-per-part layout as `objects_3d`/`objects_schematic`. Already named `objects_pegboard` (with the underscore) in CODEBASE_MAP.md, so no rename drift here, but CODEBASE_MAP.md's coverage of this directory is thin (two files called out by name — `table.py` and `wire_highlight.py` — plus a generic "same layout" line). See `objects/MAP.md` for the circular-import trap and the rigid-child positioning convention, both of which apply here too. The "Peg Board / project-switch" memory-leak audit (`harness_designer/objects/MAP.md` DESIGN NOTES, "Per-table control widgets are class-level singletons") found the one non-self-pruning cache in an otherwise-clean teardown path during peg-board project-switch work — not specific to this directory's own code, but relevant context if debugging a peg-board-related memory leak.
 
 #### base_pegboard.py
 
@@ -119,3 +119,15 @@ Part of the wire family.
 #### wire_service_loop.py
 
 Part of the wire family.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+#### Peg board: one table per transition + selected-wire highlight (built 2026-09-29, NOT yet run in the GUI)
+- **One table per transition, none per branch** (user's call): `PJTTransitionBranch` lost `TablePositionPegMixin`/`TableHiddenMixin`, its per-branch `pjt_pegboard_tables` row on insert, its `delete`/`name` overrides; `PJTPegboardTable.anchor` only looks at housing/bundle/transition. `PJTTransition.wires` is now de-duplicated (a wire entering one branch and leaving another is on two branches' lists but must be one row in the single table). The `table_point_peg_id`/`table_hidden` columns on `pjt_transition_branches` are left in the schema, unused (schema lives in two repos).
+- **Branch column** (transition tables only): `COLUMN_DEFS[33]` `'Branch'`, `transition_only`; lists the `branch_id`s of THIS transition's branches the wire is routed through, from `pjt_wire_paths`. Transition tables default to `DEFAULT_VISIBLE_COLUMNS_TRANSITION`; a table whose column choice was already saved keeps it (add Branch via the header right-click picker).
+- **Wire highlight**: selecting a wire row in ANY wire table (housing/bundle/transition) lights everything it touches blue -- see `CODEBASE_MAP.md` `objects_pegboard/wire_highlight.py`. Rules from the user: never the whole transition, only the branches the wire goes through; wire if visible in the peg board else its bundle; housing if the terminal is seated, else the terminal.
+- **Source of truth for "which bundle/branch does a wire go through" is `pjt_wire_paths`** (`bundle_id`/`transition_branch_id` tags; user's decision 2026-09-29). **The code that WRITES those tags does not exist yet -- the user is writing it soon.** Until then `PJTTransitionBranch.wires`, the transition table's rows, the Branch column and the highlight's bundle/branch part are all empty; only the wire/housing/terminal part works. Don't "fix" this by falling back to the concentric tables (no fallback paths).

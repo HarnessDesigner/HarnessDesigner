@@ -185,3 +185,22 @@ IP rating tables — see `ip/MAP.md`.
 #### mixins/
 
 Column mixins shared across the part-entity classes above — see `mixins/MAP.md`. Check these before assuming a property/method is missing: DB classes here commonly inherit from `mixins/` (e.g. `DimensionMixin`, `NameMixin`, `CompatTerminalsMixin`) rather than defining a property directly — grep the mixin files before concluding something doesn't exist, and ask before substituting individual-column setters for a mixin-provided composite setter (e.g. don't replace `db_obj.size = (w, h, l)`, one UPDATE via `DimensionMixin.size`, with three individual column setters).
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### The app no longer self-seeds catalog/lookup tables: the downloaded DB arrives pre-built (2026-10-20)
+`sqlite_connector/connector.py`'s `connect()` downloads one pre-built, pre-seeded `harness_designer.db` (the `harness_designer_database.zip` release asset) on first run, so rows already exist. The old per-table JSON seeding (`_add_table_to_db`'s `self._con.db_data.open(splash)` + `<module>.add_records(...)`, the `_load_database` overrides that only did that, `ConnectorBase.db_data`, and `db_connectors/db_data.py`'s `DBData`) was dead, broken code (`AttributeError: 'SQLConnector' object has no attribute 'db_data'`) and was removed. Do not reintroduce a `db_data`-style call or resurrect `db_data.py`. If a table needs real default/seed rows, that is a full-DB-release concern (the sibling `harness_designer_database` repo), not `_add_table_to_db`'s.
+- **Kept on the user's instruction:** `<module>.table.add_to_db(self)` (table creation) and `_table_needs_update()`/`_update_table_in_db()` (adding missing columns) in every `_add_table_to_db`, so a table or column missing from an older downloaded DB is still created/migrated in place. `wire_types` therefore gets created empty on an old DB (its 3-row self-seed is gone).
+- **`add_records` in `database/create_database/*.py`:** the user had every body replaced by `raise NotImplementedError` (2026-10-26, "actually unused"), keeping signature, `@_check_types.do` and docstring (32 files). Five were NOT gutted because `global_db/` still calls them from `_add_table_to_db`: `settings.add_records` (creates the model/image/cad/datasheet folders and inserts the four `*_path` setting rows: real first-run work) and `ip_fluids`/`ip_solids`/`ip_supps`/`ip_ratings.add_records` (via `global_db/ip/`). Gutting those is a pending question for the user. The other seeding helpers (`add_boots`, `add_housings`, `add_wire_type`, ...) are untouched.
+
+#### Global-DB lookup references use an all-zero NIL id for "not set" (added 2026-09-24)
+`NOT NULL` FK columns in `create_database/*` (`direction_id`, `gender_id`, `family_id`, `series_id`, `cavity_lock_id`, `mfg_id`, `color_id`, ...) default to `X'00000000000000000000000000000000'` (`id_generator.NIL_UUID`) when the source had no value, and (in older DBs) the lookup table has no row for it: e.g. 3,400 of 46,665 housings had a NIL `direction_id`, 8,466 a NIL `family_id`, 40,712 a NIL `cavity_lock_id`. Reading `.name` off such an entry used to crash with `IndexError` in `NameMixin.name`.
+- **Convention:** the reference-mixin property returns `None` for a NIL id (`mixins/base.py` `NIL_ID`) and the matching `*Control.set_obj` shows blanks. Done for `direction`, `gender`, `cavity_lock`, `manufacturer`, `min_temp`/`max_temp`. Precedent: `global_db/wire.py` stripe_color.
+- **Reversed for `family` and `series` (user, 2026-10-23: "series should not be returning None. neither should family"):** `FamilyMixin.family`/`SeriesMixin.series` return the real nil-id row ("No Family"/"No Series", which exist in the downloaded DB), so readers like the 3D terminal's `self._part.series.name.lower()` just work. `family_id`/`series_id` map a column that reads back `None` to `NIL_ID` ("None is different than NIL") and `family`/`series` read through them. Their controls test `== NIL_ID` instead of `is None` and stay disabled when unset, otherwise editing the name/description would rewrite the shared default row.
+- Not yet converted (same pattern, not hit yet): `material`, `protection`, `color`, and the `cpa_lock_type`/`ip_rating`/`stripe_color`-style references outside `mixins/`.

@@ -255,3 +255,20 @@ Schema, default rows ("Wire" is the nil-UUID default row, plus "Coaxial"/"Ribbon
 #### wires.py
 
 DDL/seed for the `wires` global-catalog table; has the `wire_type_id` column matching `wire_types.py` and `add_wire(wire_type=...)`. Its project table `pjt_wires` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+#### `database/create_database/` function layout (user, 2026-10-26; applied to that folder only)
+`accessories.py` is the reference. Every function in the folder follows these rules (a one-off script did the conversion; rerun-safe, it re-flows from the parsed parameters):
+- Signature wrapping: pack parameters onto lines aligned just after the `(`, up to 83 columns (the user said "as close to 80 as possible, a few over is fine"; 83 matched the reference, 86 did not). A trailing `# NOQA` does not count toward the width.
+- If a parameter (or the last parameter plus `) -> ret:`) cannot fit when aligned after the `(`, switch to one parameter per line at a 4-space indent, no trailing comma, and `) -> ret:` on its own line (same shape as `add_handlers/editor_3d/seal.py`). Two functions use it: `manufacturers.inspect_mfg_fam_series`, `transition_branches.add_transition_branch`.
+- A signature that spans several lines is followed by one blank line, before the docstring (or before the body when there is no docstring). A one-line signature has none.
+- Docstring: `"""` alone on its first and last line, one blank line after it. `:param x:` and its `:type x:` are a pair; one blank line between pairs and before `:returns:`/`:rtype:`. `:type`/`:rtype:` are the signature's annotation text with the quotes removed (`_connector_base.ConnectorBase`, `str | None`). Hand-written `:type` text is kept; `Return value. UNKNOWN details.` descriptions are still there (43 of them) because only the types were asked for.
+- `from ... import splash as _splash` is now `from ... import splash_screen as _splash_screen`, and `"_splash.Splash"` is `"_splash_screen.Splash"`.
+- `add_records` that is dead: body is `raise NotImplementedError` and every line of its signature ends in `# NOQA` (PyCharm's unused-parameter inspection).
+- Table definitions (`_con.SQLTable(...)` and its `*Field(...)` calls): continuation lines line up with the character after the innermost open bracket (the `references=` line and the `SQLFieldReference` arguments below it each needed one more space).
+- NOT part of the rules, though the reference changed them by hand: re-wrapping long `con.execute(...)` calls in bodies, and removing two stray blank lines inside the `accessories` table. Function bodies were not reflowed.

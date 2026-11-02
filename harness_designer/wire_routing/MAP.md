@@ -72,7 +72,7 @@ performance-critical path for dragging a housing with many wires attached. Route
 housing, plus each batch wire as it settles — via `paint_pack`-style tagging, and a step not
 exactly one lane-spacing beside one of those costs an extra 1/16 of its own length, which is what
 makes a re-routed wire hug its bundle where it can rather than taking an equally-short but
-visually scattered path (see MEMORY.md's "Wire bundle packing requirements" entry — concentric
+visually scattered path (see `harness_designer/ui/concentric_section/MAP.md` DESIGN NOTES's "Wire bundle packing requirements" entry — concentric
 bundle packing itself is a separate, not-yet-built solver; this is just the schematic router's own
 lane-hugging heuristic). `free_segment_blocked()` checks whether a hand-placed segment at any
 angle (not grid-constrained like `route()`) cuts through a housing/splice/note or runs parallel

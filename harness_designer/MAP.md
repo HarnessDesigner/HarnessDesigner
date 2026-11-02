@@ -56,7 +56,7 @@ OCP (OpenCascade / `cadquery-ocp`) text-to-mesh pipeline: `build_text_mesh(text,
 
 Image/model/datasheet file I/O helpers (download, zip/unzip, save/remove) and their exception hierarchy — `ResourceException` base, with `RequestsError`, `ImageReadError`, `SaveFileError`, `RemoveFileError`, `FileTypeNotSupportedError`, `ExistingFileNotFoundError`, etc. as concrete failure modes callers can catch individually.
 
-#### splash.py
+#### splash_screen.py
 
 `Splash` — the startup splash screen (`_SplashSignals` carries cross-thread updates onto the GUI thread). `wait()`/`Show()`/`Destroy()`/`SetText()`/`flush()` plus a progress-bar API (`start_progress`/`set_progress`/`end_progress_bar`) driven from the background loading thread `app.py` starts.
 
@@ -126,6 +126,10 @@ See `models/MAP.md`.
 
 Scene-object wrapper classes and their per-view (3D/schematic/pegboard) renderable counterparts. See `objects/MAP.md`.
 
+#### pegboard_print/
+
+True-scale, tiled printing of the peg board view with alignment marks on every sheet: page/tile layout maths, mark drawing, the per-tile GL renderer and the `QPrinter` job. See `pegboard_print/MAP.md`.
+
 #### plugins/
 
 The plugin registration framework, including the provider-agnostic AI plugin contract. See `plugins/MAP.md`.
@@ -169,3 +173,34 @@ Stateless utility helpers (paths, conversions, mesh/geometry math). See `utils/M
 #### wire_routing/
 
 Orthogonal (H/V-only) auto-routing for the 2D schematic editor's wires. See `wire_routing/MAP.md`.
+
+## DESIGN NOTES
+
+Lasting rules and design notes moved here from the repo-root `MEMORY.md` on 2026-11-01 and trimmed the
+same day: bug-fix narratives were dropped (git history has them), keeping only what still constrains
+the code. Point-in-time -- verify claims against the current code before relying on them.
+
+
+
+#### Import-time code must not touch shared state: PyCharm's skeleton generator imports every compiled module (2026-10-21)
+PyCharm's skeleton generator (`generator3/core.py`, read in PyCharm CE 2024.1.3, which the user is staying on) runs `__import__` on every `.pyd`/`.so` under the interpreter's paths in throwaway worker processes named `Skeleton Generator Worker`. An old pip-installed, Cython-compiled copy of this package in `C:\Python3.11.14\Lib\site-packages` got imported, and because the logger redirects stderr at import, PyCharm's own tracebacks (a harmless `FileExistsError` race) landed in the app's log. PyCharm has no setting to turn this off and the user chose not to edit its helpers.
+- **Guards (user's design):** the name is one constant, `SKELETON_WORKER_NAME` in `utils/paths.py` (re-exported as `utils.SKELETON_WORKER_NAME`), compared inline against `multiprocessing.current_process().name` in the module that owns the side effect (a constant, not a helper function or new module; a new `skeleton_generator.py` was rejected). `logger/log_handler.py` `Log.__init__` uses `NullLogHandler` and skips the stream redirect; `config.py` `_ConfigDB.open()` connects to an in-memory SQLite DB instead of `config.db` (import-time writes such as the MySQL connector's `Config.client_flags` still need somewhere to land); `utils/paths.py` `get_appdata()` skips its `os.mkdir`.
+- **Audit result, don't redo:** all other import-time code stays inside the process (declarative `SQLTable`/`UUIDField` construction, regex/`ord` tables, the daemon `OCPThreadWorker`, `CullingThreadPool`, `ImageLoader`, Qt `setAttribute` and `QSG_RHI_BACKEND` in `app.py`, `PYTHON_KEYRING_BACKEND` in `process/manager.py`, a ctypes signature in `gpu/_dxgi_win.py`).
+- **Apply:** new import-time code that creates files/folders, opens a database, installs a stream or exception hook, or touches the credential store needs the same inline guard. Scratch experiments that import these modules must sandbox `USERPROFILE`/`HOME`, pre-create `appdata/roaming`, and run on `C:\Python3.11.14\python.exe` (the `python` on PATH is `C:\Python310`, whose numpy/pandas don't match).
+
+#### check_types.py runtime annotation check: rules (2026-07-30, rewritten 2026-10-22)
+`check_types.do` is a runtime check of annotations that records only the calls that do not fit into `type_audit.sqlite3`; `python diagnostics/type_audit_report.py` lists them (see this directory's `check_types.py` entry and `diagnostics/MAP.md`). The old `isinstance` checker was dead code behind an unconditional `return func` and was deleted (commit `dfe1066`). It exists because Cython-compiled builds only reveal a bad type hint when that exact path runs after a full recompile (the user did that ~15 times in a row); a plain-Python check collapses the loop to run, read, fix. It is applied to 8,571 of 8,737 functions (innermost decorator, directly above `def`, below `@staticmethod`/`@classmethod`/`@property`), imported as `from <N dots> import check_types as _check_types` (dots = subdirectory depth + 1).
+- **Typing rule:** `do` and `debug.logfunc` carry the ParamSpec signature `def f(func: Callable[_P, _R]) -> Callable[_P, _R]` and end in `cast(Callable[_P, _R], _instrument(func))`. A bare `-> Callable` made mypy/pyright/pyrefly treat every decorated function as untyped (no call-site argument checked, returns `Any`). **Everything else in `check_types.py` stays unannotated; do not add hints there**, and building the replacement function dynamically (`exec`, `types.FunctionType`, `functools.wraps`) is invisible to checkers. `debug.logfunc` is built the same way (typed trampoline over an unannotated `_logfunc`). **Never put the decorator on a function that is itself used as a decorator, or on one nested inside such a function.** The recorder only sees paths that actually ran; it complements the static tools.
+- **Deliberately not decorated:** `check_types.py` itself, the `.pyx` files (`gl/culling`, `ray_tracing/bvh.pyx`), the whole `logger/` package (a check_types error is reported through logging; decorating it deadlocked `LogHandler.flush()`'s worker-thread barrier or blew the recursion limit) and the whole `process/` package (the user: "I know all of that works properly"; a `multiprocessing.Lock`-typed parameter there did crash the old checker).
+- **Annotation conventions the checker follows:** `list[X]` and bare `tuple[X]` (single type arg) mean any length, every item `X` (this codebase's convention, from a PyCharm-generated stub); multi-arg `list[...]`/`tuple[...]` document a fixed shape (e.g. `list[float, float, float]`). A union member that cannot be resolved (typically a `TYPE_CHECKING`-only forward ref, the standard way to dodge a circular import) is taken at face value, so that half is never validated; parsing the module's `TYPE_CHECKING` block to import the real module at call time was proposed and not pursued, so do not build it unless asked. Two classes sharing a custom metaclass are interchangeable when both are class objects (for `Config`'s `ConfigDB` sections). Annotation shapes still unhandled by the old checker: `typing.Literal[...]`, a bare `TypeVar`.
+- **Real annotation bugs it caught (expect more):** `multiprocessing.Lock` (a factory function) instead of `multiprocessing.synchronize.Lock`; an sqlite `execute`/`executemany` wrapper returning `Generator[...]` copied from `iterdump()`; and `Quaternion.w/x/y/z` setters annotated `value: [float, _d]` (a list object, not a union). About half the rollout crashes were genuine hint bugs, so check the annotation before assuming a checker gap, and ask before extending the checker.
+- **Diagnostics inside the decorator:** write via `sys.__stdout__.write(...)`, never bare `print()` (stdout may be redirected through app machinery that is itself decorated, and the wrapper would recurse).
+
+#### CallAfter vs CallLater
+`CallAfter` (`harness_designer/app.py`) emits a Qt signal; called from the main thread, sender/receiver share thread affinity so Qt uses a direct connection and the function fires synchronously — no deferral.
+
+`CallLater` (`harness_designer/app.py`) uses `QTimer.singleShot(0, ...)`, which always defers until the event loop regains control after the current handler returns.
+
+**Why:** Confirmed fix for the object-editor loading sequence in the 3D GL editor — the GL canvas needs to repaint to show selection state, and the busy cursor needs to be set, before heavy DB queries run. `CallLater` wrapping the object-editor load achieves this.
+
+**How to apply:** Use `CallLater` when deferring work that must happen after the current call stack unwinds (e.g. after a selection signal has propagated and the GL canvas has painted). Use `CallAfter` only for cross-thread dispatch from background threads.
