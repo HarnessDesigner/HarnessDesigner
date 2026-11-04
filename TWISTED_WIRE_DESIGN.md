@@ -41,10 +41,31 @@ BUILT (compiled and, for the builder, test-built; the app was NOT launched, no t
   (one entry per CABLE: shared `common` fields plus the conductors in order, expanded by the builder to
   215,600 rows for 43,120 cables). `Universal/wires.json` was regenerated (a strict superset of the old file:
   all 68,250 parts kept, 8,750 new; only `mfg` TE -> TE Connectivity and the colour changed).
-- Conductor colours by position (white, blue, orange, green, red, black, yellow, violet) are NEMA WC 27500 Table A-1
-  as quoted in Wiremasters' guide (secondary source, solid colours assumed); no conductor has a stripe.
+- M27500 numbering and colours, corrected (2026-11-03; the first version had three errors):
+  - the trailing `T` meant "twisted" but M27500 has no twist code, so it is gone, and so are the untwisted
+    twins: every cable of 2+ conductors is one part number with a twist of 1 per inch (a seller's M27500-20SB2U00
+    listing: "1 twist per inch as per MIL standards"; this replaced a table of per-AWG guesses; one conductor has
+    no twist);
+  - the colour-code character after `M27500` sets the conductor colours: `-` (default) is WHITE with a stripe from
+    the second conductor on (blue, orange, green, red, black, yellow, violet), `A` is the same sequence in
+    SOLID colours and is generated as `M27500A...` (source: Wiremasters' guide, secondary; the checked example is
+    M27500-20SB2U00 = 2 x M22759/32, white + white/blue, which now matches);
+  - not done: 9-15 conductors (the guide says 1-15 are valid; the cable-size table stops at 8) and the unshielded,
+    unjacketed 1-conductor form (valid per the guide but it duplicates the plain wire).
+- Colour-combination twisted pairs (automotive style, 20-28 AWG, M22759/32 and M22759/18, tin-plated copper, no
+  shield and no jacket so `color` is "None", 1 twist per inch; 44,550 parts, 4,950 per sheet and size). There is no MIL
+  number for an arbitrary colour pair, so the numbers copy how sellers number them (the user supplied the examples):
+  both solid `M22759/32-24-5/4-1TPI`; any striped `M22759/18-22-9-9/6` (`base/stripe`, MIL-STD-681 digits). A seller
+  example at 18 AWG (`M22759/32-18-9-9/6`, 2 TPI) is not generated: the sizes asked for were 20-28, and the pairs
+  all use 1 TPI. These numbers are provisional until the user has checked more sellers.
+- Splitting: the generator writes `Universal/wires/<model>.json` (one file per wire model: a sheet's own wires
+  `M22759-32`, the cables built on it `M27500-M22759-32`, the pairs `TP-M22759-32-22AWG`) and the matching
+  `Universal/wire_conductors/<model>.json`; the builder reads every file of both folders in sorted order. The old
+  single `Universal/wires.json` and `wire_conductors.json` are deleted. Largest file 4.3 MB.
 
 NOT DONE:
+- The row id ledger keeps the numbers of part numbers that no longer exist (they are never reused, and the first
+  versions of the M27500 and pair numbers are in it), which is harmless.
 - Slash sheets /34, /35, /41, /42, /45, /46 (also /1, /2, /14, /15, which are in MIL-W-22759E's similarity
   groups): no source with the full table was reachable (Glenair returned 403 for them; the distributor pages lack the
   conductor diameter). `MIL-W-22759E.PDF` (the base spec, 43 pages, a bad OCR) holds no per-AWG tables, only the list

@@ -705,17 +705,15 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, strands=value)
         self._populate('strands')
 
-    _stored_tpi: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_tpi: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
     @_check_types.do
-    def tpi(self) -> int:
-        """Return the tpi.
+    def tpi(self) -> float:
+        """Return the twists (turns) per inch of the wire's conductors.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :returns: Twists per inch. A lay length in mm is ``25.4 / tpi``.
+        :rtype: float
         """
         if self._stored_tpi is DefaultStoredValue:
             self._stored_tpi = self._table.select('tpi', id=self._db_id)[0][0]
@@ -724,13 +722,11 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @tpi.setter
     @_check_types.do
-    def tpi(self, value: int) -> None:
-        """Set the tpi.
+    def tpi(self, value: float) -> None:
+        """Set the twists (turns) per inch of the wire's conductors.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
+        :param value: Twists per inch.
+        :type value: float
         """
         self._stored_tpi = value
         self._table.update(self._db_id, tpi=value)
