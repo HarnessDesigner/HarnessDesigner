@@ -15,6 +15,14 @@ table can show which branch each wire goes through:
 - the wire's end parts: the housing when the terminal is seated in one,
   the terminal itself when it isn't
 
+- every member of the wire's circuit, in all three editors, through
+  ``Circuit.highlight`` (applied first, so the blue above wins on the objects
+  both touch)
+
+The selection can start in a wire table or on a cable of a concentric section
+widget; either way the wire is selected in every wire table and every section
+of the editor.
+
 Bundle and branch membership is read from ``pjt_wire_paths`` (the
 ``bundle_id``/``transition_branch_id`` tags on a wire's route rows), the
 same source ``PJTBundle``/``PJTTransitionBranch`` use to list a table's
@@ -33,11 +41,13 @@ from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
+from . import wire_drop as _wire_drop
 from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
     from .. import object_base as _object_base
+    from .. import circuit as _circuit
     from ...ui import editor_pegboard as _editor_pegboard
     from ...database import project_db as _project_db
     from . import base_pegboard as _base_pegboard
@@ -60,6 +70,7 @@ class WireHighlight:
         Attr('_owner', severity=2),
         Attr('_objects', severity=2),
         Attr('_transitions', severity=2),
+        Attr('_circuit', severity=2),
     )
 
     @_check_types.do
@@ -73,6 +84,7 @@ class WireHighlight:
         self._owner: _Union["_base_pegboard.BasePegboard", None] = None
         self._objects: list["_base_pegboard.BasePegboard"] = []
         self._transitions: list["_transition.Transition"] = []
+        self._circuit: _Union["_circuit.Circuit", None] = None
 
     @_check_types.do
     def show(self, owner: "_base_pegboard.BasePegboard", ptables: "_project_db.PJTTables", wire_id: bytes) -> None:
@@ -92,9 +104,13 @@ class WireHighlight:
 
         material = _materials.Glowing(_color.Color(*Config.wire_highlight_color))
 
+        # the circuit goes first: an object holds one override material, so the blue lit below wins over the
+        # circuit material on the wire, bundle and end parts
+        self._light_circuit(ptables, wire_id)
         self._light_wire_or_bundles(ptables, wire_id, material)
         self._light_branches(ptables, wire_id, material)
         self._light_ends(ptables, wire_id, material)
+        self._select_in_sections(wire_id)
 
         self._editor.Refresh()
 
@@ -108,8 +124,24 @@ class WireHighlight:
         if owner is not self._owner:
             return
 
+        self.clear_all()
+
+    @_check_types.do
+    def clear_all(self) -> None:
+        """Remove the highlight whoever made it -- for a selection that was
+        cleared somewhere that is not the owner (clicking off the cable in a
+        concentric section widget while a wire table made the highlight)."""
         self._undo()
+        self._select_in_sections(None)
         self._editor.Refresh()
+
+    @_check_types.do
+    def _select_in_sections(self, wire_id: _Union[bytes, None]) -> None:
+        """Select the wire's cable in every concentric section widget of this
+        editor (and clear their selection for ``None``)."""
+        for section in _wire_drop.targets():
+            if section.pegboard is self._editor:
+                section.select_wire(wire_id)
 
     @_check_types.do
     def _undo(self) -> None:
@@ -124,6 +156,29 @@ class WireHighlight:
         self._objects = []
         self._transitions = []
         self._owner = None
+
+        if self._circuit is not None:
+            if not self._circuit._deleted:  # NOQA
+                # a circuit that is also selected (object browser, circuit editor) keeps its own highlight
+                self._circuit.highlight(self._circuit.is_selected)
+
+            self._circuit = None
+
+    @_check_types.do
+    def _light_circuit(self, ptables: "_project_db.PJTTables", wire_id: bytes) -> None:
+        """Give every member of the wire's circuit the circuit material in all
+        three editors (``Circuit.highlight``) -- a wire with no circuit lights
+        nothing here."""
+        circuit_row = ptables.pjt_wires_table[wire_id].circuit
+        if circuit_row is None:
+            return
+
+        circuit = circuit_row.get_object()
+        if circuit is None:
+            return
+
+        circuit.highlight(True)
+        self._circuit = circuit
 
     @_check_types.do
     def _add_object(self, facade: _Union["_object_base.ObjectBase", None],

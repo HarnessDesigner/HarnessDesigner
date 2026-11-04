@@ -29,6 +29,7 @@ from ...objects import wire_layout as _wire_layout
 from ...objects import bundle_layout as _bundle_layout
 from ...objects import wire_service_loop as _wire_service_loop
 from ...objects import pegboard_table as _pegboard_table
+from ...objects import pegboard_section as _pegboard_section
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
@@ -715,8 +716,11 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
                        # for its own different "doesn't fit this single
                        # position+rotation toolbar model" reason -- its
                        # position is still user-draggable directly, just
-                       # not through this numeric entry.
-                       _pegboard_table.PegboardTable)
+                       # not through this numeric entry. A peg-board
+                       # section widget is the same: its row has a
+                       # position_pegboard but no angle_pegboard.
+                       _pegboard_table.PegboardTable,
+                       _pegboard_section.PegboardSection)
         ):
 
             for act in (self.rotate_y, self.move_x, self.move_y, self.move_z):

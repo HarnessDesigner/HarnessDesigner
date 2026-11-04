@@ -64,6 +64,10 @@ Unused.
 
 `DeratingsTable` and `Derating` for the `deratings` table (NEW 2026-10-24; schema in `create_database/deratings.py`). `Derating` is a plain `NamedTuple` row (`id`, `idx`, the three part ids, `ambient_temp_c`, `conductor_count`, `max_amps`, `derating_factor`), not a cached row wrapper. THIS TABLE CLASS is the cache: `for_part(part_table_name, part_id)` reads a part's whole derating table in ONE query (`ORDER BY idx`) the first time and serves it from memory after (a part with no table is remembered as having none). The terminals, wires and splices tables call it, through `DeratingMixin.load_deratings()`, from their own `__getitem__` as they load a part, so the table is there before anything asks. `insert` (refuses a row that does not belong to exactly one part, or has neither `max_amps` nor `derating_factor`) and `forget` drop a part's entry; `__iter__`/`__getitem__` read straight from the database. The schema module is imported late (`_schema()`), like the other global tables' schema modules, because importing it at the top pulls `create_database.wires` into the import chain before an existing cycle there can resolve. Registered in `GLBTables` right after the wires table (its foreign keys point at terminals, wires and splices) as `deratings_table`.
 
+#### wire_conductor.py
+
+`WireConductorsTable` and `WireConductor` for the `wire_conductors` table (NEW 2026-11-03; schema in `create_database/wire_conductors.py`), modelled on `derating.py`. `WireConductor` is a plain `NamedTuple` row (ids, `idx`, colour / stripe / plating / insulation ids, the size columns, `strands`, `od_mm`, `resistance_1km`, and a `has_stripe` property), not a cached row wrapper. THIS TABLE CLASS is the cache: `for_wire(wire_id)` reads a wire's whole set of conductors in ONE query and remembers it (empty for a single-conductor wire); `WiresTable.__getitem__` calls `wire.load_conductors()` so they are already here when something asks `wire.conductors`. `insert(...)` adds one conductor and drops that wire's cached set. The catalog itself is built by the sibling `harness_designer_database` repo. Registered in `bases.py` as `GLBTables.wire_conductors_table`, after `WiresTable`.
+
 #### direction.py
 
 `Direction` row/table class for the `directions` global lookup table — converted to the NIL-id → `None` convention (see `housing.py`'s paragraph for the full convention: a `NOT NULL` lookup FK defaults to an all-zero NIL id when seed data had none, and the reference-mixin property returns `None` rather than crashing).
@@ -166,7 +170,7 @@ Row/table class backing a settings entity (distinct from `database/config_db.py`
 
 #### wire.py
 
-`Wire` row/table class for the `wires` global-catalog table. Its `stripe_color` column is the precedent for the NIL-id → `None` convention used elsewhere (a reference "outside `mixins/`" that already returns `None` rather than crashing). Has `DeratingMixin`; the table's `__getitem__` calls `load_deratings()` on the part it hands back, so the part's manufacturer derating table (`deratings`) is read with the part.
+`Wire` row/table class for the `wires` global-catalog table. Its `stripe_color` column is the precedent for the NIL-id → `None` convention used elsewhere (a reference "outside `mixins/`" that already returns `None` rather than crashing). Has `DeratingMixin`; the table's `__getitem__` calls `load_deratings()` on the part it hands back, so the part's manufacturer derating table (`deratings`) is read with the part. `Wire` also mixes in `WireConductorMixin` (`wire.conductors`); `Wire.stripe_color` returns `None` for the "no color" id (`id_generator.NO_COLOR_UUID`), NOT for the nil id, which is Black (2026-11-03).
 
 #### wire_marker.py
 

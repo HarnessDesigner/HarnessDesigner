@@ -50,6 +50,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
+    from ...database import project_db as _project_db
     from ...database.project_db.pjt_wire import PJTWiresTable
     from ...database.project_db.pjt_pegboard_table import PJTPegboardTable
 
@@ -671,8 +672,16 @@ class WireTable(_base.EditorList):
         nil_uuid = _id_generator.NIL_UUID.bytes
         colors_table = self.table.db.global_db.colors_table
 
-        primary_color = None if color_id is None or color_id == nil_uuid else colors_table[color_id]
-        stripe_color = None if stripe_color_id is None or stripe_color_id == nil_uuid else colors_table[stripe_color_id]
+        # the nil id is Black (colour code 0); a wire with no jacket / no stripe has the "no color" id
+        no_color = _id_generator.NO_COLOR_UUID.bytes
+
+        primary_color = None
+        if color_id is not None and color_id != no_color:
+            primary_color = colors_table[color_id]
+
+        stripe_color = None
+        if stripe_color_id is not None and stripe_color_id != no_color:
+            stripe_color = colors_table[stripe_color_id]
 
         if core_material_id is None or core_material_id == nil_uuid:
             conductor_color = None
@@ -1080,3 +1089,46 @@ class WireTable(_base.EditorList):
             self._syncing_selection = False
 
         self.wire_selection_synced.emit()
+
+    @_check_types.do
+    def _clear_wire(self) -> None:
+        """Clear this table's selection without telling anyone (guarded like
+        :meth:`_select_wire`) and ask the owning Table to repaint."""
+        if self.selected is None:
+            return
+
+        self._syncing_selection = True
+        try:
+            self.clearSelection()
+        finally:
+            self._syncing_selection = False
+
+        self.wire_selection_synced.emit()
+
+    @classmethod
+    @_check_types.do
+    def mirror_selection(cls, db: "_project_db.PJTTables", wire_id: bytes | None) -> None:
+        """Select *wire_id* in every live table of the project *db* that lists
+        it -- and clear the selection of every one that does not -- or clear
+        them all for ``None``. Used when the wire was picked somewhere that is
+        not a wire table (a cable in a concentric section widget), so no table
+        has made the selection itself. Nothing is emitted by the tables
+        themselves, so this cannot loop back into the wire highlight.
+
+        :param db: The project database the tables belong to.
+        :type db: :class:`_project_db.PJTTables`
+        :param wire_id: The ``pjt_wires`` row id, or ``None`` for no wire.
+        :type wire_id: bytes | None
+        """
+        for other in list(cls._live_tables):
+            if other.table.db is not db:
+                continue
+
+            try:
+                if wire_id is None or other._row_for_wire(wire_id) is None:
+                    other._clear_wire()
+                else:
+                    other._select_wire(wire_id)
+            except RuntimeError:
+                # underlying C++ widget already destroyed
+                cls._live_tables.discard(other)

@@ -272,8 +272,19 @@ def generate_global_row_id(connector: "_connector_base.ConnectorBase") -> uuid.U
         timestamp_ns = _local_clock.next_timestamp()
         row_bytes = pack_global_row_id(timestamp_ns, _LOCAL_USER_ID)
 
+    if unpack_timestamp(row_bytes) < CATALOG_ID_CEILING:
+        raise ValueError('the clock is before 1970-01-01 00:18, so a new row id would fall in the range reserved '
+                         'for the shared catalog sequential ids')
+
     return uuid.UUID(bytes=row_bytes)
 
+
+# Two kinds of global row id never collide, by construction. A row the shared catalog supplies (the
+# ``harness_designer_database`` repo builds it) gets a SEQUENTIAL number in the id's timestamp field, starting at 1 and
+# kept far below CATALOG_ID_CEILING; a row the user adds gets the CLOCK (``time.time_ns()``, about 1.8e18), which is
+# always above it. generate_global_row_id refuses an id at or below the ceiling, and the catalog builder refuses a
+# number at or above it, so the two ranges cannot meet. Keep the value identical in the builder's id_generator.py.
+CATALOG_ID_CEILING = 1 << 40
 
 # The "unassigned" sentinel for a UUID foreign key -- matches every migrated
 # table's own `default="X'00000000000000000000000000000000'"` DDL default
@@ -282,3 +293,13 @@ def generate_global_row_id(connector: "_connector_base.ConnectorBase") -> uuid.U
 # randomly generated one, so an FK column left at its schema default already
 # points at the correct row with no lookup needed.
 NIL_UUID = uuid.UUID(bytes=b'\x00' * 16)
+
+
+# The "no color" row of the ``colors`` table: a wire with no outer jacket, a conductor with no stripe. It is a
+# SEPARATE row from the nil row because the nil row is "Black" (colour code 0 of MIL-STD-681), so nil cannot also
+# mean "no color". Its id is hard-coded and must never change. It follows the row-id layout rather than
+# breaking it: a global row (project 0), the current format version, user 0, and a timestamp of 1 -- a generated id
+# carries ``time.time_ns()`` there, so it can never be issued to a real row. The sibling
+# ``harness_designer_database`` repo's ``builder/id_generator.py`` holds the same value; keep the two identical.
+# Hex: 00000000000000000000010000010000. See TWISTED_WIRE_DESIGN.md.
+NO_COLOR_UUID = uuid.UUID(bytes=pack_global_row_id(1, _LOCAL_USER_ID))

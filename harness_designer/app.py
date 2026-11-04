@@ -210,6 +210,7 @@ class App(QtCore.QObject):
         # Set up logger
         self.logger = logger
         logger.startup()
+        self._log_gpu_info()
 
         # Capture Qt's own native warnings/errors (e.g. "Cannot make
         # QOpenGLContext current in a different thread") into the log --
@@ -235,6 +236,48 @@ class App(QtCore.QObject):
         # Kick off the background loading thread once the event loop is running
         self._start_loading_thread()
         return True
+
+    @_check_types.do
+    def _log_gpu_info(self) -> None:
+        """Write the detected GPU's driver, VRAM, clock, PCIe and fan details to the log.
+
+        :meth:`.gpu.GPU.detect` finds the vendor from ``glGetString``, which only answers on a thread with an
+        OpenGL context current, so a throwaway offscreen context (the same way ``gl.info`` does) is made current
+        for the call. Must run on the GUI thread, after the default surface format is set. A failure here is
+        logged and never stops startup.
+        """
+        try:
+            from .gpu import GPU
+            from .gpu import gpu_vendor as _gpu_vendor
+
+            surface = QtGui.QOffscreenSurface()
+            surface.setFormat(QtGui.QSurfaceFormat.defaultFormat())
+            surface.create()
+
+            context = QtGui.QOpenGLContext()
+            context.setFormat(QtGui.QSurfaceFormat.defaultFormat())
+
+            try:
+                if not (context.create() and context.makeCurrent(surface)):
+                    logger.warning('GPU: no OpenGL context available, GPU details not collected')
+                    return
+
+                try:
+                    if _gpu_vendor.get() == _gpu_vendor.GPU_UNKNOWN:
+                        logger.warning('GPU: vendor not recognised from the OpenGL strings, GPU details not collected')
+                        return
+
+                    gpu = GPU()
+                    gpu.detect()
+                finally:
+                    context.doneCurrent()
+            finally:
+                surface.destroy()
+
+            logger.info_block(f'\n--------------    GPU    ---------------\n\n{gpu}\n\n----------------------------------------')
+        except Exception as err:  # NOQA
+            logger.warning(f'GPU: detection failed ({err!r})')
+            logger.traceback(err)
 
     @_check_types.do
     def _start_loading_thread(self) -> None:

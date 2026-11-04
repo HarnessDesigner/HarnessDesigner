@@ -97,8 +97,16 @@ class WiresPage(_base.EditorList):
         nil_uuid = _id_generator.NIL_UUID.bytes
         colors_table = self.table.db.colors_table
 
-        primary_color = None if color_id is None or color_id == nil_uuid else colors_table[color_id]
-        stripe_color = None if stripe_color_id is None or stripe_color_id == nil_uuid else colors_table[stripe_color_id]
+        # the nil id is Black (colour code 0); a wire with no jacket / no stripe has the "no color" id
+        no_color = _id_generator.NO_COLOR_UUID.bytes
+
+        primary_color = None
+        if color_id is not None and color_id != no_color:
+            primary_color = colors_table[color_id]
+
+        stripe_color = None
+        if stripe_color_id is not None and stripe_color_id != no_color:
+            stripe_color = colors_table[stripe_color_id]
 
         if core_material_id is None or core_material_id == nil_uuid:
             conductor_color = None

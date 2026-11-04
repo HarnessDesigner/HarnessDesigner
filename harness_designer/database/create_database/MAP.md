@@ -236,6 +236,10 @@ DDL/seed for the `used_parts` history table — tracks which accessory parts (co
 
 Schema for `pjt_wire_layouts`, the per-view wire-waypoint placement rows backing `objects/wire_layout.py`'s `WireLayout`.
 
+#### wire_conductors.py
+
+DDL for the `wire_conductors` global-catalog table (NEW 2026-11-03): one row per INDIVIDUAL conductor inside a multi-conductor wire. `wires` keeps describing the outside of the cable (jacket colour, overall size, shielding, `tpi`); this table describes each conductor inside it. Nothing is unique except `id`. Columns: `wire_id` (the cable), `idx` (position in the cable, from 0), `color_id`, `stripe_color_id` (both default to the "no color" id, `id_generator.NO_COLOR_UUID`), `core_material_id` (a plating), `material_id` (insulation), `wire_size_dia` / `wire_size_cross` / `wire_size_awg`, `strands`, `od_mm` (over the conductor's own insulation) and `resistance_1km`. `add_indexes(table)` indexes `wire_id` on SQLite. A cable HAS an outer jacket when its `wires.color_id` is not the "no color" id. Mirrored in the sibling `harness_designer_database` repo (`builder/create_database/wire_conductors.py`, seeded from `Universal/wire_conductors.json` written by `scripts/wire_builder.py`); keep the two aligned. Importing this module imports the wires schema, so import it late, the way `global_db/wire_conductor.py` does. Design: `TWISTED_WIRE_DESIGN.md` (repo root).
+
 #### wire_markers.py
 
 DDL/seed for the `wire_markers` global-catalog table.
@@ -254,7 +258,7 @@ Schema, default rows ("Wire" is the nil-UUID default row, plus "Coaxial"/"Ribbon
 
 #### wires.py
 
-DDL/seed for the `wires` global-catalog table; has the `wire_type_id` column matching `wire_types.py` and `add_wire(wire_type=...)`. Its project table `pjt_wires` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed.
+DDL/seed for the `wires` global-catalog table; has the `wire_type_id` column matching `wire_types.py` and `add_wire(wire_type=...)`. Its project table `pjt_wires` has a nullable `operating_temp` (degrees Celsius, NULL = not set), added 2026-10-24 on the project side only: the global parts database is built by the sibling repo, so nothing global changed. Only the SCHEMA matters here: its `color_id` and `stripe_color_id` column defaults are the "no color" id (`id_generator.NO_COLOR_UUID`), not the nil id (Black), to match the catalog the sibling repo builds; a "no color" `color_id` means the cable has no outer jacket (2026-11-03). `add_wire` here is dead seeding code and was left alone: the catalog is generated only in the `harness_designer_database` repo. The individual conductors of a multi-conductor wire are in `wire_conductors.py`.
 
 ## DESIGN NOTES
 

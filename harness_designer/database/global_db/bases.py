@@ -954,6 +954,7 @@ from .cpa_lock_type import CPALockTypesTable  # NOQA
 from .resource_state import ResourceStateTable  # NOQA
 from .used_part import UsedPartsTable  # NOQA
 from .derating import DeratingsTable  # NOQA
+from .wire_conductor import WireConductorsTable  # NOQA
 from .app_users import AppUsersTable  # NOQA
 
 
@@ -1025,6 +1026,7 @@ class GLBTables:
         self._used_parts_table = UsedPartsTable(self, tables, splash, load_database)
         self._wires_table = WiresTable(self, tables, splash, load_database)
         self._deratings_table = DeratingsTable(self, tables, splash, load_database)
+        self._wire_conductors_table = WireConductorsTable(self, tables, splash, load_database)
         self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
         self._app_users_table = AppUsersTable(self, tables, splash, load_database)
 
@@ -1285,6 +1287,16 @@ class GLBTables:
         :rtype: :class:`DeratingsTable`
         """
         return self._deratings_table
+
+    @property
+    @_check_types.do
+    def wire_conductors_table(self) -> WireConductorsTable:
+        """Return the wire conductors table: the individual conductors inside the multi-conductor wires.
+
+        :returns: The wire conductors table.
+        :rtype: :class:`WireConductorsTable`
+        """
+        return self._wire_conductors_table
 
     @property
     @_check_types.do

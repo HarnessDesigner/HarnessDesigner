@@ -1307,6 +1307,7 @@ class Table(_base_pegboard.BasePegboard):
             self._active_handler = None
             if self.pegboard.editor.active_handler_obj is self:
                 self.pegboard.editor.active_handler_obj = None
+            self._abort_press()
             self._host.table.close_column_picker()
             self._end_wire_drag()
             self._reset_hover_cursor()
@@ -1466,9 +1467,10 @@ class Table(_base_pegboard.BasePegboard):
             # Abort the in-progress press/drag only -- selection (and
             # this table's own arming, see set_selected) is untouched;
             # a CANCEL means the OS/Qt broke the mouse grab mid-drag,
-            # not that the user deselected the table.
-            self._press_target = None
-            self._press_local = None
+            # not that the user deselected the table. The widget that
+            # was pressed still gets its release (see _abort_press),
+            # otherwise a scroll bar keeps auto-repeating.
+            self._abort_press()
             return True
 
         return False
@@ -1791,6 +1793,40 @@ class Table(_base_pegboard.BasePegboard):
 
         self._press_target = None
         self._press_local = None
+
+        self._regrab_texture()
+
+    @_check_types.do
+    def _abort_press(self) -> None:
+        """End a press the canvas will never release (the mouse grab was
+        broken mid-press, or the table was deselected while the button was
+        down) by sending the pressed widget the release it is waiting for,
+        at the last place it was told the pointer was.
+
+        Just forgetting the press leaves the widget thinking the button is
+        still held: a scroll bar keeps its arrow / trough auto-repeat timer
+        running (the table scrolls by itself), a slider keeps following the
+        pointer, a header keeps its section drag. Safe to call when nothing
+        is pressed.
+        """
+        target = self._press_target
+        if target is None:
+            return
+
+        local_point = self._press_local
+        self._press_target = None
+        self._press_local = None
+
+        if local_point is None:
+            return
+
+        global_point = target.mapToGlobal(local_point)
+
+        release = QtGui.QMouseEvent(
+            QtCore.QEvent.Type.MouseButtonRelease, QtCore.QPointF(local_point), QtCore.QPointF(global_point),
+            QtCore.Qt.MouseButton.LeftButton, QtCore.Qt.MouseButton.NoButton,
+            QtCore.Qt.KeyboardModifier.NoModifier)
+        QtWidgets.QApplication.sendEvent(target, release)
 
         self._regrab_texture()
 

@@ -7,9 +7,11 @@ from PySide6 import QtWidgets
 from ... import utils as _utils
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
+from .. import id_generator as _id_generator
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     DeratingMixin,
+    WireConductorMixin,
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
     DescriptionMixin, DescriptionControl,
@@ -131,8 +133,9 @@ class WiresTable(TableBase):
 
             wire = Wire(self, db_id[0][0])
 
-        # the part's whole derating table is read now, with the part
+        # the part's whole derating table and its conductors are read now, with the part
         wire.load_deratings()
+        wire.load_conductors()
 
         return wire
 
@@ -322,7 +325,7 @@ class WiresTable(TableBase):
 
 class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
            FamilyMixin, SeriesMixin, ResourceMixin, ColorMixin, MaterialMixin,
-           TemperatureMixin, WireTypeMixin, DeratingMixin):
+           TemperatureMixin, WireTypeMixin, DeratingMixin, WireConductorMixin):
     """Represent a wire in :mod:`harness_designer.database.global_db.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -1047,7 +1050,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         if self._stored_stripe_color is DefaultStoredValue:
             stripe_color_id = self.stripe_color_id
 
-            if stripe_color_id == b'\x00' * 16:
+            if stripe_color_id == _id_generator.NO_COLOR_UUID.bytes:
                 self._stored_stripe_color = None
             else:
                 self._stored_stripe_color = self._table.db.colors_table[stripe_color_id]

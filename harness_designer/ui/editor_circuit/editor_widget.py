@@ -294,8 +294,14 @@ def _load_housing_image(housing_obj: "_pjt_housing.PJTHousing") -> QtGui.QImage 
 
 @_check_types.do
 def _unset(part: Any, id_attribute: str) -> bool:
-    """Whether a catalog reference of *part* is not set: no id, or the nil id the database uses for "none"."""
+    """Whether a catalog reference of *part* is not set: no id, or the id the database uses for "none".
+
+    That is the nil id for a lookup reference, but the nil id of the colours table is Black (colour code 0), so for a
+    colour (``color_id``, ``stripe_color_id``) it is the separate "no color" id."""
     value = getattr(part, id_attribute, None)
+
+    if id_attribute.endswith("color_id"):
+        return value is None or value == _id_generator.NO_COLOR_UUID.bytes
 
     return value is None or value == _id_generator.NIL_UUID.bytes
 

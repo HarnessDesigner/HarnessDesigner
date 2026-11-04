@@ -11,10 +11,11 @@ technique, and the same shared unit-quad VBO / position / scale, as
 :class:`~.table.Table` (the floating wire table), which this is modelled on.
 Read that module's docstring for the long story; what differs here:
 
-- there is no owning anchor, so no connecting line and no anchor visibility
-  to follow -- the widget belongs to a CONCENTRIC (``pjt_pegboard_sections.
-  concentric_id``), which a bundle, a transition branch, or a connected pair
-  of them shares;
+- there is no single owning anchor -- the widget belongs to a CONCENTRIC
+  (``pjt_pegboard_sections.concentric_id``), which a bundle, a transition
+  branch, or a connected pair of them shares -- so it draws one connecting
+  line (the table's black cylinder, see :class:`_Connector`) to each of them:
+  the bundle, and the transition of the branch;
 - the synthetic mouse / wheel dispatch lives in the host (it needs no GL and
   can be tested without one); this object only turns a canvas pixel into a
   point in the host's frame and calls it;
@@ -26,8 +27,9 @@ object is the SELECTED one: an unselected section behaves like any other
 peg-board object under the mouse.
 """
 
-from typing import TYPE_CHECKING, Union as _Union
+from typing import TYPE_CHECKING, Union as _Union, Any
 
+import numpy as np
 from OpenGL import GL
 from PySide6 import QtCore, QtGui
 
@@ -36,12 +38,14 @@ from . import table as _table
 from . import wire_drop as _wire_drop
 from ...handlers import concentric_handler as _concentric_handler
 from ...shapes import rectangle as _rectangle
+from ...shapes import cylinder as _cylinder
 from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ...ui.concentric_section import section_host as _section_host
 from ...ui.pegboard_table import mdi_host as _mdi_host
+from ...ui.pegboard_table import wire_table as _wire_table
 from ... import color as _color
 from ... import check_types as _check_types
 from ...crash_dump import Attr, capturable
@@ -51,6 +55,8 @@ if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
     from .. import pegboard_section as _pegboard_section
     from ...database.project_db import pjt_pegboard_section as _pjt_pegboard_section
+    from ...database.project_db import pjt_bundle as _pjt_bundle
+    from ...database.project_db import pjt_transition as _pjt_transition
     from ...gl import shaders as _shaders
     from ...ui.concentric_section import section_model as _section_model
     from ...ui.concentric_section import section_widget as _section_widget
@@ -65,6 +71,8 @@ _BORDER_THICKNESS_MM = _table._BORDER_THICKNESS_MM  # NOQA
 _RESIZE_HIT_MARGIN_MM = _table._RESIZE_HIT_MARGIN_MM  # NOQA
 _BORDER_CORNER_RADIUS_MM = _table._BORDER_CORNER_RADIUS_MM  # NOQA
 _BORDER_RGBA = _table._BORDER_RGBA  # NOQA
+_LINE_DEPTH_Y = _table._LINE_DEPTH_Y  # NOQA
+_LINE_DIAMETER = _table._LINE_DIAMETER  # NOQA
 _RESIZE_CURSOR_FOR_ZONE = _table._RESIZE_CURSOR_FOR_ZONE  # NOQA
 _SECTION_HANDLER = _table._TABLE_HANDLER  # NOQA
 
@@ -93,6 +101,22 @@ def _solid_texture(rgba: bytes) -> int:
     return texture_id
 
 
+class _Connector:
+    """One line from an owner of the section's concentric (its bundle, or the
+    transition of its branch) to the section: the owner, the live point the
+    line starts at, whether the owner is drawn, and the cached cylinder the
+    line is drawn with. The :class:`Section` binds, recomputes and draws these."""
+
+    def __init__(self, anchor: _Union["_pjt_bundle.PJTBundle", "_pjt_transition.PJTTransition"]):
+        self.anchor = anchor
+        self.position: _Union[_point.Point, None] = anchor.position_pegboard
+        self.is_visible: bool = anchor.is_visible_pegboard
+        self.callbacks: list = []
+        self.line_position: _Union[_point.Point, None] = None
+        self.line_angle: _Union[_angle.Angle, None] = None
+        self.line_scale: _Union[_point.Point, None] = None
+
+
 @capturable()
 class Section(_base_pegboard.BasePegboard):
     """Peg Board Editor representation of a concentric section widget -- not
@@ -115,6 +139,11 @@ class Section(_base_pegboard.BasePegboard):
     # class-level default: set_selected can run before __init__ finishes
     _hover_cursor_active = False
     _wire_drop_hover = False
+    _connectors = ()
+
+    # set while the cable selection is changed FROM a wire table, so the widget's own cable_selected signal does not
+    # send it straight back out
+    _syncing_cable = False
 
     # Pixel multiple the texture is captured at: 1, except while printing
     _print_factor = 1
@@ -159,8 +188,21 @@ class Section(_base_pegboard.BasePegboard):
             self._drop_texture_id = _solid_texture(_DROP_RGBA)
             self._border_angle = _angle.Angle()
 
+            # the connecting lines to the bundle / transition this section belongs to: one shared cylinder mesh and
+            # material, and a cached position / angle / scale per line (see Table.__init__)
+            self._connector_vbo = _cylinder.create_vbo()
+            self._connector_material = _materials.Plastic(_color.Color(0, 0, 0))
+
         self._host.cursor_changed.connect(self._on_cursor_changed)
         self._host.close_requested.connect(self._on_close_requested)
+        self._host.section.cable_selected.connect(self._on_cable_selected)
+
+        self._connectors = [_Connector(anchor) for anchor in self._connector_anchors()]
+
+        for connector in self._connectors:
+            self._bind_connector(connector)
+
+        self._recompute_connectors()
 
         # Resize-via-the-green-border state -- see Table's own comment: the
         # zone an in-progress resize started on and the OPPOSITE (unmoving)
@@ -271,6 +313,181 @@ class Section(_base_pegboard.BasePegboard):
 
         return added
 
+    @_check_types.do
+    def select_wire(self, wire_id: _Union[bytes, None]) -> None:
+        """Select the cable of *wire_id* in the widget (a wire selected in a
+        wire table), or nothing for ``None`` / a wire this section does not
+        hold. A cable's key is its wire's row id."""
+        key = None
+
+        if wire_id is not None:
+            for placed in self._host.section.view().section().cables:
+                if placed.cable.key == wire_id:
+                    key = wire_id
+                    break
+
+        self._syncing_cable = True
+        try:
+            self._host.section.select(key)
+        finally:
+            self._syncing_cable = False
+
+        self._regrab_texture()
+
+    @_check_types.do
+    def _on_cable_selected(self, key: object) -> None:
+        """A cable was picked in (or clicked off) the widget: select that wire
+        in every wire table and light it, its bundle / branches / end parts and
+        its whole circuit (``WireHighlight``, in all three editors). Ignored
+        while the selection is being set from a wire table (:meth:`select_wire`)."""
+        if self._syncing_cable:
+            return
+
+        db = self.db_obj.table.db
+
+        if key is None:
+            self.pegboard.wire_highlight.clear_all()
+        else:
+            self.pegboard.wire_highlight.show(self, db, key)
+
+        _wire_table.WireTable.mirror_selection(db, key)
+
+    # ------------------------------------------------------------------
+    # Connecting lines: from the bundle / transition this section belongs to
+    # ------------------------------------------------------------------
+
+    @_check_types.do
+    def _connector_anchors(self) -> list:
+        """What the section's concentric belongs to: its bundle, and / or the
+        transition of its branch."""
+        concentric = self.db_obj.concentric
+        anchors = []
+
+        bundle = concentric.bundle
+        if bundle is not None:
+            anchors.append(bundle)
+
+        branch = concentric.transition_branch
+        if branch is not None:
+            anchors.append(branch.transition)
+
+        return anchors
+
+    @_check_types.do
+    def _bind_connector(self, connector: _Connector) -> None:
+        """Follow the anchor's point, its waypoints (which change WHICH point
+        its ``position_pegboard`` is -- see ``Table.__init__``) and whether it
+        is drawn."""
+        if connector.position is not None:
+            connector.position.bind(self._on_anchor_moved)
+
+        connector.callbacks.append(
+            connector.anchor.bind(self._on_anchor_changed, 'is_visible_pegboard'))
+        connector.callbacks.append(
+            connector.anchor.bind(self._on_anchor_changed, 'waypoints_pegboard'))
+
+    @_check_types.do
+    def _release_connectors(self) -> None:
+        for connector in self._connectors:
+            if connector.position is not None:
+                connector.position.unbind(self._on_anchor_moved)
+
+            for callback in connector.callbacks:
+                callback.unbind()
+
+            connector.callbacks = []
+
+        self._connectors = []
+
+    @_check_types.do
+    def _recompute_connectors(self) -> None:
+        """(Re)compute each line's cylinder from its anchor's and this
+        section's X / Z, both pinned to ``_LINE_DEPTH_Y`` for this only (the
+        real points are never touched). Called when either end moves or the
+        section is resized (see :meth:`Table._recompute_connector`)."""
+        if not self._connectors:
+            return
+
+        # position.x is the LEFT edge of the quad; position.z is already its middle
+        centre_x = self._position.x + (self._scale.x / 2.0)
+
+        for connector in self._connectors:
+            if connector.position is None:
+                continue
+
+            p1 = _point.Point(connector.position.x, _LINE_DEPTH_Y, connector.position.z)
+            p2 = _point.Point(centre_x, _LINE_DEPTH_Y, self._position.z)
+
+            length = float(np.linalg.norm(p2.as_numpy - p1.as_numpy))
+
+            connector.line_position = p1
+            connector.line_angle = _angle.Angle.from_points(p1, p2)
+            connector.line_scale = _point.Point(_LINE_DIAMETER, _LINE_DIAMETER, length)
+
+    @_check_types.do
+    def _on_anchor_moved(self, _position: _point.Point) -> None:
+        self._recompute_connectors()
+        self.pegboard.Refresh()
+
+    @_check_types.do
+    def _on_anchor_changed(self, *_args: tuple[Any], **_kwargs: dict[str, Any]) -> None:
+        """An anchor's waypoints or visibility changed: re-read both, rebinding
+        a line whose ``position_pegboard`` now resolves to another point."""
+        for connector in self._connectors:
+            position = connector.anchor.position_pegboard
+
+            if position is not connector.position:
+                if connector.position is not None:
+                    connector.position.unbind(self._on_anchor_moved)
+
+                connector.position = position
+
+                if position is not None:
+                    position.bind(self._on_anchor_moved)
+
+            connector.is_visible = connector.anchor.is_visible_pegboard
+
+        self._recompute_connectors()
+        self.pegboard.Refresh()
+
+    @_check_types.do
+    def _update_position(self, position: _point.Point) -> None:
+        """Keep the lines current whenever this section moves (dragged, or
+        nudged by :meth:`_regrab_texture` after a title-bar drag)."""
+        super()._update_position(position)
+        self._recompute_connectors()
+
+    @_check_types.do
+    def _render_connectors(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw each line whose anchor is shown -- the same "point this
+        object's position / angle / scale / material / vbo at the line, delegate
+        to the inherited render, put them back" technique as
+        :meth:`Table._render_connector`, including clearing ``is_selected`` for
+        the nested call so the line keeps its own material."""
+        if not self._connectors:
+            return
+
+        real_vbo, real_position, real_angle, real_scale, real_material = (
+            self._vbo, self._position, self._angle, self._scale, self._material)
+        real_is_selected = self._is_selected
+        self._is_selected = False
+
+        for connector in self._connectors:
+            if not connector.is_visible or connector.line_scale is None:
+                continue
+
+            self._vbo = self._connector_vbo
+            self._position = connector.line_position
+            self._angle = connector.line_angle
+            self._scale = connector.line_scale
+            self._material = self._connector_material
+
+            super().render(shaders)
+
+        self._is_selected = real_is_selected
+        self._vbo, self._position, self._angle, self._scale, self._material = (
+            real_vbo, real_position, real_angle, real_scale, real_material)
+
     # ------------------------------------------------------------------
     # Texture capture / upload
     # ------------------------------------------------------------------
@@ -324,6 +541,9 @@ class Section(_base_pegboard.BasePegboard):
                 self._scale.z = world_h
 
             self.db_obj.size = (world_w, world_h)
+
+            # the lines end at the centre, which moved with the width
+            self._recompute_connectors()
 
     @_check_types.do
     def set_print_quality(self, factor: int) -> None:
@@ -388,6 +608,8 @@ class Section(_base_pegboard.BasePegboard):
         GL.glDepthFunc(GL.GL_LESS)
 
         GL.glBindTexture(GL.GL_TEXTURE_2D, 0)
+
+        self._render_connectors(shaders)
 
     @_check_types.do
     def _render_selection_border(self, shaders: "_shaders.ShaderProgram", texture_id: int) -> None:
@@ -678,6 +900,7 @@ class Section(_base_pegboard.BasePegboard):
             if self.pegboard.editor.active_handler_obj is self:
                 self.pegboard.editor.active_handler_obj = None
 
+            self._host.cancel_press()
             self._reset_hover_cursor()
             self._clear_hover()
             self._set_resize_cursor(None)
@@ -817,6 +1040,10 @@ class Section(_base_pegboard.BasePegboard):
         self._set_resize_cursor(None)
 
         _wire_drop.unregister(self)
+
+        # a cable of this section still selected must not leave the highlight behind
+        self.pegboard.wire_highlight.clear(self)
+        self._release_connectors()
 
         # unlike the wire table, free what this object allocated: its GL
         # textures and the hidden host

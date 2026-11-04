@@ -216,6 +216,9 @@ def add_wire(con: "_connector_base.ConnectorBase", part_number: str,
         return new_id
 
 
+# A wire's colour and stripe colour start out as "no color" (no jacket, no stripe), not as the nil row, which is Black.
+_NO_COLOR_DEFAULT = f"X'{_id_generator.NO_COLOR_UUID.hex}'"
+
 id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
@@ -235,7 +238,7 @@ table = _con.SQLTable(
                    references=_con.SQLFieldReference(_series.table,
                                                      _series.id_field,
                                                      on_update=_con.REFERENCE_NO_ACTION)),
-    _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
+    _con.UUIDField('color_id', default=_NO_COLOR_DEFAULT, no_null=True,
                    references=_con.SQLFieldReference(_colors.table,
                                                      _colors.id_field,
                                                      on_update=_con.REFERENCE_NO_ACTION)),
@@ -263,7 +266,7 @@ table = _con.SQLTable(
                    references=_con.SQLFieldReference(_materials.table,
                                                      _materials.id_field,
                                                      on_update=_con.REFERENCE_NO_ACTION)),
-    _con.UUIDField('stripe_color_id', default="X'00000000000000000000000000000000'", no_null=True,
+    _con.UUIDField('stripe_color_id', default=_NO_COLOR_DEFAULT, no_null=True,
                    references=_con.SQLFieldReference(_colors.table,
                                                      _colors.id_field,
                                                      on_update=_con.REFERENCE_NO_ACTION)),

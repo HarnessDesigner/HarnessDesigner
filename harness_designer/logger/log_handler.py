@@ -542,12 +542,22 @@ class Log(object):
     def startup(self) -> None:
         from ..gl import info as _gl_info
 
+        self.info_block(
+            '\n'.join(
+                [
+                    '',
+                    '----------------------------------------',
+                    '        Harness Designer started',
+                    f'            Version: {__version__.string}',
+                    '----------------------------------------'
+                ]
+            )
+        )
+
+        # Each of the GL, Machine and GPU sections is its own log entry
+        # and starts with a newline, so its header begins on a fresh line
+        # under the entry's timestamp.
         startup_block = [
-            '----------------------------------------',
-            '        Harness Designer started',
-            '----------------------------------------',
-            '',
-            f'Harness Designer Version: {__version__.string}',
             '',
             '--------------    GL     ---------------'
         ]
@@ -560,40 +570,43 @@ class Log(object):
                 header_line = f'{pre_suf}  {header}  '
 
                 if pre_suf_count % 2:
-                    pre_suf = f' {pre_suf}'
+                    pre_suf = f' {"=" * (pre_suf_count - 1)}'
 
+                startup_block.append('')
                 startup_block.append(header_line + pre_suf)
 
                 for label, value in items.items():
                     startup_block.append(f'{label}: {value}')
 
-                startup_block.append('')
+                startup_block.append('=' * 40)
             else:
                 startup_block.append(f'{header}: {items}')
 
         startup_block.extend(
             [
                 '',
-                '----------------------------------------',
-                '',
-                '--------------  Machine  ---------------',
-                '',
-                f'Machine type: {platform.machine()}',
-                f'Processor: {platform.processor()}',
-                f'Architecture: {platform.architecture()}',
-                (
-                    'Python: '
-                    f'{platform.python_branch()} '
-                    f'{platform.python_version()} '
-                    f'{platform.python_implementation()} '
-                    f'{platform.python_build()} '
-                    f'[{platform.python_compiler()}]'
-                ),
-                '',
-                '----------------------------------------',
-                ''
+                '----------------------------------------'
             ]
         )
+
+        self.info_block('\n'.join(startup_block))
+
+        startup_block = [
+            '',
+            '--------------  Machine  ---------------',
+            f'Machine type: {platform.machine()}',
+            f'Processor: {platform.processor()}',
+            f'Architecture: {platform.architecture()}',
+            (
+                'Python: '
+                f'{platform.python_branch()} '
+                f'{platform.python_version()} '
+                f'{platform.python_implementation()} '
+                f'{platform.python_build()} '
+                f'[{platform.python_compiler()}]'
+            ),
+            '----------------------------------------'
+        ]
 
         self.info_block('\n'.join(startup_block))
 

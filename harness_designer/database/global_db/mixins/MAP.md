@@ -36,6 +36,10 @@ Compatibility-list mixin: which terminals a given part is compatible with.
 
 `DeratingMixin` (terminal, wire, splice) -- the manufacturer's derating table of the part. `load_deratings()` asks the `deratings` table to read this part's whole table now (the part tables' `__getitem__` call it as they load a part; it does nothing while `GLBTables` is still starting up and the table does not exist yet), `reload_deratings()` drops and re-reads it, and `deratings` is the tuple of `Derating` rows from `DeratingsTable`'s cache. The part holds no state of its own.
 
+#### wire_conductor.py
+
+`WireConductorMixin` (NEW 2026-11-03), modelled on `derating.py`: `load_conductors()` / `reload_conductors()` / the `conductors` property, which serve a wire's individual conductors from the `wire_conductors` table class's cache (`global_db/wire_conductor.py`). Mixed into `Wire`.
+
 #### description.py
 
 Basic text-column mixin for a free-text description field.

@@ -25,6 +25,7 @@ from . import compat_housings as _compat_housings
 from . import compat_terminals as _compat_terminals
 from . import compat_seals as _compat_seals
 from . import derating as _derating
+from . import wire_conductor as _wire_conductor
 
 
 ColorMixin = _color.ColorMixin
@@ -101,6 +102,8 @@ CompatSealsControl = _compat_seals.CompatSealsControl
 
 DeratingMixin = _derating.DeratingMixin
 
+WireConductorMixin = _wire_conductor.WireConductorMixin
+
 del _adhesive
 del _color
 del _description
@@ -126,3 +129,4 @@ del _compat_housings
 del _compat_terminals
 del _compat_seals
 del _derating
+del _wire_conductor

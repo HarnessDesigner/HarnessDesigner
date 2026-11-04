@@ -51,6 +51,12 @@ def unregister(target: "_section.Section") -> None:
 
 
 @_check_types.do
+def targets() -> list["_section.Section"]:
+    """Every registered target, as a snapshot."""
+    return list(_targets)
+
+
+@_check_types.do
 def target_at(screen_pos: "_point.Point") -> _Union["_section.Section", None]:
     """The topmost target under *screen_pos* (logical canvas pixels), or ``None``."""
     best = None

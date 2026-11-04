@@ -44,7 +44,7 @@ or reports incompletely.
 path first tries that vendor's own SDK backend (`_collect_generic`, overwrites), then unconditionally runs
 the GL/table-based fallback as a *gap-fill* (`_collect_gaps`, only fills still-`'Unknown'` fields — never
 clobbers a real SDK measurement), then estimates from the configured OpenCL device (`_opencl_estimate`) if
-VRAM is still not usable. `get_chunk_size(width, height, target_usage)` picks a render-chunk row count from free VRAM, clamped to
+VRAM is still not usable. `__str__` is the log-ready report: six 40-column `====  Name  ====` sections (Driver, GPU, VRAM, Clock, PCIe, Fan; tab-indented values, each closed by a row of `=`) then the temperature and the two engine utilizations; `App._log_gpu_info()` adds the `GPU` header above and the closing dashes below. `get_chunk_size(width, height, target_usage)` picks a render-chunk row count from free VRAM, clamped to
 `[50, height]`; it counts only the output buffer, so `ray_tracing/renderer.py` no longer calls it (it sizes chunks
 itself, see `ray_tracing/MAP.md`). **`detect()` needs a current OpenGL context on the calling thread** (see
 `gpu_vendor.py`) -- without one it quietly uses `_fallback()`'s guess. `_opencl_estimate`

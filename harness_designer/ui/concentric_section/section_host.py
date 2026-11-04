@@ -70,6 +70,8 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
 
         self._hover_target: QtWidgets.QWidget | None = None
         self._press_target: QtWidgets.QWidget | None = None
+        # where the pressed widget was last told the pointer was (its own coordinates)
+        self._press_local: QtCore.QPoint | None = None
 
         self.sub_window = QtWidgets.QMdiSubWindow()
         self.sub_window.setWidget(self.section)
@@ -167,8 +169,30 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
 
     @_check_types.do
     def cancel_press(self) -> None:
-        """Forget an in-progress press (the OS broke the mouse grab)."""
+        """End an in-progress press the canvas will never release (the OS broke
+        the mouse grab, or the section was deselected with the button down).
+
+        The pressed widget is sent the release it is waiting for, at the last
+        place it was told the pointer was. Just forgetting the press leaves it
+        thinking the button is still held: a scroll bar keeps its auto-repeat
+        running and the pane scrolls by itself. Safe to call when nothing is
+        pressed."""
+        target = self._press_target
+        local_point = self._press_local
+
         self._press_target = None
+        self._press_local = None
+
+        if target is None or local_point is None:
+            return
+
+        global_point = target.mapToGlobal(local_point)
+
+        release = QtGui.QMouseEvent(
+            QtCore.QEvent.Type.MouseButtonRelease, QtCore.QPointF(local_point), QtCore.QPointF(global_point),
+            QtCore.Qt.MouseButton.LeftButton, QtCore.Qt.MouseButton.NoButton,
+            QtCore.Qt.KeyboardModifier.NoModifier)
+        QtWidgets.QApplication.sendEvent(target, release)
 
     @_check_types.do
     def _target_at(self, point: QtCore.QPoint) -> QtWidgets.QWidget:
@@ -235,6 +259,7 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
         global_point = target.mapToGlobal(local_point)
 
         self._press_target = target
+        self._press_local = local_point
 
         # A MouseMove to the target's own position must reach it BEFORE the
         # press: QMdiSubWindow reads hoveredSubControl, which only a hover
@@ -272,6 +297,7 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
         # rect: a real drag carries the pointer outside the widget that grabbed it
         local_point = target.mapFrom(self, panel_local.toPoint())
         global_point = target.mapToGlobal(local_point)
+        self._press_local = local_point
 
         move = QtGui.QMouseEvent(
             QtCore.QEvent.Type.MouseMove, QtCore.QPointF(local_point), QtCore.QPointF(global_point),
@@ -296,6 +322,7 @@ class ConcentricSectionHost(QtWidgets.QMdiArea):
         QtWidgets.QApplication.sendEvent(target, release)
 
         self._press_target = None
+        self._press_local = None
 
     @_check_types.do
     def _scroll_area_at(self, point: QtCore.QPoint) -> QtWidgets.QAbstractScrollArea | None:
