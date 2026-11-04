@@ -6,6 +6,15 @@ immediately"). Add new decisions HERE.
 ## 0. Status (end of the 2026-11-03 session)
 
 BUILT (compiled and, for the builder, test-built; the app was NOT launched, no tests exist by project rule):
+- Layered preview images (2026-11-04, approved by the user from a preview sheet; used through `database/global_db/wire_image.py`, see below):
+  `diagnostics/make_wire_layers.py` generates `twisted2_*`, `twisted3_*`, `cable_*` and `coax_*` PNGs in
+  `image/images`; `image/wire_images.py` holds one `Image` subclass per cable type (`TwistedWireImage`, `CableImage`,
+  `CoaxImage`; everything else in it is private) which assemble the layers and cache themselves by colour with a
+  metaclass (see `image/MAP.md`). One stripe layer per conductor; at most three
+  conductors are drawn; coax dielectric and shield colours are fixed by the caller (the catalog has neither).
+  `database/global_db/wire_image.py` `build_wire_image(wire)` picks the builder (single wire, twisted pair / triple, jacketed
+  or shielded cable, coax) and is used by the wire editor, the peg-board wire table, the BOM and the circuit editor; a cable
+  with no `wire_conductors` rows, and the Ribbon wire type (see the TODO in section 7), still get no image. Compile-checked only, the app was not run.
 - `wire_conductors` table, both repos: app `database/create_database/wire_conductors.py`,
   `global_db/wire_conductor.py` (`WireConductorsTable`, `WireConductor`), `global_db/mixins/wire_conductor.py`
   (`Wire.conductors`), registered in `global_db/bases.py` (`GLBTables.wire_conductors_table`); builder
@@ -260,6 +269,139 @@ Row-id rules checked (2026-11-03, read `database/id_generator.py`, `project_db/p
 
 - Final column list for the conductors table (section 2).
 - Which conductor gets a stripe and where on it; lay direction (S or Z; the data has none).
-- Where per-conductor colours come from (new data vs a by-index rule).
+- Where per-conductor colours come from (new data vs a by-index rule). For ribbon cable the makers give only
+  one colour, so it is a rule: all conductors in the cable colour, conductor 1 with a stripe (usually red) or the
+  rainbow, chosen by something the user decides (a part number option, or a property on the wire).
+- Pictures for ribbon cable, wire-type and flexible-PCB (section 7, a TODO: no layers or classes yet).
+- Fan-out of a multi-conductor cable at its ends (section 8, a TODO: new project table, end layouts, order dialog).
 - Samples-per-turn / LOD policy; ray-tracer representation; sharp-bend fallback; the hidden stretches
   inside bundles (`_hidden_waypoint_ids`).
+
+## 7. Ribbon cables (added 2026-11-04, design only, nothing built)
+
+What the data has today (measured 2026-11-04 on the database repo's JSON):
+
+- `wire_types` already has `Ribbon` (id 2). 19,736 wires use it: all Molex Premo-Flex FFC / RFC / FPC jumpers
+  (flat laminated strips, contacts on one or both sides, types A to D). `num_conductors` is right on them, but
+  there is no size, colour or `od_mm`. The pitch (0.25 to 2.54 mm) is only in the description text.
+- TE: the 5 rows found by searching "ribbon" / "flat" (4 Madison Cable, 20 / 30 / 40 / 50 conductors, and
+  `5-1474644-4`, 9 conductors, 24 AWG, 2.54 mm centreline) were imported with `num_conductors` = 1, `od_mm` 0 and no
+  wire type. The real conductor count is only in the description. These are the discrete insulated-conductor kind.
+- Universal (the generator): none.
+- The schema has no pitch and nothing that says "flat", and `wires.od_mm` cannot describe a strip.
+
+Two different constructions, and they need different data:
+
+1. Discrete ribbon (IDC cable): N insulated round conductors side by side, bonded in a web. Each conductor has a
+   colour, so it needs `wire_conductors` rows: gray with a stripe on conductor 1 (pin 1), or "rainbow" (the ten
+   MIL-STD-681 colours, brown to white, repeating every 10).
+   The makers give no per-conductor colours, so the colours come from a rule by index (see section 6).
+2. Laminated FFC / FPC (user, 2026-11-04: not supported yet, flexible-PCB style cables come later; the first target
+   is the plain ribbon cable of old hard drives): flat copper strips inside a film. No per-conductor colour, so NO `wire_conductors` rows
+   (19,736 wires x about 20 conductors of identical rows would add nothing). The renderer draws one flat strip from
+   `num_conductors` and the pitch.
+
+   So conductor rows stay optional: no rows means "draw from the wire row alone".
+
+How the makers describe a ribbon cable (researched 2026-11-04; the user's guess was that each conductor's od_mm is
+given, and it is NOT):
+
+- TE datasheet for Madison Cable 4-1437373-4 (9 conductors, read from the PDF): "Ribbon & Flat Cable Centerline" 1.27 mm,
+  "Cable Insulation Width" 11.43 mm, "Cable Insulation Height" 0.91 mm, "Number of Strands" 7, "Strand Size" 36 AWG,
+  "Wire Size" 0.08 mm2 (28 AWG), "Number of Ribbon & Flat Cable Conductors" 9, Jacket Color Gray, Conductor Insulation
+  Color Gray, UL AWM 20267, 300 V, 4.4 ns/m, 81 pF/m, 63 ohm. No per-conductor outside diameter and no stripe or
+  rainbow colour information.
+- 3M 3365 (distributor listings, not the 3M datasheet, which could not be fetched): 28 AWG 7/36 tinned copper,
+  1.27 mm pitch, 6-way width 7.62 mm, 8-way 10.16 mm, 28-way ribbon width 35.55 mm and thickness 0.89 mm.
+- Amphenol Spectra-Strip (distributor listings): pitches 0.635, 0.89, 1.0 and 1.27 mm, 7/36 or 7/34 strands, an
+  overall width, no thickness. The widths are not all n x pitch (34-way at 1.27 mm is listed as 41.91 mm = 33 x 1.27),
+  so the maker's width has to be stored where it is given, not derived.
+- So what is published is: conductor count, pitch (centreline), overall width, overall thickness (height), the bare
+  wire size and strands, and one cable colour. TE and 3M widths equal n x pitch.
+
+What the data holds for the same part: the scraper never reads those labels. `scrapers/te/wires.py` only looks for
+"Number of Conductors" (the ribbon label is "Number of Ribbon & Flat Cable Conductors"), and its test
+`if num_conductors: continue` starts from `num_conductors = 1`, so that branch can never run: ALL 2,432 TE wires have
+`num_conductors` = 1, not only the ribbons. 4-1437373-4 is not in `TE/wires.json` at all; only 5 TE ribbon parts are.
+
+Proposed data change (needs the user's OK): three float columns on `wires`, `pitch_mm`, `width_mm`, `thickness_mm`
+(0 = not a flat cable; all three are values the makers publish), in both repos' DDL and the app's `Wire` cache class.
+A flat cable is a row with `wire_type` = Ribbon and a non-zero `pitch_mm`. The insulated conductor's outside diameter
+(for the round conductors inside the web) is about `thickness_mm`, which `wire_conductors.od_mm` can hold. Strip width
+comes from `width_mm`, or n x `pitch_mm` when it is 0. The Molex FFC / FPC jumpers are typed Ribbon too but are a
+different product (flexible printed cable, to be added later); they would keep `pitch_mm` = 0 until then, or get
+their own wire type, so they are not drawn as discrete ribbon.
+
+TODO: ribbon cable IMAGES (user, 2026-11-04, not started). The layered preview images (status block in section 0,
+`image/wire_images.py`) cover single wires, twisted pairs and triples, jacketed and shielded cables and coax. They do NOT
+cover ribbon cable, so `database/global_db/wire_image.py` `build_wire_image` returns `None` for the Ribbon wire type and
+every ribbon shows `images.no_image`. Both kinds still need pictures:
+
+- Standard wire-type ribbon cable (the IDC kind, the old hard-drive cable): N insulated round conductors side by side in a
+  flat web, with a pin-1 stripe or a rainbow, stripped at the end so the individual conductors show. The conductor count
+  runs from a few to 60+, so it cannot have one layer per conductor like the twisted pair (`twisted2_*`, `twisted3_*`):
+  the layers will have to be made from a repeated conductor strip, and only part of a wide cable can be drawn (with a
+  break mark or a fixed number of conductors, to be decided). The picture is keyed by LOOK like the others (conductor
+  colours / rainbow or stripe rule, jacket), so the cache key must not include the conductor count unless the drawing
+  changes with it.
+- Flexible PCB style cable (FFC / FPC, the Molex Premo-Flex rows): a flat film with the copper contacts at the ends,
+  contact side A to D, and stiffeners. A separate layer set from the wire-type ribbon.
+- Both need the data decisions of this section first (the pitch, width and thickness columns, and where the per-conductor
+  colours of a ribbon come from), and the way the cable is drawn in 3D (roll angle, in-plane bends) is the rendering
+  design below. Generator: add the new layers to `diagnostics/make_wire_layers.py`; assembly: new `Image` subclasses in
+  `image/wire_images.py` with the same look-keyed metaclass cache, then a branch in `build_wire_image` in place of the
+  current `return None`.
+- Canvas and icon size (user, 2026-11-04): the 400 x 100 canvas of the wire pictures is NOT fixed. A ribbon picture may be
+  up to 400 x 400, so that it fits the square 64 x 64 list icon with the right aspect instead of being a thin strip in a
+  mostly empty square (a 400 x 100 picture is only 64 x 16 inside the 64 x 64 icon). Because each kind of cable is its own
+  `Image` subclass, the icon can be made differently per class: prefer a method the class overrides (a default one on the
+  base, a ribbon class that overrides it) over an `isinstance` test inside `build_wire_icon`. Things that assume 400 x 100
+  today and must be looked at when a class has another size: `wire_images.py` (`_WIDTH`, `_HEIGHT`, `_place`, the layout
+  numbers, all private to the existing classes, so a ribbon class needs its own); `database/global_db/wire_image.py`
+  `build_wire_icon` (fits the picture into the box with `resize_keep_aspect`, so it already copes with another shape;
+  the shared icon is keyed by picture and size); the circuit editor's `_qimage` (also `resize_keep_aspect`, fine); and
+  `objects/bom.py` `resolve_wire_icon`, which STRETCHES the picture to 100 x 25 with `Image.resize` and would squash a
+  square picture, so it needs `resize_keep_aspect` (or a per-class size) first.
+
+Rendering, built on section 5:
+
+- One shader for both. A cable is a cross-section layout (a centre and a radius per conductor) plus a twist rate.
+  Pair / triple: circles around the axis, twist > 0. Ribbon: circles in a row at x = (i - (n - 1) / 2) x pitch, twist 0.
+  FFC: one rounded flat box, twist 0. Per-conductor colour and stripe work as for twisted wires.
+- New for flat cables: ORIENTATION. A round cable looks the same from every side, a flat one does not, so each
+  segment needs a roll angle for its flat. Take the roll from the same parallel-transport frame as the phase carry
+  of section 5 (a ribbon is just twist rate 0 with a fixed roll), and let the user set or flip it on the wire.
+  Whether the path objects already hold an orientation to hang this on has NOT been checked.
+- Bends: a flat cable bends cleanly only about its thin axis. Turning it within its own plane would stretch the
+  outer edge; real cables are folded at a 45 degree crease for that. First version: smooth bends about the thin axis
+  only, and a warning on an in-plane turn. A drawn crease is an open question.
+- Pin 1 is conductor `idx` 0 and must be visible (the stripe), so the strip's roll decides which edge it is on.
+- Not checked: how a circuit attaches to ONE conductor of a multi-conductor wire in the app today. Ribbons make
+  that matter most, because every conductor goes to a different pin.
+
+## 8. TODO: splitting a multi-conductor cable into its wires (fan-out) (user, 2026-11-04, NOT worked out)
+
+The user's description, which still has to be designed properly ("it is going to be tricky"):
+
+- A twisted pair / triple, or any multi-conductor cable, has to be split into its individual wires wherever its
+  conductors connect to terminals or splices. Each conductor then goes to a different place.
+- That needs a LAYOUT at each end of the cable, so the app has to track where the ends of the individual conductors
+  actually are (where the jacket or twist stops, and where each conductor leaves, in 3D).
+- It needs a NEW PROJECT TABLE to hold the data for multi-conductor wires. It belongs to the project, not the
+  global catalog, because it is a per-project choice (it is not part of a wire's part data).
+- A DIALOG for multi-conductor cables, where the user sets the ORDER in which the wires are fanned out.
+
+Questions to settle before building (none of this has been looked at in the code yet):
+
+- What the project table holds: probably one row per cable end per conductor (cable instance, end, `wire_conductors`
+  idx, fan-out position / order, how far the split starts from the end, an offset or direction for the breakout), and
+  how it is keyed so a project's rows are found by the project id prefix of the row id (see section 2).
+- How a circuit attaches to ONE conductor of a cable today, and to which end object a terminal or splice connects
+  (flagged as unchecked in section 7).
+- How the split end is drawn: the twist stopping and the single wires leaving in the chosen order, which ties into
+  the bundle-end offsets in section 5 and the mitre / phase carry at the cable's last segment.
+- What the dialog edits and where it opens from (the cable, the cable's end, a circuit) and what the default order is
+  (the `wire_conductors.idx` order is the obvious default).
+- Ribbon cable: each conductor goes to a different pin, so it is the same problem at a larger scale (section 7), and
+  it may need its own layout rather than a fan-out.
+- What happens to the stored layout when the cable is rerouted or its length changes.

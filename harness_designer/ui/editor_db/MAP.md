@@ -62,7 +62,7 @@ One file per catalog part type pattern (see `wire.py` below for the representati
 
 #### wire.py
 
-Defines `WiresPage(base.EditorList)` plus wire-specific column/icon logic (e.g. `WiresPage._get_icon`), importing `database.global_db.wire` only under `TYPE_CHECKING` — the representative example of the one-file-per-catalog-part-type pattern shared by `accessory.py`, `boot.py`, `bundle_cover.py`, `cover.py`, `cpa_lock.py`, `housing.py`, `seal.py`, `splice.py`, `terminal.py`, `tpa_lock.py`, and `transition.py`. Note: this file was modified in the working tree as of the last git status check at the time this doc pass was written — check `git diff` before assuming its current content matches this summary if picking up related work.
+Defines `WiresPage(base.EditorList)` plus wire-specific column/icon logic (e.g. `WiresPage._get_icon`, whose picture comes from `database/global_db/wire_image.py`, shared with the peg-board wire table, the BOM and the circuit editor), importing `database.global_db.wire` only under `TYPE_CHECKING` — the representative example of the one-file-per-catalog-part-type pattern shared by `accessory.py`, `boot.py`, `bundle_cover.py`, `cover.py`, `cpa_lock.py`, `housing.py`, `seal.py`, `splice.py`, `terminal.py`, `tpa_lock.py`, and `transition.py`. Note: this file was modified in the working tree as of the last git status check at the time this doc pass was written — check `git diff` before assuming its current content matches this summary if picking up related work.
 
 #### wire_marker.py
 

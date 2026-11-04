@@ -28,6 +28,13 @@ Scans module-level function definitions (`collect_module_level_functions`) and c
 
 An AST-based codemod helper for fixing string/quoted type annotations (`_flatten_bitor`, `_base_name_of`, `_module_level_defs`, `_enclosing_class`) — likely built to enforce or migrate toward the "quoted forward-reference" typing conventions documented in the repo-root MEMORY.md's type-hinting section. No dedicated MEMORY.md entry describes its origin or intended workflow.
 
+#### make_wire_layers.py
+
+Writes the layered cable-preview PNGs into `harness_designer/image/images` (twisted pair and triple, cable jacket and
+braid, coax jacket and braid; never the `wire_*` or `loop_layer*` files). Needs only numpy and Pillow and imports nothing
+from the app. Each twisted conductor is a swept sphere drawn into a z-buffer so the layers come out already cut at the
+crossings. The geometry has to match the layout constants in `harness_designer/image/wire_images.py`.
+
 #### query_memory.py
 
 Queries a running app's live memory diagnostics (`tracemalloc`, `objects`, `growth`, ...). Only works while the app is running with `Config.debug.memory.enabled` set to True (see `harness_designer/config.py` and `harness_designer/memory_diagnostics.py`); otherwise there is no listener to connect to.

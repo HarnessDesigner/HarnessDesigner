@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from .. import image as _image
 from .. import check_types as _check_types
+from ..database.global_db import wire_image as _wire_image
 
 
 if TYPE_CHECKING:
@@ -97,28 +98,23 @@ def format_length(length_mm: float) -> str:
 
 @_check_types.do
 def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> _image.Image:
-    """Return a 100x25 wire-color swatch for *pjt_wire*, falling back to
-    ``images.no_image`` for shielded wires or when resolution fails --
-    the color-image module only supports single-conductor, unshielded
-    wires today (see :func:`harness_designer.gl.canvas_pegboard.table_rows.
-    wire_image_pixmap`, the existing precedent this mirrors).
+    """Return a 100x25 picture of *pjt_wire*'s catalog wire (single wire,
+    twisted pair / triple, cable or coax, see
+    :func:`harness_designer.database.global_db.wire_image.build_wire_image`),
+    falling back to ``images.no_image`` for a wire that cannot be drawn or
+    when resolution fails.
 
     :param pjt_wire: The wire instance to render a swatch for.
     :type pjt_wire: :class:`~harness_designer.database.project_db.pjt_wire.PJTWire`
     :returns: A 100x25 :class:`~harness_designer.image.Image`.
     :rtype: :class:`~harness_designer.image.Image`
     """
-    part = pjt_wire.part
     try:
-        if part.shielded:
-            raise ValueError('shielded wires have no icon support yet')
-
-        primary = part.color
-        stripe = None if part.stripe_color_id is None else part.stripe_color
-        conductor = part.core_material.color
-
-        img = _image.images.build_wire(primary, stripe, conductor)
+        img = _wire_image.build_wire_image(pjt_wire.part)
     except Exception:
+        img = None
+
+    if img is None:
         img = _image.images.no_image
 
     return img.resize(100, 25)

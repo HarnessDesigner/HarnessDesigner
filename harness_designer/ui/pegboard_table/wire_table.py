@@ -609,8 +609,9 @@ class WireTable(_base.EditorList):
 
     @_check_types.do
     def _get_icon(self, row_id: int) -> QtGui.QIcon | None:
-        """Return the wire-insulation swatch icon for *row_id*, same
-        technique as :meth:`WiresPage._get_icon` but starting from this
+        """Return the wire picture icon for *row_id* (single wire, twisted
+        pair / triple, cable or coax), same technique as
+        :meth:`WiresPage._get_icon` but starting from this
         row's joined ``part_id`` (a ``pjt_wires`` row has no color/
         material columns of its own -- they live on the JOINed ``wires``
         part record) instead of treating the row's own id as the part id.
@@ -620,8 +621,8 @@ class WireTable(_base.EditorList):
         :returns: The swatch icon, or the shared "no image" placeholder.
         :rtype: :class:`PySide6.QtGui.QIcon`
         """
-        from ... import image as _image
-        from ...database import id_generator as _id_generator
+        from ... import logger as _logger
+        from ...database.global_db import wire_image as _wire_image
 
         if row_id < 0:
             return None
@@ -655,47 +656,18 @@ class WireTable(_base.EditorList):
 
         part_id = part_rows[0][0]
 
-        wires_table = self.table.db.global_db.wires_table
-        wire_rows = wires_table.select(
-            'num_conductors', 'shielded', 'color_id', 'stripe_color_id',
-            'core_material_id', id=part_id)
-        if not wire_rows:
+        # which picture a wire gets (single wire, twisted pair / triple, jacketed cable, coax) is decided in one place
+        # (wires that look the same share ONE icon object, so this row costs a reference, not a pixmap)
+        try:
+            icon = _wire_image.build_wire_icon(self.table.db.global_db.wires_table[part_id], 64)
+        except Exception as exc:  # NOQA
+            _logger.error(f'peg-board wire table: could not build the image of a wire: {exc!r}')
+            icon = None
+
+        if icon is None:
             self.bitmap_indexes[db_id] = _base.EditorList._no_image
             return _base.EditorList._no_image
 
-        num_conductors, shielded, color_id, stripe_color_id, core_material_id = wire_rows[0]
-
-        if num_conductors != 1 or shielded:
-            self.bitmap_indexes[db_id] = _base.EditorList._no_image
-            return _base.EditorList._no_image
-
-        nil_uuid = _id_generator.NIL_UUID.bytes
-        colors_table = self.table.db.global_db.colors_table
-
-        # the nil id is Black (colour code 0); a wire with no jacket / no stripe has the "no color" id
-        no_color = _id_generator.NO_COLOR_UUID.bytes
-
-        primary_color = None
-        if color_id is not None and color_id != no_color:
-            primary_color = colors_table[color_id]
-
-        stripe_color = None
-        if stripe_color_id is not None and stripe_color_id != no_color:
-            stripe_color = colors_table[stripe_color_id]
-
-        if core_material_id is None or core_material_id == nil_uuid:
-            conductor_color = None
-        else:
-            conductor_color = self.table.db.global_db.platings_table[core_material_id].color
-
-        if primary_color is None or conductor_color is None:
-            self.bitmap_indexes[db_id] = _base.EditorList._no_image
-            return _base.EditorList._no_image
-
-        image = _image.images.build_wire(primary_color, stripe_color, conductor_color)
-        image = image.resize_keep_aspect(64, 64)
-
-        icon = QtGui.QIcon(image.pixmap)
         self.bitmap_indexes[db_id] = icon
 
         return icon

@@ -25,6 +25,7 @@ from ... import check_types as _check_types
 from ... import logger as _logger
 from ... import image as _image
 from ...database import id_generator as _id_generator
+from ...database.global_db import wire_image as _wire_image
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -313,7 +314,8 @@ def _log_once(key: tuple[str, str], message: str) -> None:
         _logger.error(message)
 
 
-# A wire part's pictures by (primary, stripe, conductor) colour name, as (table image, panel image). The generator keeps the full-size
+# A wire's pictures by the generated picture, as (table image, panel image). Every wire that LOOKS the same (colours, jacket,
+# shield; not size or part number) has the same picture object, so it shares these too. The generator keeps the full-size
 # image itself; this keeps the two sizes made from it. Reset by EditorCircuitPanel.refresh().
 _WIRE_IMAGES: dict[Any, tuple[QtGui.QImage, QtGui.QImage]] = {}
 
@@ -327,47 +329,35 @@ def _qimage(image: Any, size: tuple[int, int]) -> QtGui.QImage:
 
 @_check_types.do
 def _wire_part_images(part: Any) -> tuple[QtGui.QImage, QtGui.QImage]:
-    """A wire part's picture from the image module's generator, at the table size and at the panel size.
+    """A wire part's picture, at the table size and at the panel size.
 
-    The generator draws only a single-conductor, unshielded wire whose insulation and conductor colours are set; the parts editor, the
-    peg-board table and the BOM make the same call under the same rule. Any other part, or one the generator fails on (logged once),
-    gets ``images.no_image``.
+    :func:`~harness_designer.database.global_db.wire_image.build_wire_image` decides which picture the part gets (single wire,
+    twisted pair / triple, jacketed or shielded cable, coax); the parts editor, the peg-board table and the BOM make the same call.
+    A part it cannot draw, or one it fails on (logged once), gets ``images.no_image``.
 
     :param part: The catalog wire, or ``None`` for a member with no part.
     :type part: Any
     :returns: ``(table image, panel image)``.
     :rtype: tuple[QtGui.QImage, QtGui.QImage]
     """
-    images = _image.images
-    key = None
     source = None
 
     try:
-        if (part is not None and (part.num_conductors or 1) == 1 and not part.shielded
-                and not _unset(part, "color_id") and not _unset(part, "core_material_id")):
-            primary = part.color
-            stripe = None if _unset(part, "stripe_color_id") else part.stripe_color
-            conductor = part.core_material.color
-            key = (primary.name, None if stripe is None else stripe.name, conductor.name)
-
-            if key not in _WIRE_IMAGES:
-                source = images.build_wire(primary, stripe, conductor)
+        if part is not None:
+            source = _wire_image.build_wire_image(part)
 
     except Exception as exc:  # NOQA
         _log_once(("wire image", repr(exc)), f"circuit editor: could not build a wire image: {exc!r}")
-        key = None
         source = None
 
-    if key is None:
-        key = "no image"
+    if source is None:
+        source = _image.images.no_image
 
-        if key not in _WIRE_IMAGES:
-            source = images.no_image
+    # keyed by the picture itself, which every wire that looks the same shares (colours, jacket, shield), not by the part
+    if source not in _WIRE_IMAGES:
+        _WIRE_IMAGES[source] = (_qimage(source, WIRE_TABLE_SIZE), _qimage(source, WIRE_PANEL_SIZE))
 
-    if key not in _WIRE_IMAGES:
-        _WIRE_IMAGES[key] = (_qimage(source, WIRE_TABLE_SIZE), _qimage(source, WIRE_PANEL_SIZE))
-
-    return _WIRE_IMAGES[key]
+    return _WIRE_IMAGES[source]
 
 
 @_check_types.do
@@ -1236,7 +1226,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
 class WireDelegate(QtWidgets.QStyledItemDelegate):
     """Draws the Wire column: one picture for each distinct wire of the circuit (wires and wire service loops), stacked.
 
-    The pictures are the image module's generated wire (``images.build_wire``) at ``WIRE_TABLE_SIZE``. A circuit whose wires are all
+    The pictures are the generated wire pictures (``wire_image.build_wire_image``) at ``WIRE_TABLE_SIZE``. A circuit whose wires are all
     the same part shows one; where it uses several (the wire changes when it branches off a splice or another terminal) the cell is
     made taller and they are stacked in it: the table sizes the row to what :meth:`sizeHint` asks for.
     """

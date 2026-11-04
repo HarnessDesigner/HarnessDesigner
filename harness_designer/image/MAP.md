@@ -57,6 +57,23 @@ decode), `bytes_data_2_qpixmap`/`pil_image_2_qpixmap`/`pil_image_2_qimage` (→ 
 (Lanczos, aspect-preserving when height is omitted), `rotate_pil_image` (bicubic, transparent fill), and
 `pil_image_2_qcursor` (defaults the hotspot to the image center).
 
+#### wire_images.py
+
+The layered cable previews, one `Image` subclass per kind of cable, each assembling its own picture from the PNGs in
+`images/` (the `twisted2_*`, `twisted3_*`, `cable_*` and `coax_*` layers, made by `diagnostics/make_wire_layers.py`; the
+layout numbers at the top of this file, where the jacket and braid end and where the conductors come out, have to match that
+script): `TwistedWireImage(conductors, jacket_color=None, shield_color=None)` (a pair or triple; one base, stripe and
+bare-core layer per conductor, so any conductor can be striped or not, already cut where the wires cross so order does
+not matter), `CableImage(conductors, jacket_color, shield_color=None)` (one to three straight conductors, each the plain wire
+image scaled down and lengthened to the left under the jacket) and `CoaxImage(jacket, shield, dielectric, core)`.
+`conductors` is a list of `(base, stripe or None, core)` `Color` tuples; more than three draw the first three. A braid with no
+jacket uses `cable_shield_bare`. **Everything else in the file is private**, and the module is imported on demand
+(`from ...image import wire_images`), NOT by `__init__.py`, because the classes subclass `Image`. **Caching:** the classes use the `_CableImageMeta` metaclass (the `ColorMeta` / `_EntrySingleton` pattern: `__call__` returns the image already made for the same key; a per-class `_instances` dict and an `RLock`). A class defines `_cache_key(...)` with the signature of its `__init__` and returns colour NAMES. The cache holds STRONG references and is never emptied (user decision 2026-11-04: an image freed while the user scrolls a list of wires would be drawn again when the row comes back, and the memory is small). KEYED BY LOOK, NOT BY PART: the key is the colours (conductors, stripes, cores), the jacket and the shield, never the size, series or part number, so an 18 AWG and a 28 AWG pair of the same colours are one image. Measured on the generated catalog (2026-11-04): 4,986 distinct cable pictures for 87,670 cables (36 for the 43,120 M27500 cables, 4,950 for the 44,550 colour pairs) and 303 for the 33,572 single wires. An image holds only its compressed PNG (7 to 21 KB, a twisted pair about 18 KB, not the 160 KB of raw RGBA), so the whole set is about 90 MB if every look were ever shown, and a screenful is under a megabyte. If that ever matters, bound the dict (least recently used) rather than going back to weak references. The layers are read from the `images` folder next to the file
+(`_layer`, kept with `lru_cache`, shared, never drawn on), not through the lazy loader. Layers are combined with true alpha
+compositing, not `Image.__add__` (a masked paste). Imports only `check_types`, `Image` and `utils` from the package, so a
+scratch script can load it under a throwaway package name (do NOT import `harness_designer` for that, it opens the real
+config; PySide6 may also be missing, so stub `PySide6.QtGui`).
+
 ## FOLDERS
 
 #### cursors/
