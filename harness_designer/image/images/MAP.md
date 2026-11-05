@@ -24,8 +24,10 @@
 
 #### loop_layer1.png ... loop_layer9.png
 
-The nine layers of the wire-LOOP preview that `ImageLoader.build_wire_loop` composites: layers 1, 4 and 7 are recoloured
-to the wire colour, 2, 5 and 8 to the stripe colour (skipped when there is no stripe), 3, 6 and 9 are drawn as they are.
+The nine layers of the wire-LOOP preview that `wire_images.WireLoopImage` composites (200 x 200): layers 1, 4 and 7 are
+recoloured to the wire colour, 2, 5 and 8 to the stripe colour (skipped when there is no stripe), 3, 6 and 9 are drawn as
+they are, in order 1 to 9 (three arcs, each base / stripe / shadow). The old `build_wire_loop` drew layer 8 twice and
+never layer 7 when there was a stripe; that is fixed.
 
 #### no_image.png
 

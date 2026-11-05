@@ -7,9 +7,12 @@ picture from the PNG layers in ``image/images``:
 
 * :class:`TwistedWireImage`: a twisted pair or triple, bare or in a jacket and / or braid shield;
 * :class:`CableImage`: one to three straight conductors in a jacket and / or braid shield;
-* :class:`CoaxImage`: a stripped coax end (jacket, braid, dielectric, centre conductor).
+* :class:`CoaxImage`: a stripped coax end (jacket, braid, dielectric, centre conductor);
+* :class:`WireImage`: a single conductor (insulation, stripe, bare core);
+* :class:`WireLoopImage`: the ring of a wire service loop.
 
-Everything else in this module is private. The layer files are made by ``diagnostics/make_wire_layers.py`` and the
+:func:`build_image` is the one entry point: it takes a ``Wire``, ``PJTWire`` or ``PJTWireServiceLoop`` row, decides which
+class draws it and returns the image (``images.build_wire(row)`` calls it). Everything else in this module is private. The layer files are made by ``diagnostics/make_wire_layers.py`` and the
 layout numbers below must stay in step with it. Every colour layer is a white mask that is recoloured here, every
 shadow layer is black with alpha only; all are 400 x 100 with the left edge a flat cut and the insulation ending at
 x = 300, like ``wire_base`` / ``wire_stripe`` / ``wire_conductor`` / ``wire_shadow``.
@@ -41,6 +44,9 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..database.global_db import color as _color
+    from ..database.global_db import wire as _wire
+    from ..database.project_db import pjt_wire as _pjt_wire
+    from ..database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
 
 
 _Rgb = tuple[int, int, int]
@@ -503,3 +509,366 @@ class CoaxImage(_CableImage):
             inner,
             _recolor(_layer('coax_shield'), _rgb(shield_color)), _layer('coax_shield_shadow'),
             _recolor(_layer('coax_jacket'), _rgb(jacket_color)), _layer('coax_jacket_shadow')))
+
+
+class WireImage(_CableImage):
+    """A single conductor: insulation, an optional stripe, the bare core and a shadow. The same colours give the same
+    image (see :class:`_CableImageMeta`)."""
+
+    @classmethod
+    @_check_types.do
+    def _cache_key(cls, primary_color: "_color.Color", stripe_color: _Union["_color.Color", None],
+                   core_color: "_color.Color") -> tuple:
+        return _color_name(primary_color), _color_name(stripe_color), _color_name(core_color)
+
+    @_check_types.do
+    def __init__(self, primary_color: "_color.Color", stripe_color: _Union["_color.Color", None],
+                 core_color: "_color.Color"):
+        """Assemble the picture.
+
+        :param primary_color: Colour of the insulation.
+        :type primary_color: :class:`Color`
+        :param stripe_color: Colour of the stripe, or ``None`` for no stripe.
+        :type stripe_color: :class:`Color` | None
+        :param core_color: Colour of the bare conductor.
+        :type core_color: :class:`Color`
+        """
+        super().__init__('wire', _single_wire(_Look(_rgb(primary_color), _rgb_or_none(stripe_color), _rgb(core_color))))
+
+
+class WireLoopImage(_CableImage):
+    """The end view of a wire service loop: a ring of wire with a lead going out, in the wire's colour and stripe.
+
+    This one is 200 x 200, not 400 x 100. The ring is three arcs, each one a base layer, a stripe layer and a shadow
+    layer (``loop_layer1`` to ``loop_layer9``, in that order). The same colours give the same image (see
+    :class:`_CableImageMeta`).
+    """
+
+    @classmethod
+    @_check_types.do
+    def _cache_key(cls, primary_color: "_color.Color", stripe_color: _Union["_color.Color", None]) -> tuple:
+        return _color_name(primary_color), _color_name(stripe_color)
+
+    @_check_types.do
+    def __init__(self, primary_color: "_color.Color", stripe_color: _Union["_color.Color", None]):
+        """Assemble the picture.
+
+        :param primary_color: Colour of the wire's insulation.
+        :type primary_color: :class:`Color`
+        :param stripe_color: Colour of the stripe, or ``None`` for no stripe.
+        :type stripe_color: :class:`Color` | None
+        """
+        primary = _rgb(primary_color)
+        stripe = _rgb_or_none(stripe_color)
+        layers = []
+
+        for first in (1, 4, 7):
+            layers.append(_recolor(_layer(f'loop_layer{first}'), primary))
+
+            if stripe is not None:
+                layers.append(_recolor(_layer(f'loop_layer{first + 1}'), stripe))
+
+            layers.append(_layer(f'loop_layer{first + 2}'))
+
+        super().__init__('wire_loop', _over(*layers))
+
+
+# The catalog has no colour for a coax / cable shield braid or for a coax dielectric, so these are used (the first one
+# the colours table has).
+_SHIELD_COLOR_NAMES = ('Silver', 'Gray')
+_DIELECTRIC_COLOR_NAMES = ('White',)
+
+
+@_check_types.do
+def _named_color(colors_table: object, names: tuple[str, ...]) -> _Union["_color.Color", None]:
+    """Return the first colour of ``names`` that the colours table has, or ``None``.
+
+    :param colors_table: The ``colors`` table class.
+    :type colors_table: object
+    :param names: Colour names in order of preference.
+    :type names: tuple[str, ...]
+    :returns: The colour, or ``None`` when the table has none of them.
+    :rtype: :class:`Color` | None
+    """
+    for name in names:
+        try:
+            return colors_table[name]
+        except (KeyError, IndexError):
+            continue
+
+    return None
+
+
+class ConductorImageRow(NamedTuple):
+    """One conductor of a cable, with only what the picture needs. A catalog ``WireConductor`` has the same three
+    attributes, so either can be a conductor of :class:`WireImageRow`."""
+
+    color_id: bytes
+    """The colour of the conductor's insulation (a ``colors`` id)."""
+
+    stripe_color_id: bytes | None
+    """The colour of its stripe; ``None`` or the "no color" id for none."""
+
+    core_material_id: bytes | None
+    """The plating of the metal (a ``platings`` id); ``None`` or the nil id for none."""
+
+
+class WireImageRow(NamedTuple):
+    """What :func:`build_image` needs to draw a catalog wire, for a caller that has plain query results and no
+    ``Wire`` row.
+
+    The parts editor lists thousands of wires from a paged SQL query; making a ``Wire`` (and reading its conductors) for
+    each one would slow that list down, so the query also returns these values (the ids behind the name columns and the
+    conductors, see :meth:`from_query`) and the list wraps them in this. The attribute names are the ones of ``Wire`` (and
+    ``Wire.wire_type.name`` is :attr:`wire_type_name`), so :func:`build_image` reads both the same way.
+    """
+
+    db: Any
+    """The global database (it has the ``colors_table`` and ``platings_table`` the ids are looked up in)."""
+
+    wire_type_name: str | None
+    """The name of the wire type ("Wire", "Coaxial", "Ribbon")."""
+
+    num_conductors: int | None
+
+    color_id: bytes | None
+    """The jacket colour (a single wire's insulation); ``None`` or the "no color" id for none."""
+
+    stripe_color_id: bytes | None
+
+    core_material_id: bytes | None
+
+    shielded: bool
+
+    tpi: float | None
+    """Twists per inch; above 0 draws a twisted pair or triple."""
+
+    conductors: tuple[ConductorImageRow, ...]
+    """The conductors in order; empty for a single wire."""
+
+    @staticmethod
+    def parse_conductors(text: str | None) -> tuple[ConductorImageRow, ...]:
+        """Turn the conductors the parts editor's query returns into :class:`ConductorImageRow` values, in order.
+
+        The query makes one text per conductor, ``idx,hex(color_id),hex(stripe_color_id),hex(core_material_id)``, joined
+        with ``;`` (``hex`` of a NULL is empty).
+
+        :param text: The joined text; ``None`` or empty when the wire has no conductors.
+        :type text: str | None
+        :returns: The conductors, sorted by ``idx``.
+        :rtype: tuple[ConductorImageRow, ...]
+        """
+        if not text:
+            return ()
+
+        parsed = []
+
+        for item in text.split(';'):
+            idx, color, stripe, core = item.split(',')
+            parsed.append((int(idx), ConductorImageRow(bytes.fromhex(color) if color else None,
+                                                       bytes.fromhex(stripe) if stripe else None,
+                                                       bytes.fromhex(core) if core else None)))
+
+        parsed.sort(key=lambda entry: entry[0])
+        return tuple(conductor for _, conductor in parsed)
+
+    @classmethod
+    def from_query(cls, db: Any, wire_type_name: str | None, num_conductors: int | None, color_id: bytes | None,
+                   stripe_color_id: bytes | None, core_material_id: bytes | None, shielded: Any, tpi: float | None,
+                   conductors: str | None) -> "WireImageRow":
+        """Build the row from the columns of the parts editor's query.
+
+        :param db: The global database.
+        :param wire_type_name: ``wire_types.name`` of the wire.
+        :param num_conductors: ``wires.num_conductors``.
+        :param color_id: ``wires.color_id``.
+        :param stripe_color_id: ``wires.stripe_color_id``.
+        :param core_material_id: ``wires.core_material_id``.
+        :param shielded: ``wires.shielded`` (0 / 1 / ``None``).
+        :param tpi: ``wires.tpi``.
+        :param conductors: The conductors text, see :meth:`parse_conductors`.
+        :returns: The row.
+        :rtype: :class:`WireImageRow`
+        """
+        return cls(db, wire_type_name, num_conductors, color_id, stripe_color_id, core_material_id, bool(shielded), tpi,
+                   cls.parse_conductors(conductors))
+
+
+def _draw_wire(db: Any, wire_type_name: str | None, num_conductors: int | None, color_id: bytes | None,
+               stripe_color_id: bytes | None, core_material_id: bytes | None, shielded: bool, tpi: float | None,
+               conductors: Any) -> _Union[Image, None]:
+    """Choose and build the image of a catalog wire from its values (a ``Wire`` row's, or a :class:`WireImageRow`'s).
+
+    * "Ribbon" wire type: ``None`` (not drawn yet);
+    * "Coaxial": :class:`CoaxImage`;
+    * one unshielded conductor: :class:`WireImage`;
+    * otherwise its conductors: :class:`TwistedWireImage` when ``tpi`` is above 0 and there are at least two, else
+      :class:`CableImage`. A cable with no conductor rows cannot be drawn.
+
+    A wire with no jacket colour (the "no color" id) and nothing else to show cannot be drawn either: ``None``.
+
+    :param db: The global database, for its colour and plating tables.
+    :param wire_type_name: Name of the wire type.
+    :param num_conductors: How many conductors the wire has.
+    :param color_id: The jacket colour id.
+    :param stripe_color_id: The stripe colour id of a single wire.
+    :param core_material_id: The plating id of the metal.
+    :param shielded: Whether it has a braid.
+    :param tpi: Twists per inch.
+    :param conductors: The conductors, each with ``color_id``, ``stripe_color_id`` and ``core_material_id``.
+    :returns: The image, or ``None`` when the wire cannot be drawn.
+    :rtype: :class:`Image` | None
+    """
+    from ..database import id_generator as id_generator  # NOQA  (not at the top: keeps this module loadable on its own)
+
+    colors_table = db.colors_table
+    platings_table = db.platings_table
+
+    no_color = id_generator.NO_COLOR_UUID.bytes  # a wire with no jacket / a conductor with no stripe
+    nil = id_generator.NIL_UUID.bytes  # an unset plating; as a colour the nil id is Black, a real colour
+
+    def color_of(color_id_: bytes | None):
+        if color_id_ is None or color_id_ == no_color:
+            return None
+
+        return colors_table[color_id_]
+
+    def core_of(core_id: bytes | None):
+        if core_id is None or core_id == nil:
+            return None
+
+        return platings_table[core_id].color
+
+    if wire_type_name == 'Ribbon':
+        return None
+
+    count = num_conductors or 1
+    jacket = color_of(color_id)
+
+    if wire_type_name == 'Coaxial':
+        core = core_of(core_material_id)
+        shield = _named_color(colors_table, _SHIELD_COLOR_NAMES)
+        dielectric = _named_color(colors_table, _DIELECTRIC_COLOR_NAMES)
+
+        if jacket is None or core is None or shield is None or dielectric is None:
+            return None
+
+        return CoaxImage(jacket, shield, dielectric, core)
+
+    if count == 1 and not shielded:
+        core = core_of(core_material_id)
+
+        if jacket is None or core is None:
+            return None
+
+        return WireImage(jacket, color_of(stripe_color_id), core)
+
+    # everything else needs the individual conductors
+    wire_core = core_of(core_material_id)
+    drawn = []
+
+    for conductor in list(conductors)[:_MAX_CONDUCTORS]:
+        base = color_of(conductor.color_id)
+        core = core_of(conductor.core_material_id)
+
+        if core is None:
+            core = wire_core
+
+        if base is None or core is None:
+            return None
+
+        drawn.append((base, color_of(conductor.stripe_color_id), core))
+
+    if not drawn:
+        return None
+
+    shield = None
+
+    if shielded:
+        shield = _named_color(colors_table, _SHIELD_COLOR_NAMES)
+
+        if shield is None:
+            return None
+
+    if len(drawn) >= 2 and tpi is not None and tpi > 0:
+        return TwistedWireImage(drawn, jacket, shield)
+
+    return CableImage(drawn, jacket, shield)
+
+
+@_check_types.do
+def _catalog_wire_image(wire: "_wire.Wire") -> _Union[Image, None]:
+    """Choose and build the image of a catalog ``Wire`` row (see :func:`_draw_wire`).
+
+    :param wire: The catalog wire.
+    :type wire: :class:`Wire`
+    :returns: The image, or ``None`` when the wire cannot be drawn.
+    :rtype: :class:`Image` | None
+    """
+    return _draw_wire(wire._table.db, wire.wire_type.name, wire.num_conductors, wire.color_id,  # NOQA
+                      wire.stripe_color_id, wire.core_material_id, wire.shielded, wire.tpi, wire.conductors)
+
+
+@_check_types.do
+def _loop_image(wire: "_wire.Wire") -> _Union[Image, None]:
+    """Build the image of a wire service loop from the colours of its catalog wire.
+
+    :param wire: The catalog wire the loop is made of.
+    :type wire: :class:`Wire`
+    :returns: The image, or ``None`` when the wire has no colour (the "no color" id).
+    :rtype: :class:`Image` | None
+    """
+    from ..database import id_generator as id_generator  # NOQA
+
+    colors_table = wire._table.db.colors_table  # NOQA
+    no_color = id_generator.NO_COLOR_UUID.bytes
+
+    if wire.color_id is None or wire.color_id == no_color:
+        return None
+
+    stripe_id = wire.stripe_color_id
+    stripe = None if stripe_id is None or stripe_id == no_color else colors_table[stripe_id]
+
+    return WireLoopImage(colors_table[wire.color_id], stripe)
+
+
+@_check_types.do
+def build_image(row: _Union["_wire.Wire", "_pjt_wire.PJTWire", "_pjt_wire_service_loop.PJTWireServiceLoop",
+                            WireImageRow]) -> _Union[Image, None]:
+    """The one place a wire picture is asked for: pass the database row and get the image class's instance for it.
+
+    * a catalog :class:`Wire`: a :class:`WireImage`, :class:`TwistedWireImage`, :class:`CableImage` or
+      :class:`CoaxImage`, whichever its wire type, conductors, ``tpi`` and shield call for (see
+      :func:`_catalog_wire_image`);
+    * a project :class:`PJTWire`: the same, for its catalog wire (``row.part``);
+    * a :class:`WireImageRow`: the same as a catalog wire, from plain query results (the parts editor's list, which does
+      not make a ``Wire`` row per line);
+    * a project :class:`PJTWireServiceLoop`: a :class:`WireLoopImage` in the colours of its catalog wire.
+
+    The image classes cache by how a wire looks (see :class:`_CableImageMeta`), so calling this for every row of a list
+    costs a dictionary lookup per row after the first of each look.
+
+    :param row: The row to draw.
+    :type row: :class:`Wire` | :class:`PJTWire` | :class:`PJTWireServiceLoop` | :class:`WireImageRow`
+    :returns: The image, or ``None`` when the row cannot be drawn (the caller then shows ``images.no_image``).
+    :rtype: :class:`Image` | None
+    :raises TypeError: ``row`` is none of the four row types.
+    """
+    # not at the top: the database packages import this one's package, and this module has to stay loadable alone
+    from ..database.global_db import wire as gl_wire
+    from ..database.project_db import pjt_wire, pjt_wire_service_loop
+
+    if isinstance(row, WireImageRow):
+        return _draw_wire(row.db, row.wire_type_name, row.num_conductors, row.color_id, row.stripe_color_id,
+                          row.core_material_id, row.shielded, row.tpi, row.conductors)
+
+    if isinstance(row, gl_wire.Wire):
+        return _catalog_wire_image(row)
+
+    if isinstance(row, pjt_wire.PJTWire):
+        return _catalog_wire_image(row.part)
+
+    if isinstance(row, pjt_wire_service_loop.PJTWireServiceLoop):
+        return _loop_image(row.part)
+
+    raise TypeError(f'cannot draw a {type(row).__name__}: expected a Wire, a PJTWire, a PJTWireServiceLoop or a WireImageRow')

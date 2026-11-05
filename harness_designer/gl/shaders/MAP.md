@@ -19,7 +19,7 @@ construction) and its 6 concrete subclasses — `FacesProgram`/`EdgesProgram`/`V
 `GridProgram`/`FloorProgram`/`TextureProgram` — each wrapping one compiled program int from the
 matching submodule's own `compile_program()`. `FacesProgram` is the one with `has_normal_mode =
 True` and owns the headlight spotlight uniforms (`headlight_position`/`direction`/`diffuse`/
-`diameter`/`enabled`). This class (together with `gl/vbo.py`'s `render()`, which takes a `Program`
+`diameter`/`enabled`) and, since 2026-11-05, the twisted-conductor uniforms (`twist_rings`/`length`/`rate`/`phase`/`profile`/`start`/`end` and `twist_stripe_half`/`ambient`/`diffuse`/`specular`; see `faces/vertex.vert`). This class (together with `gl/vbo.py`'s `render()`, which takes a `Program`
 object itself, never a raw location int) is meant to remain the only place in the app that calls
 `GL.glGetUniformLocation`/raw `GL.glUniform*`/`GL.glUseProgram` directly — every consumer
 (canvases, `vbo.py`, `materials/material.py`, drag/rotation handlers, floor renderers) gets handed

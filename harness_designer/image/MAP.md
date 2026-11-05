@@ -12,10 +12,8 @@ of an attribute it checks for a matching subdirectory (wrapped as a nested `Imag
 done to save memory by only loading icons/images actually used, rather than eagerly loading the whole
 `image/` tree at import time. The top-level loader replaces this module itself in `sys.modules`, which is
 why `harness_designer.image.icons.camera` works like a normal nested-module attribute even though nothing
-is actually imported until that specific attribute is touched. The `images` sub-loader additionally gets a
-`build_wire(primary_color, stripe_color, conductor_color)` method (cached by color triple) that composites
-`wire_base`/`wire_stripe`/`wire_conductor`/`wire_shadow` PNGs, recolored per the given `Color` objects, into
-one wire-preview `Image`. A `TYPE_CHECKING`-only block declares `ip`/`cursors`/`icons`/`images` as plain
+is actually imported until that specific attribute is touched. The `images` sub-loader additionally gets `build_wire(row)` (CHANGED 2026-11-05), the ONE entry point for wire pictures: pass a catalog `Wire`, a project `PJTWire` or a project `PJTWireServiceLoop` and it imports `wire_images` on first use and returns `wire_images.build_image(row)`, which picks the image class from the row. There is no cache or compositing in the loader any more (the old three-colour `build_wire` and `build_wire_loop` are gone); the classes cache by look.
+A `TYPE_CHECKING`-only block declares `ip`/`cursors`/`icons`/`images` as plain
 classes purely so IDEs/type-checkers see concrete attribute names for assets that are otherwise only ever
 discovered dynamically at runtime.
 
@@ -62,7 +60,7 @@ decode), `bytes_data_2_qpixmap`/`pil_image_2_qpixmap`/`pil_image_2_qimage` (→ 
 The layered cable previews, one `Image` subclass per kind of cable, each assembling its own picture from the PNGs in
 `images/` (the `twisted2_*`, `twisted3_*`, `cable_*` and `coax_*` layers, made by `diagnostics/make_wire_layers.py`; the
 layout numbers at the top of this file, where the jacket and braid end and where the conductors come out, have to match that
-script): `TwistedWireImage(conductors, jacket_color=None, shield_color=None)` (a pair or triple; one base, stripe and
+script): `build_image(row)` (the only public function; `ImageLoader.images.build_wire` calls it: a catalog `Wire` or `PJTWire` gives `WireImage` for one unshielded conductor, `CoaxImage` for wire type Coaxial, otherwise `TwistedWireImage` / `CableImage` from the `wire_conductors` rows, or `None` for Ribbon or a wire whose colours are unknown; a `PJTWireServiceLoop` gives `WireLoopImage` in the colours of its `part`; anything else raises `TypeError`; the database classes are imported inside the function so this module stays loadable alone), `WireImageRow` / `ConductorImageRow` (NamedTuples: what `build_image` needs to draw a catalog wire when the caller has plain query results and no `Wire` row, as the parts editor's list does; the attribute names are `Wire`'s, with `wire_type_name` for `wire_type.name` and a `db` field for the colour and plating tables; `WireImageRow.from_query` builds one from the query's columns, and `build_image` accepts it like a row), `WireImage(primary, stripe or None, core)` (a single conductor, 400 x 100), `WireLoopImage(primary, stripe or None)` (the service loop's ring, 200 x 200, from `loop_layer1..9`), `TwistedWireImage(conductors, jacket_color=None, shield_color=None)` (a pair or triple; one base, stripe and
 bare-core layer per conductor, so any conductor can be striped or not, already cut where the wires cross so order does
 not matter), `CableImage(conductors, jacket_color, shield_color=None)` (one to three straight conductors, each the plain wire
 image scaled down and lengthened to the left under the jacket) and `CoaxImage(jacket, shield, dielectric, core)`.

@@ -13,11 +13,13 @@ layout(triangle_strip, max_vertices = 6) out;
 in vec3 fragPositionWorld[];
 in vec3 fragNormalWorld[];
 in float fragLocalZ[];
+in float fragStripe[];
 
 out vec3 fragPositionGeom;
 out vec3 fragNormalGeom;
 out float isReflection;
 out float fragLocalZGeom;
+out float fragStripeGeom;
 
 uniform mat4 projection;
 uniform mat4 view;
@@ -31,6 +33,7 @@ void main() {
         fragPositionGeom = fragPositionWorld[i];
         fragNormalGeom = fragNormalWorld[i];
         fragLocalZGeom = fragLocalZ[i];
+        fragStripeGeom = fragStripe[i];
         isReflection = 0.0;
         EmitVertex();
     }
@@ -49,6 +52,7 @@ void main() {
             fragPositionGeom = reflectedPos;
             fragNormalGeom = normalize(reflectedNormal);
             fragLocalZGeom = fragLocalZ[i];
+            fragStripeGeom = fragStripe[i];
             isReflection = 1.0;
             EmitVertex();
         }

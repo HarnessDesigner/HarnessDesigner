@@ -133,3 +133,7 @@ distinguishing differently-shaped triangle instances, given triangles are fully
 dimension-parameterized rather than fixed-shape) — confirm its purpose with `dep_trace.py --calls
 --name create_vbo` before relying on it. Not listed in CODEBASE_MAP.md's `shapes/` file list
 (stale).
+
+#### twisted_wire.py
+
+NOT a mesh generator (NEW 2026-11-05): the maths and the draw call of a twisted pair / triple (`TWISTED_WIRE_DESIGN.md` sections 5 and 7). `profile(count, outer_diameter)` gives each conductor's circle in the cable's cross-section; `plan(rotations, lengths, joined, rate, outer_radius)` works out, for the segments of a bent wire, the twist phase carried across each joint (parallel transport) and the mitre that closes the outside of the bend; `ring_count` sizes a segment's tube; `TUBE.draw(...)` sets the faces program's `twist*` uniforms and issues a `glDrawArrays` with an EMPTY vertex array, because `gl/shaders/faces/vertex.vert` makes every vertex from `gl_VertexID` when `twistRings` is above 0. `SIDES` must equal `TWIST_SIDES` in that shader. `draw` always puts `twistRings` and `twistStripeHalf` back to 0 in a `finally`: every other draw relies on them being 0. Checked 2026-11-05 with throwaway scripts (offscreen GL render through the real `FacesProgram`, and a numeric copy of the shader maths over 2000 random bends of 5-150 degrees: the end ring of a segment and the start ring of the next agree to 1e-13 mm); the app itself was not run.

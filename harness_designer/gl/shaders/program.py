@@ -85,6 +85,17 @@ class FacesProgram(Program):
             self._headlight_diameter = GL.glGetUniformLocation(program, "headlightDiameter")
             self._headlight_enabled = GL.glGetUniformLocation(program, "headlightEnabled")
             self._show_depth = GL.glGetUniformLocation(program, "showDepth")
+            self._twist_rings = GL.glGetUniformLocation(program, "twistRings")
+            self._twist_length = GL.glGetUniformLocation(program, "twistLength")
+            self._twist_rate = GL.glGetUniformLocation(program, "twistRate")
+            self._twist_phase = GL.glGetUniformLocation(program, "twistPhase")
+            self._twist_profile = GL.glGetUniformLocation(program, "twistProfile")
+            self._twist_start = GL.glGetUniformLocation(program, "twistStart")
+            self._twist_end = GL.glGetUniformLocation(program, "twistEnd")
+            self._twist_stripe_half = GL.glGetUniformLocation(program, "twistStripeHalf")
+            self._twist_stripe_ambient = GL.glGetUniformLocation(program, "twistStripeAmbient")
+            self._twist_stripe_diffuse = GL.glGetUniformLocation(program, "twistStripeDiffuse")
+            self._twist_stripe_specular = GL.glGetUniformLocation(program, "twistStripeSpecular")
 
     @property
     @_check_types.do
@@ -185,6 +196,120 @@ class FacesProgram(Program):
     @_check_types.do
     def has_reflection(self, value: int) -> None:
         GL.glUniform1i(self._object_has_reflection, value)
+
+
+    @property
+    @_check_types.do
+    def twist_rings(self) -> int:
+        raise NotImplementedError
+
+    @twist_rings.setter
+    @_check_types.do
+    def twist_rings(self, value: int) -> None:
+        """Number of rings of a twisted conductor's tube; 0 (the default) draws everything else normally. Only
+        ``shapes.twisted_wire.TwistedTube.draw`` sets it, and puts it back to 0 when the draw is done."""
+        GL.glUniform1i(self._twist_rings, value)
+
+    @property
+    @_check_types.do
+    def twist_length(self) -> float:
+        raise NotImplementedError
+
+    @twist_length.setter
+    @_check_types.do
+    def twist_length(self, value: float) -> None:
+        GL.glUniform1f(self._twist_length, value)
+
+    @property
+    @_check_types.do
+    def twist_rate(self) -> float:
+        raise NotImplementedError
+
+    @twist_rate.setter
+    @_check_types.do
+    def twist_rate(self, value: float) -> None:
+        GL.glUniform1f(self._twist_rate, value)
+
+    @property
+    @_check_types.do
+    def twist_phase(self) -> float:
+        raise NotImplementedError
+
+    @twist_phase.setter
+    @_check_types.do
+    def twist_phase(self, value: float) -> None:
+        GL.glUniform1f(self._twist_phase, value)
+
+    @property
+    @_check_types.do
+    def twist_profile(self) -> tuple[float, float, float]:
+        raise NotImplementedError
+
+    @twist_profile.setter
+    @_check_types.do
+    def twist_profile(self, value: tuple[float, float, float]) -> None:
+        GL.glUniform3f(self._twist_profile, *value)
+
+    @property
+    @_check_types.do
+    def twist_start(self) -> tuple[float, float, float, float]:
+        raise NotImplementedError
+
+    @twist_start.setter
+    @_check_types.do
+    def twist_start(self, value: tuple[float, float, float, float]) -> None:
+        GL.glUniform4f(self._twist_start, *value)
+
+    @property
+    @_check_types.do
+    def twist_end(self) -> tuple[float, float, float, float]:
+        raise NotImplementedError
+
+    @twist_end.setter
+    @_check_types.do
+    def twist_end(self, value: tuple[float, float, float, float]) -> None:
+        GL.glUniform4f(self._twist_end, *value)
+
+    @property
+    @_check_types.do
+    def twist_stripe_half(self) -> float:
+        raise NotImplementedError
+
+    @twist_stripe_half.setter
+    @_check_types.do
+    def twist_stripe_half(self, value: float) -> None:
+        """Half the angular width, radians, of a twisted conductor's stripe; 0 (the default) means no stripe."""
+        GL.glUniform1f(self._twist_stripe_half, value)
+
+    @property
+    @_check_types.do
+    def twist_stripe_ambient(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @twist_stripe_ambient.setter
+    @_check_types.do
+    def twist_stripe_ambient(self, value: np.ndarray) -> None:
+        GL.glUniform4fv(self._twist_stripe_ambient, 1, value)
+
+    @property
+    @_check_types.do
+    def twist_stripe_diffuse(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @twist_stripe_diffuse.setter
+    @_check_types.do
+    def twist_stripe_diffuse(self, value: np.ndarray) -> None:
+        GL.glUniform4fv(self._twist_stripe_diffuse, 1, value)
+
+    @property
+    @_check_types.do
+    def twist_stripe_specular(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @twist_stripe_specular.setter
+    @_check_types.do
+    def twist_stripe_specular(self, value: np.ndarray) -> None:
+        GL.glUniform4fv(self._twist_stripe_specular, 1, value)
 
     @property
     @_check_types.do

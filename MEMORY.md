@@ -561,6 +561,28 @@ If the user has stated a specific root cause and a specific fix approach ("mimic
 
 ---
 
+### Temporary files go on the D: drive (user, 2026-11-04)
+
+The C: drive is low on space (46.8 GB free of 456 GB on 2026-11-04). Every temporary file (scratch scripts, test database
+builds, downloads, extracted archives, survey output) goes under `D:\harness_designer_tmp` (make sub-folders), NOT the
+Claude scratchpad on C: (`...\AppData\Local\Temp\claude\...`). **Why:** the user asked for it after 2.3 GB of old test
+builds had piled up there (moved to `D:\harness_designer_tmp\old_scratch` that day). **How to apply:** write helper
+scripts to `D:\harness_designer_tmp\scripts`, test builds and large outputs to their own sub-folder there, and keep the
+repo free of them. Large raw data the user already has (e.g. the TE downloads on the Desktop) is read in place.
+
+### Throttle requests to TE, but only about 10 ms apart (user, 2026-11-04)
+
+TE's API stone-walls a client that queries too fast, but the user says waiting about 10 milliseconds between requests is
+all it needs (the old `scrapers/te/te_step1.py` slept 0.05 s and got through). I first wrote "2 seconds or more"; that was
+wrong and would make a 160,000 product download crawl. A collector that talks to TE: one thread, about 10 ms between
+requests (a setting at the top of the script), back off and wait on a 429 / 5xx, STOP on repeated refusals (403 / 429)
+instead of retrying faster, make it resumable (a finished page is never fetched twice), and do not run it against the real site without the
+user's go-ahead. NO PASTED COOKIE IS NEEDED: tested 2026-11-04 with two requests (HTTP 200, JSON, 167,255 products in the
+catalog), a plain `requests.Session` gets TE's own `ak_bmsc` and `bm_sv` cookies from the first answers and carries them,
+which is all the old `handlecookie()` merging did by hand. Keep ONE session for the whole run; on a 403 stop and tell the
+user (a fresh session once at most), do not work around it. Never put a cookie value in the repo. `scrapers/common.fetch` already refuses to retry a 403 / 429. Other manufacturers' sites get their own
+politeness (a few threads at most, as the README says); this 10 ms figure is TE's.
+
 ## Project (current state, plans, open work)
 
 ### Material system rewrite (2026-09-15) — hue-preserving weight-based materials
@@ -625,7 +647,7 @@ How a transition's own 3D model is built and rendered (as opposed to placement/a
 Boot-specific design (shape/geometry description and whether/how a boot bends to follow the routed harness) is in `BOOT_DESIGN.md` -- a from-scratch design, since today a boot is a single rigid uploaded CAD model (`Boot.model3d`) with no procedural geometry, no shape field, and no bending of any kind. Three hard problems recorded there, none solved yet: (1) the housing-connection end's cross-section shape (round vs. rectangular, and possibly changing shape along the boot's own length), (2) the boot flexing to follow the actual routed bundle at runtime (would make a boot the first non-rigid catalog object in the app), (3) continuous taper along the boot's length (the user's own assessment: hard to render correctly even with a real CAD kernel, not just with primitives). Read it in full before touching boot design, and add new decisions THERE, not here.
 
 ### Twisted wires + per-conductor table: design lives in TWISTED_WIRE_DESIGN.md (repo root, started 2026-11-03)
-Rendering a twisted pair/triple (driven by `wires.tpi`) with a procedural shader, vertex-pinned stripes and bend handling (twist-phase carry + mitred ends, verified numerically), and the new table describing each individual conductor inside a multi-conductor wire (`wires` keeps describing the outside; no unique column but the id; `wire_id` points at the cable). The conductors table, the fixed "no color" id and the builder's static (ledger-based) catalog ids are BUILT in both repos (2026-11-03); the rendering is still design only. Read it in full before touching either, and add new decisions THERE, not here.
+Rendering a twisted pair/triple (driven by `wires.tpi`) with a procedural shader, vertex-pinned stripes and bend handling (twist-phase carry + mitred ends, verified numerically), and the new table describing each individual conductor inside a multi-conductor wire (`wires` keeps describing the outside; no unique column but the id; `wire_id` points at the cable). The conductors table, the fixed "no color" id and the builder's static (ledger-based) catalog ids are BUILT in both repos (2026-11-03); the 3D rendering of the twisted pair / triple was built 2026-11-05 (first version, tested offscreen only, the app not run; bends, stripes, selection done; see its section 0 for what is not). Read it in full before touching either, and add new decisions THERE, not here.
 
 ### Reading a live run's evidence: app log, crash dumps, project DB (found 2026-10-15)
 The app can't be launched from here, but the user's runs leave real evidence -- check it before theorising from the code (static reading alone got a "wires still tangled" report wrong twice).

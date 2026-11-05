@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 
 from .. import image as _image
 from .. import check_types as _check_types
-from ..database.global_db import wire_image as _wire_image
 
 
 if TYPE_CHECKING:
@@ -100,7 +99,7 @@ def format_length(length_mm: float) -> str:
 def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> _image.Image:
     """Return a 100x25 picture of *pjt_wire*'s catalog wire (single wire,
     twisted pair / triple, cable or coax, see
-    :func:`harness_designer.database.global_db.wire_image.build_wire_image`),
+    ``images.build_wire``),
     falling back to ``images.no_image`` for a wire that cannot be drawn or
     when resolution fails.
 
@@ -110,7 +109,7 @@ def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> _image.Image:
     :rtype: :class:`~harness_designer.image.Image`
     """
     try:
-        img = _wire_image.build_wire_image(pjt_wire.part)
+        img = _image.images.build_wire(pjt_wire)
     except Exception:
         img = None
 

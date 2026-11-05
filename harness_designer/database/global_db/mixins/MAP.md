@@ -38,7 +38,7 @@ Compatibility-list mixin: which terminals a given part is compatible with.
 
 #### wire_conductor.py
 
-`WireConductorMixin` (NEW 2026-11-03), modelled on `derating.py`: `load_conductors()` / `reload_conductors()` / the `conductors` property, which serve a wire's individual conductors from the `wire_conductors` table class's cache (`global_db/wire_conductor.py`). Mixed into `Wire`.
+`WireConductorMixin` (NEW 2026-11-03), modelled on `derating.py`: `load_conductors()` / `reload_conductors()` / the `conductors` property, which serve a wire's individual conductors from the `wire_conductors` table class's cache (`global_db/wire_conductor.py`). Mixed into `Wire`. `is_twisted` (2026-11-05) is the data rule for drawing a twisted pair / triple (`tpi` above 0, 2 or 3 conductors, jacket colour is the "no colour" id, a conductor row for each) and `conductor_colors` gives `(insulation colour, stripe colour or None)` per conductor, both read by `objects_3d/wire.py`.
 
 #### description.py
 

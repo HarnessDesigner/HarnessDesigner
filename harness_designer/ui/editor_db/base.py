@@ -375,6 +375,17 @@ class EditorList(QtWidgets.QTableView):
     _has_image = True
     _has_model_3d = True
     __table_name__ = ''
+
+    # Values a page needs for its rows that are not shown as a column (for the picture of a wire: the ids behind the name
+    # columns and the cable's conductors). They are returned by the same paged query, after the columns and ``image_id``,
+    # so a page never has to make a row object per line to get them. Not for a page with ``_has_model_3d`` (it reads the
+    # model flag from the end of the row).
+    #
+    # ``_hidden_fields``: names of columns of the table itself, selected as they are.
+    # ``_hidden_subselects``: alias -> a scalar sub-select, written with ``paged.id`` for the row's id. It is evaluated
+    # only for the rows of the requested page, after the paging, not for every row of the table.
+    _hidden_fields: tuple[str, ...] = ()
+    _hidden_subselects: dict[str, str] = {}
     __query__ = ''
     column_mapping = {}
 
@@ -577,7 +588,18 @@ class EditorList(QtWidgets.QTableView):
         if self._has_image:
             select_cols.append('t.image_id AS image_id')
 
-        query = (f'SELECT * FROM (SELECT ROW_NUMBER() OVER '
+        if (self._hidden_fields or self._hidden_subselects) and self._has_model_3d:
+            raise RuntimeError('hidden columns cannot be combined with _has_model_3d')
+
+        for field_name in self._hidden_fields:
+            select_cols.append(f't.{field_name} AS {field_name}')
+
+        outer_cols = 'paged.*'
+
+        for alias, subselect in self._hidden_subselects.items():
+            outer_cols += f', ({subselect}) AS {alias}'
+
+        query = (f'SELECT {outer_cols} FROM (SELECT ROW_NUMBER() OVER '
                  f'(ORDER BY {{sort_clause}}) AS RowNum, * '
                  f'FROM (SELECT {", ".join(select_cols)} '
                  f'FROM {self.__table_name__} AS t '
@@ -585,6 +607,23 @@ class EditorList(QtWidgets.QTableView):
                  f'WHERE RowNum BETWEEN {{start_row}} AND {{end_row}};')
 
         return query
+
+    @_check_types.do
+    def hidden_index(self, name: str) -> int:
+        """Return the position, in a row of :meth:`get_row`, of the hidden field or sub-select ``name``.
+
+        A row is ``(RowNum, the columns of column_mapping, image_id if the page has images, the hidden fields, the hidden
+        sub-selects)``.
+
+        :param name: A name from ``_hidden_fields`` or a key of ``_hidden_subselects``.
+        :type name: str
+        :returns: The index into the row tuple.
+        :rtype: int
+        :raises ValueError: ``name`` is not a hidden value of this page.
+        """
+        names = list(self._hidden_fields) + list(self._hidden_subselects)
+        # RowNum, then one value per column of the mapping, then image_id
+        return 1 + len(self.column_mapping) + (1 if self._has_image else 0) + names.index(name)
 
     @property
     @_check_types.do

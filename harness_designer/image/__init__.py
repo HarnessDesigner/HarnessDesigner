@@ -15,7 +15,10 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..database.global_db import color as _color
+    from ..database.global_db import wire as _wire
+    from ..database.project_db import pjt_wire as _pjt_wire
+    from ..database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
+    from . import wire_images as _wire_images
 
 
 BASE_PATH = os.path.dirname(__file__)
@@ -343,101 +346,29 @@ class ImageLoader:
 
         self.__base_path__ = path
         if self.__name__ == 'images':
-            self.__wire_image_cache__ = {}
-            self.__wire_loop_image_cache__ = {}
-            self.build_wire_loop = self.__build_wire_loop
             self.build_wire = self.__build_wire
-
-    @_check_types.do
-    def __build_wire_loop(
-        self,
-        primary_color: "_color.Color",
-        stripe_color: _Union["_color.Color", None],
-    ) -> Image:
-        primary_name = primary_color.name
-
-        if stripe_color is None:
-            stripe_name = None
-        else:
-            stripe_name = stripe_color.name
-
-        key = (primary_name, stripe_name)
-        if key in self.__wire_loop_image_cache__:
-            return self.__wire_loop_image_cache__[key]
-
-        layer1 = self.loop_layer1
-        layer3 = self.loop_layer3
-        layer4 = self.loop_layer4
-        layer6 = self.loop_layer6
-        layer7 = self.loop_layer7
-        layer9 = self.loop_layer9
-
-        p_ui = primary_color.ui
-        layer1 = layer1.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
-        layer4 = layer4.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
-        layer7 = layer7.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
-
-        if stripe_color is not None:
-            layer2 = self.loop_layer2
-            layer5 = self.loop_layer5
-            layer8 = self.loop_layer8
-
-            s_ui = stripe_color.ui
-            layer2 = layer2.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
-            layer5 = layer5.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
-            layer8 = layer8.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
-
-            wire = (((((((layer1 + layer2) + layer3) + layer4) + layer5) + layer6) + layer8) + layer8) + layer9
-
-        else:
-            wire = ((((layer1 + layer3) + layer4) + layer6) + layer7) + layer9
-
-        self.__wire_image_cache__[key] = wire
-
-        return wire
 
     @_check_types.do
     def __build_wire(
         self,
-        primary_color: "_color.Color",
-        stripe_color: _Union["_color.Color", None],
-        conductor_color: "_color.Color"
-    ) -> Image:
-        primary_name = primary_color.name
-        if stripe_color is None:
-            stripe_name = None
-        else:
-            stripe_name = stripe_color.name
+        row: _Union["_wire.Wire", "_pjt_wire.PJTWire", "_pjt_wire_service_loop.PJTWireServiceLoop", "_wire_images.WireImageRow"]
+    ) -> _Union[Image, None]:
+        """The one place a wire picture is asked for (``images.build_wire(row)``).
 
-        conductor_name = conductor_color.name
+        Pass the database row: a catalog ``Wire``, a project ``PJTWire``, a project ``PJTWireServiceLoop`` or, from a list that does not make row objects, a ``wire_images.WireImageRow``. Which image
+        class draws it (single wire, twisted pair / triple, cable, coax, service loop) is decided from the row in
+        :func:`harness_designer.image.wire_images.build_image`, and those classes cache by how the wire looks, so there
+        is no cache here. ``wire_images`` is imported on the first call, not by this module (its classes subclass
+        :class:`Image`).
 
-        key = (primary_name, stripe_name, conductor_name)
-        if key in self.__wire_image_cache__:
-            return self.__wire_image_cache__[key]
+        :param row: The row to draw.
+        :type row: :class:`Wire` | :class:`PJTWire` | :class:`PJTWireServiceLoop` | :class:`WireImageRow`
+        :returns: The image, or ``None`` when the row cannot be drawn.
+        :rtype: :class:`Image` | None
+        """
+        from . import wire_images
 
-        wire_base = self.wire_base
-        wire_stripe = self.wire_stripe
-        wire_conductor = self.wire_conductor
-        wire_shadow = self.wire_shadow
-
-        p_ui = primary_color.ui
-        wire_base = wire_base.recolor(p_ui.GetRed(), p_ui.GetGreen(), p_ui.GetBlue())
-
-        c_ui = conductor_color.ui
-        wire_conductor = wire_conductor.recolor(c_ui.GetRed(), c_ui.GetGreen(), c_ui.GetBlue())
-
-        wire = wire_base
-
-        if stripe_color is not None:
-            s_ui = stripe_color.ui
-            wire_stripe = wire_stripe.recolor(s_ui.GetRed(), s_ui.GetGreen(), s_ui.GetBlue())
-            wire = wire + wire_stripe
-
-        wire = (wire + wire_conductor) + wire_shadow
-
-        self.__wire_image_cache__[key] = wire
-
-        return wire
+        return wire_images.build_image(row)
 
     @_check_types.do
     def __getattr__(self, item: str) -> Any:
@@ -610,17 +541,7 @@ if TYPE_CHECKING:
         wire_shadow: Image = ...
 
         @staticmethod
-        @_check_types.do
         def build_wire(
-            primary_color: "_color.Color",  # NOQA
-            stripe_color: _Union["_color.Color", None],  # NOQA
-            conductor_color: "_color.Color"  # NOQA
-        ) -> Image:
-            pass
-
-        def build_wire_loop(
-            self,
-            primary_color: "_color.Color",
-            stripe_color: _Union["_color.Color", None],
-        ) -> Image:
+            row: _Union["_wire.Wire", "_pjt_wire.PJTWire", "_pjt_wire_service_loop.PJTWireServiceLoop", "_wire_images.WireImageRow"]  # NOQA
+        ) -> _Union[Image, None]:
             pass

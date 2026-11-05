@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING, Union as _Union
+from typing import NamedTuple as _NamedTuple
 
 import math
 from collections.abc import Iterator
@@ -18,6 +19,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
 from ...shapes import sphere as _sphere
+from ...shapes import twisted_wire as _twisted_wire
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -46,6 +48,41 @@ Config = _config.Config.editor_3d
 # forcing a GPU buffer reallocation on every frame -- only once the
 # overshoot itself is exhausted does the mesh actually need to regrow.
 _HELIX_OVERSHOOT_MM = 1000.0
+
+_debug_config = _config.Config.debug.rendering3d
+
+# Two path segments whose ends are closer than this are one continuous wire (a stretch hidden inside a bundle leaves a far
+# bigger gap); the twist carries on across such a joint.
+_TWIST_JOIN_GAP_MM = 0.01
+
+
+class _TwistLook(_NamedTuple):
+    """How a twisted pair / triple is drawn (see ``Wire._build_twist``); the same for every segment of the wire."""
+
+    rate: float
+    """Twist rate, radians per mm."""
+
+    outer_radius: float
+    """Radius of the circle that holds the whole cable, mm."""
+
+    circles: list[tuple[float, float, float]]
+    """Where each conductor sits: centre x, centre y, radius (mm), conductor 0 first."""
+
+    materials: list[_materials.GLMaterial]
+    """Each conductor's insulation material."""
+
+    stripes: list[_Union[_materials.GLMaterial, None]]
+    """Each conductor's stripe material, ``None`` where it has no stripe."""
+
+
+class _TwistSegment(_NamedTuple):
+    """One path segment of a twisted wire, with what ``shapes.twisted_wire.TwistedTube.draw`` needs for it."""
+
+    position: _point.Point
+    angle: _angle.Angle
+    length: float
+    twist: _twisted_wire.SegmentTwist
+    rings: int
 
 
 @capturable()
@@ -80,6 +117,11 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         with parent.mainframe.editor3d.context:
             self._stripe = None
 
+            # None for a wire that is not a twisted pair / triple, else a _TwistLook; _twist_plan is its per-segment
+            # bookkeeping, thrown away by _recalculate_geometry and rebuilt when the wire is next drawn
+            self._twist = None
+            self._twist_plan = None
+
             self._part = db_obj.part
             color = self._part.color.ui
             stripe_color = self._part.stripe_color
@@ -102,6 +144,9 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
             self._conductor_dia = conductor_dia
             self._conductor_material = _materials.Polished(self._part.core_material.color.ui)
+
+            if self._part.is_twisted:
+                self._twist = self._build_twist(diameter)
 
             self._p1 = db_obj.start_position3d
             self._p2 = db_obj.stop_position3d
@@ -327,6 +372,102 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._update_position(None)
 
     @_check_types.do
+    def _build_twist(self, outer_diameter: float) -> _TwistLook:
+        """The look of this wire as a twisted pair / triple: the twist rate, where each conductor sits in the cable and
+        each conductor's materials. Only called for a wire whose part ``is_twisted``.
+
+        :param outer_diameter: The cable's diameter, mm.
+        """
+        part = self._part
+        colors = part.conductor_colors
+
+        materials = []
+        stripes = []
+
+        for color, stripe_color in colors:
+            materials.append(_materials.Plastic(color.ui))
+
+            if stripe_color is None:
+                stripes.append(None)
+            else:
+                stripes.append(_materials.Plastic(stripe_color.ui))
+
+        return _TwistLook(
+            _twisted_wire.rate_from_tpi(part.tpi), outer_diameter * 0.5,
+            _twisted_wire.profile(len(colors), outer_diameter), materials, stripes)
+
+    @_check_types.do
+    def _twist_segments(self) -> list[_TwistSegment]:
+        """The wire's path segments with their twist phase, mitres and ring counts, worked out once per change of the path
+        (``_recalculate_geometry`` clears it) rather than every frame."""
+        if self._twist_plan is not None:
+            return self._twist_plan
+
+        look = self._twist
+        segments = list(self._segment_transforms())
+
+        rotations = [angle.as_matrix_numpy for _position, angle, _scale, _length in segments]
+        lengths = [length for _position, _angle_, _scale, length in segments]
+        joined = [False]
+
+        for i in range(1, len(segments)):
+            end_of_previous = segments[i - 1][0].as_numpy + rotations[i - 1][:, 2] * lengths[i - 1]
+            gap = float(np.linalg.norm(segments[i][0].as_numpy - end_of_previous))
+            joined.append(gap < _TWIST_JOIN_GAP_MM)
+
+        twists = _twisted_wire.plan(rotations, lengths, joined, look.rate, look.outer_radius)
+        plan = []
+
+        for (position, angle, _scale, length), twist in zip(segments, twists):
+            rings = _twisted_wire.ring_count(length, look.rate, twist, look.outer_radius)
+            plan.append(_TwistSegment(position, angle, length, twist, rings))
+
+        self._twist_plan = plan
+        return plan
+
+    @_check_types.do
+    def _render_twisted(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the wire as a twisted pair / triple: one tube per conductor per path segment through the faces program's
+        twist mode (``shapes.twisted_wire.TwistedTube``). Selected, every conductor takes the selection colour, so the
+        highlight stays one uniform colour as it does for a plain wire.
+
+        Only the faces pass is drawn: the debug edge / normal / vertex passes have no twist mode yet (TWISTED_WIRE_DESIGN.md,
+        section 5), and a crimp end is not drawn at the conductor's own diameter (the fan-out into single wires, section 8, is
+        not built).
+        """
+        if not self.is_visible:
+            return
+
+        if self._vbo.is_dirty:
+            self._compute_aabb()
+            self._compute_obb()
+
+        self._aabb_manager.mark_visible(self._aabb_index)
+        self._obb_manager.mark_visible(self._obb_index)
+
+        if not _debug_config.draw_faces:
+            return
+
+        look = self._twist
+        selected = self.is_selected
+
+        with shaders.faces:
+            # stripeClipStart/Stop must be 0.0 for any draw but a WireStripe's (see render())
+            shaders.faces.stripe_clip_start = 0.0
+            shaders.faces.stripe_clip_stop = 0.0
+
+            for segment in self._twist_segments():
+                for circle, material, stripe in zip(look.circles, look.materials, look.stripes):
+                    if selected:
+                        self._selected_material.set(shaders.faces)
+                        stripe = None
+                    else:
+                        material.set(shaders.faces)
+
+                    _twisted_wire.TUBE.draw(shaders.faces, segment.position, segment.angle, segment.length, segment.twist,
+                                            circle, look.rate, segment.rings, stripe)
+
+    @_check_types.do
     def _endpoint_diameter(self) -> float:
         return self.db_obj.part.od_mm
 
@@ -341,6 +482,8 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         values anything outside this class still reads (.length, .scale,
         .angle, .obb, .aabb).
         """
+        self._twist_plan = None
+
         segments = self._segments()
 
         total_length = 0.0
@@ -633,6 +776,10 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         same as the stripe overlay below, so the selection highlight
         stays a single uniform color across the whole wire.
         """
+        if self._twist is not None:
+            self._render_twisted(shaders)
+            return
+
         real_position, real_angle, real_scale, real_material = (
             self._position, self._angle, self._scale, self._material)
 

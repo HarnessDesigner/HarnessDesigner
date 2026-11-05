@@ -9,6 +9,7 @@ from . import base as _base
 from ... import logger as _logger
 from ... import check_types as _check_types
 from ...database.global_db import wire_image as _wire_image
+from ...image import wire_images as _wire_images
 
 
 if TYPE_CHECKING:
@@ -48,7 +49,43 @@ class WiresPage(_base.EditorList):
         23: ('Wire Type', {'alias': 'wire_type_name', 'field_name': 'wire_type_id', 'ref_table': 'wire_types', 'ref_field': 'name'}),
     }
 
+    # What the picture of a wire needs besides the name columns above: the ids behind the colour and core columns, and
+    # the cable's conductors (one text per conductor, ``idx,color,stripe,core`` as hex ids, joined with ``;``), all in the
+    # same paged query. The list never makes a ``Wire`` row per line, which would also read that wire's conductors.
+    _hidden_fields = ('color_id', 'stripe_color_id', 'core_material_id')
+    _hidden_subselects = {
+        'conductors': "SELECT group_concat(c.idx || ',' || hex(c.color_id) || ',' || hex(c.stripe_color_id) || ',' || "
+                      "hex(c.core_material_id), ';') FROM wire_conductors AS c WHERE c.wire_id = paged.id"
+    }
+
     table: "_wire.WiresTable" = None
+
+    @_check_types.do
+    def _image_row(self, row: tuple) -> "_wire_images.WireImageRow":
+        """Return what the picture of the wire in ``row`` (a row of the paged query) is drawn from.
+
+        :param row: A row from :meth:`get_row`.
+        :type row: tuple
+        :returns: The values :func:`images.build_wire` needs, without a ``Wire`` row.
+        :rtype: :class:`WireImageRow`
+        """
+        columns = getattr(self, '_image_columns', None)
+
+        if columns is None:
+            # logical column -> alias, and a row has RowNum in front, so a column's index in the row is its logical number
+            columns = {alias: index for index, alias in self.column_lookup.items()}
+            self._image_columns = columns
+
+        return _wire_images.WireImageRow.from_query(
+            self.table.db,
+            row[columns['wire_type_name']],
+            row[columns['num_conductors']],
+            row[self.hidden_index('color_id')],
+            row[self.hidden_index('stripe_color_id')],
+            row[self.hidden_index('core_material_id')],
+            row[columns['shielded']],
+            row[columns['tpi']],
+            row[self.hidden_index('conductors')])
 
     @_check_types.do
     def _get_icon(self, row_id: int) -> QtGui.QIcon | None:
@@ -56,7 +93,7 @@ class WiresPage(_base.EditorList):
 
         Wires have no real stored photo (``_has_image`` is False), so this
         overrides the base class's ``images_table`` lookup with a swatch
-        generated on demand by :func:`wire_image.build_wire_image` -- same
+        generated on demand by :func:`images.build_wire` -- same
         ``bitmap_indexes`` cache, keyed by ``db_id``, that every other
         part type's real image already uses (see
         :meth:`EditorList._get_icon`), so it's invalidated the same way on
@@ -86,9 +123,10 @@ class WiresPage(_base.EditorList):
             return self.bitmap_indexes[db_id]
 
         # which picture a wire gets (single wire, twisted pair / triple, jacketed cable, coax) is decided in one place
-        # (wires that look the same share ONE icon object, so this row costs a reference, not a pixmap)
+        # (wires that look the same share ONE icon object, so this row costs a reference, not a pixmap). It is drawn from
+        # the values the list's own query returned, not from a ``Wire`` row.
         try:
-            icon = _wire_image.build_wire_icon(self.table[db_id], 64)
+            icon = _wire_image.build_wire_icon(self._image_row(row), 64)
         except Exception as exc:  # NOQA
             _logger.error(f'wire editor: could not build the image of a wire: {exc!r}')
             icon = None

@@ -1,6 +1,6 @@
 # Twisted wires and the per-conductor table (design, started 2026-11-03)
 
-Nothing here is built yet. Written down on purpose (MEMORY.md: "write down a detailed verbal spec
+Built so far: see section 0 (the table and ids, the layered images, and since 2026-11-05 the first version of the 3D rendering). Written down on purpose (MEMORY.md: "write down a detailed verbal spec
 immediately"). Add new decisions HERE.
 
 ## 0. Status (end of the 2026-11-03 session)
@@ -72,6 +72,35 @@ BUILT (compiled and, for the builder, test-built; the app was NOT launched, no t
   `Universal/wire_conductors/<model>.json`; the builder reads every file of both folders in sorted order. The old
   single `Universal/wires.json` and `wire_conductors.json` are deleted. Largest file 4.3 MB.
 
+- TWISTED RENDERING, first version (2026-11-05; tested with throwaway scripts only: an offscreen GL render through the real
+  `FacesProgram`, and a numeric copy of the shader maths; the app itself was NOT run, and the DB side was not run against a database):
+  - Where it lives (a deviation from section 5, which asked for a new `Program` subclass): the faces VERTEX SHADER got a twist mode,
+    switched by the `twistRings` uniform (0 = off, the default), because every canvas, the headlight, the scene light and the reflection
+    pass set their per-frame uniforms on `shaders.faces` only, so a second program would have needed all of that repeated. The geometry
+    and fragment stages are shared, so reflections, lighting and materials work unchanged. `gl/shaders/faces/vertex.vert` `twistVertex`,
+    `FacesProgram.twist_*` in `gl/shaders/program.py`.
+  - Vertices come from `gl_VertexID` (no attributes, an empty VAO): `TWIST_SIDES` = 16 sides, `twistRings` rings, rings every
+    22.5 degrees of twist (`SAMPLES_PER_TURN` = 16), and when an end has a mitre at least one ring per outer radius, at most 8000.
+  - `shapes/twisted_wire.py`: `profile` (conductor circles: touching equal circles, `c = r / sin(pi / n)`; a pair r = OD / 4, a triple
+    r = OD / 4.309), `plan` (phase carry and mitre, section 5, as designed), `ring_count`, `TUBE.draw`.
+  - Phase carry and mitre are the formulas of section 5. Checked numerically over 2000 random bends of 5-150 degrees: the end ring of
+    one segment and the start ring of the next agree to 1e-13 mm (4e-14 for the carry alone). The taper `D` is twice the largest shift
+    (`2 R tan(bend / 2)`), limited to half the segment, so a sharp bend on a short segment can still fold; a 120 degree bend draws a
+    pointed outside corner, as a rigid mitre must.
+  - Stripe: `fragStripe` (angular distance from the stripe's centre) goes vertex -> geometry -> fragment; the stripe is 60 degrees wide
+    and sits on the side of the conductor facing away from the cable's axis (snapped to one of the 16 sides so the distance is exact);
+    the fragment shader blends the stripe's ambient / diffuse / specular in over one pixel. The rigid twist carries it as a helix.
+  - Which conductors stripe and where: whichever `wire_conductors` rows have a stripe colour (the builder's data), on the outward side;
+    the lay is a right-hand (Z) twist, since TE and the mil-spec data give no direction.
+  - DB side: `WireConductorMixin.is_twisted` (tpi above 0, 2 or 3 conductors, no jacket colour, a conductor row each) and
+    `conductor_colors`. `objects_3d/wire.py`: `_build_twist`, `_twist_segments` (cached in `_twist_plan`, cleared by
+    `_recalculate_geometry`), `_render_twisted`.
+  - Not done for a twisted wire: the debug edge / normal / vertex passes (no twist mode in those programs), the bare-conductor look at a
+    crimp end, `ray_trace_parts` (still the plain tube), LOD (rings do not thin out with distance), the fan-out (section 8), and the
+    pegboard / schematic views (3D only).
+  - TE wires: most have no `od_mm` (401 of 2,962 twisted ones do) and so draw at zero size, like every TE wire with no `od_mm` does
+    in the plain tube path; that is a catalog data gap, not a rendering one.
+
 NOT DONE:
 - The row id ledger keeps the numbers of part numbers that no longer exist (they are never reused, and the first
   versions of the M27500 and pair numbers are in it), which is harmless.
@@ -80,7 +109,7 @@ NOT DONE:
   conductor diameter). `MIL-W-22759E.PDF` (the base spec, 43 pages, a bad OCR) holds no per-AWG tables, only the list
   of slash sheets; the Amphenol CIT `M22759.pdf` covers exactly the families the generator already had
   (/5-/12, /16-/23, /28-/31, /80-/92).
-- The twisted-wire rendering (sections 5 and 6) is still design only. `Wire.tpi` is still hinted `int`.
+- `Wire.tpi` is hinted `float` now (the `int` hint noted here earlier was already fixed).
 - The live `harness_designer.db` has no `wire_conductors` table and old colour ids until it is rebuilt from the builder.
 
 ## 1. Goal
@@ -405,3 +434,144 @@ Questions to settle before building (none of this has been looked at in the code
 - Ribbon cable: each conductor goes to a different pin, so it is the same problem at a larger scale (section 7), and
   it may need its own layout rather than a fan-out.
 - What happens to the stored layout when the cable is rerouted or its length changes.
+
+### 8a. What the code does today (read 2026-11-05) and the two ways to split
+
+Facts (from `pjt_circuit.py`'s `_walk_circuit` / `connected_members`, `pjt_wire_path.py`):
+
+- A circuit is junctions (terminal: 1 connection point `attach_point3d_id`; splice: 3; service loop: 2) joined by
+  wires. A wire is ONE edge between the junctions that own its `start_point3d_id` and `stop_point3d_id`. So a
+  multi-conductor cable placed today is one edge: one circuit, one resistance, one current, one temperature, and
+  it can only land on one terminal or splice at each end.
+- Electrically every conductor is its own wire (own circuit, own current). The cable is a physical thing around
+  them.
+- `pjt_wire_paths` rows already carry optional tags (`bundle_id`, `concentric_id`, `transition_id`,
+  `transition_branch_id`) that mark a stretch of a route as belonging to a shared structure, and rows reference
+  SHARED point rows.
+
+Option A: the cable stays ONE `pjt_wires` row; a new project table holds one row per conductor per cable
+(its own two end points, split distance, order). The conductor becomes a fifth circuit member type next to wire,
+splice, terminal and service loop. Touches `_walk_circuit`, `PJTCircuit` members / `add_member` / `adopt`, the
+solver input, the circuit editor, the peg-board wire table, the BOM and the schematic.
+
+Option B (recommended): one real `pjt_wires` row per conductor (new columns `cable_id`, `conductor_idx`, and a
+per-end order), plus a small cable row (part, per-end split distance). The conductors share the cable's trunk
+waypoints (shared point rows, tagged `cable_id` in `pjt_wire_paths`, like a bundle tag); each conductor's own
+route continues past the split to its terminal or splice. Circuits, the solver, resistance, length, BOM and the
+cut list all keep working per wire, unchanged. The twisted tube is drawn once for the cable between the two
+split planes; each conductor's lead is an ordinary wire route starting at that conductor's helix position at the
+split (the profile circle and phase at that z, which `shapes/twisted_wire.py` already computes).
+Costs of B: select / move / delete of a cable have to act on the group; a conductor wire's part data has to read
+through the `wire_conductors` row (colour, size, `resistance_1km`, `od_mm`) and 1/N of the cable's weight; bundle
+and concentric diameter sums must count the cable's OD once, not N times.
+
+How it is started (user, 2026-11-05): a right-click menu entry when the right click happens at the FREE end of the
+cable. The machinery for "which end, and is it free" already exists: `WireMenu.__init__`
+(`objects_3d/wire.py`) calls `pick_free_end(mainframe, wire, click_pos)` (`handlers/wire_drag_base.py`; None when both
+ends are anchored, else the free end, the one nearer the click when both are free) and tests `start_sibling` /
+`stop_sibling is None` for "Add Terminal". The new entry ("Split Conductors") sits beside "Add Terminal", enabled when
+the part has 2 or more `wire_conductors` rows and that end is free. The peg-board and schematic `WireMenu` classes
+have the same shape. So the split happens on demand, only at an end nothing is attached to, so there is never a
+circuit to rewire at that end.
+
+Consequences for option B: the first split turns the single wire into N conductor wires. To keep them electrically
+independent at the end that is not split yet, each conductor gets its own end point there, a clone that follows the
+cable's end point (the existing `parent_point_id` clone mechanism of `pjt_points3d`), drawn on top of each other; if
+they shared one point, the walk and `PJTCircuitsTable.propagate` would put every conductor in one circuit as soon as
+anything attached there.
+
+USER DECISION (2026-11-05): neither A nor B as written above; a variant of A with two new project tables.
+- `pjt_cables`: the placed cable. Largely mimics `pjt_wires` (position, route, visibility, name, notes, smooth, part);
+  the user suggested the row class could subclass `PJTWire`. It is the container that is drawn (twisted trunk, jacket)
+  and the one BOM / cut-list line, so cable length, weight and OD are counted once (the costs listed for B go away).
+- `pjt_cable_conductors`: one row per conductor of a cable. Holds the positioning of the split ends and the like,
+  and the circuit id, so the conductor is what a circuit contains (not the cable).
+- Started by the right-click "Split Conductors" at a free end (above).
+
+Points raised against it before building (answers pending):
+- A conductor row that holds a circuit id also needs resistance, load, temperature, length, and a lead route from
+  the split to the terminal or splice (waypoints the user can drag, snapping, "Add Terminal"). That is a wire in all
+  but name; `pjt_wire_paths` is keyed on `wire_id`, and the drag, snap, routing and layout code is written for wires.
+- `PJTCircuit` hard-wires four member types (wire, service loop, splice, terminal: `pjt_circuit.py` is 1,936 lines,
+  `_walk_circuit` / `connected_members` / `_prepare_solve` / `adopt` / `members_changed` / the control all list them),
+  so the conductor is a fifth.
+- If `pjt_cables` subclasses `PJTWire` it inherits `circuit_id`, `resistance`, `load`, `operating_temp`, `part_data()`
+  that mean nothing for a cable and must be switched off, and every `isinstance(..., PJTWire)` will accept a cable.
+  Possibly the shared part (route, position, visibility) should be factored out instead.
+- A conductor's resistance / length = lead at one end + the cable's trunk length + lead at the other end.
+- Which parts become cables (conductor rows exist), and no migration of existing projects (pre-release rule).
+
+USER DECISIONS, continued (2026-11-05):
+- `pjt_cable_conductors` row class subclasses `PJTWire` (a conductor is wire-like: circuit id, lead route, snapping).
+- It needs TWO waypoint lists, one per end, because both ends of a cable can be split and each conductor lands on
+  its own terminal or splice at each end. Proposed: the conductor's route is only its two LEADS (end point ->
+  waypoints -> split point at that end), each lead tagged start / stop in `pjt_wire_paths`; the trunk between the two
+  split points belongs to the cable. An end that is not split has an empty lead (split point == end point).
+- Shielding is a conductor too. A shielded cable such as coax keeps `num_conductors` = 1 (correct) but has an extra
+  SHIELD conductor that can be broken out and connected. Proposed: a kind column on `wire_conductors` (conductor /
+  shield, later drain) with the builder emitting the shield row (no-None-guards rule: fix the data), and
+  `WireConductorMixin.is_twisted` counting only kind = conductor rows against `num_conductors`. USER RULE
+  (2026-11-05): ANY wire with shielding becomes a cable, whatever its conductor count; so a part is a cable when
+  `shielded` or `num_conductors` > 1, and a plain unshielded single-conductor wire stays a `pjt_wires` wire. The test is the `shielded` flag, not the wire
+  type: a coax part with `shielded` false stays a wire (user, 2026-11-05). In the builder's JSON that is 3 Molex coax
+  parts (shielded 7, unshielded 3); all 26 TE coax parts are shielded.
+  Measured on the builder's JSON the same day: 23,319 of the ~26,800 wires are cables by this rule (Molex 20,310,
+  TE 3,016), 1,602 of them shielded (Molex 1,469, TE 133), and conductor rows exist only for TE's 365 (Molex has no
+  `wire_conductors.json`; its 4 to 40 conductor cables are ribbon / flat). So the cable test cannot depend on conductor
+  rows existing: they have to be written for every cable (builder, by the by-index rule of section 6 / 7) or made when
+  the cable is placed.
+- Open: pegboard rope pull and slack (`rope_pull.solve_chain` is stateless per chain: two anchors + required length;
+  a conductor would be three chains, lead / trunk / lead, meeting at split points shared with N other leads), and the
+  schematic view (precedent: bundles are never shown in the schematic; proposal: the cable is not in the schematic and
+  each conductor is drawn as its own terminal-to-terminal wire with ONE ordinary waypoint list there, so the two-list
+  route is a 3D and peg-board concern only).
+
+USER DECISIONS, continued (2026-11-05, later):
+- NO separate catalog row for a shield (this replaces the proposed `kind` column on `wire_conductors`). The catalog's
+  `wire_conductors` keeps real conductors only. `pjt_cable_conductors` gets a column that says the row is the
+  shielding, so a shielded cable has its conductors plus one shield row in the PROJECT table, made when the cable is
+  placed. `is_twisted` is therefore unchanged (it counts catalog conductor rows against `num_conductors`).
+- Every conductor MUST be describable: its own size (dia / cross / AWG) must be available. Where the catalog has no
+  individual colour for a conductor its colour is WHITE and the user updates it. So catalog conductor rows are
+  needed for every cable (builder: copy the cable's size into each row, colour white where unknown; TE's existing 365
+  keep their colours). This takes the "builder writes the rows" side of the open question.
+- The object explorer (`ui/object_browser/objectbrowser.py`) and the object editor (`ui/editor_obj`, the per-table
+  `_control` singletons) must handle cables and their conductors:
+  - Explorer: a Cables category (as Wires is) whose node lists its conductors and the shield; each conductor is also
+    listed in its circuit's membership group (circuit rebuild is driven by the row's `'members'` tag) and as a
+    cross-reference under the terminal / splice it lands on. Items are weakref-pruned and `reset()` rebuilds, as
+    for every other type.
+  - Editor: a `PJTCableControl` (name, notes, part, trunk length, split distance and fan-out order per end,
+    visibility) and a `PJTCableConductorControl` (name, colour, stripe, size, shield flag, circuit through
+    `PJTCircuitControl`, electrical page like a wire's, lead end points). Each table's `_control` is a class-level
+    singleton that must be cleared with `set_obj(None)` on detach (see `project_db/MAP.md`).
+
+USER DECISION (2026-11-05, ribbon): ribbon cables are cables too and go through the same cable / conductor tables and
+the same split, but they are NOT twisted and have no single jacket round the conductors; they are rendered
+differently. So the cable needs a STYLE, derived from the part (never stored, like `is_twisted`):
+- TWISTED: `tpi` > 0, "no color" jacket, 2 or 3 conductors (today's `is_twisted`).
+- RIBBON: wire type Ribbon (discrete IDC ribbon; laminated FFC / FPC come later, section 7).
+- JACKETED: every other cable (shielded, coax, round multi-conductor).
+The style decides the trunk's drawing (twisted tubes / flat strip of conductors in a row / one tube), how a split looks
+(a ribbon's conductors tear off the web in pin order, so the fan-out order is positional there and free for the others),
+the editor pages (pitch, roll for a ribbon) and the picture. It cannot come from `wire_type` alone: TE has no wire type on
+all but 32 of its 6,491 wires (TE's 2,853 twisted cables have type None).
+Measured the same day: 525,000 catalog conductor rows would be needed to give every Molex cable one (19,734 of 20,310
+are Ribbon, up to 120 conductors) against 6,300 for TE, and only 1,176 Molex ribbons have a wire size at all, none an
+`od_mm`. Proposal that meets "each conductor describable, sizes available, white if no colour": the builder writes
+`wire_conductors` only where the maker gives per-conductor data (TE), and the PROJECT conductor rows are made when the
+cable is placed from the cable row (size copied; colour white; ribbon pin-1 / rainbow rule when chosen). Needs the user's OK.
+USER DECISION (2026-11-05, answer): NOT that. The DATABASE BUILDER makes the conductors: `wire_conductors` rows for every
+cable (TE's own data where it exists; otherwise the cable row's size and colour white, ribbon by its pin-1 / rainbow
+rule). The 525,000 Molex rows are accepted; measure the catalog size after the first build. The placed cable copies its
+conductor rows into `pjt_cable_conductors`, and the user fixes a white default colour (or a size) in the OBJECT EDITOR,
+per placed cable, which is why the editor must handle multi-conductor cables (`PJTCableControl`,
+`PJTCableConductorControl`).
+
+Proposed build order (nothing started): 1 builder writes the conductor rows; 2 app: `CableStyle` property, the
+`pjt_cables` and `pjt_cable_conductors` tables and row classes; 3 placement makes a cable with its conductor rows;
+4 trunk rendering by style (twisted done; ribbon, jacketed); 5 "Split Conductors" and the two-list leads; 6 conductors
+as circuit members; 7 object explorer and editor; 8 peg board (rope pull, slack) and schematic.
+
+Not checked yet: the add-wire handler and wire snapping, `Wire._segments`, the peg-board and schematic wire
+renderers, and how many places count wire rows.

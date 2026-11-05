@@ -25,7 +25,6 @@ from ... import check_types as _check_types
 from ... import logger as _logger
 from ... import image as _image
 from ...database import id_generator as _id_generator
-from ...database.global_db import wire_image as _wire_image
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -331,7 +330,7 @@ def _qimage(image: Any, size: tuple[int, int]) -> QtGui.QImage:
 def _wire_part_images(part: Any) -> tuple[QtGui.QImage, QtGui.QImage]:
     """A wire part's picture, at the table size and at the panel size.
 
-    :func:`~harness_designer.database.global_db.wire_image.build_wire_image` decides which picture the part gets (single wire,
+    ``images.build_wire`` decides which picture the part gets (single wire,
     twisted pair / triple, jacketed or shielded cable, coax); the parts editor, the peg-board table and the BOM make the same call.
     A part it cannot draw, or one it fails on (logged once), gets ``images.no_image``.
 
@@ -344,7 +343,7 @@ def _wire_part_images(part: Any) -> tuple[QtGui.QImage, QtGui.QImage]:
 
     try:
         if part is not None:
-            source = _wire_image.build_wire_image(part)
+            source = _image.images.build_wire(part)
 
     except Exception as exc:  # NOQA
         _log_once(("wire image", repr(exc)), f"circuit editor: could not build a wire image: {exc!r}")
@@ -1226,7 +1225,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
 class WireDelegate(QtWidgets.QStyledItemDelegate):
     """Draws the Wire column: one picture for each distinct wire of the circuit (wires and wire service loops), stacked.
 
-    The pictures are the generated wire pictures (``wire_image.build_wire_image``) at ``WIRE_TABLE_SIZE``. A circuit whose wires are all
+    The pictures are the generated wire pictures (``images.build_wire``) at ``WIRE_TABLE_SIZE``. A circuit whose wires are all
     the same part shows one; where it uses several (the wire changes when it branches off a splice or another terminal) the cell is
     made taller and they are stacked in it: the table sizes the row to what :meth:`sizeHint` asks for.
     """

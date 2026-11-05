@@ -9,6 +9,7 @@ in vec3 fragPositionGeom;
 in vec3 fragNormalGeom;
 in float isReflection;
 in float fragLocalZGeom;
+in float fragStripeGeom;
 
 out vec4 FragColor;
 
@@ -17,6 +18,14 @@ uniform vec4 materialDiffuse;
 uniform vec4 materialSpecular;
 uniform float materialShininess;
 uniform vec4 materialEmissive;
+
+// A twisted conductor's stripe (see twistVertex in vertex.vert): where the angular distance from the stripe's
+// centre is below twistStripeHalf (radians) the stripe's colours replace the material's. 0.0, the default, means
+// no stripe; only shapes/twisted_wire.py sets it, around one conductor's draw.
+uniform float twistStripeHalf;
+uniform vec4 twistStripeAmbient;
+uniform vec4 twistStripeDiffuse;
+uniform vec4 twistStripeSpecular;
 
 uniform vec3 lightPosition;
 uniform vec4 lightAmbient;
@@ -76,13 +85,26 @@ void main() {
     vec3 normal = normalize(fragNormalGeom);
     vec3 viewDir = normalize(viewPosition - fragPositionGeom);
 
+    vec4 baseAmbient = materialAmbient;
+    vec4 baseDiffuse = materialDiffuse;
+    vec4 baseSpecular = materialSpecular;
+
+    if (twistStripeHalf > 0.0) {
+        // one pixel of blend at the edge of the stripe
+        float edge = max(fwidth(fragStripeGeom), 1e-5);
+        float inStripe = 1.0 - smoothstep(twistStripeHalf - edge, twistStripeHalf + edge, fragStripeGeom);
+        baseAmbient = mix(materialAmbient, twistStripeAmbient, inStripe);
+        baseDiffuse = mix(materialDiffuse, twistStripeDiffuse, inStripe);
+        baseSpecular = mix(materialSpecular, twistStripeSpecular, inStripe);
+    }
+
     bool fragAboveFloor = (fragPositionGeom.y > floorY);
 
     // Check if material is emissive
     float emissiveStrength = max(max(materialEmissive.r, materialEmissive.g), materialEmissive.b);
     bool isEmissive = emissiveStrength > 0.0;
 
-    vec3 ambient = lightAmbient.rgb * materialAmbient.rgb;
+    vec3 ambient = lightAmbient.rgb * baseAmbient.rgb;
 
     vec3 diffuse = vec3(0.0);
     vec3 specular = vec3(0.0);
@@ -110,12 +132,12 @@ void main() {
             vec3 lightDir = normalize(effectiveLightPos - fragPositionGeom);
 
             float diffuseStrength = max(dot(normal, lightDir), 0.0);
-            diffuse = lightDiffuse.rgb * (diffuseStrength * materialDiffuse.rgb);
+            diffuse = lightDiffuse.rgb * (diffuseStrength * baseDiffuse.rgb);
 
             if (diffuseStrength > 0.0) {
                 vec3 reflectDir = reflect(-lightDir, normal);
                 float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
-                specular = lightSpecular.rgb * (specularStrength * materialSpecular.rgb);
+                specular = lightSpecular.rgb * (specularStrength * baseSpecular.rgb);
             }
         }
 
@@ -131,7 +153,7 @@ void main() {
 
             if (spotFactor > 0.0) {
                 float headDiffuseStrength = max(dot(normal, headlightDir), 0.0);
-                diffuse += headlightDiffuse.rgb * (headDiffuseStrength * materialDiffuse.rgb) * spotFactor;
+                diffuse += headlightDiffuse.rgb * (headDiffuseStrength * baseDiffuse.rgb) * spotFactor;
             }
         }
     }
@@ -168,7 +190,7 @@ void main() {
         result /= peak;
     }
 
-    float alpha = materialDiffuse.a;
+    float alpha = baseDiffuse.a;
 
     if (isReflection > 0.5) {
         result *= 0.75;

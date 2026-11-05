@@ -1,13 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from .base import BaseMixin
+from ... import id_generator as _id_generator
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import wire_conductor as _wire_conductor
+    from .... import color as _color
 
 
 class WireConductorMixin(BaseMixin):
@@ -48,3 +50,47 @@ class WireConductorMixin(BaseMixin):
         :rtype: tuple[_wire_conductor.WireConductor, ...]
         """
         return self._table.db.wire_conductors_table.for_wire(self._db_id)
+
+    @property
+    @_check_types.do
+    def is_twisted(self) -> bool:
+        """Whether the wire is drawn as a twisted pair or triple (TWISTED_WIRE_DESIGN.md, sections 1 and 2a).
+
+        That is a wire with a twist rate (``tpi`` above 0), two or three conductors, no outer jacket (its colour is "no
+        colour") and a ``wire_conductors`` row for each conductor. Any other multi-conductor wire is drawn as a plain tube.
+
+        :rtype: bool
+        """
+        if self.tpi <= 0.0:
+            return False
+
+        if self.num_conductors not in (2, 3):
+            return False
+
+        if self.color_id != _id_generator.NO_COLOR_UUID.bytes:
+            return False
+
+        return len(self.conductors) == self.num_conductors
+
+    @property
+    @_check_types.do
+    def conductor_colors(self) -> tuple[tuple["_color.Color", _Union["_color.Color", None]], ...]:
+        """The colours of the conductors, first conductor first: ``(insulation colour, stripe colour)`` each, the stripe
+        colour ``None`` for a conductor without a stripe.
+
+        :rtype: tuple[tuple[_color.Color, _color.Color | None], ...]
+        """
+        colors_table = self._table.db.colors_table
+        result = []
+
+        for conductor in self.conductors:
+            color = colors_table[conductor.color_id]
+
+            if conductor.has_stripe:
+                stripe = colors_table[conductor.stripe_color_id]
+            else:
+                stripe = None
+
+            result.append((color, stripe))
+
+        return tuple(result)
