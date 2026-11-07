@@ -269,6 +269,20 @@ class ObjectBase:
 
     @property
     @_check_types.do
+    def is_cable(self) -> bool:
+        from . import cable as _cable
+
+        return isinstance(self, _cable.Cable)
+
+    @property
+    @_check_types.do
+    def is_cable_conductor(self) -> bool:
+        from . import cable_conductor as _cable_conductor
+
+        return isinstance(self, _cable_conductor.CableConductor)
+
+    @property
+    @_check_types.do
     def is_cavity(self) -> bool:
         from . import cavity as _cavity
 

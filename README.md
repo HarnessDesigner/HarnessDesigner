@@ -15,13 +15,74 @@ seen in a CAD application that can make designing a wiring harness a complicated
 process. The controls have been written specifically for working with the various 
 components in a wiring harness and that is what makes it easy to use!
 
-Pegboard view added - This view is the same thing that gets set up at the production
-level when building multipls of the same woring harness. It's a flat layout with the 
-harness spread out. 
+UPDATE:
+I am getting close to  releasing an alpha test version. Recent things I have added
+
+
+are the circuits which is complete with a DRT (Design Rules Tester) where the user is 
+able to inducate the circuits port source location and voltage and also the load 
+locations and what the type the load is (resistive, inductive, etc...). The user also 
+has the ability to set what the ambient temperature is going to be where the harness 
+is located. They can also optionally add temperature derate tables for the wires. The DRT
+will calculate if a circuit exceeds the designed load and or the designed temperature. 
+The calculations are done knowing if a wire is bundled or not and if the bundle is 
+concentric twisted. These things matter for the temperature and load calculations. 
+
+
+Concentric twisting has been added. It still needs some polishing done to it. There is no 
+automatic layout just yet and that is on the todo list. My game plan is to also allow 
+for using AI to handle the concentric layouts as those can be complex depending on the 
+scale of the harness being built.
+
+I also added a ray tracing renderer to the application. this is able to render up to 
+a 32 mega pixel image that is ultra wide screen. 
+
+Pegboard view printer has been added. You can print out a 1 to 1 of the pegboard view and if 
+a large format plotter type of printer is not bing used then each page that is printed off
+is going to have alignment marks on it to align the pages on a pegboard for building the harnesses.
+The tables that can be shown in the pegboard view for the wire lists and the concentric twisting
+are also printed out. This makes it super fast to go from design right into production. 
+
+Rope pulling and slack handling in the pegboard view has been added. What this does is 
+if a user clicks and drags a connector once all of the slack has been removed it will pull the 
+harness and any other pieces attached to the harness. This mimicks what would happen in real life 
+when laying out a harness to create a pegboard. 
+
+Corrected the TE parts that have been added. There was a lot of bad placement and parts 
+added that should not have been added. So I cleaned that up.
+
+Added a couple more brands  to the pre loaded parts like Molex.
+
+Added more wiresto the database
+
+Expanded the wire image icons to show shielded wires and twisted wires.
+
+Performance upgrades, lot and lots of them. Setting types for function calls and attributes 
+which allows Cython to generate more efficient C code. This handles memory allocation better 
+as well as gives the code a little speed boost. 
+
+Realtime python scripting support. This is a nice feature to have if a user wants to write a 
+parts scraper. or automate some aspect of building the harness. This still needs quite a bit 
+of work but the basic framework is in place. When writing a parts scraper I added an extra 
+tool to help out, I built in a fully functional web browser that the raw incoming data can 
+be looked at to help with the reverse engineering process for the scrapers. I am also going 
+to be attaching the ability to sue AI with this as well and the AI will be able to see that
+raw data and write the script needed to scrape the parts information.
 
 ---
 
 ## Screenshots
+
+I am woeking on adding support for multi conductor cables/wires. This will support 
+ribbon cables, twisted cables and multi-conductor cables. This includes jacketed and 
+shielded cables as well. The shielding will be able to be terminated. The image below 
+is for twisted. One is a twisted pair and the other is a twisted 5 conductor. 
+
+To keep the performance when rendering these types of wires/cables I send a 2d section 
+of the cable to the GPU and I have the GPU rotate that slice and render it to produce
+the twisted cable. This is a fantastic way of offloading the heavy math to the GPU when 
+building this kind of a mesh.
+![img_14.png](img_14.png)
 
 Doing some work in the schematic editor, specifically automatic routing of the 
 wires when a housing is moved or when a wire is added.  

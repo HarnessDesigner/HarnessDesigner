@@ -22,6 +22,10 @@ Bundles are 3D + peg-board only (no schematic) — design in `BUNDLE_DESIGN.md`/
 
 Companion to `bundle.py`, same 3D + peg-board-only scope.
 
+#### cable.py
+
+`Cable(Wire)` (NEW 2026-11-06, step 8): the peg-board view of a placed cable, a subclass of the peg-board wire view like `objects_3d/cable.py` is of the 3D one. Drawn at `part.trunk_size` (a ribbon is its width by its thickness, lying flat), in the jacket colour (a twisted or ribbon cable has the "no color" jacket, so its first conductor's colour), no stripe, between the split planes only (`_segments` trims the end segments by `start_split_mm` / `stop_split_mm`; `reload_splits`). **A cable is placed in 3D and SEEDED onto the board, as a bundle is** (`seed_from_3d`, called by `add_handlers/editor_3d/cable.py` when the placement ends, and by the facade for a cable from before the board knew cables, `needs_seed`): the 3D route is unfolded into the board plane from the 3D start's X/Z, each 3D segment keeping its REAL length along its X/Z direction (a vertical one keeps the previous direction), one board waypoint (`pjt_cable_paths`, view `pegboard`) per interior 3D waypoint, so the cable is exactly as long on the board as in 3D and needs no slack or rope pull. The conductors' board layout is worked out FLAT here: `split_positions(start)` (the conductors side by side across the trunk at the split plane, `trunk width / count` apart, shield last) and `fan_out_positions(start)` (their ends across the cable's true end, spread by `FAN_SPREAD`, or side by side for a ribbon, in `start_order` / `stop_order`); both from `_end_frame`, the end segment's direction, with "across" on the same side at both ends. No slack handler (nothing attaches to a cable); `handle_interaction` does nothing, so a click only selects (dragging a placed cable is not built, in 3D either). `CableMenu` is the 3D menu without the roll. Not run in the app; the geometry, the seeding and the facade's board half were checked on stand-ins and a scratch SQLite (`pegboard_cable_test.py`).
+
 #### cavity.py
 
 Own `_update_angle_pegboard` mirrors the 3D version minus aabb/obb rotation (no peg-board mesh geometry) and minus the seal fallback.
@@ -96,7 +100,7 @@ Peg-board routing/branch rendering; model-building itself is 3D-side, design in 
 
 #### wire.py
 
-One file per harness part, same `BasePegboard(parent, db_obj)` shape; part of the wire family with `wire_layout.py`/`wire_marker.py`/`wire_service_loop.py`.
+One file per harness part, same `BasePegboard(parent, db_obj)` shape; part of the wire family with `wire_layout.py`/`wire_marker.py`/`wire_service_loop.py`. **Hooks for the cable subclasses (2026-11-06):** `_trunk_size(part)` (width, thickness; the part's `od_mm` twice), `_jacket_color(part)` and `_uses_stripe`, read by `__init__`, and `_segment_transforms` scales by x and y separately (a ribbon is wider than it is thick); `reload_conductor_colors()` redraws a cable lead in its conductor's colour after a catalog edit (mirrors the 3D view's).
 
 ⚠ This wire's own interior waypoints (`waypoints_pegboard`, read via `WireTypeMixin._waypoints` in `objects_pegboard/mixins.py`) are a completely separate list from the SAME wire's 3D waypoints -- see `handlers/MAP.md`'s `wire_drag_base.py` entry for the full "why can I only drag by the ends in peg-board" explanation. A wire routed into a bundle via a 3D drag (`BUNDLE_PLACEMENT.md` section 12) can have zero peg-board waypoints of its own; dragging its body here before adding any will only ever move a true end (or nothing). `WireMenu.on_add_handle` (`Add Handle`, right-click) is how a peg-board-side interior waypoint gets created.
 

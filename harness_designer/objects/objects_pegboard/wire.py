@@ -71,6 +71,33 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire" = None
 
+    # Whether the part's stripe colour is drawn (a cable's jacket has none; see objects_pegboard.cable).
+    _uses_stripe: bool = True
+
+    @staticmethod
+    @_check_types.do
+    def _trunk_size(part: object) -> tuple[float, float]:
+        """How wide and how thick the wire is drawn: round, at the part's ``od_mm``. A cable's view says otherwise.
+
+        :param part: The catalog wire.
+        """
+        return part.od_mm, part.od_mm
+
+    @_check_types.do
+    def _jacket_color(self, part: object) -> object:
+        """The colour the wire is drawn in (a ``QColor``): the part's own. A cable's view says otherwise.
+
+        :param part: The catalog wire.
+        """
+        return part.color.ui
+
+    @_check_types.do
+    def reload_conductor_colors(self) -> None:
+        """Draw a cable's lead in its conductor's colour again, after the colour was edited in the catalog (an edit of the
+        part is global). Mirrors the 3D view's method of the same name."""
+        self._material = _materials.Plastic(self._jacket_color(self._part))
+        self.pegboard.Refresh()
+
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
@@ -89,9 +116,10 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             self._is_tight = None
 
             self._part = db_obj.part
-            color = self._part.color.ui
-            stripe_color = self._part.stripe_color
-            diameter = self._part.od_mm
+            color = self._jacket_color(self._part)
+            stripe_color = self._part.stripe_color if self._uses_stripe else None
+            width, thickness = self._trunk_size(self._part)
+            diameter = width
 
             # Wires hold strong references to bundles as a sanity check
             self._bundle = None
@@ -137,7 +165,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
             position = self._p1
 
-            scale = _point.Point(diameter, diameter, self._length)
+            scale = _point.Point(width, thickness, self._length)
 
             # Track wires in this bundle using weak references
             # Wires hold strong references to bundles; bundles use weak refs to wires
@@ -453,7 +481,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
     @_check_types.do
     def _endpoint_diameter(self) -> float:
-        return self.db_obj.part.od_mm
+        return self._trunk_size(self.db_obj.part)[0]
 
     @_debug.logfunc
     @_check_types.do
@@ -552,7 +580,8 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         hidden, so the open-air stub segment on their outward side still
         renders normally.
         """
-        diameter = self._scale.x
+        width = self._scale.x
+        thickness = self._scale.y
         hidden_ids = self._hidden_waypoint_ids
 
         # Aligned with self._segments() below -- both read the live drag
@@ -574,7 +603,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             direction = seg_vec / seg_len
             seg_angle = self._rotation_from_direction(direction)
             seg_position = _point.Point(*seg_p1)
-            seg_scale = _point.Point(diameter, diameter, seg_len)
+            seg_scale = _point.Point(width, thickness, seg_len)
 
             yield seg_position, seg_angle, seg_scale, seg_len
 

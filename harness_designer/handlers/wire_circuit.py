@@ -142,6 +142,8 @@ def _replicate_operating_temp(project: "_project.Project", wire: "_wire.Wire") -
             entries.append(('Terminal', start_sibling.db_obj))
         elif start_sibling.is_splice:
             entries.append(('Splice', start_sibling.db_obj))
+        elif start_sibling.is_cable_conductor:
+            entries.append(('Cable conductor', start_sibling.db_obj))
         else:
             entries.append(('Wire service loop', start_sibling.db_obj))
 
@@ -153,6 +155,8 @@ def _replicate_operating_temp(project: "_project.Project", wire: "_wire.Wire") -
             entries.append(('Terminal', stop_sibling.db_obj))
         elif stop_sibling.is_splice:
             entries.append(('Splice', stop_sibling.db_obj))
+        elif stop_sibling.is_cable_conductor:
+            entries.append(('Cable conductor', stop_sibling.db_obj))
         else:
             entries.append(('Wire service loop', stop_sibling.db_obj))
 

@@ -92,7 +92,7 @@ BUILT (compiled and, for the builder, test-built; the app was NOT launched, no t
     the fragment shader blends the stripe's ambient / diffuse / specular in over one pixel. The rigid twist carries it as a helix.
   - Which conductors stripe and where: whichever `wire_conductors` rows have a stripe colour (the builder's data), on the outward side;
     the lay is a right-hand (Z) twist, since TE and the mil-spec data give no direction.
-  - DB side: `WireConductorMixin.is_twisted` (tpi above 0, 2 or 3 conductors, no jacket colour, a conductor row each) and
+  - DB side: `WireConductorMixin.is_twisted` (tpi above 0, 2 or MORE conductors since 2026-11-05, no jacket colour, a conductor row each) and
     `conductor_colors`. `objects_3d/wire.py`: `_build_twist`, `_twist_segments` (cached in `_twist_plan`, cleared by
     `_recalculate_geometry`), `_render_twisted`.
   - Not done for a twisted wire: the debug edge / normal / vertex passes (no twist mode in those programs), the bare-conductor look at a
@@ -115,7 +115,7 @@ NOT DONE:
 ## 1. Goal
 
 Render a multi-conductor wire in 3D as what it really is: a twisted pair/triple (conductors visible, no
-jacket) when it is unshielded and has 2 or 3 conductors, otherwise a plain jacketed tube. The twist rate
+jacket) when it is unshielded and has 2 or more conductors (the 2-or-3 limit was dropped 2026-11-05), otherwise a plain jacketed tube. The twist rate
 is the existing `wires.tpi` (turns per inch). The concentric-bundle packing (`CONCENTRIC_TWIST_DESIGN.md`)
 is NOT what this renders; this is the twisted wire itself.
 
@@ -549,7 +549,7 @@ USER DECISIONS, continued (2026-11-05, later):
 USER DECISION (2026-11-05, ribbon): ribbon cables are cables too and go through the same cable / conductor tables and
 the same split, but they are NOT twisted and have no single jacket round the conductors; they are rendered
 differently. So the cable needs a STYLE, derived from the part (never stored, like `is_twisted`):
-- TWISTED: `tpi` > 0, "no color" jacket, 2 or 3 conductors (today's `is_twisted`).
+- TWISTED: `tpi` > 0, "no color" jacket, 2 or more conductors (today's `is_twisted`).
 - RIBBON: wire type Ribbon (discrete IDC ribbon; laminated FFC / FPC come later, section 7).
 - JACKETED: every other cable (shielded, coax, round multi-conductor).
 The style decides the trunk's drawing (twisted tubes / flat strip of conductors in a row / one tube), how a split looks
@@ -572,6 +572,183 @@ Proposed build order (nothing started): 1 builder writes the conductor rows; 2 a
 `pjt_cables` and `pjt_cable_conductors` tables and row classes; 3 placement makes a cable with its conductor rows;
 4 trunk rendering by style (twisted done; ribbon, jacketed); 5 "Split Conductors" and the two-list leads; 6 conductors
 as circuit members; 7 object explorer and editor; 8 peg board (rope pull, slack) and schematic.
+
+BUILT 2026-11-05, step 1 (database repo, `builder/create_database/wire_conductors.py`, uncommitted): `add_records` now
+gives every cable the files do not describe `max(1, num_conductors)` default rows (the cable's size, strands, core
+material, insulation material and resistance; colour White; no stripe; `od_mm` 0), and no longer returns early when
+there are no files. Checked on a test build on D: (exit 0, no warnings): every cable has rows, no non-cable has any, and
+each cable's row count equals `max(1, num_conductors)`. Real totals (the earlier 23,319 counted only the manufacturer
+JSON; the Universal generated military cables are cables too): 113,768 cables of 148,048 wires; 305,486 described rows
+(88,036 cables: TE twisted and Universal) plus 533,202 default rows (25,732 cables: Molex 20,310, TE 3,016 and the
+rest) = 838,688 rows; test database 394 MB; `row_ids.txt` grows by 533,202 lines (about 19 MB, 26 to 45 MB), which the
+real build must commit. The app's `create_database/wire_conductors.py` needs no change (same DDL).
+
+BUILT 2026-11-05, step 2 (app repo, uncommitted, new files `git add`ed): `CableStyle`, `is_cable` and `cable_style` on
+`WireConductorMixin`; the schemas `create_database/cables.py` (`pjt_cables`) and `create_database/cable_conductors.py`
+(`pjt_cable_conductors`, every `pjt_wires` column plus the conductor columns); `project_db/pjt_cable.py` (`PJTCable`,
+`PJTCablesTable`) and `project_db/pjt_cable_conductor.py` (`PJTCableConductor(PJTWire)`, `PJTCableConductorsTable(PJTWiresTable)`),
+registered in `PJTTables` (`pjt_cables_table`, `pjt_cable_conductors_table`). The cable has no 2D columns and no circuit; the
+conductor has the whole wire. Decisions made while building: the conductor table is a column-for-column superset of
+`pjt_wires` so the inherited `PJTWire` code finds the columns it reads; (a cable's route was first meant to go in
+`pjt_wire_paths` under its own id; step 3 moved it to `pjt_cable_paths`, see below); `PJTCable.get_object` / `set_object` wait
+for the object layer. Checked on a scratch SQLite with a stand-in for `PJTTables` (insert, read, setters, ordering,
+`_resistance_over`, cascade delete, nine `cable_style` cases) and by the schema walk (`pjt_cables` before
+`pjt_cable_conductors`); `cython_hint_audit.py` found nothing in the new files. NOT run: the app, a real project database,
+the catalog rebuilt with step 1's rows (so `cable_style` has only been run on stand-in parts). Still open from this step:
+`length_mm` / weights of a conductor (two leads plus the trunk), conductors as circuit members (step 6), the object editor and
+explorer (step 7), the dual lead lists (step 5).
+
+CHANGE 2026-11-05 (user: "if it's twisted and unsheathed then it should be rendered no matter how many conductors"): the 2-or-3
+limit is gone. The catalogue has about 3,000 unjacketed parts with a twist rate and 4 to 8 conductors that were drawn as a plain
+tube; `is_twisted` now takes any count of 2 or more. `shapes.twisted_wire.profile` packs any number of equal conductors: up to 5 on one
+ring; from 6 conductor 0 is the centre one and the rest go round it on one ring while that is 9 or fewer, else in layers as a stranded
+cable (layer k at 2kr, up to floor(pi / asin(1 / 2k)) each, innermost first, a part-filled layer evenly spaced). The vertex shader's
+stripe centre falls back to +X for a conductor on the axis. Checked: no overlap and the exact outer diameter for 2 to 60, 80 and 120
+conductors; offscreen renders of 6, 8, 12 and 19 conductors. Draw cost grows with the count (one tube per conductor per segment).
+The icon (`wire_images`) still shows the first three conductors.
+
+FIX 2026-11-05 (user report: a twisted pair with striped conductors looked misshapen): not the stripe, the conductor size. The
+catalogue TPI is a flat 1.0 for most pairs (provisional, see above), so a thick pair such as the 6.3 mm 12 AWG M27500 pair had a lay
+of 4 cable diameters, a steep helix whose conductors look swollen and pinched. `shapes.twisted_wire.rate_for` now stretches the
+lay to at least `MIN_LAY_DIAMETERS` = 8 cable diameters (a real pair is laid 8 to 16); thin pairs are untouched. Checked on the
+offscreen renderer with real catalogue sizes; the 8 is a judgement, one constant to change. The TPI column itself is not changed.
+
+BUILT 2026-11-05, step 3 (app repo, uncommitted, new files `git add`ed; 3D editor only, NOT run in the app): placing a cable in
+free space. `objects/cable.py` (`Cable` facade, 3D view only, ends always free), `objects/objects_3d/cable.py` (`Cable(Wire)`:
+the 3D wire view reused, so the trunk is drawn as a wire is, twisted included; a ribbon is a plain tube until step 4; menu =
+Select, Delete), `add_handlers/editor_3d/cable.py` (the wire's placement session with the attaching taken out),
+`objects/project.py` (`_cables`, `add_cable` / `delete_cable` / `get_cable` / `cables`, loaded after the wires),
+`ObjectBase.is_cable`, `Wire._start_free_space` hands a cable part (`is_cable`) to `Cable.start_add_cable`, and starting a
+cable from a terminal or splice says a cable is not attached itself. Database: `PJTCable.get_object` / `set_object`,
+`PJTCableConductorsTable.insert_for_cable` (conductor rows from the catalog part, each conductor's end points children of
+the cable's, so they follow it), and `pjt_cable_paths` (`PJTCablePathsTable`, a table of its own for a cable's route:
+`pjt_wire_paths` is read by code that looks every id up in `pjt_wires`, e.g. `PJTWireLayout.attached_wires`, the rope pull and
+`PJTWirePath.wire`, which a cable's id would break). `PJTPoint3D` / `PJTPointPegboard.is_referenced` count the cable tables.
+Decisions: conductors are made when the session FINISHES, not when it starts (the cable's end point is replaced at every
+waypoint commit and each conductor's end points are children of it); the wire session got a `_paths_table` hook so the cable
+session can answer with its own table. Checked on a scratch SQLite (conductors made, children follow a moved cable end,
+route table, `is_referenced`, cascade delete) and by importing the whole object layer; the 3D view, the session and the
+loader were never run. DECIDED (user, 2026-11-05): a cable with no outer jacket (twisted, ribbon) gets no waypoint layouts; a jacketed one does.
+
+BUILT 2026-11-05, step 5a (app repo, uncommitted; NOT run in the app): splitting a cable's conductors out at an end, drawing only. The
+right-click menu of a cable offers "Split Conductors (start|stop end)" (for the end nearer the click; asks the distance from the end) or
+"Join Conductors". `PJTCable.start_split_mm` / `stop_split_mm` are the state (0 = not split). The split plane must lie inside the END
+SEGMENT of the trunk (distance at most that segment's length less 2 mm), so no trunk waypoint has to move to a lead; a lead therefore has no
+waypoints of its own yet. At a split the trunk is drawn only up to the plane (`Cable._segments` is trimmed, so the twist phase starts / ends
+at the plane), each conductor's end point is DETACHED from the cable's end (`PJTPoint3D.detach_from_parent`) and moved to a fan-out place
+across the cable's true end (conductor position x 2, a shield below the jacket), and each conductor is drawn as a straight tube from its
+helix position at the plane to that point (rate-0 `TwistedTube`, so stripes work); join re-attaches the end points. DECISION: no split point
+ROWS yet (`start_split_point3d_id` stays NULL); the lead's start is computed at draw time from the trunk's plan (the helix phase through bends
+is only known to the view). They are needed in 5b, when a lead becomes a route of its own: the view's `reload_splits` would then write the
+computed positions into them. Checked: the detach / attach rules on a scratch SQLite (a detached end does not follow, a re-attached one
+snaps on and follows, a never-live point works) and the maths offscreen (straight pair split at both ends, bent triple, 8 conductors: leads
+join the helix conductors without a jump). USER DECISION (2026-11-05, 5b): a conductor's LEADS are ordinary wires. A lead is a `pjt_wires` row with a new nullable column
+`cable_conductor_id` (the conductor row), from a free end (where a terminal or splice attaches, as to any wire) to a SPLIT POINT on
+the trunk's split plane. `pjt_cable_conductors` is KEPT (not folded into `pjt_wires`): the conductor has to exist before any lead
+does (colour, size, shield flag, idx, resistance are edited per conductor, an end that is not split has no lead), and it becomes the
+middle of the run, a junction with two connection points (the split points) that the leads attach to, modelled on the wire service
+loop (2 connections, a circuit member). This replaces the "conductor row subclasses PJTWire with two waypoint lists" decision:
+each lead has its own route, so there is one list per lead. A lead's colour / size / resistance come from its conductor through
+`PJTWire.part` -> `project_db/conductor_part.ConductorPart`.
+BUILT 2026-11-05, 5b stage 1: the `cable_conductor_id` column, `PJTWire.cable_conductor_id` / `is_cable_lead` / `cable_conductor`,
+`PJTWire.part` returning a `ConductorPart` for a lead, `PJTWiresTable.leads_of`; checked on a scratch SQLite (the lead's part answers the
+conductor's colour, stripe, size, od, resistance and a share of the weight; an ordinary wire and a conductor row are unchanged; the
+link is stored and can be cleared).
+BUILT 2026-11-05, 5b stage 2 (NOT run in the app): `Cable.split_end` makes, per conductor, a split point on the plane (`start_split_point3d_id`
+/ `stop_split_point3d_id` now used; kept on the plane by `_sync_split_points` when only the distance changes) and the lead wire (end
+point -> split point, a `Wire` facade added to the project); `join_end` refuses while a terminal or splice is on a lead's free end
+(`can_join`), else deletes the leads and split points and re-attaches the end points; deleting the cable deletes its leads. The 5a
+drawing of leads inside the cable view is removed (the leads are drawn as wires). Checked on a scratch SQLite (`leads_of`, the lead's
+points, join bookkeeping); the facade, the lead's 3D view reading a `ConductorPart`, and the project loader were never run.
+BUILT 2026-11-06, 5b stage 3 (NOT run in the app): `objects/cable_conductor.py` `CableConductor`, a view-less sibling-graph node (like the
+service loop: a lead at each cable end). A lead's `stop_sibling` is now its conductor (so "Add Terminal" is no longer offered on the split-plane end,
+and `Cable.can_join` is unaffected: it only looks at the free ends). Linked by `Cable.split_end` and rebuilt on a load by
+`Project._reconcile_wire_sibling_graph`; `Wire.trace_run` walks through it to the cable's other lead; `wire_circuit._replicate_operating_temp`
+labels it. Checked with fakes (the node's bookkeeping, the load reconcile); the facade, the real `Wire.set_sibling` call and the loader were
+never run. NOT in stage 3 (the circuit walk, member lists and the trunk in `trace_run` came in stage 4, below): `Wire.is_connected` (needs a Terminal/Splice at both ends,
+so a lead is not shown in the schematic).
+BUILT 2026-11-06, 5b stage 4 (NOT run in the app): the conductor is a circuit member and a junction. `PJTCircuitsTable.connected_members` and
+`PJTCircuit._trace_full` give it two connection points (its split points), so the walk goes terminal -> lead -> conductor -> lead -> terminal and
+a circuit crosses a split conductor; `PJTCircuit.cable_conductors` (cached like the other member lists) is in `resistance`, `wire_length_mm`,
+`wire_weight_g`, `detach_members`, `merge_from` and `over_temperature_members`. `PJTCableConductor.length_mm` is the TRUNK (the cable's length less
+the two splits, along the axis; the helix of a twisted conductor, a percent or two, is not counted), `weight_g` / `weight_lb` the cable's share per
+conductor row, so `part_data()` hands the solver the trunk's resistance (the row's own `resistance_1km`) and length; `Wire.trace_run` adds the
+trunk. Checked with stand-ins (the walk, `connected_members`, the trunk length / weight / resistance / `part_data`); never run in the app.
+NOT done: the circuit editor (`ui/editor_circuit`) and the object browser do not list conductors (they read `circuit.wires` /
+`wire_service_loops`), `Circuit.highlight` does not colour the trunk, a conductor in a bundle's heat (`_bundle_component` reads wires only), the
+shield as a return path, and `Wire.is_connected` / the schematic look of a split conductor.
+BUILT 2026-11-06, lead routing (NOT run in the app): a lead's waypoints already work through the ordinary wire code (right-click Add Handle ->
+`WireLayout`, 3D route only); what needed doing was keeping the lead a lead. The conductor's split point is a drag anchor
+(`WireDragMixin.is_anchor_point`, so it cannot be dragged off the split plane and is not offered by `pick_free_end`); a lead is neither a wire-end snap
+target nor snaps to one (`SnapProbeSet`: wires that meet are merged into one row, which would lose the conductor); the lead's menu disables Add Splice /
+Add Wire / Add Wire Service Loop / Add to Wire (they split or branch the row into a wire without `cable_conductor_id`). Still open: a splice or
+service loop IN a lead (would need `cable_conductor_id` carried through `wire_topology` and `can_join` / `join_end` to follow the whole lead chain),
+a lead in the pegboard / schematic, and the first stretch of a lead leaving the plane along the trunk (a lead is straight until the user adds handles).
+BUILT 2026-11-06, fan-out order (NOT run in the app): `start_order` / `stop_order` (per conductor, per end; default `idx`) now decide which fan place a
+conductor's end lands in. The places are fixed per cable (one per conductor row: where that row sits in the cable, spread out by `FAN_SPREAD`), so
+reordering swaps conductors between places; the shield is just another place (it can be moved off the bottom). Menu: "Fan-out Order (start|stop end)..."
+-> `ui/dialogs/fan_out_order.py` (Move Up / Move Down) -> `Cable.set_fan_order`, which moves the end points of a split end at once and only stores the
+order of an unsplit one (the first split uses it). Refused while anything is attached to a lead's free end (`can_reorder`, same rule as Join: the
+attached terminal would be left behind). Checked with stand-ins and the dialog offscreen; no preview of the fan in the dialog.
+BUILT 2026-11-06, step 4 (NOT run in the app; checked offscreen through the real shader and with stand-ins): the trunk by style. TWISTED as before;
+RIBBON is a flat strip of touching round conductors in a row (`shapes.twisted_wire.ribbon_profile`; the same shader, rate 0), pin 1 (conductor 0)
+on the -X edge, its conductor colours from the part's conductor rows (the cable's colour when it has none); JACKETED is one round tube. The catalogue
+gives a ribbon no pitch, width or `od_mm` (section 7's proposed `pitch_mm` / `width_mm` / `thickness_mm` columns were NOT added), so the pitch is a RULE:
+the smallest of 0.635 / 1.27 / 2.54 / 5.08 mm that holds the insulated conductor (its `od_mm`, else the bare diameter + 0.5 mm; 28 AWG gives 1.27), the
+strip is `count * pitch` wide and one pitch thick, and the web between conductors is not drawn (they touch). `WireConductorMixin.trunk_size` is the one
+place that size is worked out (a jacketed part with no `od_mm` gets the diameter that holds its conductors); the 3D view, `ConductorPart` (a ribbon lead is
+one pitch wide) and the split dialog read it. ROLL: a flat cable needs an orientation, so `pjt_cables.roll_deg` (new column) turns the strip about its
+length at the start of the trunk and every bend carries it on by parallel transport; the view bakes the roll into each segment's angle, so picking and the
+selection overlay use the strip's own box. Menu "Roll Ribbon..." (refused while an end is split, as the split points sit on the flat side). The fan-out
+order is positional for a ribbon (menu entry disabled). Known: a ribbon turned edgewise (in its own plane) is not warned about or creased (section 7);
+the default roll is the 3D view's own frame, not "lying flat"; no web; laminated FFC / FPC, the ribbon picture and a conductor-colour rule (pin-1 stripe /
+rainbow) are still open; 120 conductors cost 120 tubes per segment.
+REVISED 2026-11-06 (user, after reviewing step 7): the conductor's own values live ONLY in the catalog. `pjt_cable_conductors` keeps NO copy (the colour / stripe /
+material / size / od / resistance columns are gone): it holds `conductor_id`, the row of `wire_conductors` it is, and `PJTCableConductor.part` (and a lead's `part`)
+returns that catalog `WireConductor`, which is now a real catalog row class that answers the same API as `Wire` (anything it does not define is the cable's, through
+`__getattr__`); the shield, which has no catalog row, is a `ShieldConductor` stand-in. `ConductorPart` (project_db) is gone. Editing is done to the part itself, so it is
+GLOBAL: in the object editor a conductor (or lead) shows the project wire control, whose Part tab shows the cable's catalog wire, which has a Conductors tab (shown only for a
+wire with conductors): a notebook with a tab per conductor and the controls for that `wire_conductors` row (`WireConductorsControl` / `WireConductorControl` in
+`global_db/wire.py`). After an edit `Project.reload_cable_looks(wire_id)` redraws every placed cable of the part and its leads. This replaces the "per placed cable copy the
+user edits" decision of 2026-11-05 and the `PJTCableConductorControl` / `ConductorColorControl` of the first step 7 (removed). The paragraph below describes the first
+version where it speaks of conductor controls and copies; the browser part still stands.
+BUILT 2026-11-06, step 7 (NOT run in the app; checked with stand-ins, the controls and the browser panel built offscreen): the object editor and the object
+browser handle cables and their conductors. Editor: `PJTCableControl` (name, notes, smooth, position, visibility, the part, and a read-only Info page: length,
+weight, conductor count, both split distances, the ribbon roll; a split moves points, so it stays on the right-click menu) and `PJTCableConductorControl`
+(name, notes, colour and stripe, size, the trunk's length / weight / resistance, circuit, part). Selecting a cable used to raise `AttributeError` (no `control`
+on `PJTCablesTable`). `ConductorColorControl` (new, `project_db/conductor_controls.py`) picks colours by name from the catalog and never edits one. A colour edit
+redraws the trunk (its look is now built from the placed cable's conductor rows, the builder's white rows included, the catalog part's only when there are none) and
+recolours the leads (`Cable.reload_looks`). Typing one of the three sizes clears the other two (`ConductorPart` reads dia, cross, AWG in that order). Browser: a Cables
+category; a cable's item has a Conductors group, one selectable item per conductor (the shield marked) with its circuit and its lead wires, listed again after the
+conductors are made, a split, a join and the project load; a circuit lists its Cable Conductors. A conductor has no view, so `CableConductor.set_selected` bypasses the
+editors' canvases and tells only the object editor and the browser. A lead's Part page shows the cable's catalog wire. NOT done: a conductor's mention under the terminal /
+splice it lands on, the lead end points in the conductor editor (a lead is a wire with its own control), a stripe added or removed (or a changed diameter) on an existing lead
+without remaking it, the fan-out order and split distance as editor fields (menu only), a conductor in the circuit editor dock (`ui/editor_circuit`), selecting a conductor in
+3D, the BOM / cut list.
+BUILT 2026-11-06, step 8 (NOT run in the app; checked on stand-ins and a scratch SQLite: `pegboard_cable_test.py`, `schematic_conductor_test.py`).
+USER DECISIONS (2026-11-06): schematic = CONDUCTORS ONLY (no cable, no leads; each conductor one terminal-to-terminal wire with one ordinary waypoint list);
+peg board = THE CABLE STRIP PLUS THE LEADS (the cable at its real width with its own board waypoints, the leads ordinary wires on their own board points).
+PEG BOARD: `objects_pegboard/cable.py` (a subclass of the peg-board wire view). A cable is placed in 3D and SEEDED onto the board, as a bundle is: the 3D route
+is unfolded into the board plane with every segment keeping its real length (`seed_from_3d`), so the cable is exactly as long on the board and the rope pull
+and slack do not apply to the trunk (and there is nothing to attach to it). Splitting an end lays the conductors out FLAT: side by side across the trunk at
+the split plane, their ends across the cable's true end (the same order as 3D; side by side for a ribbon). Each conductor gets a board split point and a
+board end point and its lead's board ends are those; join deletes the split points; the distance and the fan order move them. The lead's length on the board is
+the straight line (a little different from 3D: `wire_slack` bows the shorter view once a terminal is attached, as for any wire). Not built: dragging a placed
+cable (in 3D either), a board placement session for a cable, the table of wires (`ui/pegboard_table`) listing a cable's conductors, the cable's own rope pull.
+SCHEMATIC: `objects/cable_conductor.py` `ConductorRun` + `objects_schematic/cable_conductor.py`. A conductor is drawn while both its leads end on a terminal or
+splice: its row's 2D end points are the leads' own (so the line follows the terminals), the router sees the run as a wire (`start_sibling` / `stop_sibling` are
+the terminals/splices), and the stored 2D route is the row's own (`pjt_wire_paths` by the conductor's id). `CableConductor.refresh_schematic` is asked when a
+lead attaches (`on_wire_attached`), is cut free or deleted, and for every conductor as a project loads. Not built / unknown: dragging an interior waypoint
+(a `WireLayout` handle finds its wire through `project.get_wire`, which does not know a conductor), a conductor in Auto Arrange's weights, a splice or service
+loop in a lead, the conductors in the circuit editor dock.
+NEXT: run it in the app (nothing of the cable work has been run); then the open lists above.
+Known: the BOM would list a lead's length against the cable's part.
+NOT done (older 5b list, now partly superseded): leads as selectable objects (select, drag the end, waypoints, "Add Terminal"),
+the fan-out ORDER dialog (order is `idx`; `start_order` / `stop_order` columns exist, unused), the OBB / hit test of a lead, ribbon's
+positional fan-out, a split distance beyond the end segment, and the circuit side (step 6). Join does not check whether anything is
+attached to a conductor's end (nothing can be yet): when attaching exists it must refuse. KNOWN GAPS: dragging a placed cable's end or waypoint (its `handle_interaction` only selects); a
+waypoint marker (`WireLayout`) of a cable is sized as for no wire and `attached_wires` is empty for it; cables are not in the
+object browser, the BOM or the cut list; no peg-board view; "Split Conductors" is step 5.
 
 Not checked yet: the add-wire handler and wire snapping, `Wire._segments`, the peg-board and schematic wire
 renderers, and how many places count wire rows.

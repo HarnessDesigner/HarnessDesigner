@@ -11,6 +11,7 @@ import weakref
 
 from ...objects import boot as _boot
 from ...objects import bundle as _bundle
+from ...objects import cable as _cable
 from ...objects import cavity as _cavity
 from ...objects import circuit as _circuit
 from ...objects import cover as _cover
@@ -243,6 +244,28 @@ class ObjectBrowser(_dock_base.DockBase):
         """
 
         self._ui_obj.add_wire_service_loop(obj)
+
+    @_check_types.do
+    def add_cable(self, obj: _cable.Cable) -> None:
+        """
+        Add a cable.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cable.Cable`
+        """
+
+        self._ui_obj.add_cable(obj)
+
+    @_check_types.do
+    def refresh_cable(self, obj: _cable.Cable) -> None:
+        """
+        List a cable's conductors and leads again.
+
+        :param obj: The cable.
+        :type obj: :class:`_cable.Cable`
+        """
+
+        self._ui_obj.refresh_cable(obj)
 
     @_check_types.do
     def reset(self) -> None:
@@ -761,6 +784,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         self._boots = self._append_top_level_item('Boots', True)
         self._bundles = self._append_top_level_item('Bundles', True)
+        self._cables = self._append_top_level_item('Cables', True)
         self._cavities = self._append_top_level_item('Cavities', True)
         self._circuits = self._append_top_level_item('Circuits', True)
         self._covers = self._append_top_level_item('Covers', True)
@@ -1167,6 +1191,161 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
+    def add_cable(self, obj: _cable.Cable) -> None:
+        """
+        Add a cable: its own item under Cables, with a Conductors group that has one item per conductor (and the shield),
+        each with its circuit and the lead wires attached to it. The conductors are selectable like any other object (the
+        object editor shows their own control). Listed again by :meth:`refresh_cable` when the conductors are made or an
+        end is split or joined.
+
+        :param obj: Object instance to operate on.
+        :type obj: :class:`_cable.Cable`
+        """
+
+        ref = weakref.ref(obj, self.__remove_refs)
+        self._weakrefs.append(ref)
+
+        treeitem = self._append_item(
+            self._cables, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
+        self._set_data(treeitem, ref)
+
+        self._fill_cable_children(obj, treeitem)
+
+        self._mark_canonical(treeitem)
+        obj.set_treeitem(ti)
+
+    @_check_types.do
+    def _fill_cable_children(self, obj: _cable.Cable, treeitem: QtWidgets.QTreeWidgetItem) -> None:
+        """
+        Add the Conductors group, and an item per conductor under it, to a cable's tree item.
+
+        :param obj: The cable.
+        :type obj: :class:`_cable.Cable`
+        :param treeitem: The cable's tree item.
+        :type treeitem: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        group = self._append_item(treeitem, 'Conductors', True)
+
+        for node in obj.conductor_objects:
+            row = node.db_obj
+            label = f'{row.name} (shield)' if row.is_shield else row.name
+
+            node_ref = weakref.ref(node, self.__remove_refs)
+            self._weakrefs.append(node_ref)
+
+            item = self._append_item(group, label, True)
+            self._set_data(item, node_ref)
+
+            node_ti = TreeItem(self, item, node)
+
+            circuit = row.circuit
+
+            if circuit is not None:
+                circuit_ref = weakref.ref(circuit, self.__remove_refs)
+                self._weakrefs.append(circuit_ref)
+
+                child = self._append_item(item, f'Circuit: {circuit.name}')
+                self._set_data(child, circuit_ref)
+
+                self._set_treeitem(circuit, child)
+
+            leads = node.wires
+
+            if leads:
+                leads_item = self._append_item(item, 'Leads', True)
+
+                for lead in leads:
+                    lead_ref = weakref.ref(lead, self.__remove_refs)
+                    self._weakrefs.append(lead_ref)
+
+                    child = self._append_item(leads_item, f'Wire: {lead.db_obj.name}')
+                    self._set_data(child, lead_ref)
+
+            self._mark_canonical(item)
+            node.set_treeitem(node_ti)
+
+    @_check_types.do
+    def _forget_children(self, item: QtWidgets.QTreeWidgetItem) -> None:
+        """
+        Remove every descendant of *item* from the tree, undoing what filling them registered (the weakref of each, a
+        conductor's link to its own item, and a mentioned object's record of the mention).
+
+        :param item: The item whose children go.
+        :type item: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        for i in range(item.childCount() - 1, -1, -1):
+            child = item.child(i)
+
+            self._forget_children(child)
+
+            ref = child.data(0, QtCore.Qt.ItemDataRole.UserRole)
+
+            if ref is not None:
+                try:
+                    self._weakrefs.remove(ref)
+                except ValueError:
+                    pass
+
+                target = ref()
+
+                if isinstance(target, _object_base.ObjectBase):
+                    if target.is_cable_conductor:
+                        target._treeitem = None  # NOQA
+                elif target is not None:
+                    target_obj = target.get_object()
+
+                    if target_obj is not None and target_obj.get_treeitem() is not None:
+                        target_obj.get_treeitem().discard_treeitem(child)
+
+            item.removeChild(child)
+
+    @_check_types.do
+    def refresh_cable(self, obj: _cable.Cable) -> None:
+        """
+        List a cable's conductors and leads again, keeping what the user had expanded.
+
+        :param obj: The cable.
+        :type obj: :class:`_cable.Cable`
+        """
+
+        ti = obj.get_treeitem()
+
+        if ti is None:
+            return
+
+        treeitem = ti.treeitem
+
+        # Deleted, or the tree was reset, since.
+        if treeitem.treeWidget() is None:
+            return
+
+        expanded = set()
+
+        for i in range(treeitem.childCount()):
+            group = treeitem.child(i)
+
+            for j in range(group.childCount()):
+                if group.child(j).isExpanded():
+                    expanded.add(group.child(j).text(0))
+
+        group_expanded = treeitem.childCount() > 0 and treeitem.child(0).isExpanded()
+
+        self._forget_children(treeitem)
+        self._fill_cable_children(obj, treeitem)
+
+        if treeitem.childCount() > 0:
+            group = treeitem.child(0)
+            group.setExpanded(group_expanded)
+
+            for j in range(group.childCount()):
+                group.child(j).setExpanded(group.child(j).text(0) in expanded)
+
+    @_check_types.do
     def add_circuit(self, obj: _circuit.Circuit) -> None:
         """
         Add a circuit. Its member listing is rebuilt whenever the circuit's
@@ -1211,6 +1390,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         groups = (
             ('Wires', 'Wire', db_obj.wires),
+            ('Cable Conductors', 'Conductor', db_obj.cable_conductors),
             ('Wire Service Loops', 'Wire Loop', db_obj.wire_service_loops),
             ('Terminals', 'Terminal', db_obj.terminals),
             ('Splices', 'Splice', db_obj.splices),
@@ -1227,7 +1407,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
                     group_treeitem, f'{item_label}: {member.name}')
 
                 self._set_data(member_item, member_ref)
-                self._set_treeitem(member, member_item)
+
+                # a conductor's own item (under its cable) is made when the cable is listed; this one is only a mention
+                if group_label != 'Cable Conductors':
+                    self._set_treeitem(member, member_item)
 
     @_check_types.do
     def _clear_circuit_children(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
@@ -2141,6 +2324,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         return {
             'Boots': self._boots,
             'Bundles': self._bundles,
+            'Cables': self._cables,
             'Cavities': self._cavities,
             'Circuits': self._circuits,
             'Covers': self._covers,

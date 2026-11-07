@@ -51,6 +51,9 @@ _HELIX_OVERSHOOT_MM = 1000.0
 
 _debug_config = _config.Config.debug.rendering3d
 
+_CABLE_NOT_ATTACHED = ('A cable is not attached to a terminal or a splice itself: its conductors are, once the cable has '
+                       'been split. Place the cable in free space.')
+
 # Two path segments whose ends are closer than this are one continuous wire (a stretch hidden inside a bundle leaves a far
 # bigger gap); the twist carries on across such a joint.
 _TWIST_JOIN_GAP_MM = 0.01
@@ -125,7 +128,11 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             self._part = db_obj.part
             color = self._part.color.ui
             stripe_color = self._part.stripe_color
-            diameter = self._part.od_mm
+
+            # across and through the cross-section: the same for a wire (a round tube at its od_mm); a cable view sizes a flat
+            # ribbon differently
+            width, thickness = self._trunk_size(self._part)
+            diameter = width
 
             # Wires hold strong references to bundles as a sanity check
             self._bundle = None
@@ -145,8 +152,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             self._conductor_dia = conductor_dia
             self._conductor_material = _materials.Polished(self._part.core_material.color.ui)
 
-            if self._part.is_twisted:
-                self._twist = self._build_twist(diameter)
+            self._twist = self._make_look(diameter)
 
             self._p1 = db_obj.start_position3d
             self._p2 = db_obj.stop_position3d
@@ -170,7 +176,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
             position = self._p1
 
-            scale = _point.Point(diameter, diameter, self._length)
+            scale = _point.Point(width, thickness, self._length)
 
             # Track wires in this bundle using weak references
             # Wires hold strong references to bundles; bundles use weak refs to wires
@@ -379,12 +385,42 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         :param outer_diameter: The cable's diameter, mm.
         """
         part = self._part
-        colors = part.conductor_colors
+        materials, stripes = self._conductor_materials()
 
+        return _TwistLook(
+            _twisted_wire.rate_for(part.tpi, outer_diameter), outer_diameter * 0.5,
+            _twisted_wire.profile(len(materials), outer_diameter), materials, stripes)
+
+    @staticmethod
+    @_check_types.do
+    def _trunk_size(part: object) -> tuple[float, float]:
+        """How wide and how thick the tube is drawn, mm: round, at the part's ``od_mm``. A cable view overrides it (a ribbon is
+        flat).
+
+        :param part: The wire's catalog part.
+        """
+        return part.od_mm, part.od_mm
+
+    @_check_types.do
+    def _make_look(self, diameter: float) -> _Union[_TwistLook, None]:
+        """The look of the wire's conductors, ``None`` for a plain tube: a twisted pair / triple for a part that ``is_twisted``.
+        A cable view overrides it for a ribbon.
+
+        :param diameter: The cable's diameter, mm.
+        """
+        if self._part.is_twisted:
+            return self._build_twist(diameter)
+
+        return None
+
+    @_check_types.do
+    def _conductor_materials(self) -> tuple[list[_materials.GLMaterial], list[_Union[_materials.GLMaterial, None]]]:
+        """Each conductor's insulation material and stripe material (``None`` for no stripe), from the part's conductor rows
+        (``wire_conductors``), conductor 0 first."""
         materials = []
         stripes = []
 
-        for color, stripe_color in colors:
+        for color, stripe_color in self._part.conductor_colors:
             materials.append(_materials.Plastic(color.ui))
 
             if stripe_color is None:
@@ -392,9 +428,38 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             else:
                 stripes.append(_materials.Plastic(stripe_color.ui))
 
-        return _TwistLook(
-            _twisted_wire.rate_from_tpi(part.tpi), outer_diameter * 0.5,
-            _twisted_wire.profile(len(colors), outer_diameter), materials, stripes)
+        return materials, stripes
+
+    @_check_types.do
+    def reload_conductor_colors(self) -> None:
+        """Draw a lead again in its conductor's colour and stripe colour after they were edited (a lead takes both from its
+        conductor row through ``PJTWire.part``). A stripe that was added or removed needs the wire made again."""
+        part = self.db_obj.part
+        self._part = part
+        self._material = _materials.Plastic(part.color.ui)
+
+        stripe_color = part.stripe_color
+
+        if self._stripe is not None and stripe_color is not None:
+            self._stripe._material = _materials.Plastic(stripe_color.ui)  # NOQA
+
+        self.editor3d.Refresh()
+
+    @staticmethod
+    @_check_types.do
+    def _segment_joins(segments: list[tuple]) -> list[bool]:
+        """For each path segment, whether it starts where the one before it ends (the first never reads as joined): a stretch
+        hidden inside a bundle breaks the chain. *segments* are ``(position, angle, scale, length)`` as
+        ``_segment_transforms`` yields them."""
+        joined = [False]
+
+        for i in range(1, len(segments)):
+            rotation = segments[i - 1][1].as_matrix_numpy
+            end_of_previous = segments[i - 1][0].as_numpy + rotation[:, 2] * segments[i - 1][3]
+            gap = float(np.linalg.norm(segments[i][0].as_numpy - end_of_previous))
+            joined.append(gap < _TWIST_JOIN_GAP_MM)
+
+        return joined
 
     @_check_types.do
     def _twist_segments(self) -> list[_TwistSegment]:
@@ -408,12 +473,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         rotations = [angle.as_matrix_numpy for _position, angle, _scale, _length in segments]
         lengths = [length for _position, _angle_, _scale, length in segments]
-        joined = [False]
-
-        for i in range(1, len(segments)):
-            end_of_previous = segments[i - 1][0].as_numpy + rotations[i - 1][:, 2] * lengths[i - 1]
-            gap = float(np.linalg.norm(segments[i][0].as_numpy - end_of_previous))
-            joined.append(gap < _TWIST_JOIN_GAP_MM)
+        joined = self._segment_joins(segments)
 
         twists = _twisted_wire.plan(rotations, lengths, joined, look.rate, look.outer_radius)
         plan = []
@@ -540,7 +600,8 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         hidden, so the open-air stub segment on their outward side still
         renders normally.
         """
-        diameter = self._scale.x
+        width = self._scale.x
+        thickness = self._scale.y
         hidden_ids = self._hidden_waypoint_ids
 
         point_ids = [self.start_position.db_id[:-2]]
@@ -560,7 +621,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             direction = seg_vec / seg_len
             seg_angle = self._rotation_from_direction(direction)
             seg_position = _point.Point(*seg_p1)
-            seg_scale = _point.Point(diameter, diameter, seg_len)
+            seg_scale = _point.Point(width, thickness, seg_len)
 
             yield seg_position, seg_angle, seg_scale, seg_len
 
@@ -1139,6 +1200,10 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         ptables = mainframe.project.ptables
         wire_part = mainframe.global_db.wires_table[part_id]
 
+        if wire_part.is_cable:
+            QtWidgets.QMessageBox.information(mainframe, 'Cable', _CABLE_NOT_ATTACHED)
+            return None
+
         ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, wire_part)
         if not ok:
             block_msg += '\n\nDo you want to use this wire?'
@@ -1179,6 +1244,10 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         ptables = mainframe.project.ptables
         wire_part = mainframe.global_db.wires_table[part_id]
+
+        if wire_part.is_cable:
+            QtWidgets.QMessageBox.information(mainframe, 'Cable', _CABLE_NOT_ATTACHED)
+            return None
 
         ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(splice, wire_part)
         if not ok:
@@ -1291,6 +1360,12 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         ptables = mainframe.project.ptables
         wire_part = mainframe.global_db.wires_table[part_id]
+
+        # A shielded wire, or one with more than one conductor, is placed as a cable (TWISTED_WIRE_DESIGN.md, section 8a)
+        if wire_part.is_cable:
+            from . import cable as _cable_3d  # NOQA -- avoid a cycle at import time
+
+            return _cable_3d.Cable.start_add_cable(mainframe, canvas, part_id)
 
         start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
         stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
@@ -1791,6 +1866,17 @@ class WireMenu(QtWidgets.QMenu):
         self.addSeparator()
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
+
+        # A lead of a cable's conductor is a wire with its own route (Add Handle, Extend Wire, Add Terminal work as on any wire),
+        # but nothing may branch off it or split it: a splice, a service loop or another wire would make a second wire row, which
+        # is not the conductor's lead (it has no conductor, and so none of the conductor's colour, size or resistance).
+        if wire.db_obj.is_cable_lead:
+            for action in self.actions():
+                if action.text() in self._NOT_ON_A_LEAD:
+                    action.setEnabled(False)
+                    action.setToolTip('Not available on the lead of a cable conductor')
+
+    _NOT_ON_A_LEAD = ('Add Splice', 'Add Wire', 'Add Wire Service Loop', 'Add to Wire')
 
     @_check_types.do
     def _midpoint(self) -> _point.Point:

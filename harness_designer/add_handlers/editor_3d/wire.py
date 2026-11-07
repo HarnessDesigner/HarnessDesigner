@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from ... import ui as _ui
     from ...objects.objects_3d import base_3d as _base_3d
     from ...database.global_db import wire as _glb_wire
+    from ...database.project_db import pjt_wire_path as _pjt_wire_path
 
 
 Config = _config.Config.colors
@@ -159,6 +160,12 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def is_finished(self) -> bool:
         return self._finalized
+
+    @property
+    @_check_types.do
+    def _paths_table(self) -> "_pjt_wire_path.PJTWirePathsTable":
+        """The table the target's route is kept in: the wires' (a cable's session answers with its own)."""
+        return self.ptables.pjt_wire_paths_table
 
     # ------------------------------------------------------------------
     # Entry point
@@ -907,6 +914,15 @@ class Wire(_base.AddHandlerBase):
     # Waypoint commit
     # ------------------------------------------------------------------
 
+    @property
+    @_check_types.do
+    def _waypoints_get_layouts(self) -> bool:
+        """Whether a committed waypoint gets a wire layout (the marker a bundle or another wire attaches to).
+
+        :rtype: bool
+        """
+        return True
+
     @_check_types.do
     def _commit_growing_point_as_waypoint(self) -> None:
         project = self.mainframe.project
@@ -918,17 +934,19 @@ class Wire(_base.AddHandlerBase):
         growing_pos = self._growing_point
 
         wire_id = self.target.db_obj.db_id
-        paths_table = self.ptables.pjt_wire_paths_table
+        paths_table = self._paths_table
 
         if is_start:
             paths_table.add(wire_id, '3d', 0, growing_point_id)
         else:
             paths_table.append(wire_id, '3d', growing_point_id)
 
-        layout_db = self.ptables.pjt_wire_layouts_table.insert(growing_point_id)
-        layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
-        project.add_wire_layout(layout_obj)
-        self._committed_layouts.append(layout_obj)
+        if self._waypoints_get_layouts:
+            layout_db = self.ptables.pjt_wire_layouts_table.insert(growing_point_id)
+            layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
+            project.add_wire_layout(layout_obj)
+            self._committed_layouts.append(layout_obj)
+
         self._session_waypoint_count += 1
 
         new_point_db = self.ptables.pjt_points3d_table.insert(
@@ -985,7 +1003,7 @@ class Wire(_base.AddHandlerBase):
 
         last_point = last_waypoint.point
 
-        self.ptables.pjt_wire_paths_table.remove(
+        self._paths_table.remove(
             self.target.db_obj.db_id, '3d', last_waypoint.db_id)
 
         self._set_growing_position3d_id(is_start, last_waypoint.db_id)

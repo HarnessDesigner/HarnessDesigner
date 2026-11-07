@@ -48,12 +48,29 @@ MAX_RINGS = 8000
 
 MM_PER_INCH = 25.4
 
+# The shortest lay length (distance for one full turn) a twisted cable is drawn with, in cable diameters. The catalogue's TPI is a
+# flat 1.0 for most pairs whatever their size, so a thick pair (a 6.3 mm 12 AWG pair is 4 diameters per turn) would be drawn as a
+# steep, swollen, pinched helix that no real cable has: a real pair is laid 8 to 16 diameters per turn. A thin pair at 1 TPI is
+# already 12 diameters or more and is not touched.
+MIN_LAY_DIAMETERS = 8.0
+
 # A bend sharper than this (cosine of the angle between the two directions) is a U-turn: the mitre is undefined at 180 degrees,
 # so the two segments are drawn as if they did not touch.
 _U_TURN = -0.99
 
 # A bend smaller than this (radians) needs no mitre.
 _STRAIGHT = 1e-4
+
+# The centreline pitches discrete ribbon cable is made in, mm. The catalogue gives no pitch, so a ribbon is drawn at the smallest of
+# these that holds its insulated conductor (28 AWG, 7 strands, is the 1.27 mm of the common IDC cable).
+RIBBON_PITCHES = (0.635, 1.27, 2.54, 5.08)
+
+# What insulation adds to a bare conductor's diameter, mm, when the catalogue gives no diameter over the insulation (the conductor
+# rows of a cable made by the database builder have od_mm 0). 0.38 mm of metal gives 0.88 mm, the 0.89 mm of 28 AWG ribbon.
+INSULATION_MM = 0.5
+
+# The bare conductor assumed for a part with no size at all: 28 AWG, 7 strands.
+DEFAULT_CONDUCTOR_MM = 0.38
 
 
 class SegmentTwist(_NamedTuple):
@@ -84,6 +101,20 @@ def rate_from_tpi(tpi: float) -> float:
 
 
 @_check_types.do
+def rate_for(tpi: float, outer_diameter: float) -> float:
+    """The twist rate, radians per mm, a cable is drawn with: that of ``tpi`` unless the lay length would then be shorter than
+    :data:`MIN_LAY_DIAMETERS` cable diameters, in which case the lay length is stretched to that.
+
+    :param tpi: Twists per inch, above 0.
+    :param outer_diameter: Diameter of the circle that holds the whole cable, mm.
+    :returns: Radians of rotation of the cross-section per mm of wire.
+    """
+    lay = max(MM_PER_INCH / tpi, MIN_LAY_DIAMETERS * outer_diameter)
+
+    return 2.0 * math.pi / lay
+
+
+@_check_types.do
 def profile(count: int, outer_diameter: float) -> list[tuple[float, float, float]]:
     """Where the conductors of a twisted cable sit, as ``(centre x, centre y, radius)`` in mm, conductor 0 first.
 
@@ -91,19 +122,135 @@ def profile(count: int, outer_diameter: float) -> list[tuple[float, float, float
     circle the centres lie on ``c`` follow from the outer diameter: ``c = r / sin(pi / n)`` and ``outer radius = c + r``. A pair has
     ``r`` = diameter / 4 and a triple diameter / 4.309 (the conductor is 1 / 2.155 of the cable's diameter).
 
+    Up to five conductors lie on one ring, the first on the +X axis, the rest evenly around. From six on, conductor 0 is the
+    centre one (centre ``(0, 0)``; the shader takes a stripe on it to be on the +X side) and the rest lie around it: on one ring
+    while that is nine or fewer (``1 + 5``, ``1 + 6``, ``1 + 7`` ...), otherwise in layers as a stranded cable is built (layer ``k`` is
+    at ``2 k r`` and holds up to ``floor(pi / asin(1 / 2k))`` conductors, innermost layer filled first, a part-filled layer spaced
+    evenly). Every circle is the same size, ``r`` following from the outer diameter, so there is no limit on the count.
+
     :param count: Number of conductors, 2 or more.
     :param outer_diameter: Diameter of the circle that holds the whole cable, mm.
-    :returns: One circle per conductor, the first on the +X axis, the rest evenly around.
+    :returns: One circle per conductor.
     """
-    radius = outer_diameter * 0.5 / (1.0 + 1.0 / math.sin(math.pi / count))
-    centre = radius / math.sin(math.pi / count)
-    result = []
+    if count <= 5:
+        radius = outer_diameter * 0.5 / (1.0 + 1.0 / math.sin(math.pi / count))
+        centre = radius / math.sin(math.pi / count)
+        result = []
 
-    for i in range(count):
-        angle = 2.0 * math.pi * i / count
-        result.append((centre * math.cos(angle), centre * math.sin(angle), radius))
+        for i in range(count):
+            angle = 2.0 * math.pi * i / count
+            result.append((centre * math.cos(angle), centre * math.sin(angle), radius))
 
-    return result
+        return result
+
+    # in units of the conductor's radius
+    around = count - 1
+    unit = [(0.0, 0.0)]
+
+    if around <= 9:
+        distance = max(2.0, 1.0 / math.sin(math.pi / around))
+
+        for i in range(around):
+            angle = 2.0 * math.pi * i / around
+            unit.append((distance * math.cos(angle), distance * math.sin(angle)))
+    else:
+        remaining = around
+        layer = 1
+
+        while remaining > 0:
+            fits = int(math.pi / math.asin(1.0 / (2.0 * layer)))
+            here = min(fits, remaining)
+            distance = 2.0 * layer
+            start = 0.0
+            if layer % 2 == 0:
+                start = math.pi / here
+
+            for i in range(here):
+                angle = start + 2.0 * math.pi * i / here
+                unit.append((distance * math.cos(angle), distance * math.sin(angle)))
+
+            remaining -= here
+            layer += 1
+
+    reach = max(math.hypot(x, y) for x, y in unit)
+    radius = outer_diameter * 0.5 / (1.0 + reach)
+
+    return [(x * radius, y * radius, radius) for x, y in unit]
+
+
+@_check_types.do
+def insulated_diameter(conductor_diameter: float, od: float = 0.0) -> float:
+    """The diameter over a conductor's insulation, mm: *od* when the catalogue gave one, else the bare conductor's plus
+    :data:`INSULATION_MM` (:data:`DEFAULT_CONDUCTOR_MM` for a part with no size).
+
+    :param conductor_diameter: The metal's diameter, mm; 0 for none.
+    :param od: The diameter over the insulation, mm; 0 for none.
+    """
+    if od > 0.0:
+        return od
+
+    return (conductor_diameter if conductor_diameter > 0.0 else DEFAULT_CONDUCTOR_MM) + INSULATION_MM
+
+
+@_check_types.do
+def ribbon_pitch(conductor_diameter: float, od: float = 0.0) -> float:
+    """The centreline pitch a ribbon cable is drawn with, mm: the smallest of :data:`RIBBON_PITCHES` that holds the insulated
+    conductor (the conductor itself when it is wider than the largest).
+
+    :param conductor_diameter: The metal's diameter, mm; 0 for none.
+    :param od: The diameter over the insulation, mm; 0 for none.
+    """
+    insulated = insulated_diameter(conductor_diameter, od)
+
+    for pitch in RIBBON_PITCHES:
+        if pitch >= insulated - 1e-9:
+            return pitch
+
+    return insulated
+
+
+@_check_types.do
+def ribbon_profile(count: int, pitch: float) -> list[tuple[float, float, float]]:
+    """Where the conductors of a ribbon cable sit, as ``(centre x, centre y, radius)`` in mm, conductor 0 (pin 1) at the -X edge.
+
+    The conductors lie in a row across X, a pitch apart and centred on the axis, each touching the next (radius = half the
+    pitch): the web between them is not drawn. The cable is ``count * pitch`` wide and one pitch thick.
+
+    :param count: Number of conductors, 1 or more.
+    :param pitch: Centreline pitch, mm.
+    """
+    middle = (count - 1) * 0.5
+
+    return [((i - middle) * pitch, 0.0, pitch * 0.5) for i in range(count)]
+
+
+@_check_types.do
+def jacket_diameter(count: int, insulated: float) -> float:
+    """The outside diameter, mm, of a round jacketed cable that holds *count* equal insulated conductors of diameter
+    *insulated*, packed as :func:`profile` packs them. For a cable whose part gives no diameter.
+
+    :param count: Number of conductors.
+    :param insulated: Diameter over a conductor's insulation, mm.
+    """
+    if count <= 1:
+        return insulated / 0.6
+
+    return insulated / (2.0 * profile(count, 1.0)[0][2])
+
+
+@_check_types.do
+def rolled(rotation: np.ndarray, phase: float) -> np.ndarray:
+    """A segment's rotation matrix turned by *phase* about its own +Z (the way the shader turns the cross-section): the frame whose
+    X axis is the cross-section's own X axis at the segment's start.
+
+    :param rotation: A 3x3 column-vector rotation matrix (the columns are the local axes in world space).
+    :param phase: The turn, radians.
+    """
+    cosine = math.cos(phase)
+    sine = math.sin(phase)
+
+    return np.asarray(rotation, dtype=np.float64) @ np.array(
+        [[cosine, -sine, 0.0], [sine, cosine, 0.0], [0.0, 0.0, 1.0]])
 
 
 @_check_types.do
@@ -132,7 +279,8 @@ def _transport_delta(previous: np.ndarray, current: np.ndarray) -> float:
 
 
 @_check_types.do
-def plan(rotations: list[np.ndarray], lengths: list[float], joined: list[bool], rate: float, outer_radius: float) -> list[SegmentTwist]:
+def plan(rotations: list[np.ndarray], lengths: list[float], joined: list[bool], rate: float, outer_radius: float,
+         start_phase: float = 0.0) -> list[SegmentTwist]:
     """Work out the twist phase and the mitre of every segment of a bent wire.
 
     :param rotations: One 3x3 column-vector rotation matrix per segment; its columns are the segment's local axes in world space.
@@ -141,10 +289,15 @@ def plan(rotations: list[np.ndarray], lengths: list[float], joined: list[bool], 
         segment hidden inside a bundle breaks the chain.
     :param rate: Twist rate, radians per mm (:func:`rate_from_tpi`).
     :param outer_radius: Radius of the circle that holds the whole cable, mm.
+    :param start_phase: The first segment's phase, radians: the roll of a ribbon cable (rate 0), 0 for a twisted one.
     :returns: One :class:`SegmentTwist` per segment.
     """
     count = len(rotations)
     phases = [0.0] * count
+
+    if count:
+        phases[0] = start_phase
+
     starts = [_NO_MITRE] * count
     ends = [_NO_MITRE] * count
 

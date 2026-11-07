@@ -32,6 +32,22 @@ DDL/seed for the `bundle_covers` global-catalog table (heat-shrink tubing and si
 
 Schema for `pjt_bundle_paths` — one row per interior waypoint per bundle (`bundle_id`, `idx`, exactly one of `point3d_id`/`point_pegboard_id`, no schematic equivalent since bundles are never shown in schematic). NEW 2026-09-26, untested. NOT yet mirrored in the sibling `harness_designer_database` repo's `builder/create_database/`, which has already drifted (missing this file entirely, along with `wire_layouts.py`/`points_pegboard.py`).
 
+#### cable_conductors.py
+
+Schema for `pjt_cable_conductors` (NEW 2026-11-05): one row per conductor of a placed cable, plus one for its shielding (`is_shield`; the catalog has no shield row). Every column of `pjt_wires` under the same name (so `PJTCableConductor` can subclass `PJTWire`), plus `cable_id`, `idx`, `is_shield`, `conductor_id` (the catalog `wire_conductors` row it IS; NULL for a shield), the per-end split points (`start_`/`stop_split_point3d_id`, `..._split_point_pegboard_id`) and the per-end fan-out place (`start_order`, `stop_order`). **It holds no copy of the conductor's own values (2026-11-06):** colour, stripe, materials, size, strands, `od_mm` and `resistance_1km` are the catalog row's (edits are made to the part, globally), so those columns of the first version are gone (a project made then keeps them, unused). Design: `TWISTED_WIRE_DESIGN.md` section 8a. Not mirrored in the database repo (a project table).
+
+#### cables.py
+
+Schema for `pjt_cables` (NEW 2026-11-05): a placed cable, i.e. a wire part that is shielded or has more than one conductor. Mirrors `pjt_wires` for position, route and visibility (3D and peg board only, no schematic, like a bundle), with no `circuit_id` (a circuit contains the conductors) and `start_split_mm` / `stop_split_mm` (0.0 = that end is not split). Imports `transition_branches` before `wires` on purpose: the schema walk (`pjt_bases._schema_dependency_order`) imports this package alphabetically and reaches this module before anything has loaded `transitions` / `transition_branches`, which only import cleanly in that order. `roll_deg` added 2026-11-06 (a ribbon's roll about its length; `update_fields` adds it to an existing project).
+
+#### wires.py (cable_conductor_id)
+
+`pjt_wires` has a nullable `cable_conductor_id` (2026-11-05): set on a wire that is a LEAD of a cable conductor; no reference (`cable_conductors.py` imports this module).
+
+#### cable_paths.py
+
+Schema for `pjt_cable_paths` (NEW 2026-11-05): a placed cable's route, one row per interior waypoint per view, the same columns as `pjt_wire_paths` (the column is still named `wire_id`, so the inherited code works; it holds a cable's id). A table of its own so that nothing that follows a wire's route and then looks the id up in `pjt_wires` meets a cable's id (a waypoint's marker, a bundle's wires, the peg-board rope pull). `PJTCablePathsTable` subclasses `PJTWirePathsTable`.
+
 #### cads.py
 
 DDL/seed for the `cads` file/resource table (CAD file attachments for catalog parts).

@@ -23,6 +23,7 @@ from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
+    from . import pjt_cable_conductor as _pjt_cable_conductor
     from ...objects import circuit as _circuit_obj
     from ...objects import project as _project_obj
     from ...ui.prop_ctrls import events as _prop_events
@@ -221,11 +222,11 @@ class PJTCircuitsTable(PJTTableBase):
 
     @_check_types.do
     def connected_members(self, member: _Union["_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_terminal.PJTTerminal", "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list[_Union["_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_terminal.PJTTerminal", "_pjt_wire_service_loop.PJTWireServiceLoop"]]:
-        """Return *member* and every wire, splice, wire service loop and terminal connected to it.
+        """Return *member* and every wire, splice, wire service loop, cable conductor and terminal connected to it.
 
         This is the whole chain, whatever circuit anything in it is in. Connectivity is read from the 3D point ids every view writes
         when a wire is attached (the same ones ``PJTCircuit._trace_full`` uses): a terminal has one connection point, a splice three,
-        a wire service loop two, and a wire joins the junctions that own its two end points. It walks the way :func:`_walk_circuit`
+        a wire service loop or a cable conductor two (its split points), and a wire joins the junctions that own its two end points. It walks the way :func:`_walk_circuit`
         does, through every connection point of a junction.
 
         :param member: The row to start from.
@@ -238,6 +239,7 @@ class PJTCircuitsTable(PJTTableBase):
         terminals = db.pjt_terminals_table
         splices = db.pjt_splices_table
         loops = db.pjt_wire_service_loops_table
+        conductors = db.pjt_cable_conductors_table
         wires = db.pjt_wires_table
 
         node_ports = {}
@@ -255,6 +257,11 @@ class PJTCircuitsTable(PJTTableBase):
         for row in loops.select('id', 'start_point3d_id', 'stop_point3d_id'):
             node_ports[row[0]] = list(row[1:])
             tables[row[0]] = loops
+
+        # a cable conductor is the junction of its two leads (wires): its connection points are its two split points
+        for row in conductors.select('id', 'start_split_point3d_id', 'stop_split_point3d_id'):
+            node_ports[row[0]] = list(row[1:])
+            tables[row[0]] = conductors
 
         for row in wires.select('id', 'start_point3d_id', 'stop_point3d_id'):
             wire_ends[row[0]] = (row[1], row[2])
@@ -551,6 +558,9 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         for loop in self.wire_service_loops:
             resistance += _d(loop.resistance)
 
+        for conductor in self.cable_conductors:
+            resistance += _d(conductor.resistance)
+
         return float(resistance)
 
     # Member id lists, read from the table caches on first use and dropped by
@@ -560,6 +570,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     # singletons, so the properties below rebuild the lists from them.
     _stored_wire_ids: list[bytes] | DefaultStoredValueType = DefaultStoredValue
     _stored_wire_service_loop_ids: list[bytes] | DefaultStoredValueType = DefaultStoredValue
+    _stored_cable_conductor_ids: list[bytes] | DefaultStoredValueType = DefaultStoredValue
     _stored_splice_ids: list[bytes] | DefaultStoredValueType = DefaultStoredValue
     _stored_terminal_ids: list[bytes] | DefaultStoredValueType = DefaultStoredValue
     _stored_start_terminal_ids: list[bytes] | DefaultStoredValueType = DefaultStoredValue
@@ -576,6 +587,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
         self._stored_wire_ids = DefaultStoredValue
         self._stored_wire_service_loop_ids = DefaultStoredValue
+        self._stored_cable_conductor_ids = DefaultStoredValue
         self._stored_splice_ids = DefaultStoredValue
         self._stored_terminal_ids = DefaultStoredValue
         self._stored_start_terminal_ids = DefaultStoredValue
@@ -617,7 +629,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         instead of one commit per member.
         """
         with self._table.db.gesture():
-            for members in (self.wires, self.wire_service_loops,
+            for members in (self.wires, self.wire_service_loops, self.cable_conductors,
                             self.splices, self.terminals):
                 for member in members:
                     member.circuit_id = None
@@ -697,7 +709,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
                 else:
                     has_start = True
 
-            for members in (other.wires, other.wire_service_loops,
+            for members in (other.wires, other.wire_service_loops, other.cable_conductors,
                             other.splices, other.terminals):
                 for member in members:
                     member.circuit_id = self._db_id
@@ -838,6 +850,11 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             rows[loop.db_id] = loop
             node_ports[loop.db_id] = list(db.pjt_wire_service_loops_table.select(
                 'start_point3d_id', 'stop_point3d_id', id=loop.db_id)[0])
+
+        for conductor in self.cable_conductors:
+            rows[conductor.db_id] = conductor
+            node_ports[conductor.db_id] = list(db.pjt_cable_conductors_table.select(
+                'start_split_point3d_id', 'stop_split_point3d_id', id=conductor.db_id)[0])
 
         for wire in self.wires:
             rows[wire.db_id] = wire
@@ -1144,7 +1161,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         flagged = []
 
-        for members in (self.wires, self.wire_service_loops, self.splices, self.terminals):
+        for members in (self.wires, self.wire_service_loops, self.cable_conductors, self.splices, self.terminals):
             for member in members:
                 rated = member.max_temp_c
 
@@ -1321,6 +1338,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
         wire_length = sum([wire.length_mm for wire in self.wires])
         wire_length += sum([loop.length_mm for loop in self.wire_service_loops])
+        wire_length += sum([conductor.length_mm for conductor in self.cable_conductors])
         return wire_length
 
     @property
@@ -1359,6 +1377,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
         wire_weight = sum([wire.weight_g for wire in self.wires])
         wire_weight += sum([loop.weight_g for loop in self.wire_service_loops])
+        wire_weight += sum([conductor.weight_g for conductor in self.cable_conductors])
         return wire_weight
 
     @property
@@ -1462,6 +1481,23 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         loops_table = self._table.db.pjt_wire_service_loops_table
         return [loops_table[db_id] for db_id in loop_ids]
+
+    @property
+    @_check_types.do
+    def cable_conductors(self) -> list["_pjt_cable_conductor.PJTCableConductor"]:
+        """The conductors of placed cables that are in this circuit: the part of each between the split planes, the junction of
+        its two leads (which are in :attr:`wires`).
+
+        :rtype: list[:class:`_pjt_cable_conductor.PJTCableConductor`]
+        """
+        conductor_ids = self._stored_cable_conductor_ids
+        if conductor_ids is DefaultStoredValue:
+            rows = self._table.db.pjt_cable_conductors_table.select('id', circuit_id=self._db_id)
+            conductor_ids = [row[0] for row in rows]
+            self._stored_cable_conductor_ids = conductor_ids
+
+        conductors_table = self._table.db.pjt_cable_conductors_table
+        return [conductors_table[db_id] for db_id in conductor_ids]
 
     @property
     @_check_types.do

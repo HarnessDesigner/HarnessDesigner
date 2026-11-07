@@ -103,6 +103,7 @@ CompatSealsControl = _compat_seals.CompatSealsControl
 DeratingMixin = _derating.DeratingMixin
 
 WireConductorMixin = _wire_conductor.WireConductorMixin
+CableStyle = _wire_conductor.CableStyle
 
 del _adhesive
 del _color

@@ -363,6 +363,13 @@ class WireDragMixin:
             ):
                 return True
 
+        # The split point of a cable's conductor, the end of a lead that meets the trunk: it stays on the trunk's split plane
+        # (the cable moves it, see objects.cable.Cable), so a drag never moves it. Only 3D points can be one.
+        conductors = project.ptables.pjt_cable_conductors_table
+
+        if conductors.select('id', start_split_point3d_id=check_id) or conductors.select('id', stop_split_point3d_id=check_id):
+            return True
+
         return False
 
     @classmethod

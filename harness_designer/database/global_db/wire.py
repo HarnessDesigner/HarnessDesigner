@@ -30,6 +30,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import color as _color
     from . import plating as _plating
+    from . import wire_conductor as _wire_conductor
     from ... import splash_screen as _splash_screen
     from ...ui.prop_ctrls import events as _prop_events
 
@@ -1107,6 +1108,230 @@ def _set_core_material_id(db_obj: "Wire", db_id: bytes) -> None:
     db_obj.core_material_id = db_id
 
 
+@_check_types.do
+def _conductor_stripe_color_of(conductor: "_wire_conductor.WireConductor") -> "_color.Color":
+    """The stripe colour of a conductor as a colour row ("no color" is a row of its own, so there is always one)."""
+    return conductor.table.db.colors_table[conductor.stripe_color_id]
+
+
+@_check_types.do
+def _set_conductor_stripe_color_id(conductor: "_wire_conductor.WireConductor", db_id: bytes) -> None:
+    conductor.stripe_color_id = db_id
+
+
+@_check_types.do
+def _conductor_core_material_of(conductor: "_wire_conductor.WireConductor") -> "_plating.Plating":
+    return conductor.core_material
+
+
+@_check_types.do
+def _set_conductor_core_material_id(conductor: "_wire_conductor.WireConductor", db_id: bytes) -> None:
+    conductor.core_material_id = db_id
+
+
+class WireConductorControl(_prop_ctrls.Category):
+    """The properties of ONE conductor of a multi-conductor wire (one ``wire_conductors`` row): colour, stripe colour, the
+    insulation and the metal, the size, strands, outside diameter and resistance. It edits the catalog row, so a change is made
+    to the part itself and shows in every placed cable of it (``Project.reload_cable_looks`` redraws them)."""
+
+    @_check_types.do
+    def __init__(self, parent: QtWidgets.QWidget):
+        """Initialise the :class:`WireConductorControl` instance.
+
+        :param parent: Parent object.
+        :type parent: :class:`QtWidgets.QWidget`
+        """
+        self.db_obj: "_wire_conductor.WireConductor | None" = None
+
+        super().__init__(parent, 'Conductor')
+
+        self.place_ctrl = _prop_ctrls.StringProperty(self, 'Place in Cable', read_only=True)
+
+        self.color_ctrl = ColorControl(self)
+        self.color_ctrl.SetLabel('Primary')
+
+        self.stripe_color_ctrl = ColorControl(self)
+        self.stripe_color_ctrl.SetLabel('Stripe')
+        self.stripe_color_ctrl.SetTarget(_conductor_stripe_color_of, _set_conductor_stripe_color_id)
+
+        self.material_ctrl = MaterialControl(self)
+        self.material_ctrl.SetLabel('Insulation')
+
+        self.core_material_ctrl = PlatingControl(self)
+        self.core_material_ctrl.SetLabel('Core')
+        self.core_material_ctrl.SetTarget(_conductor_core_material_of, _set_conductor_core_material_id)
+
+        self.conductor_dia_mm_ctrl = _prop_ctrls.FloatProperty(
+            self, 'Conductor Diameter', min_value=0.0, max_value=60.0, increment=0.01, units='mm')
+        self.size_mm2_ctrl = _prop_ctrls.FloatProperty(
+            self, 'Conductor Cross Section', min_value=0.00, max_value=99.9999, increment=0.0001, units='mm²')
+        self.size_awg_ctrl = _prop_ctrls.IntProperty(
+            self, 'Conductor Size', min_value=-4, max_value=40, units='awg')
+        self.strands_ctrl = _prop_ctrls.IntProperty(self, 'Strand Count', min_value=0, max_value=5000)
+        self.od_mm_ctrl = _prop_ctrls.FloatProperty(
+            self, 'Outside Diameter', min_value=0.0, max_value=99.9999, increment=0.0001, units='mm')
+        self.resistance_1km_ctrl = _prop_ctrls.FloatProperty(
+            self, 'Resistance', min_value=0.0, max_value=99999.99, increment=0.01, units='Ω/km')
+
+        for ctrl in (self.place_ctrl, self.color_ctrl, self.stripe_color_ctrl, self.material_ctrl, self.core_material_ctrl,
+                     self.conductor_dia_mm_ctrl, self.size_mm2_ctrl, self.size_awg_ctrl, self.strands_ctrl,
+                     self.od_mm_ctrl, self.resistance_1km_ctrl):
+            self.addWidget(ctrl)
+
+        # the colour controls write the row themselves; these only redraw what uses the part afterwards
+        self.color_ctrl.propertyChanged.connect(self._changed)
+        self.stripe_color_ctrl.propertyChanged.connect(self._changed)
+
+        self.conductor_dia_mm_ctrl.propertyChanged.connect(self._on_dia)
+        self.size_mm2_ctrl.propertyChanged.connect(self._on_mm2)
+        self.size_awg_ctrl.propertyChanged.connect(self._on_awg)
+        self.strands_ctrl.propertyChanged.connect(self._on_strands)
+        self.od_mm_ctrl.propertyChanged.connect(self._on_od)
+        self.resistance_1km_ctrl.propertyChanged.connect(self._on_resistance)
+
+    @_check_types.do
+    def set_obj(self, db_obj: "_wire_conductor.WireConductor | None") -> None:
+        """Show one conductor (``None`` clears the control).
+
+        :param db_obj: The conductor's catalog row.
+        :type db_obj: :class:`_wire_conductor.WireConductor`
+        """
+        self.db_obj = db_obj
+
+        self.color_ctrl.set_obj(db_obj)
+        self.stripe_color_ctrl.set_obj(db_obj)
+        self.material_ctrl.set_obj(db_obj)
+        self.core_material_ctrl.set_obj(db_obj)
+        self._show_size()
+
+        self.place_ctrl.SetValue('' if db_obj is None else str(db_obj.idx + 1))
+
+    @_check_types.do
+    def _show_size(self) -> None:
+        """Fill the size controls from the conductor."""
+        controls = (self.conductor_dia_mm_ctrl, self.size_mm2_ctrl, self.size_awg_ctrl, self.strands_ctrl, self.od_mm_ctrl,
+                    self.resistance_1km_ctrl)
+        row = self.db_obj
+
+        if row is None:
+            self.conductor_dia_mm_ctrl.SetValue(0.0)
+            self.size_mm2_ctrl.SetValue(0.0)
+            self.size_awg_ctrl.SetValue(0)
+            self.strands_ctrl.SetValue(0)
+            self.od_mm_ctrl.SetValue(0.0)
+            self.resistance_1km_ctrl.SetValue(0.0)
+
+            for ctrl in controls:
+                ctrl.setEnabled(False)
+
+            return
+
+        awg = row.size_awg
+
+        self.conductor_dia_mm_ctrl.SetValue(row.conductor_dia_mm)
+        self.size_mm2_ctrl.SetValue(row.size_mm2)
+        self.size_awg_ctrl.SetValue(0 if awg is None else int(awg))
+        self.strands_ctrl.SetValue(row.strands)
+        self.od_mm_ctrl.SetValue(row.stored_od_mm)
+        self.resistance_1km_ctrl.SetValue(row.resistance_1km)
+
+        for ctrl in controls:
+            ctrl.setEnabled(True)
+
+    @_check_types.do
+    def _changed(self, *_) -> None:
+        """The part was edited: redraw every placed cable of it (the colours and sizes are the catalog's)."""
+        row = self.db_obj
+
+        if row is None:
+            return
+
+        mainframe = row.table.db.mainframe
+        project = getattr(mainframe, 'project', None)
+
+        if project is not None:
+            project.reload_cable_looks(row.wire_id)
+
+    @_check_types.do
+    def _on_dia(self, evt: "_prop_events.PropertyEvent") -> None:
+        if self.db_obj is not None:
+            self.db_obj.conductor_dia_mm = evt.GetValue()
+            self._show_size()
+            self._changed()
+
+    @_check_types.do
+    def _on_mm2(self, evt: "_prop_events.PropertyEvent") -> None:
+        if self.db_obj is not None:
+            self.db_obj.size_mm2 = evt.GetValue()
+            self._show_size()
+            self._changed()
+
+    @_check_types.do
+    def _on_awg(self, evt: "_prop_events.PropertyEvent") -> None:
+        if self.db_obj is not None:
+            self.db_obj.size_awg = int(evt.GetValue())
+            self._show_size()
+            self._changed()
+
+    @_check_types.do
+    def _on_strands(self, evt: "_prop_events.PropertyEvent") -> None:
+        if self.db_obj is not None:
+            self.db_obj.strands = int(evt.GetValue())
+            self._show_size()
+            self._changed()
+
+    @_check_types.do
+    def _on_od(self, evt: "_prop_events.PropertyEvent") -> None:
+        if self.db_obj is not None:
+            self.db_obj.od_mm = evt.GetValue()
+            self._changed()
+
+    @_check_types.do
+    def _on_resistance(self, evt: "_prop_events.PropertyEvent") -> None:
+        if self.db_obj is not None:
+            self.db_obj.resistance_1km = evt.GetValue()
+
+
+class WireConductorsControl(QtWidgets.QTabWidget):
+    """A notebook with one tab per conductor of a multi-conductor wire, each a :class:`WireConductorControl`."""
+
+    @_check_types.do
+    def __init__(self, parent: QtWidgets.QWidget):
+        """Initialise the :class:`WireConductorsControl` instance.
+
+        :param parent: Parent object.
+        :type parent: :class:`QtWidgets.QWidget`
+        """
+        super().__init__(parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
+        self.setUsesScrollButtons(True)
+
+        # the controls are made as they are first needed and kept: a wire has as many tabs as it has conductors
+        self._controls: list[WireConductorControl] = []
+
+    @_check_types.do
+    def set_obj(self, db_obj: "Wire | None") -> None:
+        """Show the conductors of *db_obj* (a wire with none, or ``None``, clears the notebook).
+
+        :param db_obj: The wire.
+        :type db_obj: :class:`Wire`
+        """
+        conductors = () if db_obj is None else db_obj.conductors
+
+        self.clear()
+
+        for control in self._controls:
+            control.set_obj(None)
+
+        for i, conductor in enumerate(conductors):
+            if i >= len(self._controls):
+                self._controls.append(WireConductorControl(self))
+
+            control = self._controls[i]
+            control.set_obj(conductor)
+            self.addTab(control, f'Conductor {conductor.idx + 1}')
+
+
 class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a wire control in :mod:`harness_designer.database.global_db.wire`.
 
@@ -1124,10 +1349,15 @@ class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+        # the Conductors tab is there only for a wire that has conductors of its own
+        self.setTabVisible(self.indexOf(self._conductors_page), db_obj is not None and len(db_obj.conductors) > 0)
+
     @_check_types.do
     def _load_tab(self, index: int) -> None:
         page = self.widget(index)
-        if page is self._general_page:
+        if page is self._conductors_page:
+            self.conductors_ctrl.set_obj(self.db_obj)
+        elif page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
             self.description_ctrl.set_obj(self.db_obj)
             self.wire_type_ctrl.set_obj(self.db_obj)
@@ -1471,5 +1701,12 @@ class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
             materials_page
         ):
             self.addTab(page, page.GetLabel())
+
+        self._conductors_page = conductors_page = _prop_ctrls.Category(self, 'Conductors')
+        self.conductors_ctrl = WireConductorsControl(conductors_page)
+        conductors_page.addWidget(self.conductors_ctrl)
+
+        self.addTab(conductors_page, conductors_page.GetLabel())
+        self.setTabVisible(self.indexOf(conductors_page), False)
 
         self._init_lazy_tabs()

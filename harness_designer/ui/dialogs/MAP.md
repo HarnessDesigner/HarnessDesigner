@@ -52,6 +52,10 @@ No imports found -- a plain empty package marker, no re-exports.
 
 `ExportDialog` -- runs `exporter.exporter` on a background `QThread` (`_ExportWorker`), with per-format file pickers (`_FilePickerRow`).
 
+#### fan_out_order.py
+
+`FanOutOrderDialog` (NEW 2026-11-06) -- the order a split cable end's conductors fan out in: a list with Move Up / Move Down; `GetValue()` returns, for each new place, the index the conductor had in the list given. Opened from the 3D cable menu (`objects_3d/cable.py` `CableMenu.on_fan_out`), applied by `objects.cable.Cable.set_fan_order`.
+
 #### header.py
 
 `Header(QtWidgets.QWidget)` -- the custom draggable title-bar replacement every `BaseDialog` uses in place of the native OS title bar.

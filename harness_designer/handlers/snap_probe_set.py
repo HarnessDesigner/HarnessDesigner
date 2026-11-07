@@ -172,8 +172,12 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
             self._probes.append(probe)
             self.snap_splices.append(splice)
 
+        # A lead of a cable's conductor neither is nor snaps to an open wire end: two wires that meet are merged into one row,
+        # and a merged lead would lose its conductor. Its free end still snaps to terminals and splices, above.
+        dragging_lead = exclude_wire is not None and exclude_wire.db_obj.is_cable_lead
+
         for wire in project.wires:
-            if wire is exclude_wire:
+            if wire is exclude_wire or dragging_lead or wire.db_obj.is_cable_lead:
                 continue
 
             if wire.db_obj.part_id != wire_part.db_id:

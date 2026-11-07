@@ -12,6 +12,10 @@ Package docstring only; no code. Notes this is the 3D-editor add-placement packa
 
 `BundleLayout` — interactive waypoint placement, started only from a bundle's own "Add Handle" context-menu action, pinned to that one bundle for the whole session (no toolbar mode, so no "which bundle" ambiguity).
 
+#### cable.py
+
+`Cable(wire.Wire)` (NEW 2026-11-05): the placement session of a cable, a subclass of the wire's session with everything that attaches taken out (no snap probes, no hover highlights, no terminal / splice / layout / wire picks, no circuit). First click sets the start, each further click commits a waypoint, right click ends the cable at the last waypoint: `finalize_at_last_point` then makes the conductors (`PJTCableConductorsTable.insert_for_cable`, from the FINAL end points, because each conductor's end points are children of the cable's and the cable's end point is replaced at every waypoint commit) and adds the cable to the project. Its route goes in `pjt_cable_paths` through the wire session's new `_paths_table` hook. A cable with no outer jacket (`CableStyle.TWISTED` or `RIBBON`) gets NO `WireLayout` at its waypoints (user, 2026-11-05): the wire session's new `_waypoints_get_layouts` hook, which this class answers from the part's `cable_style`. **Not run in the app.** When the placement ends it also SEEDS the cable onto the peg board (`cable.objpegboard.seed_from_3d()`, before the cable joins the project and its conductors are drawn), as a bundle is seeded.
+
 #### cover.py
 
 `Cover` — housing-snapping single-slot placement, same shape as `cpa_lock.py`/`tpa_lock.py`.

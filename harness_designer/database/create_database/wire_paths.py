@@ -18,6 +18,9 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 # point2d_id (enforced in PJTWirePathsTable.insert); the four tag columns
 # describe what the row is (see BUNDLE_DESIGN.md, section 2.6).
 #
+# (A placed cable's route is NOT kept here but in pjt_cable_paths, so that every reader of this table can look a wire_id up in
+# pjt_wires.)
+#
 # The point rows referenced here are SHARED: a bundle waypoint, a transition
 # branch position, a transition centre or a housing point is a single point
 # row referenced by every wire path that goes through it, which is why idx

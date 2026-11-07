@@ -353,5 +353,8 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL'),
     _con.TextField('name', default='""', no_null=True),
-    _con.FloatField('operating_temp', default='NULL')
+    _con.FloatField('operating_temp', default='NULL'),
+    # NOT NULL for a LEAD: the piece of a cable's conductor between a terminal or splice and the plane where the conductor
+    # leaves the cable's trunk. The id of its pjt_cable_conductors row (no reference: that table imports this one).
+    _con.UUIDField('cable_conductor_id', default='NULL')
 )

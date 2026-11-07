@@ -75,7 +75,15 @@ def on_wire_attached(project: "_project.Project", wire: "_wire_obj.Wire") -> Non
     runs during project-reload sibling-graph reconciliation
     (``Project._reconcile_wire_sibling_graph``), which must never re-route
     or re-touch the canvas for a wire whose path is already persisted.
+
+    A lead of a cable's conductor is never drawn in the schematic. What is drawn is the conductor, as one wire from the
+    terminal or splice one lead ends on to the one the other ends on (:class:`~harness_designer.objects.cable_conductor.
+    ConductorRun`): attaching a lead is the moment that wire may have become complete, so the conductor is asked.
     """
+    if wire.is_wire and wire.conductor_node is not None:
+        wire.conductor_node.refresh_schematic(True)
+        return
+
     if not wire.is_connected:
         return
 
@@ -680,7 +688,7 @@ def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
     from ..objects import housing as _housing
 
     if isinstance(obj, (_terminal.Terminal, _splice.Splice)):
-        return list(obj.wires)
+        return _schematic_wires(obj.wires)
 
     if isinstance(obj, _housing.Housing):
         result = []
@@ -688,9 +696,27 @@ def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
             terminal = cavity.terminal
             if terminal is not None:
                 result.extend(terminal.wires)
-        return result
+        return _schematic_wires(result)
 
     return []
+
+
+@_check_types.do
+def _schematic_wires(wires: list["_wire_obj.Wire"]) -> list:
+    """*wires* as the schematic has them: an ordinary wire is itself, a lead of a cable's conductor is not drawn but the conductor
+    it belongs to is (one wire between the terminals its two leads end on), so the lead is replaced by that conductor's
+    :class:`~harness_designer.objects.cable_conductor.ConductorRun`, once, and a lead whose conductor is not drawn is left out."""
+    result = []
+
+    for wire in wires:
+        node = wire.conductor_node
+
+        if node is None:
+            result.append(wire)
+        elif node.run is not None and node.run not in result:
+            result.append(node.run)
+
+    return result
 
 
 @_check_types.do
@@ -752,7 +778,7 @@ def sweep_for_overlaps(project: "_project.Project", moved_obj: "_objects.ObjectB
 
     already = set(already_rerouted)
 
-    for wire in project.wires:
+    for wire in project.schematic_wires:
         if wire in already or not wire.is_connected:
             continue
 

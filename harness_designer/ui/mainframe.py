@@ -501,6 +501,12 @@ class MainFrame(QtWidgets.QMainWindow):
 
         pjt_wire_service_loop.PJTWireServiceLoopsTable.start_control(self)
 
+        splash.SetText('Starting cable editor...')
+        splash.flush()
+        from ..database.project_db import pjt_cable
+
+        pjt_cable.PJTCablesTable.start_control(self)
+
         splash.SetText('Loading UI perspective...')
         splash.flush()
 
@@ -3060,6 +3066,8 @@ class MainFrame(QtWidgets.QMainWindow):
             self.object_browser.add_boot(obj)
         elif obj.is_bundle:
             self.object_browser.add_bundle(obj)
+        elif obj.is_cable:
+            self.object_browser.add_cable(obj)
         elif obj.is_cavity:
             self.object_browser.add_cavity(obj)
         elif obj.is_circuit:

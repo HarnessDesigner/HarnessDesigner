@@ -19,6 +19,7 @@ from ... import config as _config
 from ...objects import project_model as _project_model
 from ...objects import bundle as _bundle
 from ...objects import wire as _wire
+from ...objects import cable as _cable
 from ...objects import cavity as _cavity
 from ...objects import wire_marker as _wire_marker
 from ...objects import housing as _housing
@@ -877,7 +878,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self._selected = None
 
         if isinstance(obj,
-                      (_bundle.Bundle, _wire.Wire, _cavity.Cavity, _wire_marker.WireMarker,
+                      (_bundle.Bundle, _wire.Wire, _cable.Cable, _cavity.Cavity, _wire_marker.WireMarker,
                        _wire_layout.WireLayout, _bundle_layout.BundleLayout)):
 
             for act in (self.rotate_x, self.rotate_y, self.rotate_z,

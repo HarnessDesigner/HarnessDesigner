@@ -1215,6 +1215,9 @@ from .pjt_transition import PJTTransitionsTable  # NOQA
 from .pjt_wire import PJTWiresTable  # NOQA
 from .pjt_wire_layout import PJTWireLayoutsTable  # NOQA
 from .pjt_wire_path import PJTWirePathsTable  # NOQA
+from .pjt_cable import PJTCablesTable  # NOQA
+from .pjt_cable_path import PJTCablePathsTable  # NOQA
+from .pjt_cable_conductor import PJTCableConductorsTable  # NOQA
 from .pjt_bundle_path import PJTBundlePathsTable  # NOQA
 from .pjt_cavity import PJTCavitiesTable  # NOQA
 from .pjt_terminal import PJTTerminalsTable  # NOQA
@@ -1327,6 +1330,9 @@ class PJTTables:
         self._pjt_points_pegboard_table = None
         self._pjt_pegboard_tables_table = None
         self._pjt_pegboard_sections_table = None
+        self._pjt_cables_table = None
+        self._pjt_cable_paths_table = None
+        self._pjt_cable_conductors_table = None
 
         self._points2d = []
         self._points3d = []
@@ -1424,6 +1430,9 @@ class PJTTables:
         self._pjt_points_pegboard_table = PJTPointsPegboardTable(self, project_id, tables, Splash)
         self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
         self._pjt_pegboard_sections_table = PJTPegboardSectionsTable(self, project_id, tables, Splash)
+        self._pjt_cables_table = PJTCablesTable(self, project_id, tables, Splash)
+        self._pjt_cable_paths_table = PJTCablePathsTable(self, project_id, tables, Splash)
+        self._pjt_cable_conductors_table = PJTCableConductorsTable(self, project_id, tables, Splash)
 
         for table in self._ordered_project_tables():
             table.load_cache()
@@ -1454,7 +1463,8 @@ class PJTTables:
             self._pjt_notes_table, self._pjt_concentrics_table, self._pjt_concentric_layers_table,
             self._pjt_concentric_wires_table, self._pjt_transition_branches_table,
             self._pjt_points_pegboard_table, self._pjt_pegboard_tables_table,
-            self._pjt_pegboard_sections_table,
+            self._pjt_pegboard_sections_table, self._pjt_cables_table, self._pjt_cable_conductors_table,
+            self._pjt_cable_paths_table,
         ]
 
     @_check_types.do
@@ -1938,3 +1948,33 @@ class PJTTables:
         :rtype: :class:`PJTPegboardSectionsTable`
         """
         return self._pjt_pegboard_sections_table
+
+    @property
+    @_check_types.do
+    def pjt_cables_table(self) -> PJTCablesTable:
+        """Return the placed cables table (shielded wires and wires with more than one conductor).
+
+        :returns: The cables table for the loaded project.
+        :rtype: :class:`PJTCablesTable`
+        """
+        return self._pjt_cables_table
+
+    @property
+    @_check_types.do
+    def pjt_cable_paths_table(self) -> PJTCablePathsTable:
+        """Return the table of the placed cables' routes (one row per interior waypoint per cable per view).
+
+        :returns: The cable paths table for the loaded project.
+        :rtype: :class:`PJTCablePathsTable`
+        """
+        return self._pjt_cable_paths_table
+
+    @property
+    @_check_types.do
+    def pjt_cable_conductors_table(self) -> PJTCableConductorsTable:
+        """Return the table of the conductors (and shields) of the placed cables.
+
+        :returns: The cable conductors table for the loaded project.
+        :rtype: :class:`PJTCableConductorsTable`
+        """
+        return self._pjt_cable_conductors_table

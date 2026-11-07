@@ -439,6 +439,46 @@ class PJTPoint3D(PJTEntryBase):
         self._stored_point3d += delta
 
     @_check_types.do
+    def detach_from_parent(self) -> None:
+        """Stop following the parent point (``parent_point_id``) and become a point of its own, where it is now.
+
+        Does nothing for a point that has no parent. Used when a cable's conductor leaves the cable's end (the conductor's
+        end point was a child of the cable's end until then).
+        """
+        parent_id = self.parent_point_id
+
+        if parent_id is None:
+            return
+
+        if self._stored_point3d is not None:
+            parent_point = self._table.db.pjt_points3d_table[parent_id].point
+            parent_point.unbind(self._sync_from_parent)
+
+        self.parent_point_id = None
+
+    @_check_types.do
+    def attach_to_parent(self, parent_id: bytes) -> None:
+        """Become a child of the point *parent_id*: move onto it and follow it from now on. The reverse of
+        :meth:`detach_from_parent`.
+
+        :param parent_id: The ``pjt_points3d`` row to follow.
+        :type parent_id: bytes
+        """
+        if self.parent_point_id is not None:
+            self.detach_from_parent()
+
+        self.parent_point_id = parent_id
+
+        was_live = self._stored_point3d is not None
+        self.point  # NOQA (a point made live now binds the follow callback itself, as it is made with a parent)
+        parent_point = self._table.db.pjt_points3d_table[parent_id].point
+
+        if was_live:
+            parent_point.bind(self._sync_from_parent)
+
+        self._sync_from_parent(parent_point)
+
+    @_check_types.do
     def is_referenced(self) -> bool:
         """Whether anything still references this point row -- checked by
         :meth:`delete` before actually removing it.
@@ -567,6 +607,22 @@ class PJTPoint3D(PJTEntryBase):
 
         if db.pjt_bundles_table.select(
             'id', OR=True, start_point3d_id=self.db_id, stop_point3d_id=self.db_id
+        ):
+            return True
+
+        # A cable's own ends, its route (pjt_cable_paths), and its conductors' ends and the points where they leave the
+        # cable's trunk (2026-11-05).
+        if db.pjt_cable_paths_table.select('id', point3d_id=self.db_id):
+            return True
+
+        if db.pjt_cables_table.select(
+            'id', OR=True, start_point3d_id=self.db_id, stop_point3d_id=self.db_id
+        ):
+            return True
+
+        if db.pjt_cable_conductors_table.select(
+            'id', OR=True, start_point3d_id=self.db_id, stop_point3d_id=self.db_id,
+            start_split_point3d_id=self.db_id, stop_split_point3d_id=self.db_id
         ):
             return True
 

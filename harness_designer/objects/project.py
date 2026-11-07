@@ -23,6 +23,7 @@ from . import terminal as _terminal
 from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
+from . import cable as _cable
 from .objects_3d.wire import _HELIX_OVERSHOOT_MM  # NOQA
 from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
@@ -119,6 +120,31 @@ def _reconcile_wire_sibling_graph(project: "Project") -> None:
                 wire.set_sibling(loop, wire.obj3d.stop_position)
                 loop._stop_sibling_ref = _weakref.ref(wire)  # NOQA
 
+        # A lead of a cable's conductor ends, at the split plane, on that conductor (the junction between the conductor's leads).
+        conductor_id = wire.db_obj.cable_conductor_id
+        if conductor_id is not None:
+            conductor_db = project.ptables.pjt_cable_conductors_table[conductor_id]
+            cable = project.get_cable(conductor_db.cable_id)
+
+            if cable is not None:
+                node = cable.conductor_object(conductor_db)
+
+                if conductor_db.start_split_point3d_id == stop_id:
+                    wire.set_sibling(node, wire.obj3d.stop_position)
+                    node.set_lead(True, wire)
+                elif conductor_db.stop_split_point3d_id == stop_id:
+                    wire.set_sibling(node, wire.obj3d.stop_position)
+                    node.set_lead(False, wire)
+
+    # the object browser lists each cable's leads, which are linked only now
+    for cable in project.cables:
+        cable.refresh_browser()
+
+    # a conductor whose two leads both end on a terminal or splice is drawn in the schematic, on the path it stored (not routed anew)
+    for cable in project.cables:
+        for node in cable.conductor_objects:
+            node.refresh_schematic(False)
+
 
 @_check_types.do
 def _register_connected_wires_in_schematic(project: "Project") -> None:
@@ -208,6 +234,7 @@ class Project:
         Attr('_tpa_locks', severity=2),
         Attr('_transitions', severity=2),
         Attr('_wires', severity=2),
+        Attr('_cables', severity=2),
         Attr('_wire_markers', severity=2),
         Attr('_wire_service_loops', severity=2),
         Attr('_wire_layouts', severity=2),
@@ -318,6 +345,7 @@ class Project:
         self._tpa_locks = {}
         self._transitions = {}
         self._wires = {}
+        self._cables = {}
         self._wire_markers = {}
         self._wire_service_loops = {}
         self._wire_layouts = {}
@@ -476,6 +504,11 @@ class Project:
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',
             _wire.Wire, self._wires,
+            count, self._obj_count)
+
+        count = _load_objects(
+            ptables.pjt_cables_table, 'Cable',
+            _cable.Cable, self._cables,
             count, self._obj_count)
 
         count = _load_objects(
@@ -645,6 +678,7 @@ class Project:
         self._tpa_locks.clear()
         self._transitions.clear()
         self._wires.clear()
+        self._cables.clear()
         self._wire_markers.clear()
         self._wire_service_loops.clear()
         self._wire_layouts.clear()
@@ -697,6 +731,9 @@ class Project:
             obj.delete()
 
         for obj in list(self._wires.values()):
+            obj.delete()
+
+        for obj in list(self._cables.values()):
             obj.delete()
 
         # After every member is gone, so each circuit is already empty.
@@ -1630,6 +1667,72 @@ class Project:
         :rtype: list[_wire.Wire]
         """
         return list(self._wires.values())
+
+    @_check_types.do
+    def delete_cable(self, db_id: bytes) -> None:
+        """Take a cable out of the project's registry.
+
+        :param db_id: The cable's row id.
+        :type db_id: bytes
+        """
+        if self._cables.pop(db_id, None) is not None:
+            self.obj_count -= 1
+
+    @_check_types.do
+    def add_cable(self, obj: _cable.Cable) -> None:
+        """Put a placed cable in the project's registry.
+
+        :param obj: The cable.
+        :type obj: :class:`_cable.Cable`
+        """
+        self._cables[obj.db_obj.db_id] = obj
+        self.obj_count += 1
+
+    @_check_types.do
+    def get_cable(self, db_id: bytes) -> _cable.Cable:
+        """Return the cable with the given row id.
+
+        :param db_id: The cable's row id.
+        :type db_id: bytes
+        :rtype: :class:`_cable.Cable`
+        """
+        return self.ptables.pjt_cables_table[db_id].get_object()
+
+    @_check_types.do
+    def reload_cable_looks(self, part_id: bytes) -> None:
+        """Draw every placed cable of the catalog wire *part_id* (and its leads) again: its conductors' colours and sizes are
+        the catalog's, so an edit of the part changes all of them.
+
+        :param part_id: The catalog wire's row id.
+        :type part_id: bytes
+        """
+        for cable in self.cables:
+            if cable.db_obj.part_id == part_id:
+                cable.reload_looks()
+
+    @property
+    @_check_types.do
+    def cables(self) -> list[_cable.Cable]:
+        """Every placed cable.
+
+        :rtype: list[:class:`_cable.Cable`]
+        """
+        return list(self._cables.values())
+
+    @property
+    @_check_types.do
+    def schematic_wires(self) -> list:
+        """Every wire the schematic draws or routes: the project's wires, and the cable conductors that are drawn there (a
+        :class:`~harness_designer.objects.cable_conductor.ConductorRun` answers what the router asks of a wire). The router, the
+        overlap sweep and Auto Arrange read this instead of :attr:`wires`, so that a conductor is an obstacle and is rerouted like
+        any other wire.
+
+        :rtype: list
+        """
+        runs = [node.run for cable in self._cables.values() for node in cable.drawn_conductor_objects()
+                if node.run is not None]
+
+        return list(self.wires) + runs
 
     @_check_types.do
     def delete_wire_layout(self, db_id: bytes) -> None:

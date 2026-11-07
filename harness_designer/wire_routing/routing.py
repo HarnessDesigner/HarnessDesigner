@@ -454,7 +454,7 @@ def _wire_segments(
     if ignore_wire is not None:
         exclude.append(ignore_wire.objschematic)
 
-    for wire in project.wires:
+    for wire in project.schematic_wires:
         if wire is ignore_wire or wire in skip_wires or not wire.is_connected:
             exclude.append(wire.objschematic)
 
@@ -1693,7 +1693,7 @@ def _wire_segments_of(project: "_project.Project", wires: Iterable["_wire_obj.Wi
     if not wanted:
         return np.empty((0, 2, 2), dtype=np.float64)
 
-    skip = [wire.objschematic for wire in project.wires if wire not in wanted]
+    skip = [wire.objschematic for wire in project.schematic_wires if wire not in wanted]
 
     pool = project.mainframe.bounds_manager.editor_schematic.segments
 
@@ -1709,7 +1709,7 @@ def _static_segments(project: "_project.Project", batch: Container["_wire_obj.Wi
     """
 
     skip = []
-    for wire in project.wires:
+    for wire in project.schematic_wires:
         if wire in batch or not wire.is_connected:
             skip.append(wire.objschematic)
 

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from ..database.project_db import pjt_wire as _pjt_wire
     from . import wire_layout as _wire_layout_obj
     from . import wire_service_loop as _wire_service_loop_obj
+    from . import cable_conductor as _cable_conductor_obj
 
 
 @capturable()
@@ -106,7 +107,7 @@ class Wire(_ObjectBase):
     @dump_property(severity=2)
     @_check_types.do
     def start_sibling(
-            self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None]:
+            self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", "_cable_conductor_obj.CableConductor", None]:
         """Whatever this wire's start end attaches to (Terminal, Splice,
         WireServiceLoop), or None for a dangling/free-space end."""
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
@@ -115,15 +116,30 @@ class Wire(_ObjectBase):
     @dump_property(severity=2)
     @_check_types.do
     def stop_sibling(
-            self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None]:
+            self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", "_cable_conductor_obj.CableConductor", None]:
         """Whatever this wire's stop end attaches to (Terminal, Splice,
         WireServiceLoop), or None for a dangling/free-space end."""
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
+    @property
+    @_check_types.do
+    def conductor_node(self) -> _Union["_cable_conductor_obj.CableConductor", None]:
+        """The junction object of the cable conductor this wire is a lead of; ``None`` for an ordinary wire. A lead's split end
+        (its stop) is attached to that object.
+
+        :rtype: :class:`_cable_conductor_obj.CableConductor` | None
+        """
+        sibling = self.stop_sibling
+
+        if sibling is not None and sibling.is_cable_conductor:
+            return sibling
+
+        return None
+
     @_check_types.do
     def set_sibling(
             self,
-            other: _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None],
+            other: _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", "_cable_conductor_obj.CableConductor", None],
             end_position: _point.Point) -> None:
         """Record *other* as what this wire's end attaches to, where
         *end_position* is the actual ``Point`` of that end (this wire's
@@ -150,6 +166,14 @@ class Wire(_ObjectBase):
         else:
             raise ValueError(
                 f'end_position must be this wire\'s own start or stop position, got {end_position!r}')
+
+        # A lead that is cut free of its terminal or splice leaves its conductor with an end that is not attached: the
+        # conductor is no longer drawn in the schematic. (Attaching is not hooked here: see on_wire_attached.)
+        if other is None:
+            node = self.conductor_node
+
+            if node is not None:
+                node.refresh_schematic(False)
 
     @property
     @dump_property(severity=2)
@@ -235,7 +259,14 @@ class Wire(_ObjectBase):
                     for w in sibling.wires:
                         if w is not wire and w.db_obj.db_id not in seen:
                             stack.append(w)
-                elif sibling.is_wire_service_loop:
+                elif sibling.is_wire_service_loop or sibling.is_cable_conductor:
+                    # a cable conductor is the junction of its two leads, like the loop's two wires; its own trunk is a piece of
+                    # the run too
+                    if sibling.is_cable_conductor and sibling.db_obj.db_id not in seen:
+                        seen.add(sibling.db_obj.db_id)
+                        total_length += sibling.db_obj.length_mm
+                        total_resistance += sibling.db_obj.resistance
+
                     for w in (sibling.start_sibling, sibling.stop_sibling):
                         if w is not None and w is not wire and w.db_obj.db_id not in seen:
                             stack.append(w)
@@ -257,6 +288,8 @@ class Wire(_ObjectBase):
         if slack_handler is not None:
             slack_handler.release()
 
+        node = self.conductor_node
+
         super().delete()
 
         # Leave whatever each end is attached to. Their wire lists hold weak
@@ -265,6 +298,10 @@ class Wire(_ObjectBase):
         for sibling in (self.start_sibling, self.stop_sibling):
             if sibling is not None:
                 sibling.remove_wire(self)
+
+        # a deleted lead leaves its conductor with an end that is not attached (the conductor is no longer drawn in the schematic)
+        if node is not None:
+            node.refresh_schematic(False)
 
         self.mainframe.project.delete_wire(self.db_obj.db_id)
         self.db_obj.delete()

@@ -467,7 +467,7 @@ def _find_blocking_wire(project: "_project.Project", exclude_wires: frozenset["_
     else:
         this_lo, this_hi = min(z1, z2), max(z1, z2)
 
-    for wire in project.wires:
+    for wire in project.schematic_wires:
         if wire in exclude_wires or not wire.is_connected:
             continue
 

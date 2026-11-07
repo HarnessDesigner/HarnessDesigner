@@ -158,7 +158,14 @@ void twistVertex(out vec3 position, out vec3 normal, out float localZ, out float
     // so that its centre is exactly on a vertex (the distance is then exact across every quad, not interpolated
     // through the stripe's own centre).
     float sideAngle = 2.0 * TWIST_PI / float(TWIST_SIDES);
-    float centre = round(atan(twistProfile.y, twistProfile.x) / sideAngle) * sideAngle;
+    // (the centre conductor of a six or more conductor cable sits on the axis, where atan is undefined: take +X)
+    float profileAngle = 0.0;
+
+    if (dot(twistProfile.xy, twistProfile.xy) > 1e-8) {
+        profileAngle = atan(twistProfile.y, twistProfile.x);
+    }
+
+    float centre = round(profileAngle / sideAngle) * sideAngle;
     float aroundEnd = sideAngle * float(side + sideStep);
     stripe = abs(mod(aroundEnd - centre + TWIST_PI, 2.0 * TWIST_PI) - TWIST_PI);
 }

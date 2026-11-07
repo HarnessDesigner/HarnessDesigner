@@ -8,6 +8,7 @@ from PySide6 import QtWidgets
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import wire as _wire
+from ..global_db import wire_conductor as _wire_conductor
 from . import pjt_circuit as _pjt_circuit
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import line as _line
@@ -30,6 +31,7 @@ from ...crash_dump import capturable, dump_property
 
 if TYPE_CHECKING:
     from . import pjt_bundle as _pjt_bundle
+    from . import pjt_cable_conductor as _pjt_cable_conductor
     from . import pjt_point2d as _pjt_point2d
     from . import pjt_point3d as _pjt_point3d
     from . import pjt_point_pegboard as _pjt_point_pegboard
@@ -168,7 +170,8 @@ class PJTWiresTable(PJTTableBase):
     @_check_types.do
     def insert(self, part_id: bytes, name: str, circuit_id: bytes | None, start_point3d_id: bytes | None, stop_point3d_id: bytes | None,
                start_point2d_id: bytes | None, stop_point2d_id: bytes | None, is_visible3d: bool, is_visible2d: bool,
-               layer_view_point_id: bytes | None, layer_id: bytes | None, is_filler_wire: bool) -> "PJTWire":
+               layer_view_point_id: bytes | None, layer_id: bytes | None, is_filler_wire: bool,
+               cable_conductor_id: bytes | None = None) -> "PJTWire":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -195,6 +198,8 @@ class PJTWiresTable(PJTTableBase):
         :type layer_id: bytes | None
         :param is_filler_wire: Boolean flag for whether filler wire.
         :type is_filler_wire: bool
+        :param cable_conductor_id: The ``pjt_cable_conductors`` row this wire is a lead of; ``None`` for an ordinary wire.
+        :type cable_conductor_id: bytes | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWire`
         """
@@ -207,11 +212,21 @@ class PJTWiresTable(PJTTableBase):
             layer_view_point_id=layer_view_point_id, layer_id=layer_id,
             is_filler_wire=int(is_filler_wire), bundle_id=None, transition_id=None,
             start_point_pegboard_id=None, stop_point_pegboard_id=None, notes='',
-            is_visible_pegboard=1, smooth=None, operating_temp=None)
+            is_visible_pegboard=1, smooth=None, operating_temp=None, cable_conductor_id=cable_conductor_id)
 
         self.db.pjt_circuits_table.members_changed(circuit_id)
 
         return PJTWire(self, db_id)
+
+    @_check_types.do
+    def leads_of(self, conductor_id: bytes) -> list["PJTWire"]:
+        """Every wire that is a lead of the cable conductor *conductor_id* (at most one per split end).
+
+        :param conductor_id: The ``pjt_cable_conductors`` row.
+        :type conductor_id: bytes
+        :rtype: list[:class:`PJTWire`]
+        """
+        return [self[row[0]] for row in self.select('id', cable_conductor_id=conductor_id)]
 
     @_check_types.do
     def find_by_start_point3d_id(self, point3d_id: bytes) -> _Union["PJTWire", None]:
@@ -765,17 +780,69 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         if value != old_circuit_id:
             circuits_table.propagate(self, value)
 
+    _stored_cable_conductor_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @dump_property(severity=2)
+    @_check_types.do
+    def cable_conductor_id(self) -> bytes | None:
+        """The ``pjt_cable_conductors`` row this wire is a LEAD of (the piece of a cable's conductor between a terminal or
+        splice and the plane where the conductor leaves the cable's trunk); ``None`` for an ordinary wire.
+
+        :rtype: bytes | None
+        """
+        if self._stored_cable_conductor_id is DefaultStoredValue:
+            self._stored_cable_conductor_id = self._table.select('cable_conductor_id', id=self._db_id)[0][0]
+
+        return self._stored_cable_conductor_id
+
+    @cable_conductor_id.setter
+    @_check_types.do
+    def cable_conductor_id(self, value: bytes | None) -> None:
+        """Make this wire a lead of the conductor *value*, or an ordinary wire again (``None``).
+
+        :param value: The conductor row's id.
+        :type value: bytes | None
+        """
+        self._stored_cable_conductor_id = value
+        self._stored_part = DefaultStoredValue
+
+        self._table.update(self._db_id, cable_conductor_id=value)
+        self._populate('cable_conductor_id')
+
+    @property
+    @_check_types.do
+    def is_cable_lead(self) -> bool:
+        """Whether this wire is a lead of a cable's conductor.
+
+        :rtype: bool
+        """
+        return self.cable_conductor_id is not None
+
+    @property
+    @_check_types.do
+    def cable_conductor(self) -> "_pjt_cable_conductor.PJTCableConductor | None":
+        """The conductor this wire is a lead of; ``None`` for an ordinary wire.
+
+        :rtype: :class:`_pjt_cable_conductor.PJTCableConductor` | None
+        """
+        conductor_id = self.cable_conductor_id
+
+        if conductor_id is None:
+            return None
+
+        return self._table.db.pjt_cable_conductors_table[conductor_id]
+
     _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _wire.Wire:
-        """Return the part.
+        """Return the part: the catalog wire, or, for a lead of a cable's conductor, that conductor's part (a
+        :class:`..global_db.wire_conductor.WireConductor`, which answers what a ``Wire`` does).
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
+        :returns: Property value.
         :rtype: :class:`_wire.Wire`
         """
         if self._stored_part is DefaultStoredValue:
@@ -784,7 +851,12 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
             if part_id is None:
                 self._stored_part = None
             else:
-                self._stored_part = self._table.db.global_db.wires_table[part_id]
+                conductor = self.cable_conductor
+
+                if conductor is None:
+                    self._stored_part = self._table.db.global_db.wires_table[part_id]
+                else:
+                    self._stored_part = conductor.part
 
         if self._stored_part is not None:
             if self._obj is not None:
@@ -870,7 +942,14 @@ class PJTWireControl(QtWidgets.QTabWidget, LazyTabMixin):
         elif page is self._circuit_page:
             self.circuit_ctrl.set_obj(self.db_obj)
         elif page is self._part_page:
-            self.wire_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
+            part = None if self.db_obj is None else self.db_obj.part
+
+            # the part of a lead or of a cable's conductor is one conductor of the cable: the Part tab shows the cable's wire, whose
+            # Conductors tab edits the conductors
+            if isinstance(part, (_wire_conductor.WireConductor, _wire_conductor.ShieldConductor)):
+                part = part.wire
+
+            self.wire_ctrl.set_obj(part)
         self._tab_loaded[index] = True
 
     @_check_types.do

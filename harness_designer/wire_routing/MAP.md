@@ -59,7 +59,7 @@ straight-exit-off-a-terminal stub every wire must have before orthogonal routing
 a moving object, and sweeping for newly-introduced overlaps after a move); and
 `follow_moved()`, `shift_targets()`/`apply_shifts()`, `add_waypoint()`/`remove_waypoint()`/
 `set_waypoints()` are the waypoint-list mutation primitives `reroute_wire()` and drag handlers
-build on.
+build on. **Cable conductors (step 8, 2026-11-06):** `on_wire_attached` hands a cable LEAD to its conductor (`conductor_node.refresh_schematic(True)`) and returns: a lead is never drawn in the schematic, the conductor is (`objects/cable_conductor.py` `ConductorRun`, which quacks like a wire for this module). `wires_attached_to` goes through `_schematic_wires`: a lead is replaced, once, by its conductor's run when that is drawn, and left out when it is not, so a moved housing or terminal reroutes the conductor. `sweep_for_overlaps` and the router read `project.schematic_wires` (wires plus drawn conductor runs).
 
 #### routing.py
 

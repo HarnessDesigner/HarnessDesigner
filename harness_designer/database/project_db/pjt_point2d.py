@@ -317,6 +317,12 @@ class PJTPoint2D(PJTEntryBase):
         ):
             return True
 
+        # A cable conductor is drawn in the schematic like a wire (2026-11-05); the cable itself is not.
+        if db.pjt_cable_conductors_table.select(
+            'id', OR=True, start_point2d_id=self.db_id, stop_point2d_id=self.db_id
+        ):
+            return True
+
         # Phase 8 (2026-09-02): pjt_wire_layouts/pjt_wire_markers (own
         # point2d_id, ordinary forward references) and pjt_splices (own
         # point2d_id -- often the same id as a wire's own start/stop

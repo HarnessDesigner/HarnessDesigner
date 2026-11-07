@@ -96,7 +96,7 @@ def _edge_weights(project: "_project.Project") -> dict:
     from .. import splice as _splice
 
     weights = {}
-    for wire in project.wires:
+    for wire in project.schematic_wires:
         if not wire.is_connected:
             continue
 
@@ -120,7 +120,7 @@ def _edge_weights(project: "_project.Project") -> dict:
 
 @_check_types.do
 def _average_od_mm(project: "_project.Project") -> float:
-    ods = [float(w.objschematic._part.od_mm) for w in project.wires if w.is_connected]  # NOQA
+    ods = [float(w.objschematic._part.od_mm) for w in project.schematic_wires if w.is_connected]  # NOQA
     if not ods:
         return 1.0
 
@@ -351,7 +351,7 @@ def auto_arrange(project: "_project.Project") -> None:
     # own pushed-out attach point before anything else routes near it;
     # within each of those two groups, thickest-first as before.
     for wire in sorted(
-            (w for w in project.wires if w.is_connected),
+            (w for w in project.schematic_wires if w.is_connected),
             key=lambda w: (not _wire_reroute.is_junction_wire(w),
                           -float(w.objschematic._part.od_mm))):  # NOQA
         _wire_reroute.reroute_wire(project, wire)

@@ -463,6 +463,23 @@ class PJTPointPegboard(PJTEntryBase):
         ):
             return True
 
+        # Cables, their routes and their conductors (2026-11-05), see pjt_point3d.PJTPoint3D.is_referenced.
+        if db.pjt_cable_paths_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_cables_table.select(
+            'id', OR=True,
+            start_point_pegboard_id=self.db_id, stop_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_cable_conductors_table.select(
+            'id', OR=True,
+            start_point_pegboard_id=self.db_id, stop_point_pegboard_id=self.db_id,
+            start_split_point_pegboard_id=self.db_id, stop_split_point_pegboard_id=self.db_id,
+        ):
+            return True
+
         # Phase 7 (2026-09-02): pjt_transitions' own identity anchor, and
         # pjt_transition_branches' own point -- see
         # pjt_point3d.PJTPoint3D.is_referenced's own Phase 7 entry for

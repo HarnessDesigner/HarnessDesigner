@@ -24,6 +24,10 @@ Present here per the one-file-per-part layout, but bundles are 3D + peg-board on
 
 Companion to `bundle.py`, same caveat about actual schematic scope.
 
+#### cable_conductor.py
+
+`CableConductor(Wire)` (NEW 2026-11-06, step 8): the schematic view of a cable conductor. A cable is never in the schematic, and neither are its leads (`is_visible2d` false, never added to the canvas): a conductor is ONE ordinary schematic wire from the terminal or splice its start lead ends on to the one its stop lead ends on, with the ordinary single list of 2D waypoints (the row's `pjt_wire_paths` rows, view `2d`), so this is the schematic wire view as it is. Its parent is the conductor's `objects/cable_conductor.py` `ConductorRun`, not a `Wire` facade. Own menu (`ConductorMenu`: Select, Properties): a conductor cannot be split, branched or deleted from the schematic. Interior waypoint handles (`WireLayout`) are made by the router as for any wire; dragging one is untested (a handle finds its wire through `project.get_wire`, which does not know a conductor).
+
 #### cavity.py
 
 Per MEMORY.md ("schematic cavity names all rendered at the housing's own position"), a cavity's schematic name-label position historically collapsed to the housing's own position for cavities created via `PJTHousing.update_cavities()`'s older per-cavity insert path (now fixed — see MEMORY.md for the full root cause/fix). Also: don't read 2D position off `Position2DMixin.position2d`'s `.y` and expect the real "y" axis — that was a pre-2026-09-24 trap, since fixed at the schema level (`pjt_points2d` now has a real `z` column); see MEMORY.md for history if old code/comments still reference the `.y`->`.z` remap.
