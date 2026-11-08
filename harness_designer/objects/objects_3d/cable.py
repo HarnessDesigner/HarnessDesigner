@@ -99,6 +99,11 @@ class Cable(_wire_3d.Wire):
         return part.trunk_size
 
     @_check_types.do
+    def _gpu_single_allowed(self) -> bool:
+        """A cable view has looks of its own (twisted, ribbon, jacketed tube), never the single-wire one."""
+        return False
+
+    @_check_types.do
     def _make_look(self, diameter: float) -> _Union[_wire_3d._TwistLook, None]:
         """A twisted cable's look as the wire's; a ribbon's is a row of conductors; any other cable is a plain tube.
 

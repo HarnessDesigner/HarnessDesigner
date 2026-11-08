@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Union as _Union
 from typing import NamedTuple as _NamedTuple
 
 import math
+import time
 from collections.abc import Iterator
 
 import numpy as np
@@ -21,6 +22,7 @@ from ...shapes import helix as _helix
 from ...shapes import sphere as _sphere
 from ...shapes import twisted_wire as _twisted_wire
 from ...gl import materials as _materials
+from ...gl import wire_benchmark as _wire_benchmark
 from ... import color as _color
 from ... import config as _config
 from ... import utils as _utils
@@ -124,6 +126,11 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             # bookkeeping, thrown away by _recalculate_geometry and rebuilt when the wire is next drawn
             self._twist = None
             self._twist_plan = None
+
+            # The look of a plain wire drawn through the twist mode (Config.debug.rendering3d.gpu_single_wires), built the
+            # first time it is wanted (see _active_look); _twist_plan_look is the look _twist_plan was worked out for
+            self._gpu_look = None
+            self._twist_plan_look = None
 
             self._part = db_obj.part
             color = self._part.color.ui
@@ -414,6 +421,52 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         return None
 
     @_check_types.do
+    def _gpu_single_allowed(self) -> bool:
+        """Whether a wire of this view with no look of its own may be drawn through the twist mode when
+        ``Config.debug.rendering3d.gpu_single_wires`` is on. A cable view answers no: it has looks of its own."""
+        return True
+
+    @_check_types.do
+    def _build_single(self) -> _TwistLook:
+        """The look of a plain wire drawn through the faces program's twist mode: one conductor centred on the axis, in the
+        wire's own colour.
+
+        A wire with a stripe twists at the pitch of the stripe's helix mesh (``shapes.helix.PITCH_MM``), so the stripe winds
+        round the wire as the mesh does. A wire without one does not twist: a centred circle turning on its own centre looks
+        the same at any rate, so it gets the fewest rings. (``shapes.twisted_wire.profile`` is for 2 or more conductors; for 1
+        it is degenerate, hence the circle here.)
+        """
+        radius = self._trunk_size(self._part)[0] * 0.5
+        stripe = None
+        rate = 0.0
+
+        if self._stripe is not None:
+            stripe = self._stripe._material  # NOQA
+            rate = _twisted_wire.rate_from_tpi(_twisted_wire.MM_PER_INCH / _helix.PITCH_MM)
+
+        return _TwistLook(rate, radius, [(0.0, 0.0, radius)], [self._material], [stripe])
+
+    def _active_look(self) -> _Union[_TwistLook, None]:
+        """The look this wire is drawn with right now: its twist look, else (when ``gpu_single_wires`` is on and this view
+        allows it) the single-wire look, else ``None`` for the plain cylinder path.
+
+        Called a few times per wire per frame, so not wrapped in ``check_types.do``.
+        """
+        if self._twist is not None:
+            return self._twist
+
+        if not _debug_config.gpu_single_wires or not self._gpu_single_allowed():
+            return None
+
+        look = self._gpu_look
+
+        if look is None or look.materials[0] is not self._material:
+            look = self._build_single()
+            self._gpu_look = look
+
+        return look
+
+    @_check_types.do
     def _conductor_materials(self) -> tuple[list[_materials.GLMaterial], list[_Union[_materials.GLMaterial, None]]]:
         """Each conductor's insulation material and stripe material (``None`` for no stripe), from the part's conductor rows
         (``wire_conductors``), conductor 0 first."""
@@ -437,6 +490,8 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         part = self.db_obj.part
         self._part = part
         self._material = _materials.Plastic(part.color.ui)
+        self._gpu_look = None
+        self._twist_plan = None
 
         stripe_color = part.stripe_color
 
@@ -465,10 +520,12 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     def _twist_segments(self) -> list[_TwistSegment]:
         """The wire's path segments with their twist phase, mitres and ring counts, worked out once per change of the path
         (``_recalculate_geometry`` clears it) rather than every frame."""
-        if self._twist_plan is not None:
+        look = self._active_look()
+
+        if self._twist_plan is not None and self._twist_plan_look is look:
             return self._twist_plan
 
-        look = self._twist
+        started = time.perf_counter()
         segments = list(self._segment_transforms())
         joined = self._segment_joins(segments)
 
@@ -507,6 +564,11 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             plan.append(_TwistSegment(position, angle, length, twist, rings))
 
         self._twist_plan = plan
+        self._twist_plan_look = look
+
+        if _debug_config.wire_benchmark:
+            _wire_benchmark.BENCH.plan(time.perf_counter() - started)
+
         return plan
 
     @_check_types.do
@@ -532,8 +594,9 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         if not _debug_config.draw_faces:
             return
 
-        look = self._twist
+        look = self._active_look()
         selected = self.is_selected
+        counting = _wire_benchmark.BENCH.recording
 
         with shaders.faces:
             # stripeClipStart/Stop must be 0.0 for any draw but a WireStripe's (see render())
@@ -550,6 +613,9 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
                     _twisted_wire.TUBE.draw(shaders.faces, segment.position, segment.angle, segment.length, segment.twist,
                                             circle, look.rate, segment.rings, stripe)
+
+                    if counting:
+                        _wire_benchmark.BENCH.add_draw((segment.rings - 1) * _twisted_wire.SIDES * 6)
 
     @_check_types.do
     def _endpoint_diameter(self) -> float:
@@ -606,7 +672,13 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         mesh capacity current before the next repaint.
         """
 
+        if not _debug_config.wire_benchmark:
+            self._recalculate_geometry()
+            return
+
+        started = time.perf_counter()
         self._recalculate_geometry()
+        _wire_benchmark.BENCH.geometry(time.perf_counter() - started)
 
     @_check_types.do
     def _segment_transforms(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, float]]:
@@ -840,8 +912,25 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
             offset += seg_len
 
-    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the wire. While ``Config.debug.rendering3d.wire_benchmark`` is on the draw is timed on the CPU and the GPU
+        and counted (``gl/wire_benchmark.py``); otherwise this only hands over to :meth:`_render_wire`.
+
+        Called once per wire per frame, so not wrapped in ``check_types.do``.
+        """
+        if not _debug_config.wire_benchmark:
+            self._render_wire(shaders)
+            return
+
+        _wire_benchmark.BENCH.wire_begin(self._active_look() is not None)
+
+        try:
+            self._render_wire(shaders)
+        finally:
+            _wire_benchmark.BENCH.wire_end()
+
+    @_check_types.do
+    def _render_wire(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render every sub-segment of the wire's current path.
 
         Geometry is always current by the time this runs --
@@ -861,9 +950,11 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         same as the stripe overlay below, so the selection highlight
         stays a single uniform color across the whole wire.
         """
-        if self._twist is not None:
+        if self._active_look() is not None:
             self._render_twisted(shaders)
             return
+
+        counting = _wire_benchmark.BENCH.recording
 
         real_position, real_angle, real_scale, real_material = (
             self._position, self._angle, self._scale, self._material)
@@ -926,6 +1017,9 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
             super().render(shaders)
 
+            if counting:
+                _wire_benchmark.BENCH.add_draw(self._vbo.vertex_count)
+
             if draw_stripe and not is_conductor:
                 # Stripe geometry ignores scale.z entirely (see
                 # gl.shaders.faces' vertex shader) -- only x/y (bumped past
@@ -934,6 +1028,9 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 self._stripe._position = seg_position  # NOQA
                 self._stripe._angle = seg_angle  # NOQA
                 self._stripe.render_segment(shaders, stripe_offset, stripe_offset + seg_len)
+
+                if counting:
+                    _wire_benchmark.BENCH.add_draw(self._stripe._vbo.vertex_count)  # NOQA
 
             stripe_offset += seg_len
 
@@ -1645,7 +1742,12 @@ class WireStripe(_base_3d.Base3D):
 
         if required > project_db_obj.wire_stripe_max_length:
             project_db_obj.wire_stripe_max_length = required
+
+            started = time.perf_counter()
             _helix.create_vbo(required + _HELIX_OVERSHOOT_MM)
+
+            if _debug_config.wire_benchmark:
+                _wire_benchmark.BENCH.stripe_rebuild(time.perf_counter() - started)
 
     @property
     @_check_types.do

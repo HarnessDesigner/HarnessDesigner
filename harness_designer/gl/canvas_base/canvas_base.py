@@ -16,6 +16,7 @@ from .. import shaders as _shaders
 from ... import debug as _debug
 from ... import config as _config
 from .. import culling as _culling
+from .. import wire_benchmark as _wire_benchmark
 from ... import logger as _logger
 from ... import crash_dump as _crash_dump
 from ... import check_types as _check_types
@@ -1086,6 +1087,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     @_debug.logfunc
     @_check_types.do
     def _draw_scene(self, obj_data: np.ndarray | list[list[int | np.ndarray]]) -> None:
+        _wire_benchmark.BENCH.frame_begin(str(self._editor_name))
+
         removed_objects = []
         objects_in_view = []
 
@@ -1256,6 +1259,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             except Exception as err:  # NOQA
                 _logger.traceback(
                     err, 'object render removal error')
+
+        _wire_benchmark.BENCH.frame_end(str(self._editor_name))
 
     @staticmethod
     @_check_types.do

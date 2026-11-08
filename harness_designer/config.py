@@ -1637,6 +1637,16 @@ class Config(metaclass=ConfigDB):
             draw_vertices = False
             draw_faces = True
 
+            # Times every 3D wire draw on the CPU and on the GPU while on, and writes a summary to the log every couple of
+            # seconds (gl/wire_benchmark.py): drag a wire around, then read the log.
+            wire_benchmark = False
+
+            # Draws a single-conductor 3D wire (and its stripe) through the faces program's twist mode, the way a twisted
+            # pair is drawn, instead of a cylinder mesh per segment plus a helix mesh for the stripe. Meant for comparing the
+            # two with wire_benchmark; the debug edge / normal / vertex passes and the bare-conductor crimp ends are not drawn
+            # for a wire drawn this way.
+            gpu_single_wires = False
+
             # Shows a vertex/triangle count HUD in the top-right corner of
             # part_orientation.py's canvas -- used to correlate stuttering
             # camera movement with actual mesh complexity when tracking
