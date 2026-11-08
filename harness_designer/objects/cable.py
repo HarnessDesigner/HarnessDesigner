@@ -65,9 +65,16 @@ class Cable(_ObjectBase):
         # The junction object of each conductor (see :meth:`conductor_object`), made when first asked for.
         self._conductor_objects: dict[bytes, _cable_conductor.CableConductor] = {}
 
+        # The drawn-only markers where the leads of a split end meet the trunk, per end (see :meth:`_make_split_markers`).
+        self._split_markers: dict[bool, list] = {True: [], False: []}
+
         if db_obj.start_split_mm > 0.0 or db_obj.stop_split_mm > 0.0:
             self.obj3d.reload_splits()
             self.objpegboard.reload_splits()
+
+            for split_start in (True, False):
+                if self.is_split(split_start):
+                    self._make_split_markers(split_start)
         elif project_load and self.objpegboard.needs_seed():
             # a cable placed before the board knew cables: give it the board presence a new one gets when it is placed
             self.objpegboard.seed_from_3d()
@@ -364,6 +371,125 @@ class Cable(_ObjectBase):
             live += _point.Point(float(plane[0]), 0.0, float(plane[2])) - live
 
     @_check_types.do
+    def follow_drag(self, view: str, before_start: np.ndarray, before_stop: np.ndarray) -> None:
+        """Let the conductors follow after a drag step moved the cable's points in one view.
+
+        An end that is not split needs nothing: a conductor's end point is a child of the cable's. For a split end the split
+        points are laid on the split plane again (the trunk's end segment may have moved or turned) and the free ends of the
+        leads are carried along with the cable's end by the distance it moved; a lead that has a terminal or splice on its
+        free end stays where it is, as an attached wire end does, and its lead stretches.
+
+        :param view: ``'3d'`` or ``'pegboard'``: the view the drag was in (the other view is not touched).
+        :type view: str
+        :param before_start: Where the cable's start was in that view before this step.
+        :type before_start: :class:`np.ndarray`
+        :param before_stop: Where its stop was.
+        :type before_stop: :class:`np.ndarray`
+        """
+        board = view == 'pegboard'
+        shown = self.objpegboard if board else self.obj3d
+
+        for start, before, point in ((True, before_start, shown.start_position), (False, before_stop, shown.stop_position)):
+            if not self.is_split(start):
+                continue
+
+            if board:
+                self._move_board_split_points(start)
+            else:
+                self._sync_split_points(start)
+
+            moved = np.asarray(point.as_numpy, dtype=np.float64) - before
+
+            if float(np.linalg.norm(moved)) > 1e-9:
+                self._carry_free_leads(start, moved, board)
+
+    @_check_types.do
+    def _carry_free_leads(self, start: bool, moved: np.ndarray, board: bool) -> None:
+        """Move the free end of each lead of one end by *moved*, except where something is attached to it.
+
+        :param start: Which end.
+        :type start: bool
+        :param moved: How far the cable's end moved, in the view's space.
+        :type moved: :class:`np.ndarray`
+        :param board: Whether it is the board's points that move (else the 3D ones).
+        :type board: bool
+        """
+        ptables = self.mainframe.project.ptables
+        points = ptables.pjt_points_pegboard_table if board else ptables.pjt_points3d_table
+        shift = _point.Point(float(moved[0]), float(moved[1]), float(moved[2]))
+        held = []  # the rows stay referenced while their points move: the write-back to a row is a weak callback
+
+        for lead in self.lead_wires(start):
+            if lead.start_sibling is not None:
+                continue
+
+            end_id = lead.db_obj.start_position_pegboard_id if board else lead.db_obj.start_position3d_id
+
+            if end_id is None:
+                continue
+
+            row = points[end_id]
+            held.append(row)
+            live = row.point
+            live += shift
+
+    @_check_types.do
+    def _make_split_markers(self, start: bool) -> None:
+        """Draw a marker at the end of each lead of a split end, where it joins the trunk: the conductor's split point.
+
+        They are pseudo layouts (:class:`~harness_designer.database.project_db.pseudo_wire_layout.PseudoCableSplitLayout`), not
+        rows: the split point is already stored, the markers are only for the eye (sized and coloured as the conductor, not
+        picked) and are made again whenever the cable is built or its end split, and dropped when the end is joined.
+        One marker per conductor in 3D and one on the board where the split is laid out there.
+
+        :param start: Which end.
+        :type start: bool
+        """
+        import uuid  # NOQA
+
+        from . import wire_layout as _wire_layout_facade  # NOQA -- avoid a cycle at import time
+        from ..database.project_db import pseudo_wire_layout as _pseudo  # NOQA -- avoid a cycle at import time
+
+        self._drop_split_markers(start)
+
+        ptables = self.mainframe.project.ptables
+        points = ptables.pjt_points3d_table
+        board_points = ptables.pjt_points_pegboard_table
+        markers = self._split_markers[start]
+
+        for conductor in self.db_obj.conductors:
+            split_id = conductor.start_split_point3d_id if start else conductor.stop_split_point3d_id
+
+            if split_id is None:
+                continue
+
+            board_id = conductor.start_split_point_pegboard_id if start else conductor.stop_split_point_pegboard_id
+            part = conductor.part
+
+            for position3d, position_pegboard in (
+                (points[split_id].point, None),
+                (None, board_points[board_id].point if board_id is not None else None),
+            ):
+                if position3d is None and position_pegboard is None:
+                    continue
+
+                pseudo = _pseudo.PseudoCableSplitLayout(None, uuid.uuid4().bytes)
+                pseudo.configure_split(part, position3d=position3d, position_pegboard=position_pegboard)
+                markers.append(_wire_layout_facade.WireLayout(self.mainframe, pseudo))
+
+    @_check_types.do
+    def _drop_split_markers(self, start: bool) -> None:
+        """Take the drawn markers of one end out of the views (they have no row to delete).
+
+        :param start: Which end.
+        :type start: bool
+        """
+        for marker in self._split_markers[start]:
+            self.mainframe.remove_object(marker)
+
+        self._split_markers[start] = []
+
+    @_check_types.do
     def _sync_split_points(self, start: bool) -> None:
         """Put each conductor's split point of one end on the trunk's split plane, where the conductor leaves it now.
 
@@ -378,7 +504,9 @@ class Cable(_ObjectBase):
             if split_id is None:
                 continue
 
-            live = points[split_id].point
+            # the row is kept while the point moves: the point's write-back to it is a weak callback
+            row = points[split_id]
+            live = row.point
             live += _point.Point(*(float(v) for v in plane)) - live
 
         self._move_board_split_points(start)
@@ -483,6 +611,9 @@ class Cable(_ObjectBase):
             lead.set_sibling(node, lead.obj3d.stop_position)
             node.set_lead(start, lead)
 
+
+        self._make_split_markers(start)
+
         self.obj3d.editor3d.Refresh()
         self.objpegboard.pegboard.Refresh()
         self.refresh_browser()
@@ -507,6 +638,8 @@ class Cable(_ObjectBase):
         points = self.mainframe.project.ptables.pjt_points3d_table
         board_points = self.mainframe.project.ptables.pjt_points_pegboard_table
         parent_id = db_obj.start_position3d_id if start else db_obj.stop_position3d_id
+
+        self._drop_split_markers(start)
 
         for lead in self.lead_wires(start):
             lead.delete()
@@ -567,6 +700,8 @@ class Cable(_ObjectBase):
     def delete(self) -> None:
         """Delete the cable: its leads, its view, its registry entry, its conductors and its row."""
         for start in (True, False):
+            self._drop_split_markers(start)
+
             for lead in self.lead_wires(start):
                 lead.delete()
 

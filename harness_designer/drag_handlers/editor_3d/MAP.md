@@ -10,6 +10,10 @@
 
 `Bundle(DragHandler3D)` — rigid-translate drag; moves the start point, every interior waypoint, and the stop point together by the same world-space delta, anchored wherever the mouse actually grabbed the bundle's true path (via `WireTypeMixin.get_closest_point`). Unlike Wire, a Bundle always moves as one rigid body no matter where it's grabbed — no anchor semantics, nothing to snap onto. Ported from `gl.canvas_3d.dragging.base.PathDragObject`.
 
+#### cable.py
+
+`Cable(Wire)` (NEW 2026-11-07) - the 3D drag of a placed cable, the wire's drag with a cable's two differences: `plan_wire_drag` drops the snap (`plan.snap_point = None`: a cable's ends are always free, so no snap probes are built and nothing is committed on release) and `_route_locked_point_ids` is empty (a cable is not routed through bundles or transitions); and `__call__` lets the conductors follow each step (`objects.cable.Cable.follow_drag('3d', ...)`). Started by `objects_3d/cable.py` `Cable.handle_interaction` on a left-down on the SELECTED cable. Not run in the app (`pegboard_cable_test.py` covers the plan and `follow_drag` on stand-ins).
+
 #### generic.py
 
 `Generic(DragHandler3D)` — moves `obj3d.position` directly; applies to housing, transition, splice, wire service loops, bundle layouts, wire layouts (anything whose entire position is the one thing a drag needs to move). Also realizes peg-board length changes every frame (`_realize_pegboard_length`, via `handlers.rope_pull_handler.realize_length_change`/`realize_3d_move`) for whatever chain(s) are anchored at this object's point(s). This logic must enumerate ALL of an object's points (every branch of a Transition, both ends of a Splice/WireServiceLoop), not just a single "center" point — a gap confirmed missing in an earlier pass after a live report that dragging a transition in 3D wasn't lengthening its attached bundle's peg-board chain at all.

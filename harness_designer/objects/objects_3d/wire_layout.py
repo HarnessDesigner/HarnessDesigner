@@ -108,6 +108,10 @@ class WireLayout(_base_3d.Base3D):
             position = db_obj.position3d
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+            # the pseudo marker where a cable conductor's lead meets the trunk is only drawn: nothing to pick, drag or menu
+            if db_obj.is_cable_split_point:
+                self._pick_priority = -1
+
     @_check_types.do
     def can_rotate(self) -> bool:
         """A layout waypoint has no independent orientation of its own

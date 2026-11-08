@@ -397,10 +397,9 @@ class Cable(_wire_3d.Wire):
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
-        """Forward to the placement session while there is one; otherwise do nothing, so that a click falls through to
-        the default select / deselect.
-
-        Dragging a placed cable's end or waypoint is not built yet; the wire's drag plans assume a wire.
+        """Forward to the placement session while there is one; otherwise drag the cable as a wire is dragged (a click and drag
+        on the selected cable's body moves what the click is near: a free end, the two waypoints round the segment, or the whole
+        cable, see ``drag_handlers.editor_3d.cable``); a plain click falls through to the default select / deselect.
 
         :param last_pos: Where the mouse was.
         :type last_pos: :class:`_point.Point`
@@ -416,19 +415,46 @@ class Cable(_wire_3d.Wire):
         :rtype: bool
         """
         from ...add_handlers.editor_3d import cable as _add_cable  # NOQA -- avoid a cycle at import time
+        from ...drag_handlers.editor_3d import cable as _drag_cable  # NOQA -- avoid a cycle at import time
 
         handler = self._active_handler
 
-        if not isinstance(handler, _add_cable.Cable):
+        if isinstance(handler, _add_cable.Cable):
+            # a local reference: finishing the session can delete this cable, which clears self._active_handler
+            handled = handler(last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if handler.is_finished and self._active_handler is handler:
+                self._active_handler = None
+
+            return handled
+
+        if handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                handler.delete()
+                self._active_handler = None
+                # no real drag happened: let a plain click-release fall through to the default select / deselect
+                return had_motion
+
             return False
 
-        # a local reference: finishing the session can delete this cable, which clears self._active_handler
-        handled = handler(last_pos, current_pos, had_motion, interaction_type, clicked_object)
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent or
+            self.parent.mainframe.get_selected() is not self.parent
+        ):
+            return False
 
-        if handler.is_finished and self._active_handler is handler:
-            self._active_handler = None
+        plan = _drag_cable.Cable.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
 
-        return handled
+        if plan is None:
+            return False
+
+        self._active_handler = _drag_cable.Cable(self.editor3d.editor, self.parent, plan)
+        return True
 
 
 class CableMenu(QtWidgets.QMenu):

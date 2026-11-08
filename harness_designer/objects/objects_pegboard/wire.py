@@ -14,6 +14,7 @@ from ...geometry import angle as _angle
 from ...geometry import line as _line
 from . import base_pegboard as _base_pegboard
 from ..objects_3d import menu_ops as _menu_ops
+from ..objects_3d import wire as _wire_3d
 from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
@@ -74,6 +75,17 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     # Whether the part's stripe colour is drawn (a cable's jacket has none; see objects_pegboard.cable).
     _uses_stripe: bool = True
 
+    # A twisted pair / triple, and a cable's conductors, look as they do in the 3D editor: the board is the same scene seen from
+    # above through an orthographic camera, so the same twisted-tube mode of the faces program draws them. The look and its
+    # drawing are the 3D view's own methods (they read only the part, the path and the base-class bounds), so they are borrowed,
+    # not copied: a change to how a twist is drawn is then made once. See objects_3d/wire.py.
+    _build_twist = _wire_3d.Wire._build_twist
+    _make_look = _wire_3d.Wire._make_look
+    _conductor_materials = _wire_3d.Wire._conductor_materials
+    _segment_joins = staticmethod(_wire_3d.Wire._segment_joins)
+    _twist_segments = _wire_3d.Wire._twist_segments
+    _render_twisted = _wire_3d.Wire._render_twisted
+
     @staticmethod
     @_check_types.do
     def _trunk_size(part: object) -> tuple[float, float]:
@@ -112,6 +124,11 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         with parent.mainframe.editor_pegboard.context:
             self._stripe = None
 
+            # None for a wire that is not a twisted pair / triple (or a cable drawn by its conductors), else a _TwistLook;
+            # _twist_plan is its per-segment bookkeeping, thrown away by _recalculate_geometry and rebuilt when next drawn
+            self._twist = None
+            self._twist_plan = None
+
             # Cached result of Wire.is_tight (None = not computed yet).
             self._is_tight = None
 
@@ -120,6 +137,8 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             stripe_color = self._part.stripe_color if self._uses_stripe else None
             width, thickness = self._trunk_size(self._part)
             diameter = width
+
+            self._twist = self._make_look(diameter)
 
             # Wires hold strong references to bundles as a sanity check
             self._bundle = None
@@ -502,6 +521,8 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         reaches this method honors it, not only the one that happens to
         go through that callback.
         """
+        self._twist_plan = None
+
         if self._update_suspended:
             self._update_pending = True
             return
@@ -758,6 +779,10 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         same as the stripe overlay below, so the selection highlight
         stays a single uniform color across the whole wire.
         """
+        if self._twist is not None:
+            self._render_twisted(shaders)
+            return
+
         real_position, real_angle, real_scale, real_material = (
             self._position, self._angle, self._scale, self._material)
 

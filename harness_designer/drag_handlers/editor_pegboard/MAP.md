@@ -10,6 +10,10 @@
 
 2026-10-30: with rope pull on, `__call__` now moves the two bounding points as one rigid unit through `resolve_rigid_move` (like `generic.py`), with `WireSlackHandler._reconciling_any` set while the points are set so wires through the bundle aren't re-reconciled per point. The old budget clamp remains for rope pull off.
 
+#### cable.py
+
+`Cable(Wire)` (NEW 2026-11-07) - the peg-board drag of a placed cable; same as `editor_3d/cable.py` (no snap, no route locks, the conductors follow through `Cable.follow_drag('pegboard', ...)`), Y held at 0 as for a wire. Dragging changes the board's length of the cable, not its 3D length (no length budget is enforced on the board yet, as for wires). Not run in the app.
+
 #### generic.py
 
 `Generic(DragHandlerPegboard)` — locked-X/Z drag for transitions, housings, wire layouts, bundle layouts, and free terminals. Movement is gated by `handlers.rope_pull_handler.resolve_rigid_move` (the rope-pull cascade solver), NOT the older per-edge clamp — this handler bypasses `DragHandlerPegboard`'s own clamp entirely. Caches every real peg-board point this drag could ever move at its position when the drag BEGAN (re-deriving "current" position every frame was exactly what caused a dragged object to get stuck — a confirmed fix for a live "stuck transition" bug report, 2026-10-01: re-deriving a candidate fraction from a previous frame's possibly-clamped result is what caused the stuck state; always measure from the drag's own fixed start). For a Transition, every branch's own point is cached and moved by the exact same rigid delta the center does.

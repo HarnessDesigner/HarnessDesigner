@@ -705,7 +705,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             act.setEnabled(False)
 
         if isinstance(obj,
-                      (_wire.Wire, _cavity.Cavity, _wire_layout.WireLayout,
+                      (_wire.Wire, _cable.Cable, _cavity.Cavity, _wire_layout.WireLayout,
                        _bundle_layout.BundleLayout, _bundle.Bundle,
                        _wire_service_loop.WireServiceLoop,
                        # A peg-board table has no angle_pegboard at all --

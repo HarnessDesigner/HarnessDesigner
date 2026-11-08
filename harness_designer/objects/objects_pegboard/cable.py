@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Union as _Union
 import numpy as np
 
 from ...geometry import point as _point
+from ...geometry import angle as _angle
+from ...shapes import twisted_wire as _twisted_wire
 from ...database import id_generator as _id_generator
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
@@ -87,6 +89,25 @@ class Cable(_wire_pegboard.Wire):
     _start_split: float = 0.0
     _stop_split: float = 0.0
 
+    # a ribbon cable: its segments with its flat side in their angle (cleared by _recalculate_geometry)
+    _ribbon: bool = False
+    _rolled: list = None
+
+    # a ribbon's look is the 3D view's: a row of touching round conductors through the same shader at rate 0
+    _build_ribbon = _cable_3d.Cable._build_ribbon
+
+    @_check_types.do
+    def _make_look(self, diameter: float) -> object:
+        """The look of the cable's conductors, as the 3D view draws them: a twisted pair / triple as a wire's, a ribbon as a row
+        of conductors, any other cable ``None`` (one plain tube in the jacket colour).
+
+        :param diameter: The cable's diameter, mm.
+        """
+        if self._part.is_ribbon:
+            return self._build_ribbon()
+
+        return super()._make_look(diameter)
+
     @staticmethod
     @_check_types.do
     def _trunk_size(part: object) -> tuple[float, float]:
@@ -116,7 +137,53 @@ class Cable(_wire_pegboard.Wire):
     def reload_look(self) -> None:
         """Draw the trunk again after the part's colours were edited (they are the catalog's, so the change is global)."""
         self._material = _materials.Plastic(self._jacket_color(self._part))
+        self._ribbon = False
+        self._twist = self._make_look(self._trunk_size(self._part)[0])
+        self._recalculate_geometry()
         self.pegboard.Refresh()
+
+    @_check_types.do
+    def _recalculate_geometry(self) -> None:
+        """As the wire's; a ribbon's flat side is worked out again with the path."""
+        self._rolled = None
+        super()._recalculate_geometry()
+
+    @_check_types.do
+    def _segment_transforms(self):
+        """As the wire's; for a ribbon each segment's angle is turned about its direction so that the flat side keeps its
+        direction round every bend (parallel transport), as in the 3D view. On the board every bend is in the board's plane, so
+        the strip lies flat on it with its width across the path, which is how a ribbon cable is laid out on a board.
+        """
+        if not self._ribbon:
+            yield from super()._segment_transforms()
+            return
+
+        if self._rolled is None:
+            self._rolled = self._carry_flat_side(list(super()._segment_transforms()))
+
+        yield from self._rolled
+
+    @_check_types.do
+    def _carry_flat_side(self, segments: list[tuple]) -> list[tuple]:
+        """The wire's segments with the angle of each turned by the ribbon's twist phase there (no roll: the strip lies flat).
+
+        :param segments: ``(position, angle, scale, length)`` per segment as the wire view yields them.
+        """
+        if not segments:
+            return []
+
+        rotations = [angle.as_matrix_numpy for _position, angle, _scale, _length in segments]
+        lengths = [length for _position, _angle_, _scale, length in segments]
+        twists = _twisted_wire.plan(rotations, lengths, self._segment_joins(segments), 0.0, self._twist.outer_radius, 0.0)
+        result = []
+
+        for (position, angle, scale, length), rotation, twist in zip(segments, rotations, twists):
+            if twist.phase != 0.0:
+                angle = _angle.Angle.from_matrix(_twisted_wire.rolled(rotation, twist.phase))
+
+            result.append((position, angle, scale, length))
+
+        return result
 
     @_check_types.do
     def reload_splits(self) -> None:
@@ -308,12 +375,44 @@ class Cable(_wire_pegboard.Wire):
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
-        """Do nothing, so that a click falls through to the default select / deselect. A cable is not placed on the board
-        (it is placed in 3D and seeded), and dragging a placed one is not built: the wire's drag plans assume a wire.
+        """Drag the cable as a wire is dragged (a click and drag on the selected cable's body moves what the click is near: a
+        free end, the two waypoints round the segment, or the whole cable, see ``drag_handlers.editor_pegboard.cable``); a plain
+        click falls through to the default select / deselect. A cable is not placed on the board (it is placed in 3D and
+        seeded), so there is no placement session here.
 
-        :returns: False.
+        :returns: Whether the interaction was handled.
         """
-        return False
+        from ...drag_handlers.editor_pegboard import cable as _drag_cable  # NOQA -- avoid a cycle at import time
+
+        handler = self._active_handler
+
+        if handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                handler.delete()
+                self._active_handler = None
+                # no real drag happened: let a plain click-release fall through to the default select / deselect
+                return had_motion
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent or
+            self.parent.mainframe.get_selected() is not self.parent
+        ):
+            return False
+
+        plan = _drag_cable.Cable.plan_wire_drag(self.parent.mainframe.project, self.parent, current_pos)
+
+        if plan is None:
+            return False
+
+        self._active_handler = _drag_cable.Cable(self.pegboard.editor, self.parent, plan)
+        return True
 
 
 class CableMenu(_cable_3d.CableMenu):

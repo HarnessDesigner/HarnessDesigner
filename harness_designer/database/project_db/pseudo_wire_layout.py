@@ -76,6 +76,17 @@ class _PseudoAttachedWire:
         self.part_id = part.db_id
 
 
+class _SplitAttachedWire:
+    """Stand-in for the wire a split marker sits on: what the layout views read to size and colour the marker (``.part.od_mm``
+    and ``.part.color.ui``) and nothing else. The part is the cable's CONDUCTOR (its own diameter and its own colour, never the
+    stripe colour), which is what the lead is made of."""
+    __slots__ = ('part', 'part_id')
+
+    def __init__(self, part):
+        self.part = part
+        self.part_id = getattr(part, 'db_id', None)
+
+
 class PseudoPJTWireLayout(PJTWireLayout):
     """Pseudo ``PJTWireLayout`` row for an invisible wire-snap probe.
 
@@ -301,3 +312,64 @@ class PseudoPJTWireLayout(PJTWireLayout):
     def position3d_id(self, value: bytes) -> None:
         pass
 
+
+
+class PseudoCableSplitLayout(PseudoPJTWireLayout):
+    """Pseudo ``PJTWireLayout`` for the marker where a split cable conductor's lead meets the cable's trunk.
+
+    Never a ``pjt_wire_layouts`` row: the point it sits on is already stored (the conductor's split point, which is the lead's
+    stop end), the marker only closes the joint visually, and nothing can be done with it (it is not picked, dragged or given a
+    menu, see ``is_cable_split_point`` in the layout views). ``objects.cable.Cable`` builds them when it splits an end or loads
+    a split cable and drops them when the end is joined or the cable is deleted.
+
+    Unlike a snap probe it is drawn, in whichever view it was given a position for (one marker per view, as a stored layout
+    is exclusive to one view), and sized and coloured as the conductor: its ``od_mm`` and its own colour, not the stripe's.
+    """
+
+    is_snap_probe = False
+    is_cable_split_point = True
+
+    _conductor_part = None
+
+    @_check_types.do
+    def configure_split(self, conductor_part: object, position3d: _point.Point | None = None,
+                        position_pegboard: _point.Point | None = None) -> None:
+        """Set what the marker stands on.
+
+        :param conductor_part: The conductor's catalog part (``PJTCableConductor.part``).
+        :param position3d: The lead's stop point in 3D, or ``None`` for a board marker.
+        :param position_pegboard: The lead's stop point on the board, or ``None`` for a 3D marker.
+        """
+        self._position3d = position3d
+        self._position2d = None
+        self._position_pegboard = position_pegboard
+        self._wire_part = None
+        self._conductor_part = conductor_part
+
+    @property
+    @_check_types.do
+    def attached_wires(self) -> list[_SplitAttachedWire]:
+        if self._conductor_part is None:
+            return []
+
+        return [_SplitAttachedWire(self._conductor_part)]
+
+    @property
+    @_check_types.do
+    def is_visible3d(self) -> bool:
+        return self._position3d is not None
+
+    @is_visible3d.setter
+    @_check_types.do
+    def is_visible3d(self, value: bool) -> None:
+        pass
+
+    @property
+    @_check_types.do
+    def is_visible_pegboard(self) -> bool:
+        return self._position_pegboard is not None
+
+    @is_visible_pegboard.setter
+    @_check_types.do
+    def is_visible_pegboard(self, value: bool) -> None:
+        pass

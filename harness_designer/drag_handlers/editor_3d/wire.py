@@ -144,7 +144,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         return obj.is_in_3dview
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_wire_object.Wire",
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: _wire_drag_base._WireOrCable,  # NOQA
                  plan: _wire_drag_base.WireDragPlan):
         # Explicit, never super() -- see handlers.wire_drag_base's own
         # module docstring on why: a bare super() call here would only

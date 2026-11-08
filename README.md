@@ -84,6 +84,11 @@ the twisted cable. This is a fantastic way of offloading the heavy math to the G
 building this kind of a mesh.
 ![img_14.png](img_14.png)
 
+
+Bends are looking great for the multi conductor cables/wires. I am trying to pay as much 
+attention to detail as I can. 
+![img_15.png](img_15.png)
+
 Doing some work in the schematic editor, specifically automatic routing of the 
 wires when a housing is moved or when a wire is added.  
 ![img_13.png](img_13.png)

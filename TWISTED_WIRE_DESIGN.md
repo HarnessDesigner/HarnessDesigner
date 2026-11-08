@@ -291,6 +291,12 @@ Row-id rules checked (2026-11-03, read `database/id_generator.py`, `project_db/p
     mod 2 pi on the CPU, all of it is CPU scalar bookkeeping on geometry change, not per frame.
   - Per-segment uniforms: position, rotation, length, `twistPerMm`, `phase0`, previous/next direction in
     local coordinates (+ flag when absent), taper length.
+- Smooth bends (2026-11-07): a rigid mitre at a sharp waypoint distorts the conductors (the ring shift and its fade grow with
+  `tan(bend / 2)`), so a twisted cable's corners are rounded before `plan` runs: `shapes/twisted_wire.round_bends` swaps each
+  corner for a tangent arc of chords (10 degrees apiece, radius 4 cable diameters, tighter where a segment is too short to hold it),
+  and the mitre then only closes the gap between chords. Checked numerically over 2000 random 5-150 degree bends (pieces meet to
+  1e-13 mm, end directions unchanged, no turn between neighbours over 10 degrees); NOT run in the app. Picking / OBBs still use
+  the unrounded straight segments. The 4-diameter radius is a constant (`BEND_RADIUS_DIAMETERS`), not a setting.
 - Bundle ends: per-wire entry/exit offsets derived at render time as `entry_w = P_end + frame * offset_w`;
   wires stay bound to the shared Point and `_segments` (`objects/mixins/wire.py`) is the override point.
 
@@ -741,6 +747,9 @@ the terminals/splices), and the stored 2D route is the row's own (`pjt_wire_path
 lead attaches (`on_wire_attached`), is cut free or deleted, and for every conductor as a project loads. Not built / unknown: dragging an interior waypoint
 (a `WireLayout` handle finds its wire through `project.get_wire`, which does not know a conductor), a conductor in Auto Arrange's weights, a splice or service
 loop in a lead, the conductors in the circuit editor dock.
+BUILT 2026-11-07, split-end markers (user request; NOT run in the app): splitting a cable end draws a PSEUDO layout (not a database row; the split point is already stored) where each conductor's lead meets the trunk, in 3D and on the board. It is sized and coloured as the conductor (not the stripe), is not pickable, and is made again whenever the cable is built and dropped by Join Conductors and when the cable is deleted.
+BUILT 2026-11-07, conductors on the board (user report: the board drew a multi-conductor cable as ONE cylinder; NOT run in the app): `objects_pegboard/wire.py` now draws a twisted look the way the 3D view does (it borrows the 3D view's look and drawing methods as class attributes) and `objects_pegboard/cable.py` builds the cable's look (twisted pair / triple, ribbon row, or a plain jacketed tube). A ribbon lies flat on the board with its width across the path.
+BUILT 2026-11-07, dragging a placed cable (user request: as a wire is dragged; NOT run in the app): select the cable, then press on it: near a free end drags that end, between two waypoints drags both, and a cable with no waypoints drags whole (the wire's plan, `WireDragMixin.plan_wire_drag`). No snap (a cable's ends are free). The conductors follow: an unsplit end carries them (children); a split end re-lays its split plane and carries the free lead ends that have nothing attached (`Cable.follow_drag`). Dragging in one view leaves the other alone, so the board's length can differ from the 3D length. Not built: bundle routing of a cable, re-orienting fanned-out ends when a waypoint drag turns the end segment, a board length budget.
 NEXT: run it in the app (nothing of the cable work has been run); then the open lists above.
 Known: the BOM would list a lead's length against the cable's part.
 NOT done (older 5b list, now partly superseded): leads as selectable objects (select, drag the end, waypoints, "Add Terminal"),

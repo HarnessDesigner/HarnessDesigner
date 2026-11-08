@@ -94,6 +94,10 @@ class WireLayout(_base_pegboard.BasePegboard):
 
         self.point3d_id = db_obj.position_pegboard_id
 
+        # the pseudo marker where a cable conductor's lead meets the cable strip is only drawn (see the 3D view)
+        if db_obj.is_cable_split_point:
+            self._pick_priority = -1
+
     @_check_types.do
     def can_rotate(self) -> bool:
         """A layout waypoint has no independent orientation of its own

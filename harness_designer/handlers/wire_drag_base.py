@@ -124,7 +124,12 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..objects import project as _project
     from ..objects import wire as _wire_object
+    from ..objects import cable as _cable_object
     from ..objects import wire_layout as _wire_layout_object
+
+
+# What is dragged by this algorithm: a wire, or a cable (a cable is dragged as a wire is, without the snap).
+_WireOrCable = _Union["_wire_object.Wire", "_cable_object.Cable"]
 
 
 class WireDragPlan:
@@ -364,11 +369,17 @@ class WireDragMixin:
                 return True
 
         # The split point of a cable's conductor, the end of a lead that meets the trunk: it stays on the trunk's split plane
-        # (the cable moves it, see objects.cable.Cable), so a drag never moves it. Only 3D points can be one.
+        # (the cable moves it, see objects.cable.Cable), so a drag never moves it; the board's split point is the same.
         conductors = project.ptables.pjt_cable_conductors_table
 
-        if conductors.select('id', start_split_point3d_id=check_id) or conductors.select('id', stop_split_point3d_id=check_id):
-            return True
+        if points_table is project.ptables.pjt_points_pegboard_table:
+            columns = ('start_split_point_pegboard_id', 'stop_split_point_pegboard_id')
+        else:
+            columns = ('start_split_point3d_id', 'stop_split_point3d_id')
+
+        for column in columns:
+            if conductors.select('id', **{column: check_id}):
+                return True
 
         return False
 
@@ -398,7 +409,7 @@ class WireDragMixin:
     @classmethod
     @_check_types.do
     def wire_end_anchors(cls, project: "_project.Project",
-                         wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
+                         wire_obj: _WireOrCable) -> tuple[bool, bool]:
 
         """
         Return (start_anchored, stop_anchored) for *wire_obj*.
@@ -431,7 +442,7 @@ class WireDragMixin:
 
     @classmethod
     @_check_types.do
-    def plan_wire_drag(cls, project: "_project.Project", wire_obj: "_wire_object.Wire",
+    def plan_wire_drag(cls, project: "_project.Project", wire_obj: _WireOrCable,
                        mouse_pos: _point.Point) -> WireDragPlan | None:
 
         """
@@ -972,7 +983,7 @@ class WireDragMixin:
 
     @_check_types.do
     def _arm_drag(self, canvas: "_canvas_window_base.CanvasWindowBase",
-                  target: "_wire_object.Wire",  plan: WireDragPlan) -> None:
+                  target: _WireOrCable,  plan: WireDragPlan) -> None:
 
         """
         Populate this instance's own drag state from *plan*, and

@@ -230,6 +230,10 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
     # though it never actually renders. A real row is always False.
     is_snap_probe: bool = False
 
+    # True only for the pseudo marker where a cable conductor's lead meets the trunk (pseudo_wire_layout.PseudoCableSplitLayout):
+    # drawn, never stored, never picked.
+    is_cable_split_point: bool = False
+
     _stored_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property

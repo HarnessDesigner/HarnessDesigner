@@ -470,15 +470,39 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         look = self._twist
         segments = list(self._segment_transforms())
-
-        rotations = [angle.as_matrix_numpy for _position, angle, _scale, _length in segments]
-        lengths = [length for _position, _angle_, _scale, length in segments]
         joined = self._segment_joins(segments)
+
+        # (position, angle, length) of every piece that is drawn
+        pieces = [(position, angle, length) for position, angle, _scale, length in segments]
+
+        if look.rate > 0.0:
+            # a twisted cable is bent round a waypoint, not folded at it: each corner becomes an arc of short chords, so the
+            # mitre only closes the small angle between neighbouring chords and the conductors do not fold on the inside
+            rounded = _twisted_wire.round_bends(
+                [np.asarray(position.as_numpy, dtype=np.float64) for position, _angle_, _scale, _length in segments],
+                [np.asarray(angle.as_matrix_numpy, dtype=np.float64)[:, 2] for _position, angle, _scale, _length in segments],
+                [length for _position, _angle_, _scale, length in segments],
+                joined, _twisted_wire.BEND_RADIUS_DIAMETERS * 2.0 * look.outer_radius)
+
+            pieces = []
+            joined = []
+
+            for piece in rounded:
+                if piece.source >= 0:
+                    angle = segments[piece.source][1]
+                else:
+                    angle = self._rotation_from_direction(piece.direction)
+
+                pieces.append((_point.Point(*piece.start), angle, piece.length))
+                joined.append(piece.joined)
+
+        rotations = [angle.as_matrix_numpy for _position, angle, _length in pieces]
+        lengths = [length for _position, _angle_, length in pieces]
 
         twists = _twisted_wire.plan(rotations, lengths, joined, look.rate, look.outer_radius)
         plan = []
 
-        for (position, angle, _scale, length), twist in zip(segments, twists):
+        for (position, angle, length), twist in zip(pieces, twists):
             rings = _twisted_wire.ring_count(length, look.rate, twist, look.outer_radius)
             plan.append(_TwistSegment(position, angle, length, twist, rings))
 

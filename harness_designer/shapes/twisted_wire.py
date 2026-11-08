@@ -89,6 +89,37 @@ class SegmentTwist(_NamedTuple):
 
 _NO_MITRE = (0.0, 0.0, 1.0, 0.0)
 
+# The radius a twisted cable is bent round at a waypoint, in cable diameters (measured to the cable's axis). A real twisted pair is not
+# bent tighter than about four diameters; a corner drawn as a rigid mitre instead folds the conductors on the inside of the bend.
+BEND_RADIUS_DIAMETERS = 4.0
+
+# A rounded bend is drawn as chords of the arc, each turning the cable by about this much (radians); the mitre then only has
+# to close a gap of half a step at every joint.
+BEND_STEP = math.radians(10.0)
+
+# A bend smaller than this (radians) is left as the corner it is: there is nothing to round.
+_ROUND_MIN = math.radians(0.5)
+
+
+class BendPiece(_NamedTuple):
+    """One straight piece of a path whose corners :func:`round_bends` has rounded."""
+
+    source: int
+    """Index of the input segment this piece is cut from (it keeps that segment's direction and so its frame), or -1 for a chord of
+    a rounded corner."""
+
+    start: np.ndarray
+    """World position of the piece's start (float64)."""
+
+    direction: np.ndarray
+    """Unit vector along the piece."""
+
+    length: float
+    """Length of the piece, mm."""
+
+    joined: bool
+    """True when the piece starts where the one before it ends."""
+
 
 @_check_types.do
 def rate_from_tpi(tpi: float) -> float:
@@ -276,6 +307,83 @@ def _transport_delta(previous: np.ndarray, current: np.ndarray) -> float:
         carried = x1 * math.cos(angle) + np.cross(k, x1) * math.sin(angle) + k * float(np.dot(k, x1)) * (1.0 - math.cos(angle))
 
     return math.atan2(float(np.dot(carried, current[:, 1])), float(np.dot(carried, current[:, 0])))
+
+
+@_check_types.do
+def round_bends(starts: list[np.ndarray], directions: list[np.ndarray], lengths: list[float], joined: list[bool],
+                radius: float) -> list[BendPiece]:
+    """Round every corner of a bent path: each corner between two joined segments is replaced by a circular arc, tangent to both,
+    drawn as a short run of chords (:data:`BEND_STEP` apiece). The segments on either side are cut back to where the arc starts.
+
+    The arc has the given radius unless a neighbouring segment is too short to hold it: a corner takes at most half of each of
+    its two segments, so the arc is made tighter (it stays tangent). A U-turn, and a corner between segments that are not joined (a
+    stretch hidden inside a bundle), is left as it is.
+
+    The result is fed to :func:`plan`, which then only has to close the small angle between neighbouring chords with a mitre.
+
+    :param starts: World position of each segment's start.
+    :param directions: Unit direction of each segment.
+    :param lengths: Each segment's length, mm.
+    :param joined: ``joined[i]`` is True when segment ``i`` starts where segment ``i - 1`` ends (``joined[0]`` is never read).
+    :param radius: The bend radius, mm.
+    :returns: The pieces in path order.
+    """
+    count = len(directions)
+    corner_cut = [0.0] * count
+    corner_bend = [0.0] * count
+
+    for i in range(1, count):
+        if not joined[i]:
+            continue
+
+        cosine = float(np.dot(directions[i - 1], directions[i]))
+
+        if cosine <= _U_TURN:
+            continue
+
+        bend = math.acos(max(-1.0, min(1.0, cosine)))
+
+        if bend < _ROUND_MIN:
+            continue
+
+        corner_bend[i] = bend
+        corner_cut[i] = min(radius * math.tan(bend * 0.5), lengths[i - 1] * 0.5, lengths[i] * 0.5)
+
+    pieces = []
+
+    for i in range(count):
+        direction = directions[i]
+        cut_start = corner_cut[i]
+        cut_end = 0.0
+
+        if i + 1 < count:
+            cut_end = corner_cut[i + 1]
+
+        if cut_start > 0.0:
+            previous = directions[i - 1]
+            tight = cut_start / math.tan(corner_bend[i] * 0.5)
+            side = direction - previous * float(np.dot(previous, direction))
+            side = side / float(np.linalg.norm(side))
+            steps = max(1, math.ceil(corner_bend[i] / BEND_STEP))
+            turn = corner_bend[i] / steps
+            arc_start = starts[i] - previous * cut_start
+            last = arc_start
+
+            for k in range(1, steps + 1):
+                angle = turn * k
+                point = arc_start + tight * (previous * math.sin(angle) + side * (1.0 - math.cos(angle)))
+                chord = point - last
+                chord_length = float(np.linalg.norm(chord))
+                pieces.append(BendPiece(-1, last, chord / chord_length, chord_length, True))
+                last = point
+
+        straight = lengths[i] - cut_start - cut_end
+
+        if straight > 1e-6:
+            pieces.append(BendPiece(i, starts[i] + direction * cut_start, direction, straight,
+                                    cut_start > 0.0 or (i > 0 and joined[i])))
+
+    return pieces
 
 
 @_check_types.do
