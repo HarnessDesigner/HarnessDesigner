@@ -370,7 +370,11 @@ class WireLayout(_base_3d.Base3D):
         ptables.pjt_points3d_table[point_id].delete()
 
         if wire_obj is not None:
-            wire_obj.obj3d.refresh_waypoints()
+            view = wire_obj.obj3d
+            # a wire row with no view of this kind (the conductor of a cable, a wire whose views are
+            # already gone while a cable is being deleted) has no route registration to refresh
+            if view is not None:
+                view.refresh_waypoints()
 
     @classmethod
     @_check_types.do

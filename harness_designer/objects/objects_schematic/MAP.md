@@ -24,6 +24,10 @@ Present here per the one-file-per-part layout, but bundles are 3D + peg-board on
 
 Companion to `bundle.py`, same caveat about actual schematic scope.
 
+#### cable.py
+
+`Cable(BaseSchematic)` (NEW 2026-11-08): an inert placeholder, built like `circuit.py` (no VBO, angle, position, scale or material, not visible), never drawn or picked. A cable is not in the schematic (each conductor is, see `cable_conductor.py`), but it can be the selected object while the schematic editor shows (object browser, or a selection made in the 3D editor), and every canvas must hold its selected object: without a view the canvas logged "the selected Cable has no view in the editor2d canvas".
+
 #### cable_conductor.py
 
 `CableConductor(Wire)` (NEW 2026-11-06, step 8): the schematic view of a cable conductor. A cable is never in the schematic, and neither are its leads (`is_visible2d` false, never added to the canvas): a conductor is ONE ordinary schematic wire from the terminal or splice its start lead ends on to the one its stop lead ends on, with the ordinary single list of 2D waypoints (the row's `pjt_wire_paths` rows, view `2d`), so this is the schematic wire view as it is. Its parent is the conductor's `objects/cable_conductor.py` `ConductorRun`, not a `Wire` facade. Own menu (`ConductorMenu`: Select, Properties): a conductor cannot be split, branched or deleted from the schematic. Interior waypoint handles (`WireLayout`) are made by the router as for any wire; dragging one is untested (a handle finds its wire through `project.get_wire`, which does not know a conductor).
@@ -95,6 +99,8 @@ Wire family; schematic has no waypoints — a wire's end is simply the terminal'
 #### wire_layout.py
 
 Part of the wire family.
+
+**Deleting a cable (2026-11-09):** `_reconnect_wires` refreshes the route registration only if the wire row has a view of this kind (`view is not None`): deleting a cable deletes its conductors' layouts, and a conductor row's object has no such view (it raised `'NoneType' object has no attribute 'refresh_waypoints'`).
 
 #### wire_marker.py
 

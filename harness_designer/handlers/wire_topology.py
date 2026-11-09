@@ -140,6 +140,10 @@ def split_wire_at_point(
     is_visible3d = orig.is_visible3d
     is_visible2d = orig.is_visible2d
 
+    # The lead of a cable's conductor is split too: BOTH halves stay that conductor's wire (its colour, size and resistance come from
+    # the conductor through this id). The lead proper is still the half that ends on the split plane, the conductor's junction.
+    conductor_id = orig.cable_conductor_id
+
     start_id_3d = wire.obj3d.start_position.db_id[:-2]
     stop_id_3d = wire.obj3d.stop_position.db_id[:-2]
     start_id_2d = orig.start_position2d_id
@@ -168,14 +172,14 @@ def split_wire_at_point(
         start_id_3d, coord_id_3d,
         start_id_2d, coord_id_2d_before,
         is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire, cable_conductor_id=conductor_id)
 
     wire2_db = ptables.pjt_wires_table.insert(
         part_id, name, circuit_id,
         coord_id_3d, stop_id_3d,
         coord_id_2d_after, stop_id_2d,
         is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire, cable_conductor_id=conductor_id)
 
     # Both halves keep the temperature the wire worked in.
     operating_temp = orig.operating_temp
@@ -273,12 +277,17 @@ def merge_wires(
     orig_start_sibling = wire_before.start_sibling
     orig_stop_sibling = wire_after.stop_sibling
 
+    # Two halves of a cable conductor's lead (a splice or service loop in it was deleted) are one wire of that conductor again.
+    conductor_id = wire_before.db_obj.cable_conductor_id
+    if conductor_id is None:
+        conductor_id = wire_after.db_obj.cable_conductor_id
+
     merged_db = ptables.pjt_wires_table.insert(
         part_id, name, circuit_id,
         start_id_3d, stop_id_3d,
         start_id_2d, stop_id_2d,
         is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire)
+        layer_view_point_id, layer_id, is_filler_wire, cable_conductor_id=conductor_id)
 
     # The merged wire works in the temperature the first half worked in, or
     # else the second's.

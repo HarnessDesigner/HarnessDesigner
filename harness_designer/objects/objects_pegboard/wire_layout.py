@@ -188,7 +188,11 @@ class WireLayout(_base_pegboard.BasePegboard):
         ptables.pjt_points_pegboard_table[point_id].delete()
 
         if wire_obj is not None:
-            wire_obj.objpegboard.refresh_waypoints()
+            view = wire_obj.objpegboard
+            # a wire row with no view of this kind (the conductor of a cable, a wire whose views are
+            # already gone while a cable is being deleted) has no route registration to refresh
+            if view is not None:
+                view.refresh_waypoints()
 
     @_check_types.do
     def can_drag(self) -> bool:

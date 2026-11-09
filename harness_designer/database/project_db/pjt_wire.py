@@ -220,7 +220,8 @@ class PJTWiresTable(PJTTableBase):
 
     @_check_types.do
     def leads_of(self, conductor_id: bytes) -> list["PJTWire"]:
-        """Every wire that is a lead of the cable conductor *conductor_id* (at most one per split end).
+        """Every wire that is a lead of the cable conductor *conductor_id*, or a piece of one (a lead with a splice or a wire service
+        loop in it is two or more wires): the lead proper of each split end is the one whose stop is the conductor's split point.
 
         :param conductor_id: The ``pjt_cable_conductors`` row.
         :type conductor_id: bytes
@@ -787,7 +788,9 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     @_check_types.do
     def cable_conductor_id(self) -> bytes | None:
         """The ``pjt_cable_conductors`` row this wire is a LEAD of (the piece of a cable's conductor between a terminal or
-        splice and the plane where the conductor leaves the cable's trunk); ``None`` for an ordinary wire.
+        splice and the plane where the conductor leaves the cable's trunk), or a PIECE of one: a splice or a wire service loop
+        in a lead splits it, and every piece keeps this id (the lead proper is the one that ends on the split plane);
+        ``None`` for an ordinary wire.
 
         :rtype: bytes | None
         """

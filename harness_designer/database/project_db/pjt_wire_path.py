@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
+from collections.abc import Callable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
@@ -10,6 +11,19 @@ from ...crash_dump import capturable, dump_property
 
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
+
+
+# Called as ``listener(table, wire_id, view)`` after the STORED route of a wire (or cable) was changed through the table (a point added or
+# removed, the whole route replaced, the rows deleted). The rope-pull handler listens: a drag keeps an in-memory copy of the board route
+# (its overlay), and a route that something else edited under it (a terminal attached, a waypoint added) must not be written back over
+# the edit when the drag releases. ``view`` is ``'3d'``, ``'pegboard'``, ``'2d'``, or ``None`` when every view changed.
+_route_listeners: list[Callable] = []
+
+
+def add_route_listener(listener: Callable) -> None:
+    """Register *listener* to be called after a stored route changed (see ``_route_listeners``). Registering the same one twice is a no-op."""
+    if listener not in _route_listeners:
+        _route_listeners.append(listener)
 
 
 # Which point column holds a route row's point, per view.
@@ -198,9 +212,18 @@ class PJTWirePathsTable(PJTTableBase):
         points = {'3d': None, 'pegboard': None, '2d': None}
         points[view] = point_id
 
-        return self.insert(
+        row = self.insert(
             wire_id, index, points['3d'], points['pegboard'], points['2d'],
             bundle_id, concentric_id, transition_id, transition_branch_id)
+
+        self._route_changed(wire_id, view)
+        return row
+
+    @_check_types.do
+    def _route_changed(self, wire_id: bytes, view: str | None) -> None:
+        """Tell the route listeners that *wire_id*'s stored route changed in *view* (``None``: in every view)."""
+        for listener in list(_route_listeners):
+            listener(self, wire_id, view)
 
     @_check_types.do
     def append(
@@ -241,6 +264,7 @@ class PJTWirePathsTable(PJTTableBase):
             pairs.append((i - 1, route[i][0]))
 
         self._renumber(pairs)
+        self._route_changed(wire_id, view)
 
     @_check_types.do
     def set_route(self, wire_id: bytes, view: str, point_ids: list[bytes]) -> None:
@@ -253,6 +277,8 @@ class PJTWirePathsTable(PJTTableBase):
 
         for index, point_id in enumerate(point_ids):
             self.add(wire_id, view, index, point_id)
+
+        self._route_changed(wire_id, view)
 
     @_check_types.do
     def for_point(self, view: str, point_id: bytes) -> list["PJTWirePath"]:
@@ -385,6 +411,8 @@ class PJTWirePathsTable(PJTTableBase):
         rows = self.select('id', wire_id=wire_id)
         for row in rows:
             self[row[0]].delete()
+
+        self._route_changed(wire_id, None)
 
 
 @capturable()

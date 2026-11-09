@@ -17,6 +17,8 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import project as _project
+    from ..database.global_db import wire as _wire
+    from ..database.project_db import pjt_cable as _pjt_cable
     from ..database.project_db import pjt_wire as _pjt_wire
 
 
@@ -63,6 +65,28 @@ class WireCutRow:
 
 
 @dataclass
+class CableCutRow:
+    """One row of the cable cut-sheet view (view 4), one per placed cable.
+
+    A cable is bought and cut as one piece: its trunk, plus the stretch at each split end that the jacket is stripped off
+    (the conductors of a split end continue as leads, so they are part of the same piece, not stock of their own).
+    """
+    manufacturer: str
+    part_number: str
+    description: str
+    awg: int
+    mm2: float
+    num_conductors: int
+    shielded: bool
+    trunk_length_mm: float
+    start_split_mm: float
+    stop_split_mm: float
+    exact_length_mm: float
+    length_with_excess_mm: float
+    icon: _image.Image
+
+
+@dataclass
 class BundleCutRow:
     """One row of the bundle cut-sheet view (view 4), one per bundle instance."""
     manufacturer: str
@@ -96,14 +120,28 @@ def format_length(length_mm: float) -> str:
 
 
 @_check_types.do
-def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> _image.Image:
+def cable_cut_length_mm(db_cable: "_pjt_cable.PJTCable") -> float:
+    """The length of cable that has to be cut for *db_cable*: its trunk (``length_mm``, which stops at the split plane of
+    a split end) plus the distance each split end was moved in (``start_split_mm`` / ``stop_split_mm``, the stretch whose
+    jacket is stripped so the conductors can lead off).
+
+    :param db_cable: The placed cable.
+    :type db_cable: :class:`~harness_designer.database.project_db.pjt_cable.PJTCable`
+    :returns: The length in millimetres.
+    :rtype: float
+    """
+    return db_cable.length_mm + db_cable.start_split_mm + db_cable.stop_split_mm
+
+
+@_check_types.do
+def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire | _wire.Wire") -> _image.Image:
     """Return a 100x25 picture of *pjt_wire*'s catalog wire (single wire,
     twisted pair / triple, cable or coax, see
     ``images.build_wire``),
     falling back to ``images.no_image`` for a wire that cannot be drawn or
     when resolution fails.
 
-    :param pjt_wire: The wire instance to render a swatch for.
+    :param pjt_wire: The wire instance to render a swatch for, or a catalog wire (a placed cable is drawn from its part).
     :type pjt_wire: :class:`~harness_designer.database.project_db.pjt_wire.PJTWire`
     :returns: A 100x25 :class:`~harness_designer.image.Image`.
     :rtype: :class:`~harness_designer.image.Image`
@@ -127,9 +165,10 @@ def build_flat_list(
     """Aggregate every distinct catalog part used anywhere in *project*
     into one row per part number.
 
-    Wire and bundle rows show a summed length (in mm, with their
-    respective excess percentage applied) instead of an instance count --
-    every other part type is a plain count. ``project.housings``,
+    Wire, cable and bundle rows show a summed length (in mm, with their
+    respective excess percentage applied; a cable takes the wire's) instead of an instance count --
+    every other part type is a plain count. A lead of a split cable's conductor is not a wire to buy (it is the
+    cable's own conductor, already in the cable's length), so it is left out. ``project.housings``,
     ``.terminals``, etc. are already flat, all-instance lists (loaded
     straight from their full project-db table), so housing-seated and
     loose/unattached instances of the same part type are both counted
@@ -163,6 +202,9 @@ def build_flat_list(
             entry[2] += 1
 
     for wire in project.wires:
+        if wire.db_obj.is_cable_lead:
+            continue
+
         part = wire.db_obj.part
         if part is None:
             continue
@@ -170,6 +212,15 @@ def build_flat_list(
         entry = lengths.setdefault(
             part.part_number, [part.manufacturer.name, part.description, 0.0])
         entry[2] += wire.db_obj.length_mm
+
+    for cable in project.cables:
+        part = cable.db_obj.part
+        if part is None:
+            continue
+
+        entry = lengths.setdefault(
+            part.part_number, [part.manufacturer.name, part.description, 0.0])
+        entry[2] += cable_cut_length_mm(cable.db_obj)
 
     wire_part_numbers = set(lengths.keys())
 
@@ -302,13 +353,18 @@ def build_wire_cut_sheet(
     :type project: :class:`~harness_designer.objects.project.Project`
     :param wire_excess_pct: Fabrication excess percentage applied to each length.
     :type wire_excess_pct: float
-    :returns: One :class:`WireCutRow` per wire instance.
+    :returns: One :class:`WireCutRow` per wire instance (not the leads of a split cable's conductors).
     :rtype: list[WireCutRow]
     """
     rows = []
 
     for wire in project.wires:
         db_wire = wire.db_obj
+
+        # a lead is the end of a cable's conductor: it is cut with the cable (see build_cable_cut_sheet)
+        if db_wire.is_cable_lead:
+            continue
+
         part = db_wire.part
         if part is None:
             continue
@@ -325,6 +381,46 @@ def build_wire_cut_sheet(
             exact_length_mm=exact,
             length_with_excess_mm=exact * (1.0 + wire_excess_pct / 100.0),
             icon=resolve_wire_icon(db_wire)))
+
+    return rows
+
+
+@_check_types.do
+def build_cable_cut_sheet(
+        project: "_project.Project", wire_excess_pct: float) -> list[CableCutRow]:
+    """Build one row per placed cable in *project*: the length of cable to cut (:func:`cable_cut_length_mm`) with the
+    fabrication excess applied, and how it divides into the trunk and the two split ends.
+
+    :param project: The project to walk.
+    :type project: :class:`~harness_designer.objects.project.Project`
+    :param wire_excess_pct: Fabrication excess percentage applied to each length (a cable is wire stock).
+    :type wire_excess_pct: float
+    :returns: One :class:`CableCutRow` per cable.
+    :rtype: list[CableCutRow]
+    """
+    rows = []
+
+    for cable in project.cables:
+        db_cable = cable.db_obj
+        part = db_cable.part
+        if part is None:
+            continue
+
+        exact = cable_cut_length_mm(db_cable)
+        rows.append(CableCutRow(
+            manufacturer=part.manufacturer.name,
+            part_number=part.part_number,
+            description=part.description,
+            awg=part.size_awg,
+            mm2=part.size_mm2,
+            num_conductors=part.num_conductors,
+            shielded=part.shielded,
+            trunk_length_mm=db_cable.length_mm,
+            start_split_mm=db_cable.start_split_mm,
+            stop_split_mm=db_cable.stop_split_mm,
+            exact_length_mm=exact,
+            length_with_excess_mm=exact * (1.0 + wire_excess_pct / 100.0),
+            icon=resolve_wire_icon(part)))
 
     return rows
 

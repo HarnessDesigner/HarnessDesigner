@@ -1158,17 +1158,20 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin, _tube.TubeMixin, _handles.Way
 
                     return True
 
-                if handler.snap_point is not None and handler.snapped_kind is not None:
-                    from ...handlers import wire_snap as _wire_snap  # NOQA -- avoid a cycle at import time
-                    # commit_snap's own `end` parameter stays a string --
-                    # reconstruct it here, once, right at this boundary.
-                    end = 'start' if handler.snap_point is self.start_position else 'stop'
-                    _wire_snap.commit_snap(
-                        self.mainframe, self.parent, end,
-                        handler.snapped_kind, handler.snapped_target)
+                try:
+                    if handler.snap_point is not None and handler.snapped_kind is not None:
+                        from ...handlers import wire_snap as _wire_snap  # NOQA -- avoid a cycle at import time
+                        # commit_snap's own `end` parameter stays a string --
+                        # reconstruct it here, once, right at this boundary.
+                        end = 'start' if handler.snap_point is self.start_position else 'stop'
+                        _wire_snap.commit_snap(
+                            self.mainframe, self.parent, end,
+                            handler.snapped_kind, handler.snapped_target)
+                finally:
+                    # a commit that raises must not leave the drag armed (its gesture open, and the next release committing again)
+                    handler.delete()
+                    self._active_handler = None
 
-                handler.delete()
-                self._active_handler = None
                 # No real drag happened -- let a plain click-release fall
                 # through to the default select/deselect toggle instead of
                 # being eaten here (see objects_3d.base_3d.handle_interaction).
@@ -1283,16 +1286,17 @@ class WireMenu(QtWidgets.QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
-        # A lead of a cable's conductor is a wire with its own route (Add Layout, Extend Wire, Add Terminal work as on any wire),
-        # but nothing may branch off it or split it: a splice, a service loop or another wire would make a second wire row, which
-        # is not the conductor's lead (it has no conductor, and so none of the conductor's colour, size or resistance).
+        # A lead of a cable's conductor is a wire with its own route: Add Layout, Extend Wire, Add Terminal, Add to Wire, Add Splice and
+        # Add Wire Service Loop work as on any wire (a splice or a loop splits it in two, and both halves stay that conductor's wire,
+        # see handlers.wire_topology.split_wire_at_point). Only 'Add Wire' makes no sense: it would place a new, free wire of the
+        # CABLE's part, which is not a conductor.
         if wire.db_obj.is_cable_lead:
             for action in self.actions():
                 if action.text() in self._NOT_ON_A_LEAD:
                     action.setEnabled(False)
                     action.setToolTip('Not available on the lead of a cable conductor')
 
-    _NOT_ON_A_LEAD = ('Add Splice', 'Add Wire', 'Add Wire Service Loop', 'Add to Wire')
+    _NOT_ON_A_LEAD = ('Add Wire',)
 
     @_check_types.do
     def _midpoint(self) -> _point.Point:

@@ -1,29 +1,169 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from collections.abc import Callable
+from typing import Union as _Union
 
 import types
 import threading
+import weakref
+import shiboken6
 from PySide6 import QtGui, QtOpenGLWidgets
 
 from .. import check_types as _check_types
+from .. import logger as _logger
+
+
+class _ThreadStack(threading.local):
+    """Each thread gets its own empty stack (``__init__`` runs once per thread)."""
+
+    def __init__(self):
+        super().__init__()
+        self.frames: list = []
+
+
+class _Frame:
+    """One ``with canvas.context:`` as the manager saw it on entry: whether it had to switch the thread's current GL context and,
+    if it did, which context was current before (to be made current again on exit)."""
+
+    def __init__(self, context: "GLContext", switched: bool, previous_qt: QtGui.QOpenGLContext | None,
+                 previous: _Union["GLContext", None]):
+        self.context = context
+        self.switched = switched
+        self.previous_qt = previous_qt
+        self.previous = previous
+
+
+class ContextManager:
+    """
+    The one place that knows which GL context is current on a thread, and puts the previous one back.
+
+    OpenGL has one current context per thread, and ``makeCurrent()`` / ``doneCurrent()`` just replace it. A ``with
+    canvas.context:`` that is entered while another context is current (the arena maintenance pass runs under the 3D
+    editor's context, and can be entered from inside the peg board's ``paintGL``) used to end with ``doneCurrent()``, leaving
+    NO context current for the rest of the caller, so every later GL call failed with ``GL_INVALID_OPERATION`` and Qt finished
+    the paint without a context (access violation).
+
+    Every ``GLContext`` enter and exit goes through here. An enter that has to switch contexts remembers the one that was
+    current (a ``GLContext`` of a canvas, found through ``QOpenGLContext``, or any other context, such as an offscreen one); the
+    matching exit makes it current again. If nothing was current before, the exit is a plain ``doneCurrent()``. An enter that
+    finds its own context already current (inside that canvas's ``paintGL``) changes nothing and restores nothing.
+
+    The stack is per thread, as the current context is.
+    """
+
+    def __init__(self):
+        self._local = _ThreadStack()
+        self._contexts: weakref.WeakSet = weakref.WeakSet()
+
+    @_check_types.do
+    def register(self, context: "GLContext") -> None:
+        """Make a canvas's ``GLContext`` known, so a context that is current can be traced back to its canvas."""
+        self._contexts.add(context)
+
+    @property
+    def _stack(self) -> list[_Frame]:
+        return self._local.frames
+
+    @property
+    @_check_types.do
+    def active(self) -> _Union["GLContext", None]:
+        """The ``GLContext`` entered most recently on this thread and not yet exited (what the code running now asked for), or
+        ``None``. It is what was asked for, not a promise that Qt has not made another context current since."""
+        stack = self._stack
+
+        if stack:
+            return stack[-1].context
+
+        return None
+
+    @_check_types.do
+    def _owner_of(self, qt_context: QtGui.QOpenGLContext) -> _Union["GLContext", None]:
+        for context in list(self._contexts):
+            if not shiboken6.isValid(context.canvas):
+                continue
+
+            if QtOpenGLWidgets.QOpenGLWidget.context(context.canvas) == qt_context:
+                return context
+
+        return None
+
+    @_check_types.do
+    def enter(self, context: "GLContext") -> None:
+        """Make the canvas's context current if it is not, remembering what was current."""
+        current = QtGui.QOpenGLContext.currentContext()
+        widget_context = QtOpenGLWidgets.QOpenGLWidget.context(context.canvas)
+
+        # current is None whenever nothing is current on this thread yet (e.g. a DB-callback cascade running before this canvas
+        # has ever been shown/painted, so widget_context is also still None); None == None would read as "already current" and
+        # skip makeCurrent() entirely. Only a real current context that is this widget's own counts as already current.
+        # Checked on EVERY enter, not just the outermost: another GL widget's Qt-triggered repaint can make its own context
+        # current while this one is held.
+        if current is not None and current == widget_context:
+            self._stack.append(_Frame(context, False, None, None))
+            return
+
+        previous = None
+        if current is not None:
+            previous = self._owner_of(current)
+
+        context.canvas.makeCurrent()
+        self._stack.append(_Frame(context, True, current, previous))
+
+    @_check_types.do
+    def exit(self, context: "GLContext") -> None:
+        """End the matching ``enter``: put back the context that was current before it, or none if there was none."""
+        stack = self._stack
+
+        if not stack:
+            _logger.error('GLContext exit with no matching enter')
+            return
+
+        frame = stack.pop()
+
+        if frame.context is not context:
+            _logger.error('GLContext exit does not match the enter on top of the stack')
+
+        if not frame.switched:
+            return
+
+        self._restore(frame)
+
+    @_check_types.do
+    def _restore(self, frame: _Frame) -> None:
+        previous_qt = frame.previous_qt
+
+        if previous_qt is not None and shiboken6.isValid(previous_qt):
+            previous = frame.previous
+
+            if previous is not None and shiboken6.isValid(previous.canvas):
+                # a canvas's own makeCurrent() also binds the widget's framebuffer, which a bare context switch would not
+                previous.canvas.makeCurrent()
+                return
+
+            if previous is None:
+                # a context that is not a canvas's (an offscreen one): back to it on its own surface
+                previous_qt.makeCurrent(previous_qt.surface())
+                return
+
+        frame.context.canvas.doneCurrent()
+
+
+CONTEXTS = ContextManager()
 
 
 class GLContext:
     """
-    Thread-safe OpenGL context manager.
+    Thread-safe OpenGL context manager for one canvas.
 
     wx: wrapped glcanvas.GLContext + canvas.SetCurrent(context).
     Qt:  QOpenGLWidget manages its own context internally; we call
-         widget.makeCurrent() / doneCurrent() at acquire/release time.
+         widget.makeCurrent() at enter time and, at exit, hand the thread back
+         to whatever context was current before (``CONTEXTS``, the
+         ``ContextManager`` above), or ``doneCurrent()`` if there was none.
 
-    Re-entrant: the same thread may acquire multiple times (e.g. a helper
-    called from inside paintGL) without deadlocking.  The context is only
-    released — and doneCurrent() only called — when the outermost caller
-    exits.
-
-    Now safe to use inside initializeGL/resizeGL/paintGL - will detect
-    if context is already current and avoid redundant makeCurrent() calls.
+    Re-entrant: the same thread may enter multiple times (e.g. a helper
+    called from inside paintGL) without deadlocking.  Entering while this
+    canvas's own context is already current (inside initializeGL/paintGL)
+    switches nothing, so nothing is released or restored on exit.
 
     ``with ctx:`` ONLY -- there is no public acquire()/release(). An
     unhandled exception between a manual acquire() and its release() call
@@ -42,26 +182,19 @@ class GLContext:
     def __init__(self, canvas: "QtOpenGLWidgets.QOpenGLWidget"):
         """Initialise the :class:`GLContext` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param canvas: Canvas instance.
         :type canvas: :class:`QOpenGLWidget`
         """
         self.canvas = canvas
         self._lock = threading.RLock()
         self.ref = 0
-        self._made_current = False  # Track if WE made the context current
+
+        CONTEXTS.register(self)
 
     @property
     @_check_types.do
     def is_locked(self) -> bool:
-        """Return the is locked.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: bool
-        """
+        """True while this context is entered (``with``) on any thread."""
         return self.ref != 0
 
     @_check_types.do
@@ -69,40 +202,7 @@ class GLContext:
         """Internal: called only by __enter__. Not public -- see the
         class docstring for why acquire()/release() were removed."""
         self._lock.acquire()
-
-        # Checked on EVERY acquire, not just the ref==0 -> 1 transition:
-        # another GL widget's own Qt-triggered repaint can call
-        # makeCurrent() on ITS context at any point while this one is
-        # nested-held (ref > 0), silently stealing thread-current-ness out
-        # from under us without touching our own refcount. Trusting a
-        # stale "we're ref>0 so we must still be current" assumption here
-        # is exactly what produced a real "context has not been acquired"
-        # crash despite the caller already being inside a matching
-        # acquire()/release() pair. Re-verifying and re-establishing
-        # current-ness on every call closes that hole; only the ref==0
-        # transition's own _made_current bookkeeping changes, so a nested
-        # acquire re-establishing current-ness here never takes over
-        # responsibility for the eventual doneCurrent() from whichever
-        # call actually owns it.
-        current_ctx = QtGui.QOpenGLContext.currentContext()
-        widget_ctx = QtOpenGLWidgets.QOpenGLWidget.context(self.canvas)
-
-        # current_ctx is None whenever nothing is current on this thread
-        # yet (e.g. a DB-callback cascade running before this canvas has
-        # ever been shown/painted, so widget_ctx is also still None) --
-        # None == None would otherwise read as "already current" and skip
-        # makeCurrent() entirely, leaving nothing current and every GL
-        # call after this made downstream raising "context has not been
-        # acquired". Only treat it as already-current when there IS a
-        # real current context that matches this widget's own.
-        if current_ctx is None or current_ctx != widget_ctx:
-            self.canvas.makeCurrent()
-            if self.ref == 0:
-                self._made_current = True
-        elif self.ref == 0:
-            # Context already current (e.g., inside initializeGL/paintGL)
-            self._made_current = False
-
+        CONTEXTS.enter(self)
         self.ref += 1
 
     @_check_types.do
@@ -110,12 +210,7 @@ class GLContext:
         """Internal: called only by __exit__. Not public -- see the
         class docstring for why acquire()/release() were removed."""
         self.ref -= 1
-        if self.ref == 0:
-            # Only call doneCurrent if WE made it current
-            if self._made_current:
-                self.canvas.doneCurrent()
-                self._made_current = False
-
+        CONTEXTS.exit(self)
         self._lock.release()
 
     @_check_types.do
@@ -132,4 +227,3 @@ class GLContext:
         see the class docstring.
         """
         self._release()
-

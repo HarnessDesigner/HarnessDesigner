@@ -14,6 +14,8 @@
 
 `Cable(Wire)` (NEW 2026-11-07) - the peg-board drag of a placed cable; same as `editor_3d/cable.py` (no snap, no route locks, the conductors follow through `Cable.follow_drag('pegboard', ...)`), Y held at 0 as for a wire. Dragging changes the board's length of the cable, not its 3D length (no length budget is enforced on the board yet, as for wires). Not run in the app.
 
+**Length (2026-11-09):** a drag moves one point at a time and the cable's slack handler re-fits the route after each (`handlers/rope_pull_handler.py`, "Cables are chains"): the far end is pulled when the dragged end goes past the cable's length, bends are taken up or given back as the ends move; the frames run in the drag's gesture (an overlay, no rows) and `finalize_drag` writes the route on release. The conductors still follow through `Cable.follow_drag`.
+
 #### generic.py
 
 `Generic(DragHandlerPegboard)` — locked-X/Z drag for transitions, housings, wire layouts, bundle layouts, and free terminals. Movement is gated by `handlers.rope_pull_handler.resolve_rigid_move` (the rope-pull cascade solver), NOT the older per-edge clamp — this handler bypasses `DragHandlerPegboard`'s own clamp entirely. Caches every real peg-board point this drag could ever move at its position when the drag BEGAN (re-deriving "current" position every frame was exactly what caused a dragged object to get stuck — a confirmed fix for a live "stuck transition" bug report, 2026-10-01: re-deriving a candidate fraction from a previous frame's possibly-clamped result is what caused the stuck state; always measure from the drag's own fixed start). For a Transition, every branch's own point is cached and moved by the exact same rigid delta the center does.

@@ -18,7 +18,7 @@ No imports found -- a plain empty package marker, no re-exports.
 
 #### bom_dialog.py
 
-`BomDialog` -- the BOM Builder: parts list, housing tree (`_HousingTree`), wire cut sheet (`_WireCutSheetTree`), bundle cut sheet (`_BundleCutSheetTree`), with live wire/bundle fabrication-excess controls (`_BomToolbarRow`).
+`BomDialog` -- the BOM Builder: parts list, housing tree (`_HousingTree`), wire cut sheet (`_WireCutSheetTree`), cable cut sheet (`_CableCutSheetTree`: trunk, the two split ends, cut length with excess; the stack order is the view choice order, so a view goes in both places), bundle cut sheet (`_BundleCutSheetTree`), with live wire (and cable) / bundle fabrication-excess controls (`_BomToolbarRow`; the one `Wire/Cable Excess %` control drives both).
 
 #### bundle_wires_dialog.py
 

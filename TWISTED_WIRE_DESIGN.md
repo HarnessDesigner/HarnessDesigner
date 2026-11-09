@@ -686,9 +686,10 @@ shield as a return path, and `Wire.is_connected` / the schematic look of a split
 BUILT 2026-11-06, lead routing (NOT run in the app): a lead's waypoints already work through the ordinary wire code (right-click Add Layout ->
 `WireLayout`, 3D route only); what needed doing was keeping the lead a lead. The conductor's split point is a drag anchor
 (`WireDragMixin.is_anchor_point`, so it cannot be dragged off the split plane and is not offered by `pick_free_end`); a lead is neither a wire-end snap
-target nor snaps to one (`SnapProbeSet`: wires that meet are merged into one row, which would lose the conductor); the lead's menu disables Add Splice /
-Add Wire / Add Wire Service Loop / Add to Wire (they split or branch the row into a wire without `cable_conductor_id`). Still open: a splice or
-service loop IN a lead (would need `cable_conductor_id` carried through `wire_topology` and `can_join` / `join_end` to follow the whole lead chain),
+target nor snaps to one (`SnapProbeSet`: wires that meet are merged into one row, which would lose the conductor); the lead's menu disables only Add Wire. A splice or service loop IN a lead (2026-11-09) splits it into two wires that BOTH keep `cable_conductor_id`
+(`wire_topology`), and the loop row has its own `cable_conductor_id` column, so the part, colour, size and resistance stay the conductor's; the lead proper is
+the piece that ends on the split point, `Cable.conductor_wires()` is every piece. Unsplitting a cable end or deleting the cable removes the pieces, the loops in them and the splices with no other wire on them. Not done: the schematic draws a conductor only between a terminal or splice on
+each lead's free end, so with a loop in a lead it is not drawn, and the pieces beyond a splice or loop are hidden there. Still open:
 a lead in the pegboard / schematic, and the first stretch of a lead leaving the plane along the trunk (a lead is straight until the user adds handles).
 BUILT 2026-11-06, fan-out order (NOT run in the app): `start_order` / `stop_order` (per conductor, per end; default `idx`) now decide which fan place a
 conductor's end lands in. The places are fixed per cable (one per conductor row: where that row sits in the cable's end cross-section at the split plane, projected from a light behind it onto the copied end, `fan_scale`), so
@@ -735,8 +736,7 @@ BUILT 2026-11-06, step 8 (NOT run in the app; checked on stand-ins and a scratch
 USER DECISIONS (2026-11-06): schematic = CONDUCTORS ONLY (no cable, no leads; each conductor one terminal-to-terminal wire with one ordinary waypoint list);
 peg board = THE CABLE STRIP PLUS THE LEADS (the cable at its real width with its own board waypoints, the leads ordinary wires on their own board points).
 PEG BOARD: `objects_pegboard/cable.py` (a subclass of the peg-board wire view). A cable is placed in 3D and SEEDED onto the board, as a bundle is: the 3D route
-is unfolded into the board plane with every segment keeping its real length (`seed_from_3d`), so the cable is exactly as long on the board and the rope pull
-and slack do not apply to the trunk (and there is nothing to attach to it). Splitting an end lays the conductors out FLAT: side by side across the trunk at
+is unfolded into the board plane with every segment keeping its real length (`seed_from_3d`), so the cable is exactly as long on the board; since 2026-11-09 the rope pull and slack DO apply to the trunk (it is a chain of the solver, see handlers/MAP.md, "Cables are chains"): the far end is pulled when the near one is dragged too far, slack is bowed in when the ends are closer. Splitting an end lays the conductors out FLAT: side by side across the trunk at
 the split plane, their ends across the cable's true end (the same order as 3D; side by side for a ribbon). Each conductor gets a board split point and a
 board end point and its lead's board ends are those; join deletes the split points; the distance and the fan order move them. The lead's length on the board is
 the straight line (a little different from 3D: `wire_slack` bows the shorter view once a terminal is attached, as for any wire). Not built: dragging a placed

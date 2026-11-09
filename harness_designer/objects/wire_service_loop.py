@@ -62,6 +62,45 @@ class WireServiceLoop(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+        # The drawn-only markers where the loop meets the wire it is in, when that wire is a cable conductor's lead (see
+        # :meth:`_make_conductor_markers`).
+        self._conductor_markers: list = []
+
+        if db_obj.cable_conductor_id is not None:
+            self._make_conductor_markers()
+
+    @_check_types.do
+    def _make_conductor_markers(self) -> None:
+        """Draw a marker at each of the two points a loop in a cable conductor's lead is attached at (its start and stop point),
+        sized and coloured as the conductor, so the wire and the loop meet without a gap.
+
+        They are pseudo layouts (:class:`~harness_designer.database.project_db.pseudo_wire_layout.PseudoCableSplitLayout`, the kind
+        that marks where a conductor's lead meets the cable's trunk), not rows, not picked, and follow the loop's own live points.
+        Dropped when the loop is deleted.
+        """
+        import uuid  # NOQA
+
+        from . import wire_layout as _wire_layout_facade  # NOQA -- avoid a cycle at import time
+        from ..database.project_db import pseudo_wire_layout as _pseudo  # NOQA -- avoid a cycle at import time
+
+        self._drop_conductor_markers()
+
+        db_obj = self.db_obj
+        part = db_obj.part
+
+        for position in (db_obj.start_position3d, db_obj.stop_position3d):
+            pseudo = _pseudo.PseudoCableSplitLayout(None, uuid.uuid4().bytes)
+            pseudo.configure_split(part, position3d=position)
+            self._conductor_markers.append(_wire_layout_facade.WireLayout(self.mainframe, pseudo))
+
+    @_check_types.do
+    def _drop_conductor_markers(self) -> None:
+        """Take the drawn markers out of the views (they have no row to delete)."""
+        for marker in self._conductor_markers:
+            self.mainframe.remove_object(marker)
+
+        self._conductor_markers = []
+
     @property
     @dump_property(severity=2)
     @_check_types.do
@@ -150,6 +189,8 @@ class WireServiceLoop(_ObjectBase):
         """
         from ..handlers import wire_topology as _wire_topology
         from ..database.project_db import pjt_wire as _pjt_wire
+
+        self._drop_conductor_markers()
 
         project = self.mainframe.project
         start_id = self.db_obj.start_position3d_id

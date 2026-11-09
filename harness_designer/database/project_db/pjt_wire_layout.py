@@ -477,7 +477,19 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
 
         wire_ids = self._table.db.pjt_wire_paths_table.wire_ids_for_point(view, point_id)
 
-        return [self._table.db.pjt_wires_table[wire_id] for wire_id in wire_ids]
+        # A route can belong to a cable's conductor (``pjt_cable_conductors``, which is not a ``pjt_wires`` row): the schematic
+        # draws a conductor whose two leads both end on a terminal or splice as one run along a route of its own.
+        wires = self._table.db.pjt_wires_table
+        conductors = self._table.db.pjt_cable_conductors_table
+        found = []
+
+        for wire_id in wire_ids:
+            try:
+                found.append(wires[wire_id])
+            except IndexError:
+                found.append(conductors[wire_id])
+
+        return found
 
     @property
     @dump_property(severity=1)

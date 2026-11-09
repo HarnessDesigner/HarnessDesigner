@@ -9,8 +9,9 @@ through the cable's own peg-board waypoints, the mitred bends, the picking. What
   (for a twisted or ribbon cable, which has none, the colour of its first conductor), with no stripe;
 * its ends are always free (the facade has no sibling), so a wire's crimp-end look never shows;
 * a split end of the cable lies at the split plane, the conductors leaving it as the cable's leads (ordinary wires);
-* it is not tied to the slack handler: nothing is attached to a cable, so there is nothing to pull or bow, and its length is the
-  3D length by construction (:meth:`Cable.seed_from_3d`);
+* its length is the 3D length: it starts that way (:meth:`Cable.seed_from_3d`) and the cable's slack handler keeps it so (the rope-pull
+  solver treats the cable as a chain: the far end is pulled when the near one is dragged too far, slack is bowed in when the ends are
+  closer);
 * a click on it only selects it: dragging a placed cable is not built (in 3D either).
 
 A cable is placed in the 3D editor, as a bundle is, and seeded into the board afterwards: the 3D route is unfolded into the board
@@ -284,6 +285,12 @@ class Cable(_wire_pegboard.Wire):
         keeps the previous direction, +X for the first), one board waypoint per interior 3D waypoint. The board stop is where
         the walk ends, so the cable's length on the board is exactly its length in 3D.
         """
+        with self.parent._slack_handler.suspended():  # NOQA -- the route is right as a whole, not step by step
+            self._seed_from_3d()
+
+    @_check_types.do
+    def _seed_from_3d(self) -> None:
+        """The walk of :meth:`seed_from_3d`."""
         ptables = self.parent.mainframe.project.ptables
         db_obj = self.db_obj
 
@@ -339,10 +346,15 @@ class Cable(_wire_pegboard.Wire):
     @_check_types.do
     def refresh_waypoints(self) -> None:
         """Call after the cable's own waypoint rows change so the live callbacks, the cached length and the geometry catch
-        up. As the wire's, without the slack handler (which a cable does not have)."""
+        up. As the wire's: the slack handler is told which points to watch now."""
         self._bind_waypoints()
         self._recalculate_geometry()
         self.pegboard.Refresh()
+
+        handler = getattr(self.parent, '_slack_handler', None)  # not there yet while the facade is still being built
+
+        if handler is not None:
+            handler.register_pegboard()
 
     @_check_types.do
     def get_context_menu(self) -> "CableMenu":
@@ -409,14 +421,3 @@ class CableMenu(_cable_3d.CableMenu):
 
     _has_roll = False
     _has_add_layout = False
-
-    @_check_types.do
-    def _click_world(self) -> _Union[np.ndarray, None]:
-        """Where the right click was, on the board (``None`` when the menu was opened some other way). The click is kept as
-        a screen position."""
-        click_pos = self.selected._context_menu_click_pos  # NOQA
-
-        if click_pos is None:
-            return None
-
-        return self.selected.pegboard.editor.camera.screen_to_world(click_pos).as_numpy

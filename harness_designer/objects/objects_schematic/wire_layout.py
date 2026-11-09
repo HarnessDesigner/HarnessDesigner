@@ -165,7 +165,11 @@ class WireLayout(_base_schematic.BaseSchematic):
         # objects_schematic/wire.py's Wire._register_segments) still lists
         # the deleted point until told the path changed.
         if wire_obj is not None:
-            wire_obj.objschematic.refresh_waypoints()
+            view = wire_obj.objschematic
+            # a wire row with no view of this kind (the conductor of a cable, a wire whose views are
+            # already gone while a cable is being deleted) has no route registration to refresh
+            if view is not None:
+                view.refresh_waypoints()
 
     @property
     @_check_types.do

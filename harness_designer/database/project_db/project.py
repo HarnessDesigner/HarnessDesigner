@@ -317,27 +317,6 @@ class Project(PJTEntryBase, ColorMixin):
         self._stored_creator = value
         self._table.update(self._db_id, creator=value)
 
-    _stored_wire_stripe_max_length: float | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @dump_property(severity=1)
-    @_check_types.do
-    def wire_stripe_max_length(self) -> float:
-        """Length (mm) the shared wire-stripe helix VBO is currently built
-        at. Grows (never shrinks) to the longest wire segment ever created
-        in this project -- see handlers.wire_handler / objects_3d.wire.
-        """
-        if self._stored_wire_stripe_max_length is DefaultStoredValue:
-            self._stored_wire_stripe_max_length = self._read_column('wire_stripe_max_length')
-
-        return self._stored_wire_stripe_max_length
-
-    @wire_stripe_max_length.setter
-    @_check_types.do
-    def wire_stripe_max_length(self, value: float) -> None:
-        self._stored_wire_stripe_max_length = value
-        self._table.update(self._db_id, wire_stripe_max_length=value)
-
     _stored_model_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property

@@ -6,7 +6,7 @@ Package init for the object property editor dock; no content beyond the standard
 
 #### editorobj.py
 
-Defines `EditorObj(DockBase)` — the dock wrapper, and `EditorObjPanel(QtWidgets.QWidget)` — the panel. Shows/edits the properties of whatever object is currently selected in any of the 3D/schematic/peg-board views, via a generic property grid. `EditorObj.set_selected(obj)` forwards to the panel, which swaps in the property controls for the newly selected object (or clears them for `None`); `_on_visibility_changed` reacts to the dock being shown/hidden.
+Defines `EditorObj(DockBase)` — the dock wrapper, and `EditorObjPanel(QtWidgets.QWidget)` — the panel. Shows/edits the properties of whatever object is currently selected in any of the 3D/schematic/peg-board views, via a generic property grid. `EditorObj.set_selected(obj)` forwards to the panel, which swaps in the property controls for the newly selected object (or clears them for `None`); `_on_visibility_changed` reacts to the dock being shown/hidden. **2026-11-08:** `set_selected` treats an object whose row has no table (a pseudo row, e.g. a cable's split marker) as one with no editor, instead of failing on `table.control`.
 
 #### prop_grid.py
 

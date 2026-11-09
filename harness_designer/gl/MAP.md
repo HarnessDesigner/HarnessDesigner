@@ -49,6 +49,21 @@ context. Never add a new `.acquire()`/`.release()` pair for a `GLContext` — al
 unrelated to `PooledVBOHandler`/`NonPooledVBOHandler`'s own, separate `.acquire()`/`.release()` in
 `vbo.py`, which were deliberately left alone by that fix.
 
+`ContextManager` / `CONTEXTS` (the module singleton) is the one place that tracks which GL context is
+current on a thread. `GLContext._acquire`/`_release` just call `CONTEXTS.enter(self)`/`.exit(self)`. An
+enter that has to switch contexts pushes a frame holding the context that was current (a canvas's
+`GLContext`, found through the `QOpenGLContext` -> canvas registry, or any other context such as an
+offscreen one); the matching exit makes THAT context current again (a canvas's own `makeCurrent()`, so
+its framebuffer is bound too), and calls `doneCurrent()` only when nothing was current before. An enter
+that finds its own context already current (inside that canvas's `paintGL`) switches and restores
+nothing. The stack is per thread. RULE: nothing may call `makeCurrent()`/`doneCurrent()` on a canvas
+directly to work in another canvas's context while a paint may be running -- go through
+`with canvas.context:`. The rule exists because the arena maintenance pass (`arena_buffer.py`, runs
+under `editor3d.context`) could run while another canvas was painting and its `doneCurrent()` left the
+paint with no context: every GL call failed with `GL_INVALID_OPERATION` and Qt finished the paint with
+an access violation. Not covered: the raw `QOpenGLContext` code in `app.py`, `gl/info.py` and
+`ray_tracing/renderer.py` (start-up / offscreen, never inside a paint).
+
 #### events.py
 
 GL event system, ported from wx's `EVT_GL_*` custom events to PySide6 signals. The `EVT_GL_*`
@@ -136,7 +151,7 @@ from `GLMaterial`s and the pool's `locate`; a wire keeps its entries until `Wire
 wire's colour, stripe and size are data and a frame costs one draw whatever the number of wires or how they are coloured. The canvas
 flushes twice: after the main object loop (every wire that is not the selected object; they are opaque, so where in the loop each was
 drawn made no difference) and once more at the end for a selected wire, which is drawn after the loop as before. There is no
-fallback: an object that hands itself in outside a canvas's `_draw_scene` is simply not drawn.
+fallback: an object that hands itself in outside a canvas's `_draw_scene` is simply not drawn. **2026-11-08:** `entries_for` skips a span with no pieces: a wire of ONE piece that is bare at an end (`TubeMixin._bare_ends` gives (1, 0)) had an empty middle span whose first piece was not a row of the wire (`IndexError` every frame, in the log as `object render error`).
 
 #### wire_pool.py
 

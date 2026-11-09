@@ -7,7 +7,6 @@ A property read runs a query unless a cache branch returns first. Each getter be
 - `Project.name`: cached after first read.
 - `Project.description`: cached after first read.
 - `Project.creator`: cached after first read.
-- `Project.wire_stripe_max_length`: cached after first read.
 - `Project.model_id`: cached after first read.
 - `Project.bounds_3d`: cached after first read.
 - `Project.bounds_schematic`: cached after first read.

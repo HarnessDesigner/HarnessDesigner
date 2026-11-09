@@ -25,8 +25,9 @@ call site (see ``drag_handlers.editor_pegboard.generic.Generic.__init__``'s
 own ``_point_starts`` enumeration for exactly this kind of fix).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
+import contextlib
 import weakref
 
 from . import rope_pull_handler as _rope_pull_handler
@@ -36,6 +37,7 @@ from .. import debug as _debug
 
 if TYPE_CHECKING:
     from ..objects import wire as _wire_obj
+    from ..objects import cable as _cable_obj
 
 
 class WireSlackHandler:
@@ -71,9 +73,11 @@ class WireSlackHandler:
     _reconciling_any = False
 
     @_check_types.do
-    def __init__(self, wire: "_wire_obj.Wire"):
+    def __init__(self, wire: _Union["_wire_obj.Wire", "_cable_obj.Cable"]):
+        # a placed cable is a chain the solver treats as it does a wire (free ends, no stubs, no layouts): it has the same safety net
         self._wire = wire
         self._released = False
+        self._suspended = 0
 
         # What register_3d()/register_pegboard() bound LAST time, as weak
         # refs -- not strong refs, so this still holds no Point reference
@@ -208,6 +212,24 @@ class WireSlackHandler:
 
         self._bound_pegboard_refs = []
 
+    @contextlib.contextmanager
+    def suspended(self):
+        """A ``with`` block in which this handler does not reconcile: for a change that moves several of the wire's points one after
+        the other and lands on a shape that is right as a whole (a cable seeded onto the board, an end moved by a split), where the
+        steps in between would be read as a wire that is too long or too short and 'fixed'. Nothing is reconciled on leaving either:
+        the caller asks for that (:meth:`reconcile`) when it wants it."""
+        self._suspended += 1
+
+        try:
+            yield
+        finally:
+            self._suspended -= 1
+
+    @_check_types.do
+    def reconcile(self) -> None:
+        """Fit the board's route to the wire's length now (what a move of one of its points does by itself)."""
+        self._reconcile()
+
     @_check_types.do
     def release(self) -> None:
         """Stop answering point moves for good: the wire was deleted.
@@ -294,7 +316,7 @@ class WireSlackHandler:
         point happens to move.
         """
         # The wire was deleted (see release): its row is gone, so there is nothing to reconcile and looking it up raises KeyError.
-        if self._released:
+        if self._released or self._suspended:
             return
 
         # A commit (rope_pull_handler._commit_points) already reconciles

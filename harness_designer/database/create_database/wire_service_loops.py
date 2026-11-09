@@ -113,5 +113,7 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible3d', default='1', no_null=True),
     _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL'),
-    _con.FloatField('operating_temp', default='NULL')
+    _con.FloatField('operating_temp', default='NULL'),
+    # the cable conductor whose lead this loop is in (part_id is then the CABLE's part; the loop is that conductor's wire)
+    _con.UUIDField('cable_conductor_id', default='NULL')
 )

@@ -19,6 +19,7 @@ from . import cable_conductor as _cable_conductor
 from ..geometry import point as _point
 from .objects_3d import cable as _cable_3d
 from .objects_pegboard import cable as _cable_pegboard
+from .objects_schematic import cable as _cable_schematic
 from .. import check_types as _check_types
 from ..crash_dump import capturable
 
@@ -35,6 +36,7 @@ class Cable(_ObjectBase):
     """A placed cable."""
     obj3d: _cable_3d.Cable = None
     objpegboard: _cable_pegboard.Cable = None
+    objschematic: _cable_schematic.Cable = None
     db_obj: "_pjt_cable.PJTCable" = None
 
     @_check_types.do
@@ -55,6 +57,16 @@ class Cable(_ObjectBase):
 
         self.obj3d = _cable_3d.Cable(self, db_obj)
         self.objpegboard = _cable_pegboard.Cable(self, db_obj)
+
+        # an inert placeholder: a cable is not drawn in the schematic (its conductors are), but it can be the selected object there
+        self.objschematic = _cable_schematic.Cable(self, db_obj)
+
+        # Keeps the board's route as long as the cable really is, the way a wire's own handler does: a move of any of its points
+        # (either view) re-fits the route (slack bowed in when the ends are closer than its length, the far end pulled when they would
+        # be further apart); see handlers.wire_slack_handler. Before the views seed or lay out anything, so it is there to be asked.
+        from ..handlers import wire_slack_handler as _wire_slack_handler  # NOQA -- avoid a cycle at import time
+
+        self._slack_handler = _wire_slack_handler.WireSlackHandler(self)
 
         # A conductor's end points follow the cable's (they are children of them), but only once their live Point
         # objects exist: that is what binds the follow callback. A cable still being placed has no conductors yet.
@@ -201,15 +213,93 @@ class Cable(_ObjectBase):
         return result
 
     @_check_types.do
+    def conductor_wires(self) -> list["_wire.Wire"]:
+        """Every wire object that belongs to one of this cable's conductors, at both ends: the leads and, when a splice or a wire
+        service loop was put in a lead, the pieces beyond it (they all carry the conductor's id).
+
+        :rtype: list[:class:`_wire.Wire`]
+        """
+        wires_table = self.mainframe.project.ptables.pjt_wires_table
+        result = []
+
+        for conductor in self.db_obj.conductors:
+            for wire_db in wires_table.leads_of(conductor.db_id):
+                wire = wire_db.get_object()
+
+                if wire is not None and wire not in result:
+                    result.append(wire)
+
+        return result
+
+    @_check_types.do
     def can_join(self, start: bool) -> bool:
-        """Whether the conductors of one end can be brought back into the cable: nothing is attached to the free end of
-        any of their leads (a terminal, a splice).
+        """Whether the conductors of one end can be brought back into the cable: no terminal is attached to any of their leads. A
+        splice or a wire service loop in a lead does not stop it: they are taken out with the lead (see :meth:`join_end`).
 
         :param start: Which end.
         :type start: bool
         :rtype: bool
         """
-        return all(lead.start_sibling is None for lead in self.lead_wires(start))
+        return not any(self.lead_chain(lead)[2] for lead in self.lead_wires(start))
+
+    @_check_types.do
+    def lead_chain(self, lead: "_wire.Wire") -> tuple[list["_wire.Wire"], list, bool]:
+        """Follow a lead outward from the split plane through the splices and wire service loops put in it.
+
+        :param lead: The lead proper (the piece that ends on the split point).
+        :type lead: :class:`_wire.Wire`
+        :returns: ``(pieces, junctions, blocked)``: the wires of the conductor from the lead outward (the lead first), the splices and
+            loops between them, and whether the chain ends on something that is not the conductor's to take away (a terminal, or an
+            object that is not a splice or a loop). Where a splice has other wires on it, those are not part of the chain.
+        :rtype: tuple[list[:class:`_wire.Wire`], list, bool]
+        """
+        conductor_id = lead.db_obj.cable_conductor_id
+        pieces = [lead]
+        junctions = []
+        wire = lead
+
+        while True:
+            sibling = wire.start_sibling
+
+            if sibling is None:
+                return pieces, junctions, False
+
+            if not (sibling.is_splice or sibling.is_wire_service_loop):
+                return pieces, junctions, True
+
+            junctions.append(sibling)
+            following = None
+
+            for candidate in (sibling.start_sibling, sibling.stop_sibling):
+                if candidate is not None and candidate is not wire and candidate.db_obj.cable_conductor_id == conductor_id:
+                    following = candidate
+
+            if following is None or following in pieces:
+                return pieces, junctions, False
+
+            pieces.append(following)
+            wire = following
+
+    @_check_types.do
+    def _remove_junctions(self, junctions: list) -> None:
+        """Delete the splices and loops that were in a conductor's lead, once the wires of the conductor are gone: a wire service
+        loop always goes; a splice goes only when no other wire is left on it.
+
+        :param junctions: What :meth:`lead_chain` found.
+        :type junctions: list
+        """
+        done = []
+
+        for junction in junctions:
+            if any(junction is other for other in done):
+                continue
+
+            done.append(junction)
+
+            if junction.is_wire_service_loop:
+                junction.delete()
+            elif junction.is_splice and not junction.wires:
+                junction.delete()
 
     @_check_types.do
     def can_reorder(self, start: bool) -> bool:
@@ -221,7 +311,10 @@ class Cable(_ObjectBase):
         :type start: bool
         :rtype: bool
         """
-        return self.can_join(start) and not self.db_obj.part.is_ribbon
+        if any(lead.start_sibling is not None for lead in self.lead_wires(start)):
+            return False
+
+        return not self.db_obj.part.is_ribbon
 
     @_check_types.do
     def can_roll(self) -> bool:
@@ -547,32 +640,36 @@ class Cable(_ObjectBase):
         :param distance: How far, mm.
         :param inward: Toward the next point (True) or away from it (False).
         """
-        for view in (self.obj3d, self.objpegboard):
-            segments = view._segments()  # NOQA
+        # the end moves in 3D, then on the board: the length the board must be follows the first, so the route is fitted once both are done
+        with self._slack_handler.suspended():
+            for view in (self.obj3d, self.objpegboard):
+                segments = view._segments()  # NOQA
 
-            if not segments:
-                continue
+                if not segments:
+                    continue
 
-            if start:
-                p1, p2 = segments[0]
-                point = view.start_position
-                toward = p2 - p1
-            else:
-                p1, p2 = segments[-1]
-                point = view.stop_position
-                toward = p1 - p2
+                if start:
+                    p1, p2 = segments[0]
+                    point = view.start_position
+                    toward = p2 - p1
+                else:
+                    p1, p2 = segments[-1]
+                    point = view.stop_position
+                    toward = p1 - p2
 
-            length = float(np.linalg.norm(toward))
+                length = float(np.linalg.norm(toward))
 
-            if length < 1e-9:
-                continue
+                if length < 1e-9:
+                    continue
 
-            shift = toward / length * distance
+                shift = toward / length * distance
 
-            if not inward:
-                shift = -shift
+                if not inward:
+                    shift = -shift
 
-            point += _point.Point(float(shift[0]), float(shift[1]), float(shift[2]))
+                point += _point.Point(float(shift[0]), float(shift[1]), float(shift[2]))
+
+        self._slack_handler.reconcile()
 
     @_check_types.do
     def split_end(self, start: bool, distance: float) -> None:
@@ -629,8 +726,15 @@ class Cable(_ObjectBase):
 
         # the conductors' end points are the cable's old end, copied: they stay where the end is now (a point that was a child of the
         # cable's end would be carried along when the end moves, so it is cut loose first)
+        # The rows are kept in this list until the end points are in their places: a point's write-back to its row is a weak
+        # callback, so a row that nothing holds can be dropped before the move is written and the point is read back, later, at
+        # the cable's old end (every conductor of the end at one point).
+        end_rows = []
+
         for conductor in conductors:
-            points[conductor.start_position3d_id if start else conductor.stop_position3d_id].detach_from_parent()
+            row = points[conductor.start_position3d_id if start else conductor.stop_position3d_id]
+            row.detach_from_parent()
+            end_rows.append(row)
 
         # the cable's end moves to the split plane
         if start:
@@ -650,8 +754,8 @@ class Cable(_ObjectBase):
         board_planes = self.objpegboard.split_positions(start) if board else []
         board_targets = self.objpegboard.fan_out_positions(start) if board else []
 
-        for conductor, target in zip(conductors, targets):
-            live = points[conductor.start_position3d_id if start else conductor.stop_position3d_id].point
+        for row, target in zip(end_rows, targets):
+            live = row.point
             live += _point.Point(*(float(v) for v in target)) - live
 
         for index, (conductor, plane) in enumerate(zip(conductors, planes)):
@@ -709,7 +813,10 @@ class Cable(_ObjectBase):
 
         :param start: Which end.
         :type start: bool
-        :raises ValueError: Raised when something is attached to the free end of a lead (see :meth:`can_join`).
+        :raises ValueError: Raised when a terminal is attached to a lead (see :meth:`can_join`).
+
+        Every piece of each conductor's lead goes, with the wire service loops in them; a splice goes too unless other wires are still
+        on it.
         """
         db_obj = self.db_obj
 
@@ -726,8 +833,16 @@ class Cable(_ObjectBase):
 
         self._drop_split_markers(start)
 
+        junctions = []
+
         for lead in self.lead_wires(start):
-            lead.delete()
+            pieces, found, _blocked = self.lead_chain(lead)
+            junctions.extend(found)
+
+            for piece in pieces:
+                piece.delete()
+
+        self._remove_junctions(junctions)
 
         # the cable's end goes back out to where it was before the split, and the conductors join it there
         self._move_end(start, split_mm, inward=False)
@@ -787,11 +902,20 @@ class Cable(_ObjectBase):
     @_check_types.do
     def delete(self) -> None:
         """Delete the cable: its leads, its view, its registry entry, its conductors and its row."""
+        self._slack_handler.release()
+
+        junctions = []
+
         for start in (True, False):
             self._drop_split_markers(start)
 
             for lead in self.lead_wires(start):
-                lead.delete()
+                junctions.extend(self.lead_chain(lead)[1])
+
+        for piece in self.conductor_wires():
+            piece.delete()
+
+        self._remove_junctions(junctions)
 
         for node in self._conductor_objects.values():
             node.delete()

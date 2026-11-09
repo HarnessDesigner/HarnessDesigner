@@ -1,7 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""BOM Builder dialog: parts list, housing tree, wire cut sheet, and
-bundle cut sheet, with live wire/bundle fabrication-excess controls."""
+"""BOM Builder dialog: parts list, housing tree, wire cut sheet, cable
+cut sheet and bundle cut sheet, with live wire (and cable) / bundle
+fabrication-excess controls."""
 
 from typing import TYPE_CHECKING
 
@@ -37,7 +38,7 @@ _DEFAULT_EXCESS_PCT = 10.0
 # ---------------------------------------------------------------------------
 
 class _BomToolbarRow(QtWidgets.QWidget):
-    """View switcher + wire/bundle excess-percentage controls, laid out in
+    """View switcher + wire (and cable) / bundle excess-percentage controls, laid out in
     a single row -- a plain widget row rather than a real ``QToolBar``,
     since the movable/floatable chrome a real toolbar carries has no place
     inside a modal dialog."""
@@ -52,10 +53,10 @@ class _BomToolbarRow(QtWidgets.QWidget):
 
         self.view_ctrl = _choice_ctrl.ChoiceCtrl(
             self, 'View:',
-            ['Parts List', 'Housings', 'Wire Cut Sheet', 'Bundle Cut Sheet'])
+            ['Parts List', 'Housings', 'Wire Cut Sheet', 'Cable Cut Sheet', 'Bundle Cut Sheet'])
 
         self.wire_excess_ctrl = _float_ctrl.FloatCtrl(
-            self, 'Wire Excess %:', 0.0, 100.0, 0.5, slider=False)
+            self, 'Wire/Cable Excess %:', 0.0, 100.0, 0.5, slider=False)
         self.wire_excess_ctrl.SetValue(_DEFAULT_EXCESS_PCT)
 
         self.bundle_excess_ctrl = _float_ctrl.FloatCtrl(
@@ -176,8 +177,43 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
             item.setIcon(self._COLOR_COLUMN, QtGui.QIcon(row.icon.pixmap))
 
 
+class _CableCutSheetTree(QtWidgets.QTreeWidget):
+    """View 4: one row per placed cable."""
+
+    _COLOR_COLUMN = 7
+
+    @_check_types.do
+    def __init__(self, parent: QtWidgets.QWidget | None):
+        super().__init__(parent)
+        self.setRootIsDecorated(False)
+        self.setAlternatingRowColors(True)
+        self.setColumnCount(13)
+        self.setHeaderLabels([
+            'Manufacturer', 'Part Number', 'Description', 'AWG', 'mm\u00b2',
+            'Conductors', 'Shielded', 'Color', 'Trunk', 'Start Split',
+            'Stop Split', 'Exact Length', 'Length w/ Excess'])
+        self.header().setSectionResizeMode(
+            QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+    @_check_types.do
+    def load(self, rows: list[_bom.CableCutRow]) -> None:
+        self.clear()
+        for row in rows:
+            item = QtWidgets.QTreeWidgetItem(self, [
+                row.manufacturer, row.part_number, row.description,
+                str(row.awg), f'{row.mm2:.4f}', str(row.num_conductors),
+                'Yes' if row.shielded else 'No', '',
+                _bom.format_length(row.trunk_length_mm),
+                _bom.format_length(row.start_split_mm) if row.start_split_mm else '',
+                _bom.format_length(row.stop_split_mm) if row.stop_split_mm else '',
+                _bom.format_length(row.exact_length_mm),
+                _bom.format_length(row.length_with_excess_mm)])
+
+            item.setIcon(self._COLOR_COLUMN, QtGui.QIcon(row.icon.pixmap))
+
+
 class _BundleCutSheetTree(QtWidgets.QTreeWidget):
-    """View 4: one row per bundle-covering instance."""
+    """View 5: one row per bundle-covering instance."""
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None):
@@ -207,9 +243,9 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
 # ---------------------------------------------------------------------------
 
 class BomDialog(_dialog_base.BaseDialog):
-    """Read-only BOM Builder: parts list, housing tree, wire cut sheet, and
-    bundle cut sheet views, with live Wire Excess % / Bundle Excess %
-    controls. Print is a no-op stub; OK just closes the dialog -- nothing
+    """Read-only BOM Builder: parts list, housing tree, wire cut sheet,
+    cable cut sheet and bundle cut sheet views, with live Wire/Cable Excess % /
+    Bundle Excess % controls. Print is a no-op stub; OK just closes the dialog -- nothing
     here is persisted."""
 
     @_check_types.do
@@ -227,10 +263,11 @@ class BomDialog(_dialog_base.BaseDialog):
         self._flat_view = _FlatListTree(self._stack)
         self._housing_view = _HousingTree(self._stack)
         self._wire_view = _WireCutSheetTree(self._stack)
+        self._cable_view = _CableCutSheetTree(self._stack)
         self._bundle_view = _BundleCutSheetTree(self._stack)
 
-        for view in (self._flat_view, self._housing_view,
-                     self._wire_view, self._bundle_view):
+        for view in (self._flat_view, self._housing_view, self._wire_view,
+                     self._cable_view, self._bundle_view):
             self._stack.addWidget(view)
 
         layout = QtWidgets.QVBoxLayout(self.panel)
@@ -255,8 +292,8 @@ class BomDialog(_dialog_base.BaseDialog):
     def _reload_all(self) -> None:
         project = self._project()
         if project is None:
-            for view in (self._flat_view, self._housing_view,
-                         self._wire_view, self._bundle_view):
+            for view in (self._flat_view, self._housing_view, self._wire_view,
+                         self._cable_view, self._bundle_view):
                 view.clear()
             return
 
@@ -264,6 +301,7 @@ class BomDialog(_dialog_base.BaseDialog):
             project, self._wire_excess_pct, self._bundle_excess_pct))
         self._housing_view.load(_bom.build_housing_tree(project))
         self._wire_view.load(_bom.build_wire_cut_sheet(project, self._wire_excess_pct))
+        self._cable_view.load(_bom.build_cable_cut_sheet(project, self._wire_excess_pct))
         self._bundle_view.load(_bom.build_bundle_cut_sheet(project, self._bundle_excess_pct))
 
     @_check_types.do
@@ -276,6 +314,7 @@ class BomDialog(_dialog_base.BaseDialog):
         self._flat_view.load(_bom.build_flat_list(
             project, self._wire_excess_pct, self._bundle_excess_pct))
         self._wire_view.load(_bom.build_wire_cut_sheet(project, pct))
+        self._cable_view.load(_bom.build_cable_cut_sheet(project, pct))
 
     @_check_types.do
     def _on_bundle_excess_changed(self, pct: float) -> None:

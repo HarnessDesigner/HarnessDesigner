@@ -29,6 +29,8 @@ callers were found wired up as of the rope-pull feature's last documented state.
 call sites with `dep_trace.py --imported-by` before relying on this description, and flag this gap
 when CODEBASE_MAP.md is next updated.
 
+`has_state(chain_id)` (2026-11-09): whether the chain has a live overlay or a non-empty store, without creating an entry (`for_chain` does). Used by `rope_pull_handler._on_stored_route_changed`.
+
 #### rope_pull.cp311-win_amd64.pyd
 
 The compiled build artifact for `rope_pull.pyx`, gitignored like `wire_routing/`'s equivalent.

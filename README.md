@@ -103,6 +103,12 @@ multi conductor cables  can have their individual conductors faned out so they c
 connected to terminals and splices. 
 ![img_16.png](img_16.png)
 
+
+It's coming along nicely. Here is an example of a multi conductor twisted cable showing 
+the cable broken out at the end and connected to a housing. I also added in the wire 
+service loops so you can see what that looks like.
+![img_17.png](img_17.png)
+
 Doing some work in the schematic editor, specifically automatic routing of the 
 wires when a housing is moved or when a wire is added.  
 ![img_13.png](img_13.png)

@@ -117,6 +117,10 @@ def _awg_fits(part: _Union["_global_terminal.Terminal", "_global_splice.Splice"]
     awg_max = part.wire_size_awg_max
     wire_awg = wire_part.size_awg
 
+    # a conductor of a cable (the part of a lead) can have no AWG of its own: nothing to compare, so nothing to block
+    if wire_awg is None:
+        return True
+
     if awg_min is not None and wire_awg > awg_min:
         return False
 
@@ -426,6 +430,11 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
         w.obj3d.start_position.db_id[:-2] == stale_id or
         w.obj3d.stop_position.db_id[:-2] == stale_id
         for w in project.wires)
+
+    # The free end of a lead is also the END POINT of its cable conductor (the conductor row keeps pointing at it, and the cable
+    # reads it when it is built): the lead let go of it, the conductor did not.
+    if not still_referenced and wire_obj.db_obj.is_cable_lead:
+        still_referenced = True
 
     if not still_referenced:
         mainframe.project.ptables.pjt_points3d_table[stale_id].delete()

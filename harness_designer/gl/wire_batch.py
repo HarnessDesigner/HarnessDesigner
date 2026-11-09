@@ -116,15 +116,19 @@ def entries_for(key: str, rate: float, circles: list[tuple[float, float, float]]
 
         return end_vertex - int(first[start_row])
 
-    # (first piece, number of pieces, bare?)
+    # (first piece, number of pieces, bare?). A wire of a single piece is bare throughout (``TubeMixin._bare_ends``), so there may
+    # be no piece between the bare ends: a span with no pieces is left out (its first piece is not even a row of the wire).
     spans = []
 
     if bare_start:
-        spans.append((0, bare_start, True))
+        spans.append((0, min(bare_start, count), True))
 
-    spans.append((bare_start, count - bare_start - bare_stop, False))
+    middle = count - bare_start - bare_stop
 
-    if bare_stop:
+    if middle > 0:
+        spans.append((bare_start, middle, False))
+
+    if bare_stop and count - bare_stop >= bare_start:
         spans.append((count - bare_stop, bare_stop, True))
 
     for start_row, piece_count, bare in spans:

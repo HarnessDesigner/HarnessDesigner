@@ -729,16 +729,6 @@ class Project:
 
     @property
     @_check_types.do
-    def wire_stripe_max_length(self) -> float:
-        return self.db_obj.wire_stripe_max_length
-
-    @wire_stripe_max_length.setter
-    @_check_types.do
-    def wire_stripe_max_length(self, value: float) -> None:
-        self.db_obj.wire_stripe_max_length = value
-
-    @property
-    @_check_types.do
     def obj_count(self) -> int:
         """Return the obj count.
 

@@ -123,7 +123,9 @@ class EditorObjPanel(QtWidgets.QWidget):
             # it has to configure). Treat that the same as obj is None
             # above -- clear whatever was showing and stop -- rather
             # than assuming every db_obj.table exposes .control.
-            control = obj.db_obj.table.control
+            # an object whose row has no table (a pseudo row, such as a cable's split marker) has no editor either
+            table = obj.db_obj.table
+            control = None if table is None else table.control
             if control is None:
                 if self.control is not None:
                     self.control.hide()

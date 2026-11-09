@@ -158,6 +158,9 @@ from ..geometry.angle import angle as _angle
 from ..objects import bundle_layout as _bundle_layout
 from ..objects import wire_layout as _wire_layout
 from ..database.project_db import pjt_bundle as _pjt_bundle
+from ..database.project_db import pjt_cable as _pjt_cable
+from ..database.project_db import pjt_cable_path as _pjt_cable_path
+from ..database.project_db import pjt_wire_path as _pjt_wire_path_runtime
 from . import wire_routing_handler as _wire_routing_handler
 from . import bundle_wire_model as _bundle_wire_model
 from .. import check_types as _check_types
@@ -188,6 +191,14 @@ _MAX_REPULLS = 16
 _REPULL_TOLERANCE_MM = 1e-6
 
 
+@_check_types.do
+def _is_wire_chain(chain_db_obj: object) -> bool:
+    """Whether *chain_db_obj* is a wire: the one kind of chain that attaches to terminals (stubs), is routed through bundles and
+    transitions, and has a layout at each of its waypoints. A bundle has layouts but no stubs; a cable (a trunk whose ends are free)
+    has none of the three, and its waypoints are bare points of ``pjt_cable_paths``."""
+    return not isinstance(chain_db_obj, (_pjt_bundle.PJTBundle, _pjt_cable.PJTCable))
+
+
 @_debug.logfunc
 @_check_types.do
 def is_enabled() -> bool:
@@ -209,6 +220,10 @@ def _chain_diameter(
 
     if isinstance(chain_db_obj, _pjt_bundle_runtime.PJTBundle):
         return float(chain_db_obj.diameter)
+
+    if isinstance(chain_db_obj, _pjt_cable.PJTCable):
+        # the thinner side of the trunk (a ribbon is wider than it is thick)
+        return float(min(chain_db_obj.part.trunk_size))
 
     return float(chain_db_obj.part.od_mm)
 
@@ -340,7 +355,7 @@ def stub_boundary_for_chain(
     rigidly-coupled duplicates of the SAME housing move, and so don't
     each need their own binding -- see that method's own docstring.
     """
-    if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+    if not _is_wire_chain(chain_db_obj):
         return 0, 0
 
     return _stub_boundary(ptables, chain_db_obj)
@@ -555,7 +570,7 @@ def _anchors_and_length(
         if trailing:
             stop = chain_db_obj.waypoints_pegboard[-trailing].point
 
-    if not isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+    if _is_wire_chain(chain_db_obj):
         length -= _wire_bundle_length3d(ptables, chain_db_obj)
 
     return (float(start.x), float(start.z)), (float(stop.x), float(stop.z)), length, leading, trailing
@@ -808,6 +823,22 @@ def _reconcile_wire_through_bundle(
 
 @_debug.logfunc
 @_check_types.do
+def _drop_waypoint(points_table: object, layouts_table: object | None, point_id: bytes) -> None:
+    """Remove one waypoint that has left its chain's route: the layout on it (whose delete takes the point with it) for a wire or a
+    bundle, the bare point itself for a cable (it has no layouts). The point must already be out of the route (``set_route``)."""
+    if layouts_table is None:
+        points_table[point_id].delete()
+        return
+
+    layout_db = layouts_table.for_point_pegboard_id(point_id)
+    if layout_db is not None:
+        layout_obj = layout_db.get_object()
+        if layout_obj is not None:
+            layout_obj.delete()
+
+
+@_debug.logfunc
+@_check_types.do
 def _reconcile_interior(
     mainframe: "_ui.MainFrame",
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
@@ -868,7 +899,7 @@ def _reconcile_interior(
     """
     ptables = mainframe.project.ptables
 
-    if not isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+    if _is_wire_chain(chain_db_obj):
         protected_runs = _wire_protected_runs(ptables, chain_db_obj, 'pegboard')
         if protected_runs:
             _reconcile_wire_through_bundle(
@@ -897,20 +928,18 @@ def _reconcile_interior(
     path_table.set_route(
         chain_db_obj.db_id, 'pegboard', structural_lead_ids + final_ids + structural_tail_ids)
 
-    for new_index in new_indexes:
-        layout_db = layouts_table.insert(point_pegboard_id=final_ids[new_index])
-        layout_obj = layout_facade_cls(mainframe, layout_db)
-        if layout_facade_cls is _bundle_layout.BundleLayout:
-            project.add_bundle_layout(layout_obj)
-        else:
-            project.add_wire_layout(layout_obj)
+    # a cable has no layouts: its waypoints are bare points
+    if layouts_table is not None:
+        for new_index in new_indexes:
+            layout_db = layouts_table.insert(point_pegboard_id=final_ids[new_index])
+            layout_obj = layout_facade_cls(mainframe, layout_db)
+            if layout_facade_cls is _bundle_layout.BundleLayout:
+                project.add_bundle_layout(layout_obj)
+            else:
+                project.add_wire_layout(layout_obj)
 
     for point_id in removed_ids:
-        layout_db = layouts_table.for_point_pegboard_id(point_id)
-        if layout_db is not None:
-            layout_obj = layout_db.get_object()
-            if layout_obj is not None:
-                layout_obj.delete()
+        _drop_waypoint(points_table, layouts_table, point_id)
 
     # The waypoint markers (the layouts just inserted/moved/deleted
     # above) are independent GL objects with their own live Point, so
@@ -965,6 +994,10 @@ def _anchor_index(ptables: "_PJTPegboardTable") -> dict[bytes, list[tuple]]:
     for wire_db_obj in ptables.pjt_wires_table:
         add(wire_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table, _wire_layout.WireLayout)
 
+    # a cable is a chain like a wire, over its own route table and with no layouts
+    for cable_db_obj in ptables.pjt_cables_table:
+        add(cable_db_obj, ptables.pjt_cable_paths_table, None, None)
+
     return index
 
 
@@ -996,6 +1029,12 @@ def _chains_for_point(
         return [(
             bundle_db_obj, ptables.pjt_bundle_paths_table,
             ptables.pjt_bundle_layouts_table, _bundle_layout.BundleLayout,
+            _rope_pull.DragEnd.WAYPOINT)]
+
+    cable_ids = ptables.pjt_cable_paths_table.wire_ids_for_point('pegboard', point_id)
+    if cable_ids:
+        return [(
+            ptables.pjt_cables_table[cable_ids[0]], ptables.pjt_cable_paths_table, None, None,
             _rope_pull.DragEnd.WAYPOINT)]
 
     wire_ids = ptables.pjt_wire_paths_table.wire_ids_for_point('pegboard', point_id)
@@ -1106,6 +1145,47 @@ def _pulled_far_position(
 
 @_debug.logfunc
 @_check_types.do
+def _cable_node(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, list[bytes]] | None:
+    """The part of a placed cable that moves as one piece with *point_id*, as :func:`_node_for_point` answers it, or ``None`` when no
+    cable owns the point, or the point is one of the cable's two ends.
+
+    A conductor's split point or free end (where a lead comes out of the trunk, or the lead's end when nothing is attached to it)
+    is the whole cable, translated together: something pulling on a lead drags the cable it comes out of, ends, waypoints and the
+    other conductors' points too, and none of the cable's own length is used up.
+
+    The cable's own ends are a lone point each, as a free wire end is: the cable is a rope, the far end is pulled alone when the
+    near one is dragged too far. The conductor points that go with an end are carried by the cable (``Cable.follow_drag`` for a drag
+    of the cable, the end's own callback for the split points), which is why they are not in the node: they would be moved twice.
+
+    The conductor points are listed only for a split end (a conductor of an end that is not split has points that are children of
+    the cable's: they follow by themselves).
+    """
+    for cable in ptables.pjt_cables_table:
+        owned: dict[bool, list[bytes]] = {True: [], False: []}
+
+        for conductor in cable.conductors:
+            for start in (True, False):
+                split_id = (
+                    conductor.start_split_point_pegboard_id if start else conductor.stop_split_point_pegboard_id)
+                if split_id is None:
+                    continue
+
+                owned[start].append(split_id)
+                end_id = conductor.start_position_pegboard_id if start else conductor.stop_position_pegboard_id
+                if end_id is not None:
+                    owned[start].append(end_id)
+
+        ends = {True: cable.start_position_pegboard_id, False: cable.stop_position_pegboard_id}
+
+        if point_id in owned[True] or point_id in owned[False]:
+            waypoint_ids = ptables.pjt_cable_paths_table.point_ids(cable.db_id, 'pegboard')
+            return 'rigid', [ends[True], ends[False], *waypoint_ids, *owned[True], *owned[False]]
+
+    return None
+
+
+@_debug.logfunc
+@_check_types.do
 def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, list[bytes]] | None:
     """The rigid structural object that owns *point_id*, as
     ``(kind, points)`` -- *points* is every peg-board point that moves
@@ -1185,6 +1265,10 @@ def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str,
         for branch in transition.branches:
             points.append(branch.position_pegboard_id)
         return 'transition', points
+
+    cable_node = _cable_node(ptables, point_id)
+    if cable_node is not None:
+        return cable_node
 
     for table in (ptables.pjt_splices_table, ptables.pjt_wire_service_loops_table):
         rows = table.select(
@@ -1729,7 +1813,7 @@ def _evaluate_points(
 
             # A wire routed through ONE bundle is solved as a bundle/wire
             # assembly (bundle_wire_model), not as one start -> stop span.
-            if drag_end is not _rope_pull.DragEnd.WAYPOINT and not isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+            if drag_end is not _rope_pull.DragEnd.WAYPOINT and _is_wire_chain(chain_db_obj):
                 outcome = eval_bundle_wire(
                     chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz)
                 if outcome == 'infeasible':
@@ -1995,7 +2079,7 @@ def _commit_points_body(
             # _reconcile_interior is the only thing that respects the run.
             is_bundle_wire = (
                 drag_end is not _rope_pull.DragEnd.WAYPOINT
-                and not isinstance(chain_db_obj, _pjt_bundle.PJTBundle)
+                and _is_wire_chain(chain_db_obj)
                 and bool(_wire_protected_runs(ptables, chain_db_obj, 'pegboard')))
 
             if is_bundle_wire:
@@ -2088,6 +2172,10 @@ def _make_pseudo_layout(chain_db_obj: object, position: "_point.Point") -> objec
     from ..database.project_db import pseudo_bundle_layout as _pseudo_bundle_layout
     from ..database.project_db import pseudo_wire_layout as _pseudo_wire_layout
 
+    # a cable's waypoint is a bare point: there is no layout to stand in for
+    if isinstance(chain_db_obj, _pjt_cable.PJTCable):
+        return None
+
     db_id = uuid.uuid4().bytes
 
     if isinstance(chain_db_obj, _pjt_bundle_runtime.PJTBundle):
@@ -2158,12 +2246,53 @@ def _overlay_for(
 
 @_debug.logfunc
 @_check_types.do
+def _on_stored_route_changed(table: object, chain_id: bytes, view: str | None) -> None:
+    """Drop *chain_id*'s drag state because its STORED board route was changed by something other than this module's own commit.
+
+    A drag keeps the chain's board route in memory (the overlay: the points in service, in order, plus the store of points given up)
+    and writes it back over the stored route when the drag releases (:func:`_commit_overlay`). Anything that edits the stored route
+    in between -- a terminal attached to the wire (``Terminal.add_wire`` puts the terminal's and the cavity's wire-side points in
+    front of the route), a waypoint added, the route re-laid -- leaves that copy stale, and writing it back erases the edit: the
+    terminal's stub points left the route and the slack was bowed in from the terminal's crimp point instead of from the cavity's
+    wire-side point. The route in the database is the truth, so the copy is dropped and the next drag frame builds a new one from
+    it. Points the drag had given up are still in the stored route (only hidden), so their markers are shown again.
+
+    This module's own commits release the overlay and the store before they write (:func:`_commit_overlay`), so they find nothing
+    to drop here.
+    """
+    if view is not None and view != 'pegboard':
+        return
+
+    if not _offline_store.has_state(chain_id):
+        return
+
+    if isinstance(table, _pjt_cable_path.PJTCablePathsTable):
+        layouts_table = None
+    else:
+        layouts_table = table.db.pjt_wire_layouts_table
+
+    given_up = _offline_store.release(chain_id)
+    _offline_store.release_overlay(chain_id)
+
+    for entry in given_up:
+        if entry.point_id is not None:
+            _set_layout_visible(layouts_table, entry.point_id, True)
+
+
+_pjt_wire_path_runtime.add_route_listener(_on_stored_route_changed)
+
+
+@_debug.logfunc
+@_check_types.do
 def _set_layout_visible(
     layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
     point_id: bytes, visible: bool
 ) -> None:
     """Show or hide the layout marker sitting on *point_id* on the peg-board
     object itself (no database write -- see ``BasePegboard.set_visible_cache``)."""
+    if layouts_table is None:
+        return
+
     layout_db = layouts_table.for_point_pegboard_id(point_id)
     if layout_db is None:
         return
@@ -2396,23 +2525,20 @@ def _commit_overlay(
     old_ids = list(path_table.point_ids(chain_id, 'pegboard'))
     path_table.set_route(chain_id, 'pegboard', final_ids)
 
-    for entry in created:
-        layout_db = layouts_table.insert(point_pegboard_id=entry.point_id)
-        layout_obj = layout_facade_cls(mainframe, layout_db)
-        if layout_facade_cls is _bundle_layout.BundleLayout:
-            project.add_bundle_layout(layout_obj)
-        else:
-            project.add_wire_layout(layout_obj)
+    if layouts_table is not None:
+        for entry in created:
+            layout_db = layouts_table.insert(point_pegboard_id=entry.point_id)
+            layout_obj = layout_facade_cls(mainframe, layout_db)
+            if layout_facade_cls is _bundle_layout.BundleLayout:
+                project.add_bundle_layout(layout_obj)
+            else:
+                project.add_wire_layout(layout_obj)
 
     for point_id in old_ids:
         if point_id in final_ids:
             continue
 
-        layout_db = layouts_table.for_point_pegboard_id(point_id)
-        if layout_db is not None:
-            layout_obj = layout_db.get_object()
-            if layout_obj is not None:
-                layout_obj.delete()
+        _drop_waypoint(points_table, layouts_table, point_id)
 
     chain_obj = chain_db_obj.get_object()
     if chain_obj is not None:
@@ -2809,7 +2935,7 @@ def realize_length_change(
         guessed at.
     """
     ptables = mainframe.project.ptables
-    if not isinstance(chain_db_obj, _pjt_bundle.PJTBundle) and _wire_protected_runs(
+    if _is_wire_chain(chain_db_obj) and _wire_protected_runs(
             ptables, chain_db_obj, 'pegboard'):
         # Routed through a bundle/transition: nothing is held fixed, so
         # either end of the wire may be pulled to reach it (see the
@@ -3016,6 +3142,10 @@ def realize_3d_move(
         if wire_db_obj.start_position3d_id in ids or wire_db_obj.stop_position3d_id in ids:
             realize_length_change(mainframe, wire_db_obj, in_progress=in_progress)
 
+    for cable_db_obj in ptables.pjt_cables_table:
+        if cable_db_obj.start_position3d_id in ids or cable_db_obj.stop_position3d_id in ids:
+            realize_length_change(mainframe, cable_db_obj, in_progress=in_progress)
+
 
 @_debug.logfunc
 @_check_types.do
@@ -3053,7 +3183,7 @@ def finalize_drag(mainframe: "_ui.MainFrame") -> bool:
     ptables = mainframe.project.ptables
     points_table = ptables.pjt_points_pegboard_table
 
-    chains = (*ptables.pjt_wires_table, *ptables.pjt_bundles_table)
+    chains = (*ptables.pjt_wires_table, *ptables.pjt_bundles_table, *ptables.pjt_cables_table)
     live_ids = {chain_db_obj.db_id for chain_db_obj in chains}
     feasible = True
 

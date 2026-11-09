@@ -822,7 +822,7 @@ class WireServiceLoop(_base_3d.Base3D):
             wire.db_obj.part_id, name,
             p_start_db.db_id, p_stop_db.db_id,
             wire.db_obj.circuit_id,
-            True, q_arr)
+            True, q_arr, cable_conductor_id=wire.db_obj.cable_conductor_id)
 
         if wire.db_obj.operating_temp is not None:
             loop_db.operating_temp = wire.db_obj.operating_temp

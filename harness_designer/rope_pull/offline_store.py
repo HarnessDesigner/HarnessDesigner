@@ -29,6 +29,12 @@ def for_chain(chain_id: bytes) -> list:
 
 
 @_check_types.do
+def has_state(chain_id: bytes) -> bool:
+    """Whether *chain_id* has a live overlay or a store with anything in it (asking creates nothing, unlike :func:`for_chain`)."""
+    return chain_id in _OVERLAYS or bool(_STORES.get(chain_id))
+
+
+@_check_types.do
 def push(chain_id: bytes, entry: object) -> None:
     """Give up *entry* from *chain_id*, placing it at index 0 of the store."""
     for_chain(chain_id).insert(0, entry)

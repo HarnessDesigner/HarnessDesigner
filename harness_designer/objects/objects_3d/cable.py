@@ -282,35 +282,93 @@ class Cable(_wire_3d.Wire):
         return frames
 
     @_check_types.do
-    def fan_out_positions(self, start: bool) -> list[np.ndarray]:
-        """Where each conductor's end lands when the *start* (or stop) end of the cable is split: the cross-section at the split plane
-        (the conductors' centres, :meth:`split_positions`) projected onto the cable's true end (the split distance beyond the plane,
-        out along the end segment) as if lit from a point on the axis behind it, so the projection is bigger (:func:`fan_scale`).
-        In conductor order (shield last). The places are fixed (one per conductor row); which conductor takes which is its
-        ``start_order`` / ``stop_order`` (by default its ``idx``, so each lands straight out from where it sits)."""
+    def _end_frame(self, start: bool) -> _Union[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float], None]:
+        """The frame at one end of the cable that the split is worked out in, from the points of the route and nothing else about
+        which end it is: the cable's end that was clicked, the point next to it on the route (the first waypoint from that end, or the
+        opposite end when the route has no waypoints), and from those the direction of travel into the cable. Both the split plane and the
+        projection of the fan-out are laid out along that direction.
+
+        The two axes across the trunk are those of the trunk's end segment (the conductors' places are in them, turned by the twist),
+        squared to the direction of travel.
+
+        :param start: Which end was clicked (the end of the route to start from; the choice of the end is only which of the cable's
+            two end points and which of its two lists of waypoints to read).
+        :returns: ``(end, inward, across, up, theta)``: the end as the cable has it now (the split plane, once the end is split), the
+            unit direction from it into the cable, the two unit axes across the trunk and the angle the conductors have turned through
+            there; ``None`` while the end segment has no length or the frame is not known.
+        """
         frames = self._lead_frames()
+        segments = list(self._segments())
 
-        if start not in frames or not self._slots:
-            return []
+        if start not in frames or not segments:
+            return None
 
-        # The cross-section at the plane, turned by the twist like the conductors in it (the same angle as split_positions, so each
-        # conductor's end lands straight out from where it leaves the trunk and no two leads cross)
-        position, rotation, theta = frames[start]
+        if start:
+            end, other = segments[0]
+        else:
+            other, end = segments[-1]
+
+        inward = np.asarray(other, dtype=np.float64) - np.asarray(end, dtype=np.float64)
+        length = float(np.linalg.norm(inward))
+
+        if length < 1e-9:
+            return None
+
+        inward = inward / length
+        _position, rotation, theta = frames[start]
+
+        across = rotation[:, 0] - inward * float(np.dot(rotation[:, 0], inward))
+        norm = float(np.linalg.norm(across))
+
+        if norm < 1e-9:
+            return None
+
+        across = across / norm
+        up = rotation[:, 1] - inward * float(np.dot(rotation[:, 1], inward)) - across * float(np.dot(rotation[:, 1], across))
+        norm = float(np.linalg.norm(up))
+
+        if norm < 1e-9:
+            up = np.cross(inward, across)
+        else:
+            up = up / norm
+
+        return np.asarray(end, dtype=np.float64), inward, across, up, theta
+
+    @_check_types.do
+    def _cross_section(self, frame: tuple, scale: float) -> list[np.ndarray]:
+        """The conductors' places in the cross-section of the trunk, as offsets from the axis in the world: each slot turned by the
+        twist and scaled.
+
+        :param frame: As :meth:`_end_frame` gives it.
+        :param scale: 1.0 for the trunk itself, the projection's scale for the fan-out.
+        """
+        _end, _inward, across, up, theta = frame
         cosine = math.cos(theta)
         sine = math.sin(theta)
 
-        split = self._start_split
-        outward = -rotation[:, 2]
+        return [across * (scale * (cosine * slot.x - sine * slot.y)) + up * (scale * (sine * slot.x + cosine * slot.y))
+                for slot in self._slots]
 
-        if not start:
-            split = self._stop_split
-            outward = rotation[:, 2]
+    @_check_types.do
+    def fan_out_positions(self, start: bool) -> list[np.ndarray]:
+        """Where each conductor's end lands when the clicked end of the cable is split: the cross-section at the split plane
+        (the conductors' centres, :meth:`split_positions`) projected onto the cable's true end (the split distance beyond the plane,
+        out against the direction of travel, :meth:`_end_frame`) as if lit from a point on the axis behind it, so the projection is
+        bigger (:func:`fan_scale`). In conductor order (shield last). The places are fixed (one per conductor row); which conductor
+        takes which is its ``start_order`` / ``stop_order`` (by default its ``idx``, so each lands straight out from where it sits).
 
-        base = position + outward * split
+        :param start: Which end was clicked."""
+        frame = self._end_frame(start)
+
+        if frame is None or not self._slots:
+            return []
+
+        end, inward, _across, _up, _theta = frame
+        split = self._start_split if start else self._stop_split
+
+        base = end - inward * split
         scale = fan_scale(max(math.hypot(slot.x, slot.y) for slot in self._slots), split)
-
-        places = [base + rotation @ np.array([scale * (cosine * slot.x - sine * slot.y), scale * (sine * slot.x + cosine * slot.y), 0.0])
-                  for slot in self._slots]
+        places = [base + offset for offset in self._cross_section(frame, scale)]
 
         orders = [conductor.start_order if start else conductor.stop_order for conductor in self.db_obj.conductors]
 
@@ -323,28 +381,30 @@ class Cable(_wire_3d.Wire):
 
     @_check_types.do
     def split_positions(self, start: bool) -> list[np.ndarray]:
-        """Where each conductor leaves the trunk at the split plane of the *start* (or stop) end: its place in the cable
-        there, turned by the twist, so that the lead meets the conductor without a jump. In conductor order (shield last).
-        Only meaningful while that end is split."""
-        frames = self._lead_frames()
+        """Where each conductor leaves the trunk at the split plane of the clicked end: its place in the cable there, turned by the
+        twist, so that the lead meets the conductor without a jump. In conductor order (shield last). Only meaningful while that end
+        is split.
 
-        if start not in frames or not self._slots:
+        :param start: Which end was clicked."""
+        frame = self._end_frame(start)
+
+        if frame is None or not self._slots:
             return []
 
-        base, rotation, theta = frames[start]
-        cosine = math.cos(theta)
-        sine = math.sin(theta)
-
-        return [base + rotation @ np.array([cosine * slot.x - sine * slot.y, sine * slot.x + cosine * slot.y, 0.0])
-                for slot in self._slots]
+        return [frame[0] + offset for offset in self._cross_section(frame, 1.0)]
 
     @_check_types.do
     def refresh_waypoints(self) -> None:
         """Call after the cable's own waypoint rows change so the live callbacks, the cached length and the geometry
-        catch up. As the wire's, without the slack handler (which a cable does not have)."""
+        catch up. As the wire's: the slack handler is told which points to watch now."""
         self._bind_waypoints()
         self._recalculate_geometry()
         self.editor3d.Refresh()
+
+        handler = getattr(self.parent, '_slack_handler', None)  # not there yet while the facade is still being built
+
+        if handler is not None:
+            handler.register_3d()
 
     @_check_types.do
     def add_waypoint(self, position: _point.Point, insert_idx: int) -> None:
@@ -567,25 +627,30 @@ class CableMenu(QtWidgets.QMenu):
         action.triggered.connect(self.on_delete)
 
     @_check_types.do
-    def _click_world(self) -> _Union[np.ndarray, None]:
-        """Where the right click was, in the world (``None`` when the menu was opened some other way)."""
-        click_pos = self.selected._context_menu_click_pos  # NOQA
-
-        return None if click_pos is None else click_pos.as_numpy
-
-    @_check_types.do
     def _nearer_start(self) -> bool:
-        """Whether the end the menu was opened at is the cable's start: the end nearer the right click (the start when
-        there was no click position)."""
-        click = self._click_world()
+        """Whether the end the menu was opened at is the cable's start: the end the right click is nearer to along the cable (the
+        start when there was no click position).
+
+        The click is kept as a position in the canvas (pixels), so it is first put onto the cable (``get_closest_point``: a ray
+        through the click in 3D, the board position of the click on the board, as a waypoint is added), and what counts is how far
+        along the route that point is: nearer the start than the stop, by the length of the route, not by a straight line (a cable
+        that bends back has both ends close to its middle).
+        """
+        click = self.selected._context_menu_click_pos  # NOQA
 
         if click is None:
             return True
 
-        to_start = float(np.linalg.norm(self.selected.start_position.as_numpy - click))
-        to_stop = float(np.linalg.norm(self.selected.stop_position.as_numpy - click))
+        closest, _angle, index = self.selected.get_closest_point(click)
 
-        return to_start <= to_stop
+        if closest is None or index is None:
+            return True
+
+        segments = self.selected._segments()  # NOQA
+        lengths = [float(np.linalg.norm(p2 - p1)) for p1, p2 in segments]
+        along = sum(lengths[:index]) + float(np.linalg.norm(closest.as_numpy - segments[index][0]))
+
+        return along <= sum(lengths) * 0.5
 
     @_check_types.do
     def on_add_layout(self) -> None:

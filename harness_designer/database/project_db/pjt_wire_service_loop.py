@@ -32,6 +32,7 @@ from ...crash_dump import capturable, dump_property
 if TYPE_CHECKING:
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire as _pjt_wire
+    from . import pjt_cable_conductor as _pjt_cable_conductor
     from ...objects import wire_service_loop as _wire_service_loop_obj
     from ... import ui as _ui
 
@@ -142,7 +143,8 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, start_point3d_id: bytes, stop_point3d_id: bytes,
-               circuit_id: bytes | None, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
+               circuit_id: bytes | None, is_visible: bool, quat: np.ndarray,
+               cable_conductor_id: bytes | None = None) -> "PJTWireServiceLoop":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -159,6 +161,9 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         :type is_visible: bool
         :param quat: Value for ``quat``.
         :type quat: :class:`np.ndarray`
+        :param cable_conductor_id: The ``pjt_cable_conductors`` row whose lead the loop is in (the loop is then that conductor's
+            wire, and *part_id* is the cable's part); ``None`` for a loop in an ordinary wire.
+        :type cable_conductor_id: bytes | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWireServiceLoop`
         """
@@ -170,7 +175,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
             start_point_pegboard_id=None, stop_point_pegboard_id=None, notes='',
             angle3d='[0.0, 0.0, 0.0]', quat_pegboard='[1.0, 0.0, 0.0, 0.0]',
             angle_pegboard='[0.0, 0.0, 0.0]', is_visible_pegboard=1, smooth=None,
-            operating_temp=None)
+            operating_temp=None, cable_conductor_id=cable_conductor_id)
 
         self.db.pjt_circuits_table.members_changed(circuit_id)
 
@@ -505,13 +510,58 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         self._table.update(self._db_id, is_visible=int(value))
         self._populate('is_visible')
 
+    _stored_cable_conductor_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @dump_property(severity=2)
+    @_check_types.do
+    def cable_conductor_id(self) -> bytes | None:
+        """The ``pjt_cable_conductors`` row whose lead (or a piece of it) this loop is in: the loop is then that conductor's wire, and
+        its part is the conductor's, not the cable's. ``None`` for a loop in an ordinary wire.
+
+        :rtype: bytes | None
+        """
+        if self._stored_cable_conductor_id is DefaultStoredValue:
+            self._stored_cable_conductor_id = self._table.select('cable_conductor_id', id=self._db_id)[0][0]
+
+        return self._stored_cable_conductor_id
+
+    @cable_conductor_id.setter
+    @_check_types.do
+    def cable_conductor_id(self, value: bytes | None) -> None:
+        """Make this loop a loop of the conductor *value*'s wire, or of an ordinary wire again (``None``).
+
+        :param value: The conductor row's id.
+        :type value: bytes | None
+        """
+        self._stored_cable_conductor_id = value
+        self._stored_part = DefaultStoredValue
+
+        self._table.update(self._db_id, cable_conductor_id=value)
+        self._populate('cable_conductor_id')
+
+    @property
+    @_check_types.do
+    def cable_conductor(self) -> "_pjt_cable_conductor.PJTCableConductor | None":
+        """The conductor this loop is a part of the wire of; ``None`` for a loop in an ordinary wire.
+
+        :rtype: :class:`_pjt_cable_conductor.PJTCableConductor` | None
+        """
+        conductor_id = self.cable_conductor_id
+
+        if conductor_id is None:
+            return None
+
+        return self._table.db.pjt_cable_conductors_table[conductor_id]
+
     _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _wire.Wire:
-        """Return the part.
+        """Return the part: the catalog wire, or, for a loop in the lead of a cable's conductor, that conductor's part (a
+        :class:`..global_db.wire_conductor.WireConductor`, which answers what a ``Wire`` does).
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -524,7 +574,12 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
             if part_id is None:
                 self._stored_part = None
             else:
-                self._stored_part = self._table.db.global_db.wires_table[part_id]
+                conductor = self.cable_conductor
+
+                if conductor is None:
+                    self._stored_part = self._table.db.global_db.wires_table[part_id]
+                else:
+                    self._stored_part = conductor.part
 
         if self._stored_part is not None:
             if self._obj is not None:

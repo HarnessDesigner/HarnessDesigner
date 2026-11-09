@@ -57,16 +57,3 @@ exist under `harness_designer/` (checked with `dep_trace.py --calls`), so it
 currently costs nothing. If it is ever wired into a drag-start check, it should
 use a per-housing index rather than a linear scan on each drag. Flagged as
 possibly dead code; not removed.
-
-## Line 1219-1222 and 1244-1245 (`WireStripe.__init__`) — capacity walk at construction
-Walks the wire's full segment list once to compute `required`, then calls
-`_ensure_stripe_capacity`. That is one-time per wire construction and is fine.
-The `_ensure_stripe_capacity` fast path (line 1271) is a plain attribute compare
-with no GL call, which is the right shape.
-
-## Line 1249-1273 (`WireStripe._ensure_stripe_capacity`) — reads the DB row on every recalc
-`_recalculate_geometry` calls this whenever the wire has a stripe (line 323),
-so every drag move reads `project.db_obj.wire_stripe_max_length`. The value is a
-single scalar read, so this is cheap, but it is a DB-backed attribute read on
-the hot drag path. If that attribute is backed by a row lookup rather than a
-plain field, caching the last-seen max on the stripe would avoid it.
