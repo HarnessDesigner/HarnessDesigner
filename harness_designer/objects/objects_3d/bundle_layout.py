@@ -10,6 +10,7 @@ from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from ..mixins import waypoint_handles as _handles
 from ...shapes import sphere as _sphere
 from ... import config as _config
 from ... import color as _color
@@ -87,12 +88,34 @@ class BundleLayout(_base_3d.Base3D):
 
             material = _materials.Rubber(color)
 
-            scale = _point.Point(self._diameter, self._diameter, self._diameter)
-            vbo = _sphere.create_vbo()
+            size = self._diameter * _handles.HANDLE_SCALE
+            scale = _point.Point(size, size, size)
+
+            if _handles.wants_preview_geometry():
+                vbo = _sphere.create_vbo()
+            else:
+                # a waypoint is not drawn or picked as an object: the route draws its own corner (objects/mixins/waypoint_handles.py)
+                vbo = None
+
             angle = _angle.Angle()
             position = db_obj.position3d
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+            _handles.register(self)
+
+    @_check_types.do
+    def end_preview(self) -> None:
+        """The waypoint is placed: this layout keeps no geometry, the route draws its own corner (objects/mixins/waypoint_handles.py)."""
+        self._vbo = None
+
+    @_check_types.do
+    def _delete(self) -> None:
+        """Take this layout's waypoint out of its bundle before the layout goes (``handlers.bundle_layout_handler.remove_waypoint``)."""
+        from ...handlers import bundle_layout_handler as _bundle_layout_handler  # NOQA -- avoid a cycle at import time
+
+        _bundle_layout_handler.remove_waypoint(self.mainframe.project, self.db_obj, '3d')
+        super()._delete()
 
     @_check_types.do
     def can_rotate(self) -> bool:
@@ -135,7 +158,8 @@ class BundleLayout(_base_3d.Base3D):
         sibling bundle at this same position left to cascade into.
         """
         self._diameter = value
-        scale = _point.Point(value, value, value)
+        size = value * _handles.HANDLE_SCALE
+        scale = _point.Point(size, size, size)
         diff = self._scale - scale
         self._scale += diff
 
@@ -149,7 +173,7 @@ class BundleLayout(_base_3d.Base3D):
         it for the whole session -- see
         add_handlers.editor_3d.bundle_layout's own module docstring.
         *initial_pos* seeds the live preview's starting position (the
-        exact point that was right-clicked to open the "Add Handle" menu
+        exact point that was right-clicked to open the "Add Layout" menu
         item, when available) so the preview appears right where the
         user clicked rather than snapping elsewhere first.
         """
@@ -166,8 +190,12 @@ class BundleLayout(_base_3d.Base3D):
 
         from .. import bundle_layout as _bundle_layout_facade
 
-        facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
+        # drawn while it is placed, as a sphere HANDLE_SCALE times the bundle's diameter (nothing is attached to it yet to size it by)
+        with _handles.preview_geometry():
+            facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
+
         facade.obj3d.is_visible = False
+        facade.obj3d.set_diameter(bundle.obj3d._diameter)  # NOQA
 
         from ...add_handlers.editor_3d import bundle_layout as _add_bundle_layout
 
@@ -242,7 +270,7 @@ class BundleLayoutMenu(QtWidgets.QMenu):
         action.triggered.connect(self.on_add_transition)
 
         self.addSeparator()
-        action = self.addAction('Delete')
+        action = self.addAction('Delete Layout')
         action.triggered.connect(self.on_delete)
 
     @_check_types.do

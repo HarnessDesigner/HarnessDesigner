@@ -13,11 +13,11 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
 from . import base_pegboard as _base_pegboard
+from ..mixins import tube as _tube
+from ..mixins import waypoint_handles as _handles
 from ..objects_3d import menu_ops as _menu_ops
-from ..objects_3d import wire as _wire_3d
 from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
-from ...shapes import helix as _helix
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -42,19 +42,12 @@ if TYPE_CHECKING:
 
 Config = _config.Config.editor_pegboard
 
-# Real-world mm of extra headroom built into the shared stripe helix mesh
-# beyond whatever's currently required (see WireStripe._ensure_stripe_capacity).
-# A live drag/preview can then grow a wire's own total length without
-# forcing a GPU buffer reallocation on every frame -- only once the
-# overshoot itself is exhausted does the mesh actually need to regrow.
-_HELIX_OVERSHOOT_MM = 1000.0
-
 # Tolerance, in mm, for Wire.is_tight's straight-line-vs-3D-length check.
 _TIGHT_TOLERANCE_MM = 0.001
 
 
 @capturable()
-class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
+class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin, _tube.TubeMixin, _handles.WaypointOwnerMixin):
     """Represent a wire in :mod:`harness_designer.objects.objects_pegboard.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -65,7 +58,8 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         Attr('_p2', severity=2),
         Attr('_waypoint_points', severity=2),
         Attr('_bundle', severity=2),
-        Attr('_stripe', severity=1),
+        Attr('_stripe_material', severity=1),
+        Attr('_stripe_plain', severity=1),
         Attr('_hidden_waypoint_ids', severity=1),
     )
 
@@ -75,16 +69,8 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     # Whether the part's stripe colour is drawn (a cable's jacket has none; see objects_pegboard.cable).
     _uses_stripe: bool = True
 
-    # A twisted pair / triple, and a cable's conductors, look as they do in the 3D editor: the board is the same scene seen from
-    # above through an orthographic camera, so the same twisted-tube mode of the faces program draws them. The look and its
-    # drawing are the 3D view's own methods (they read only the part, the path and the base-class bounds), so they are borrowed,
-    # not copied: a change to how a twist is drawn is then made once. See objects_3d/wire.py.
-    _build_twist = _wire_3d.Wire._build_twist
-    _make_look = _wire_3d.Wire._make_look
-    _conductor_materials = _wire_3d.Wire._conductor_materials
-    _segment_joins = staticmethod(_wire_3d.Wire._segment_joins)
-    _twist_segments = _wire_3d.Wire._twist_segments
-    _render_twisted = _wire_3d.Wire._render_twisted
+    # the end of a wire that crimps into a terminal is drawn as the bare conductor (objects/mixins/tube.py)
+    _has_bare_ends = True
 
     @staticmethod
     @_check_types.do
@@ -122,12 +108,14 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         :type db_obj: :class:`_pjt_wire.PJTWire`
         """
         with parent.mainframe.editor_pegboard.context:
-            self._stripe = None
+            self._stripe_material = None
+            self._stripe_plain = None
 
-            # None for a wire that is not a twisted pair / triple (or a cable drawn by its conductors), else a _TwistLook;
-            # _twist_plan is its per-segment bookkeeping, thrown away by _recalculate_geometry and rebuilt when next drawn
+            # None for a wire that is not a twisted pair / triple (or a cable drawn by its conductors), else a TwistLook. The
+            # board is the same scene as the 3D editor seen from above through an orthographic camera, so a wire is drawn
+            # exactly as there (objects/mixins/tube.py)
             self._twist = None
-            self._twist_plan = None
+            self._init_tubes()
 
             # Cached result of Wire.is_tight (None = not computed yet).
             self._is_tight = None
@@ -144,19 +132,6 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             self._bundle = None
 
             material = _materials.Plastic(color)
-
-            # Bare-conductor look for whichever end segment(s) crimp into a
-            # terminal (see render()) -- conductor_dia_mm already falls back
-            # to an AWG-derived estimate when the wire_size_dia column is
-            # NULL; od_mm * 2/3 is the final fallback for a part missing both,
-            # per the same ratio a stranded conductor's copper core typically
-            # is of its own fully-insulated OD.
-            conductor_dia = self._part.conductor_dia_mm
-            if not conductor_dia:
-                conductor_dia = diameter * (2.0 / 3.0)
-
-            self._conductor_dia = conductor_dia
-            self._conductor_material = _materials.Polished(self._part.core_material.color.ui)
 
             self._p1 = db_obj.start_position_pegboard
             self._p2 = db_obj.stop_position_pegboard
@@ -197,25 +172,13 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             vbo = _cylinder.create_vbo()
             angle = _angle.Angle.from_points(self._p1, self._p2)
 
-            # Built before the stripe -- WireStripe's own OBB/AABB are copied
-            # from this wire's, so the wire must already have real _obb/_aabb
-            # attributes (set by Base3D.__init__) before WireStripe.__init__
-            # (itself calling Base3D.__init__, which calls _compute_obb/_aabb)
-            # can safely read them. Binding position/angle/scale here first also
-            # means this wire's own _update_* callbacks (which recompute its
-            # _obb/_aabb) fire before the stripe's on any later shared change.
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+            # the stripe is a material of the conductor, drawn by the tube mixin (objects/mixins/tube.py), not an object; the
+            # plain one is kept for identify(None)
             if stripe_color is not None:
-                self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
-                # WireStripe's db_obj is always None (it's not its own DB row --
-                # see WireStripe.__init__), so Base3D.__init__ hits the
-                # `except AttributeError: self._is_visible = False` branch and
-                # the stripe is built permanently invisible. Sync it to the
-                # wire's own just-computed visibility here.
-                self._stripe.is_visible = self._is_visible
-
-                self.pegboard.Refresh()
+                self._stripe_plain = _materials.Plastic(stripe_color.ui)
+                self._stripe_material = self._stripe_plain
 
             # _update_angle just calls _update_position(None) — redundant since
             # both endpoints already drive recalculation via their point bindings.
@@ -302,7 +265,9 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
         overlay_points = _offline_store.overlay_points(self.db_obj.db_id)
         if overlay_points is None:
-            waypoints = [wp.point for wp in self.db_obj.waypoints_pegboard]
+            # kept: a point's write-back to its row is a weak callback (see objects_3d/wire.py _bind_waypoints)
+            self._waypoint_rows = list(self.db_obj.waypoints_pegboard)
+            waypoints = [row.point for row in self._waypoint_rows]
         else:
             waypoints = overlay_points
 
@@ -557,9 +522,6 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         # own docstring.
         self._scale.z = total_length
 
-        if self._stripe is not None:
-            self._stripe._ensure_stripe_capacity(self.parent.mainframe, total_length)  # NOQA
-
         # Aggregate angle: the overall start->stop chord direction. Not
         # used for drawing (each segment computes its own), kept only for
         # any other code reading .angle on a wire.
@@ -738,102 +700,15 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
                 return True
 
-        return False
+        return self._handle_hit(ray_origin, ray_dir)
 
-    @_check_types.do
-    def _conductor_segment_ends(self) -> tuple[bool, bool]:
-        """Return (start_is_conductor, stop_is_conductor) -- whether the
-        first/last sub-segment crimps directly into a Terminal and should
-        render bare-conductor-sized/colored instead of at the wire's own
-        insulation diameter/material (see render()).
-
-        Checked via the sibling graph (parent.start_sibling/stop_sibling,
-        a cheap weakref lookup already maintained by Terminal.add_wire/
-        AddWireHandler) rather than the raw db_obj point ids -- a splice
-        or wire-service-loop sibling never gets the conductor treatment,
-        only an actual Terminal.
-        """
-        from .. import terminal as _terminal
-
-        return (isinstance(self.parent.start_sibling, _terminal.Terminal),
-                isinstance(self.parent.stop_sibling, _terminal.Terminal))
-
-    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
-        """Render every sub-segment of the wire's current path.
+        """Draw the wire: hand it to the frame's batch (``objects/mixins/tube.py``), drawn with every other wire of the frame in
+        one call when the canvas has drawn its objects.
 
-        Geometry is always current by the time this runs --
-        _update_position recomputes it synchronously the moment any
-        endpoint or waypoint moves, so there is nothing to catch up on
-        here. Each sub-segment is drawn as its own straight cylinder by
-        temporarily pointing this object's (and the stripe's) position/
-        angle/scale at that segment before delegating to Base3D.render()
-        -- reuses its existing faces/edges/normals/vertices debug-config
-        gating and material handling unchanged, once per segment.
-
-        The one segment nearest each end that crimps into a Terminal
-        (see _conductor_segment_ends) renders at the conductor's own
-        diameter/material instead -- a short bare-conductor look at the
-        crimp, matching real hardware, rather than full insulation OD
-        running straight into the terminal. Suppressed while selected,
-        same as the stripe overlay below, so the selection highlight
-        stays a single uniform color across the whole wire.
+        Called once per wire per frame, so not wrapped in ``check_types.do``.
         """
-        if self._twist is not None:
-            self._render_twisted(shaders)
-            return
-
-        real_position, real_angle, real_scale, real_material = (
-            self._position, self._angle, self._scale, self._material)
-
-        draw_stripe = self._stripe is not None and not self.is_selected
-
-        if self.is_selected:
-            conductor_start = conductor_stop = False
-        else:
-            conductor_start, conductor_stop = self._conductor_segment_ends()
-
-        if draw_stripe:
-            stripe_position = self._stripe._position  # NOQA
-            stripe_angle = self._stripe._angle  # NOQA
-
-        stripe_offset = 0.0
-        segments = list(self._segment_transforms())
-        last_idx = len(segments) - 1
-
-        for i, (seg_position, seg_angle, seg_scale, seg_len) in enumerate(segments):
-            is_conductor = (
-                (i == 0 and conductor_start) or
-                (i == last_idx and conductor_stop))
-
-            self._position, self._angle = seg_position, seg_angle
-
-            if is_conductor:
-                self._scale = _point.Point(self._conductor_dia, self._conductor_dia, seg_len)
-                self._material = self._conductor_material
-            else:
-                self._scale = seg_scale
-                self._material = real_material
-
-            super().render(shaders)
-
-            if draw_stripe and not is_conductor:
-                # Stripe geometry ignores scale.z entirely (see
-                # gl.shaders.faces' vertex shader) -- only x/y (bumped past
-                # the wire's own radius) matter, so its own scale.z value
-                # is irrelevant; position/angle must match this segment.
-                self._stripe._position = seg_position  # NOQA
-                self._stripe._angle = seg_angle  # NOQA
-                self._stripe.render_segment(shaders, stripe_offset, stripe_offset + seg_len)
-
-            stripe_offset += seg_len
-
-        self._position, self._angle, self._scale, self._material = (
-            real_position, real_angle, real_scale, real_material)
-
-        if draw_stripe:
-            self._stripe._position = stripe_position  # NOQA
-            self._stripe._angle = stripe_angle  # NOQA
+        self._render_tubes()
 
     @_check_types.do
     def identify(self, material: _materials.GLMaterial | None) -> None:
@@ -843,8 +718,12 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         would otherwise keep its own stripe color under a highlight.
         """
         super().identify(material)
-        if self._stripe is not None:
-            self._stripe.identify(material)
+
+        if self._stripe_material is not None:
+            if material is None:
+                self._stripe_material = self._stripe_plain
+            else:
+                self._stripe_material = material
 
     @_check_types.do
     def set_selected(self, flag: bool) -> None:
@@ -856,8 +735,6 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         :type flag: bool
         """
         super().set_selected(flag)
-        if self._stripe is not None:
-            self._stripe.set_selected(flag)
 
     @staticmethod
     @_check_types.do
@@ -924,9 +801,6 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         """
         self._is_visible = value
         self.db_obj.is_visible = value
-
-        if self._stripe is not None:
-            self._stripe.is_visible = value
 
     @classmethod
     @_check_types.do
@@ -1209,6 +1083,10 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
         facade = _wire_facade.Wire(mainframe, wire_db)
 
+        # hidden until the first click sets the start: the stop point stays at the origin through phase 0, so a visible
+        # wire would be drawn from the origin to the cursor (the session shows it once the end being placed follows the cursor)
+        facade.objpegboard.is_visible = False
+
         return cls._arm(
             canvas, facade, part_id, phase=0, growing_point=facade.objpegboard.start_position,
             start_circuit_id=None)
@@ -1272,6 +1150,9 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         """
         from ...add_handlers.editor_pegboard import wire as _add_wire  # NOQA -- avoid a cycle at import time
         from ...handlers import wire_routing_drag as _wire_routing_drag  # NOQA -- avoid a cycle at import time
+
+        if self._waypoint_drag:
+            return self._handle_waypoint_drag(last_pos, current_pos, interaction_type)
 
         if isinstance(self._active_handler, (_add_wire.Wire, _wire_routing_drag.RouteSession)):
             # A local reference, not another read of self._active_handler below
@@ -1357,6 +1238,10 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         ):
             return False
 
+        # a press on one of this object's waypoint handles drags that waypoint (objects/mixins/waypoint_handles.py)
+        if self._arm_waypoint_drag(current_pos):
+            return True
+
         from ...drag_handlers.editor_pegboard import wire_route as _wire_route  # NOQA -- avoid a cycle at import time
 
         plan = _wire_route.WireRoute.plan_wire_drag(self.parent.mainframe.project, self.parent, current_pos)
@@ -1365,259 +1250,6 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
         self._active_handler = _wire_route.WireRoute(self.pegboard.editor, self.parent, plan)
         return True
-
-
-@capturable()
-class WireStripe(_base_pegboard.BasePegboard):
-    """Represent a wire stripe in :mod:`harness_designer.objects.objects_pegboard.wire`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
-
-    __dump_schema__ = (
-        Attr('_wire', severity=2),
-    )
-
-    @_check_types.do
-    def __init__(self, parent: "_wire.Wire", wire: Wire, color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point):
-        """Initialise the :class:`WireStripe` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param parent: Parent object.
-        :type parent: :class:`_wire.Wire`
-        :param wire: Value for ``wire``.
-        :type wire: :class:`Wire`
-        :param color: Value for ``color``.
-        :type color: :class:`_color.Color`
-        :param scale: Value for ``scale``.
-        :type scale: :class:`_point.Point`
-        :param angle: Value for ``angle``.
-        :type angle: :class:`_angle.Angle`
-        :param position: Position value.
-        :type position: :class:`_point.Point`
-        """
-
-        # wire.length isn't trustworthy yet at this point in Wire.__init__
-        # -- it's still the plain straight-line p1/p2 seed from
-        # Wire._calc_length, computed before _recalculate_geometry ever
-        # runs (see Wire.__init__'s ordering). wire.db_obj/start_position/
-        # stop_position are already valid by now though (set by
-        # Base3D.__init__, just above), so the true, possibly multi-
-        # segment polyline length -- what this stripe actually needs
-        # capacity for, e.g. reloading an already-bent wire -- can be
-        # computed directly here via the same WireTypeMixin._segments()
-        # walk Wire itself uses.
-        required = sum(
-            float(np.linalg.norm(seg_p2 - seg_p1))
-            for seg_p1, seg_p2 in wire._segments())  # NOQA
-        self._ensure_stripe_capacity(parent.mainframe, required)
-
-        # Already big enough after _ensure_stripe_capacity -- this just
-        # fetches the resulting handle (a cheap no-op fast path, see
-        # create_vbo).
-        vbo = _helix.create_vbo(required)
-        material = _materials.Plastic(color)
-        self._wire = wire
-
-        # Deliberately NOT the same scale Point instance the wire uses (only
-        # position/angle are shared -- the stripe has no independent extent
-        # of its own there; see the _obb/_aabb properties below). The
-        # stripe's x/y are bumped past the wire's own radius so it always
-        # renders genuinely outside the wire's surface instead of coincident
-        # with it -- two coincident opaque surfaces z-fight per-pixel no
-        # matter how that's biased, so the fix is to not be coincident in
-        # the first place. z is irrelevant here: faces.py's vertex shader
-        # skips z-scaling entirely for stripe geometry (stripeClipStop >
-        # 0), so it doesn't need to track any segment's live length -- see
-        # the clip_start/clip_stop args Wire.render() passes into
-        # render_segment below, computed fresh per segment as it walks
-        # the wire's own waypoints.
-        stripe_scale = _point.Point(scale.x + 0.1, scale.y + 0.1, scale.z)
-        super().__init__(parent, None, vbo, angle, position, stripe_scale, material)
-
-    @staticmethod
-    @_debug.logfunc
-    @_check_types.do
-    def _ensure_stripe_capacity(mainframe: "_ui.MainFrame", required: float) -> None:
-        """Grow the shared wire-stripe helix mesh -- and persist the new
-        true-required max back onto the project row -- if `required`
-        (a wire's own total length, the furthest any of its segments'
-        clip windows will ever reach into the shared mesh) exceeds what's
-        currently stored.
-
-        Takes `mainframe` explicitly rather than reading self.mainframe:
-        called from __init__ before Base3D.__init__ has set it (the vbo
-        it builds here is itself an argument to that call), and later
-        from Wire._recalculate_geometry against the *wire's* mainframe,
-        not this stripe's own (identical, but the wire is what changed).
-
-        The actual VBO build is padded by _HELIX_OVERSHOOT_MM so a live
-        drag/preview has headroom to grow without forcing a GPU
-        reallocation on every frame -- the persisted max itself stays
-        the true, unpadded requirement. No-op (no create_vbo call at
-        all) in the common case where the stored max already covers
-        this wire.
-        """
-        project_db_obj = mainframe.project.db_obj
-
-        if required > project_db_obj.wire_stripe_max_length:
-            project_db_obj.wire_stripe_max_length = required
-            _helix.create_vbo(required + _HELIX_OVERSHOOT_MM)
-
-    @property
-    @_check_types.do
-    def smooth(self) -> bool:
-        """Always smooth-shaded -- the helix is a swept curved surface with
-        no flat faces, so there's no reason for this to ever be flat (see
-        Base3D._render_geometry, which defaults to flat shading when a
-        subclass doesn't define this)."""
-        return True
-
-    @_check_types.do
-    def render_segment(self, shaders: "_shaders.ShaderProgram", clip_start: float, clip_stop: float) -> None:
-        """Draw this stripe windowed to [clip_start, clip_stop] -- one
-        call per wire sub-segment, made by Wire.render() with this
-        stripe's own _position/_angle already pointed at that segment.
-
-        clip_start/clip_stop are now computed fresh by the caller (a
-        running total of preceding segment lengths) rather than read from
-        a persisted, cross-row-cascaded value -- see gl.shaders.faces'
-        stripeClipStart/stripeClipStop uniforms for what they mean to the
-        shader; nothing else about the windowing mechanism changes.
-
-        Set on all three programs (faces/edges/vertices), not just
-        faces_program -- edges.py/vertices.py declare and honor the exact
-        same uniforms now, specifically so debug edge/vertex rendering
-        (Base3D.render()'s _debug_config.draw_edges/draw_vertices passes,
-        both reachable from the single super().render() call below) windows
-        to this segment too instead of drawing the whole shared helix
-        mesh with a naive, non-rebased transform -- confirmed 2026-08-05 as
-        the actual source of stray/misplaced vertices and edges showing up
-        under debug rendering.
-
-        Resets every uniform to 0.0 right after, same as the single-shot
-        render() this replaces -- only WireStripe ever touches them, and
-        GL uniform state persists on each program across draw calls, so a
-        nonzero value left behind would otherwise leak into whatever
-        renders next on that program.
-        """
-        if not self.is_visible:
-            return
-
-        programs = (shaders.faces, shaders.edges, shaders.vertices)
-
-        for program in programs:
-            with program:
-                program.stripe_clip_start = clip_start
-                program.stripe_clip_stop = clip_stop
-
-        super().render(shaders)
-
-        for program in programs:
-            with program:
-                program.stripe_clip_start = 0.0
-                program.stripe_clip_stop = 0.0
-
-    @_check_types.do
-    def _compute_obb(self) -> None:
-        """No-op: the stripe has no independent geometry of its own. See
-        the _obb property below."""
-        pass
-
-    @_check_types.do
-    def _compute_aabb(self) -> None:
-        """See _compute_obb."""
-        pass
-
-    @property
-    @_check_types.do
-    def _obb(self) -> np.ndarray:
-        """Always the wire's current OBB array -- read-only everywhere
-        obb/aabb are used (hit-testing, debug overlay boxes), so there's
-        never a need for the stripe to hold its own copy."""
-        return self._wire._obb
-
-    @_obb.setter
-    @_check_types.do
-    def _obb(self, value: np.ndarray | None) -> None:
-        # Base3D.__init__ assigns this once before calling _compute_obb();
-        # the wire is the source of truth, so the write is discarded.
-        pass
-
-    @property
-    @_check_types.do
-    def _aabb(self) -> np.ndarray:
-        """See _obb."""
-        return self._wire._aabb
-
-    @_aabb.setter
-    @_check_types.do
-    def _aabb(self, value: np.ndarray) -> None:
-        pass
-
-    @_check_types.do
-    def _update_position(self, position: _point.Point) -> None:
-        """Recompute (copy) OBB/AABB from the wire; the wire's own
-        _update_position already triggers a repaint, so this doesn't need
-        its own Refresh() call.
-
-        :param position: Position value.
-        :type position: :class:`_point.Point`
-        """
-        # self._compute_obb()
-        # self._compute_aabb()
-
-        pass
-
-    @_check_types.do
-    def _update_angle(self, angle: _angle.Angle) -> None:
-        """See _update_position.
-
-        :param angle: Value for ``angle``.
-        :type angle: :class:`_angle.Angle`
-        """
-        # self._compute_obb()
-        # self._compute_aabb()
-
-        pass
-
-    @_check_types.do
-    def _update_scale(self, scale: _point.Point) -> None:
-        """See _update_position.
-
-        :param scale: Value for ``scale``.
-        :type scale: :class:`_point.Point`
-        """
-        # self._compute_obb()
-        # self._compute_aabb()
-
-        pass
-
-    @property
-    @_check_types.do
-    def is_visible(self) -> bool:
-        """Return the is visible.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: bool
-        """
-        return self._is_visible
-
-    @is_visible.setter
-    @_check_types.do
-    def is_visible(self, value: bool) -> None:
-        """Set the is visible.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: bool
-        """
-        self._is_visible = value
 
 
 class WireMenu(QtWidgets.QMenu):
@@ -1641,8 +1273,13 @@ class WireMenu(QtWidgets.QMenu):
         self.canvas = canvas
         self.selected = selected
 
-        action = self.addAction('Add Handle')
+        action = self.addAction('Add Layout')
         action.triggered.connect(self.on_add_handle)
+
+        action = self.addAction('Delete Layout')
+        action.setEnabled(bool(selected._waypoint_points))  # NOQA
+        action.setToolTip('Remove the waypoint nearest the right click')
+        action.triggered.connect(self.on_delete_layout)
 
         action = self.addAction('Add Marker')
         action.triggered.connect(self.on_add_marker)
@@ -1739,6 +1376,11 @@ class WireMenu(QtWidgets.QMenu):
             _wire_layout_3d.WireLayout.start_add(mainframe, wire, initial_pos)
 
         QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_delete_layout(self) -> None:
+        """Remove the waypoint nearest the right click that opened this menu."""
+        self.selected.delete_closest_waypoint(self.selected._context_menu_click_pos)  # NOQA
 
     @_check_types.do
     def on_add_marker(self) -> None:

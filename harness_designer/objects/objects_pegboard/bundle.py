@@ -12,6 +12,9 @@ from PySide6 import QtCore, QtWidgets
 
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
+from . import mixins as _mixins
+from ..mixins import tube as _tube
+from ..mixins import waypoint_handles as _handles
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
@@ -39,7 +42,7 @@ Config =_config.Config.editor_pegboard
 
 
 @capturable()
-class Bundle(_base_pegboard.BasePegboard):
+class Bundle(_base_pegboard.BasePegboard, _mixins.WaypointDragMixin, _tube.TubeMixin, _handles.WaypointOwnerMixin):
     """Peg-board representation of a bundle -- a chain of straight
     cylinder segments from its start point, through every interior
     waypoint (:attr:`db_obj.waypoints_pegboard`, idx order), to its stop
@@ -82,6 +85,10 @@ class Bundle(_base_pegboard.BasePegboard):
     # never be selected and dragged.
     _pick_priority = 1
 
+    # A bundle is one plain tube: no conductors of its own (objects/mixins/tube.py draws it from the single-tube look) and no stripe
+    _twist = None
+    _stripe_material = None
+
     # Cached result of :attr:`is_tight` (None = not computed yet).
     _is_tight: bool | None = None
     _TIGHT_TOLERANCE_MM: float = 0.001
@@ -97,6 +104,7 @@ class Bundle(_base_pegboard.BasePegboard):
         :type db_obj: :class:`_pjt_bundle.PJTBundle`
         """
         self.db_obj = db_obj
+        self._init_tubes()
 
         # scale/material built fresh from the catalog part's own data,
         # mirroring objects_3d.bundle.Bundle.__init__'s own construction
@@ -153,6 +161,10 @@ class Bundle(_base_pegboard.BasePegboard):
         # own construction order exactly.
         self._bind_waypoints()
         self._recalculate_geometry()
+
+    def _single_radius(self) -> float:
+        """Half the bundle's diameter, which can change (``diameter``, ``refresh_diameter``)."""
+        return self._scale.x * 0.5
 
     @property
     @_check_types.do
@@ -227,7 +239,9 @@ class Bundle(_base_pegboard.BasePegboard):
 
         overlay_points = _offline_store.overlay_points(self.db_obj.db_id)
         if overlay_points is None:
-            self._waypoint_points = [wp.point for wp in self.db_obj.waypoints_pegboard]
+            # kept: a point's write-back to its row is a weak callback (see objects_3d/wire.py _bind_waypoints)
+            self._waypoint_rows = list(self.db_obj.waypoints_pegboard)
+            self._waypoint_points = [row.point for row in self._waypoint_rows]
         else:
             self._waypoint_points = overlay_points
 
@@ -408,6 +422,8 @@ class Bundle(_base_pegboard.BasePegboard):
         gate exactly; see its own docstring for why it lives here and
         not in :meth:`_update_position`.
         """
+        self._twist_plan = None
+
         if self._update_suspended:
             self._update_pending = True
             return
@@ -554,27 +570,16 @@ class Bundle(_base_pegboard.BasePegboard):
             if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
                 return True
 
-        return False
+        return self._handle_hit(ray_origin, ray_dir)
 
-    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
-        """Render every sub-segment of the bundle's current path.
+        """Draw the bundle: hand it to the frame's batch (``objects/mixins/tube.py``), drawn with every wire and cable of the frame
+        in one call when the canvas has drawn its objects. The path's corners are rounded to a bend of one diameter, as in the 3D
+        editor.
 
-        Geometry is always current by the time this runs --
-        _update_position recomputes it synchronously the moment any
-        endpoint or waypoint moves. Each sub-segment is drawn as its own
-        straight cylinder by temporarily pointing this object's own
-        position/angle/scale at that segment before delegating to the
-        inherited BaseVar.render() -- mirrors
-        objects_3d.bundle.Bundle.render() exactly.
+        Called once per bundle per frame, so not wrapped in ``check_types.do``.
         """
-        real_position, real_angle, real_scale = self._position, self._angle, self._scale
-
-        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
-            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
-            super().render(shaders)
-
-        self._position, self._angle, self._scale = real_position, real_angle, real_scale
+        self._render_tubes()
 
     @_check_types.do
     def touching_edges(self, point_pegboard_id: bytes) -> list:
@@ -597,6 +602,9 @@ class Bundle(_base_pegboard.BasePegboard):
         a real wire catalog part for its snap-probe compat checks, a
         shape ``PJTBundle.part`` doesn't have).
         """
+        if self._waypoint_drag:
+            return self._handle_waypoint_drag(last_pos, current_pos, interaction_type)
+
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)
@@ -618,6 +626,10 @@ class Bundle(_base_pegboard.BasePegboard):
             self.parent.mainframe.get_selected() is not self.parent
         ):
             return False
+
+        # a press on one of this object's waypoint handles drags that waypoint (objects/mixins/waypoint_handles.py)
+        if self._arm_waypoint_drag(current_pos):
+            return True
 
         from ...drag_handlers.editor_pegboard import bundle as _drag_bundle  # NOQA -- avoid a cycle at import time
 
@@ -659,8 +671,13 @@ class BundleMenu(QtWidgets.QMenu):
         self.canvas = canvas
         self.selected = selected
 
-        action = self.addAction('Add Waypoint')
+        action = self.addAction('Add Layout')
         action.triggered.connect(self.on_add_waypoint)
+
+        action = self.addAction('Delete Layout')
+        action.setEnabled(bool(selected._waypoint_points))  # NOQA
+        action.setToolTip('Remove the waypoint nearest the right click')
+        action.triggered.connect(self.on_delete_layout)
 
         self.addSeparator()
         action = self.addAction('Show Table')
@@ -705,6 +722,11 @@ class BundleMenu(QtWidgets.QMenu):
             _bundle_layout_pegboard.BundleLayout.start_add(mainframe, bundle, initial_pos)
 
         QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_delete_layout(self) -> None:
+        """Remove the waypoint nearest the right click that opened this menu."""
+        self.selected.delete_closest_waypoint(self.selected._context_menu_click_pos)  # NOQA
 
     @_check_types.do
     def on_show_table(self) -> None:

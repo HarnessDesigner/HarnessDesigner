@@ -172,3 +172,63 @@ def _create_bundle_layout_on_bundle(
     bundle.obj3d.refresh_waypoints()
 
     return layout_obj
+
+
+@_check_types.do
+def remove_waypoint(project: "_project.Project", layout_db: object, view: str) -> None:
+    """Take the waypoint a bundle layout marks out of its bundle's route in *view* (``'3d'`` or ``'pegboard'``) and delete its point.
+
+    The layout's own row is deleted by the caller afterwards; without this the bundle would keep the waypoint (its ``pjt_bundle_paths``
+    row and the point) with nothing left to show it. As for a wire's layout (``objects_3d.wire_layout.WireLayout._reconnect_wires``):
+    nothing happens for a layout that is not a waypoint of exactly one bundle (an end, or a seam between two bundles, which is not merged
+    back here). The wires routed through the bundle carry the same point in their own routes, so it comes out of those first (a point is
+    not deleted while a route references it), and every owner is refreshed.
+
+    :param project: The project.
+    :param layout_db: The layout's row (``PJTBundleLayout``).
+    :param view: ``'3d'`` or ``'pegboard'``.
+    """
+    ptables = project.ptables
+
+    if view == '3d':
+        point_id = layout_db.position3d_id
+        points_table = ptables.pjt_points3d_table
+    else:
+        point_id = layout_db.position_pegboard_id
+        points_table = ptables.pjt_points_pegboard_table
+
+    if point_id is None:
+        return
+
+    bundles = layout_db.attached_bundles
+
+    if len(bundles) != 1:
+        return
+
+    bundle_db = bundles[0]
+
+    if bundle_db.db_id not in ptables.pjt_bundle_paths_table.bundle_ids_for_point(view, point_id):
+        return
+
+    bundle_obj = bundle_db.get_object()
+    wire_ids = ptables.pjt_wire_paths_table.wire_ids_for_point(view, point_id)
+
+    for wire_id in wire_ids:
+        ptables.pjt_wire_paths_table.remove(wire_id, view, point_id)
+
+    ptables.pjt_bundle_paths_table.remove(bundle_db.db_id, view, point_id)
+    points_table[point_id].delete()
+
+    owners = [bundle_obj]
+
+    for wire_id in wire_ids:
+        owners.append(ptables.pjt_wires_table[wire_id].get_object())
+
+    for owner in owners:
+        if owner is None:
+            continue
+
+        if view == '3d':
+            owner.obj3d.refresh_waypoints()
+        else:
+            owner.objpegboard.refresh_waypoints()

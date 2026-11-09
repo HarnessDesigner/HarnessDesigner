@@ -16,7 +16,7 @@ from .. import shaders as _shaders
 from ... import debug as _debug
 from ... import config as _config
 from .. import culling as _culling
-from .. import wire_benchmark as _wire_benchmark
+from .. import wire_batch as _wire_batch
 from ... import logger as _logger
 from ... import crash_dump as _crash_dump
 from ... import check_types as _check_types
@@ -1084,10 +1084,18 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             self._shaders.texture.projection = projection_matrix
             self._shaders.texture.view = view_matrix
 
+    @_check_types.do
+    def _flush_wire_batch(self) -> None:
+        """Draw the wires the objects have handed in (``gl/wire_batch.py``) with one call. An exception must not leave paintGL."""
+        try:
+            _wire_batch.BATCH.flush(self._shaders.faces)
+        except Exception as err:  # NOQA
+            _logger.traceback(err, 'wire batch render error')
+
     @_debug.logfunc
     @_check_types.do
     def _draw_scene(self, obj_data: np.ndarray | list[list[int | np.ndarray]]) -> None:
-        _wire_benchmark.BENCH.frame_begin(str(self._editor_name))
+        _wire_batch.BATCH.begin()
 
         removed_objects = []
         objects_in_view = []
@@ -1132,6 +1140,10 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                     err, 'object render error')
                 if 'view_obj' in locals():
                     _crash_dump.dump_render_failure(view_obj, err)
+
+        # Every wire that is not the selected object, in one call (they are opaque: where in the loop each was drawn made no
+        # difference). The selected object is still drawn after them, below.
+        self._flush_wire_batch()
 
         # Deferred full-color pass for the selected, translucent object --
         # see the matching "continue" in _draw_scene's own object loop,
@@ -1260,7 +1272,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                 _logger.traceback(
                     err, 'object render removal error')
 
-        _wire_benchmark.BENCH.frame_end(str(self._editor_name))
+        # a selected wire (drawn above, after the loop) and anything else handed in since
+        self._flush_wire_batch()
+        _wire_batch.BATCH.end()
 
     @staticmethod
     @_check_types.do

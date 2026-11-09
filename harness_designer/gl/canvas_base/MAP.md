@@ -30,6 +30,8 @@ rename; harmless, but a sign the rename was mechanical rather than a full re-rea
 
 #### canvas_base.py
 
+(2026-11-08) `_draw_scene` starts a frame of `gl/wire_batch.py` (`BATCH.begin()`), flushes it after the main object loop (`_flush_wire_batch`: every wire that is not the selected object, in one draw) and again at the end (a selected wire), then `BATCH.end()`; every wire, cable and bundle of the view hands itself in (`objects/mixins/tube.py`).
+
 `CanvasBase(QOpenGLWidget)` — the shared canvas lifecycle/render pipeline all three editors
 subclass (ported from a prior wx `GLCanvas`; the class docstring still carries the full wx→Qt
 mapping table). Declares the per-subclass construction contract as class-level `None` placeholders

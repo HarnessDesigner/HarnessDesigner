@@ -21,12 +21,9 @@ pjt_table = _con.SQLTable(
     _con.TextField('creator', default='""', no_null=True),
     _con.TextField('description', default='""', no_null=True),
     _con.IntField('object_count', default='0', no_null=True),
-    # Length (mm) actually *required* to cover every wire's stripe_clip_stop
-    # in this project -- NOT the size the shared helix VBO (shapes/helix.py)
-    # gets built at. objects_3d.wire.WireStripe._ensure_stripe_capacity pads this
-    # by _HELIX_OVERSHOOT_MM whenever it actually rebuilds the VBO, so a
-    # live drag/preview has headroom to grow without triggering a GPU
-    # reallocation on every frame. See Project.wire_stripe_max_length.
+    # Length (mm) the shared helix VBO (shapes/helix.py) was last needed at. The 3D and board wires no longer use that mesh (a
+    # wire's stripe is a material drawn by the tube shader), so nothing writes this any more; it is kept with
+    # Project.wire_stripe_max_length until the column is dropped.
     _con.FloatField('wire_stripe_max_length', default='1000.0', no_null=True),
     # The extent of everything the project occupies in each editor view, as
     # a list string ``[[min_x, min_y, min_z], [max_x, max_y, max_z]]`` --

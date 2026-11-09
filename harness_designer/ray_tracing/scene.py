@@ -91,120 +91,6 @@ def fit_field_of_view(fov: float, view_aspect: float | None, image_aspect: float
     return math.degrees(2.0 * math.atan(tan_half))
 
 
-def _clip_triangles(triangles: np.ndarray, z: float, keep_above: bool) -> np.ndarray:
-    """Cut triangles with the plane ``Z == z``, keeping one side (every triangle at once).
-
-    A triangle with all three corners on the kept side stays as it is, one with none is dropped, one with
-    a single corner there is cut down to a smaller triangle, and one with two becomes a quad, which is split
-    into two triangles. The winding order is kept.
-
-    :param triangles: ``(N, 3, C)`` array of corners. Column 2 is Z; the other columns (a normal, say) are
-        carried along and blended at a cut, the same way the position is.
-    :param z: Where to cut.
-    :param keep_above: Keep the ``Z >= z`` side if true, the ``Z <= z`` side otherwise.
-    :returns: ``(M, 3, C)`` array of the triangles that are kept; empty when nothing is.
-    """
-    depth = (triangles[:, :, 2] - z) * (1.0 if keep_above else -1.0)
-    kept = depth >= 0.0
-    count = kept.sum(axis=1)
-
-    pieces = [triangles[count == 3]]
-
-    one = np.flatnonzero(count == 1)
-    if len(one):
-        rows = np.arange(len(one))
-        corners = triangles[one]
-        d = depth[one]
-
-        # Rotate so that the one kept corner comes first (a cyclic shift keeps the winding).
-        k = np.argmax(kept[one], axis=1)
-        a, b, c = (corners[rows, (k + shift) % 3] for shift in range(3))
-        da, db, dc = (d[rows, (k + shift) % 3] for shift in range(3))
-
-        p_ab = a + (b - a) * (da / (da - db))[:, None]
-        p_ac = a + (c - a) * (da / (da - dc))[:, None]
-        pieces.append(np.stack((a, p_ab, p_ac), axis=1))
-
-    two = np.flatnonzero(count == 2)
-    if len(two):
-        rows = np.arange(len(two))
-        corners = triangles[two]
-        d = depth[two]
-
-        # Rotate so that the one dropped corner comes last.
-        k = np.argmin(kept[two], axis=1)
-        a, b, c = (corners[rows, (k + shift) % 3] for shift in (1, 2, 0))
-        da, db, dc = (d[rows, (k + shift) % 3] for shift in (1, 2, 0))
-
-        p_bc = b + (c - b) * (db / (db - dc))[:, None]
-        p_ca = c + (a - c) * (dc / (dc - da))[:, None]
-        pieces.append(np.stack((a, b, p_bc), axis=1))
-        pieces.append(np.stack((a, p_bc, p_ca), axis=1))
-
-    return np.concatenate(pieces)
-
-
-class _WindowedMesh:
-
-    """A triangle soup indexed along its local Z, so a window of it can be cut out without going over all of it.
-
-    A wire's stripe is one long helix mesh (tens of triangles per mm of wire) shared by every segment of every
-    wire, and each segment needs only its own stretch of it. The triangles are sorted by their lowest Z once;
-    a window is then a contiguous run of them, found with a binary search.
-    """
-
-    def __init__(self, local: np.ndarray, normals: np.ndarray):
-        """
-        :param local: ``(N, 3)`` triangle soup, local space.
-        :param normals: ``(N, 3)`` normals of those vertices.
-        """
-        # Position and normal travel together as one 6-vector per corner, so a cut blends both.
-        triangles = np.concatenate((local, normals), axis=1).reshape(-1, 3, 6)
-
-        low = triangles[:, :, 2].min(axis=1)
-        order = np.argsort(low, kind='stable')
-
-        self._triangles = triangles[order]
-        self._low = low[order]
-        self._high = self._triangles[:, :, 2].max(axis=1)
-
-        # A triangle can only reach the window if it starts no further below it than the longest one is tall.
-        self._span = float((self._high - self._low).max())
-
-    def cut(self, start: float, stop: float) -> np.ndarray | None:
-        """Return the part of the mesh between two Z values.
-
-        A triangle inside is kept whole. One that crosses an edge of the window is cut exactly at it
-        (keeping whole triangles instead overshoots by several mm: the helix's triangles are long, and the
-        overshoot would poke past the end of a segment at a bend).
-
-        :param start: Lower edge of the window.
-        :param stop: Upper edge of the window.
-        :returns: ``(M, 6)`` corners (position then normal), three per triangle; ``None`` when nothing is inside.
-        """
-        first = int(np.searchsorted(self._low, start - self._span, side='left'))
-        last = int(np.searchsorted(self._low, stop, side='right'))
-
-        if first >= last:
-            return None
-
-        low = self._low[first:last]
-        high = self._high[first:last]
-        triangles = self._triangles[first:last]
-
-        inside = (low >= start) & (high <= stop)
-        crossing = ~inside & (high >= start) & (low <= stop)
-
-        pieces = [triangles[inside]]
-
-        if crossing.any():
-            cut = _clip_triangles(triangles[crossing], start, keep_above=True)
-            pieces.append(_clip_triangles(cut, stop, keep_above=False))
-
-        corners = np.concatenate(pieces).reshape(-1, 6)
-        return corners if len(corners) else None
-
-
 class SceneObject(Protocol):
     """What :meth:`Scene.add_object` reads from each object added to a scene."""
 
@@ -214,11 +100,10 @@ class SceneObject(Protocol):
     scale: "_point.Point"
     material: "_gl_materials.GLMaterial"
 
-    # Optional. Objects drawn as several placements of one mesh (wires and
-    # bundles) provide this: an iterable of (position, angle, scale, material),
-    # plus (window, vbo) on the end for a windowed mesh (a wire's stripe).
-    # Without it, the four attributes above are the single placement.
-    # def ray_trace_parts(self) -> Iterable[tuple]: ...
+    # Optional. An object that is not one placement of one mesh (a wire, a cable or a bundle: tubes along a path with rounded
+    # corners) makes its own triangles and provides this: an iterable of (vertices, normals, material), world space, three corners
+    # per triangle, the normals unit length (see ray_tracing/tube_mesh.py). Without it, the attributes above are the one placement.
+    # def ray_trace_meshes(self) -> Iterable[tuple]: ...
 
 
 @dataclass
@@ -282,10 +167,9 @@ class Scene:
         self._normals: list[np.ndarray | None] = []
         self._materials: list[np.ndarray] = []
 
-        # A mesh is read from its VBO once however many objects share it (every segment of every wire
-        # shares one cylinder and one helix). The VBO is kept in the value so its id stays unique.
+        # A mesh is read from its VBO once however many objects share it (every housing of one model shares its mesh).
+        # The VBO is kept in the value so its id stays unique.
         self._meshes: dict[int, tuple[object, tuple[np.ndarray, np.ndarray] | None]] = {}
-        self._windowed_meshes: dict[int, _WindowedMesh] = {}
 
     @property
     @_check_types.do
@@ -306,17 +190,13 @@ class Scene:
         ``BaseVar._compute_aabb`` applies them. An object the viewport draws
         smooth (its ``smooth`` is true) also keeps the VBO's per-vertex smooth
         normals, so the renderer shades it the way the viewport does instead of
-        showing the facets of a curved low-poly surface; a wire's stripe is
-        always smooth.
+        showing the facets of a curved low-poly surface.
 
-        Most objects are one placement of their mesh. A wire or bundle is a
-        chain of straight tubes, one per segment of its path, all sharing the
-        one cylinder mesh: those objects list their placements in
-        ``ray_trace_parts()`` and each becomes its own copy of the mesh. A part
-        is ``(position, angle, scale, material)``, or for a windowed mesh
-        (a wire's stripe) ``(position, angle, scale, material, (start, stop),
-        vbo)``; see :meth:`_add_windowed`. An object whose ``ray_trace_parts()``
-        yields nothing adds nothing.
+        A wire, a cable or a bundle is not one placement of a mesh: it is tubes along a path whose corners are
+        rounded, twisted and striped, made by the viewport's shader. Those objects make the same triangles on the CPU
+        (``ray_trace_meshes()``, from ``ray_tracing/tube_mesh.py``), already in world space with their smooth normals, and
+        each ``(vertices, normals, material)`` they yield is added as it is. An object whose ``ray_trace_meshes()`` yields
+        nothing adds nothing.
 
         :param obj: Object to include in the render.
         :type obj: SceneObject
@@ -327,55 +207,50 @@ class Scene:
         if not getattr(obj, 'is_visible', True):
             return False
 
-        get_parts = getattr(obj, 'ray_trace_parts', None)
-        if get_parts is None:
-            parts = ((obj.position, obj.angle, obj.scale, obj.material),)
-        else:
-            parts = get_parts()
+        get_meshes = getattr(obj, 'ray_trace_meshes', None)
+
+        if get_meshes is not None:
+            added = False
+
+            for vertices, normals, material in get_meshes():
+                self._vertices.append(vertices)
+                self._normals.append(normals)
+                self._materials.append(material.cl_array)
+                added = True
+
+            return added
+
+        # An object with no geometry (a waypoint's layout: the route draws its own corner) adds nothing.
+        if obj.vbo is None:
+            return False
+
+        key = id(obj.vbo)
+        if key not in self._meshes:
+            self._meshes[key] = (obj.vbo, self._local_mesh(obj.vbo))
+
+        mesh = self._meshes[key][1]
+        if mesh is None:
+            return False
+
+        local, local_normals = mesh
 
         # Base3D draws an object flat unless it says otherwise.
         object_smooth = bool(getattr(obj, 'smooth', False))
 
-        added = False
+        vertices = local * obj.scale.as_numpy
+        vertices @= obj.angle
+        vertices += obj.position.as_numpy
 
-        for position, angle, scale, material, *extra in parts:
-            window = extra[0] if extra else None
-            vbo = extra[1] if len(extra) > 1 else obj.vbo
+        self._vertices.append(vertices)
 
-            key = id(vbo)
-            if key not in self._meshes:
-                self._meshes[key] = (vbo, self._local_mesh(vbo))
+        if object_smooth:
+            self._normals.append(self._world_normals(local_normals, obj.scale.as_numpy, obj.angle))
+        else:
+            self._normals.append(None)
 
-            mesh = self._meshes[key][1]
-            if mesh is None:
-                continue
+        self._materials.append(obj.material.cl_array)
 
-            local, local_normals = mesh
-
-            if window is None:
-                vertices = local * scale.as_numpy
-                normals = local_normals if object_smooth else None
-                normal_scale = scale.as_numpy
-            else:
-                if key not in self._windowed_meshes:
-                    self._windowed_meshes[key] = _WindowedMesh(local, local_normals)
-
-                windowed = self._place_window(self._windowed_meshes[key], scale, window)
-                if windowed is None:
-                    continue
-
-                vertices, normals = windowed
-                normal_scale = np.array((scale.x, scale.y, 1.0), dtype=np.float32)
-
-            vertices @= angle
-            vertices += position.as_numpy
-
-            self._vertices.append(vertices)
-            self._normals.append(None if normals is None else self._world_normals(normals, normal_scale, angle))
-            self._materials.append(material.cl_array)
-            added = True
-
-        return added
+        return True
 
     @staticmethod
     @_check_types.do
@@ -433,56 +308,6 @@ class Scene:
         length = np.linalg.norm(world, axis=1, keepdims=True)
         np.divide(world, length, out=world, where=length > 1e-12)
         return world
-
-    @staticmethod
-    @_check_types.do
-    def _add_windowed(local: np.ndarray, normals: np.ndarray, scale: "_point.Point",
-                      window: tuple[float, float]) -> tuple[np.ndarray, np.ndarray] | None:
-        """Cut a mesh down to a window along its local Z and place it (:meth:`_place_window` on a one-off mesh).
-
-        :param local: ``(N, 3)`` triangle soup, local space.
-        :type local: numpy.ndarray
-        :param normals: ``(N, 3)`` normals of those vertices, local space.
-        :type normals: numpy.ndarray
-        :param scale: Only X and Y are used.
-        :type scale: Point
-        :param window: ``(start, stop)`` along local Z.
-        :type window: tuple[float, float]
-        :returns: See :meth:`_place_window`.
-        :rtype: tuple[numpy.ndarray, numpy.ndarray] | None
-        """
-        return Scene._place_window(_WindowedMesh(local, normals), scale, window)
-
-    @staticmethod
-    def _place_window(mesh: "_WindowedMesh", scale: "_point.Point",
-                      window: tuple[float, float]) -> tuple[np.ndarray, np.ndarray] | None:
-        """Cut a shared mesh down to a window along its local Z and place it.
-
-        This is what the faces vertex shader does for a wire's stripe
-        (``stripeClipStart`` / ``stripeClipStop``): the helix mesh's local Z is
-        in real units, so only X and Y are scaled, Z is re-based so the window
-        starts at 0, and everything outside the window is dropped. A triangle
-        that crosses the window's edge is cut exactly at it, its normals blended
-        across the cut.
-
-        :param mesh: The shared mesh.
-        :param scale: Only X and Y are used.
-        :param window: ``(start, stop)`` along local Z.
-        :returns: ``(vertices, normals)``: the vertices scaled and re-based, ready for the angle and position,
-            and the normals still in local space (not unit length where a cut blended them); ``None`` when
-            nothing is inside.
-        """
-        start, stop = window
-
-        corners = mesh.cut(start, stop)
-        if corners is None:
-            return None
-
-        vertices = corners[:, :3].astype(np.float32, copy=True)
-        vertices[:, 0] *= scale.x
-        vertices[:, 1] *= scale.y
-        vertices[:, 2] -= start
-        return vertices, np.ascontiguousarray(corners[:, 3:], dtype=np.float32)
 
     @_check_types.do
     def _environment_map(self) -> np.ndarray | None:

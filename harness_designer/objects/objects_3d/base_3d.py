@@ -192,6 +192,15 @@ class Base3D(_objectsvar.BaseVar):
                 vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
             vbo.acquire()
 
+            # This object is a user of the model. A model with two or more users lives in a long-term arena (see
+            # gl/arena_pool.py); the move happens later, at idle time, not here. A repeat call with the same model counts once,
+            # and a model that replaces another one lets the old one go.
+            if self._vbo is not vbo:
+                vbo.ref_count += 1
+
+                if isinstance(self._vbo, _vbo.PooledVBOHandler):
+                    self._vbo.ref_count -= 1
+
             self._vbo = vbo
             try:
                 scale = self.db_obj.scale3d  # NOQA
@@ -332,6 +341,10 @@ class Base3D(_objectsvar.BaseVar):
         if self._active_handler is not None:
             self._active_handler.delete()
             self._active_handler = None
+
+        # Let go of the model: with fewer than two users left it goes back to a short-term arena (at idle time).
+        if isinstance(self._vbo, _vbo.PooledVBOHandler):
+            self._vbo.ref_count -= 1
 
         self._release_bounds()
         self.editor3d.Refresh()
@@ -564,6 +577,9 @@ class Base3D(_objectsvar.BaseVar):
             self.db_obj.is_visible3d = value
         except AttributeError:
             pass
+
+    # False for a wire, bundle or cable: it casts the outline of its drawn path instead (TubeMixin._render_floor_outline)
+    _floor_projection_enabled: bool = True
 
     @_check_types.do
     def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
@@ -940,7 +956,7 @@ class Base3D(_objectsvar.BaseVar):
         non-uniformly to (footprint length, floor thickness, footprint
         width) and rotated to the footprint's own heading.
         """
-        if not self.is_visible:
+        if not self._floor_projection_enabled or not self.is_visible:
             return
 
         if (

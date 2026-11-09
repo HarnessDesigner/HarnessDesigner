@@ -74,10 +74,10 @@ class WireServiceLoop(_generic.Generic):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
-        loop = self.target.obj3d
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
+        self.cursor = mouse_pos
 
-        delta3d = self._delta3d(loop.position, self.last_pos, delta)
+        loop = self.target.obj3d
 
         # The wire turns as the loop is carried round a bend, so the
         # direction it is slid along is read afresh every event
@@ -85,7 +85,14 @@ class WireServiceLoop(_generic.Generic):
         if axle is None:
             return
 
-        distance = float(np.dot(delta3d.as_numpy.astype(np.float64), axle))
+        # Follow the pointer along the wire (keeping the offset it was grabbed with) rather
+        # than adding up screen deltas, which drift away from the pointer wherever the wire
+        # does not run across the screen.
+        distance = self._line_latched_distance(loop.position, axle, delta)
+        if distance is None:
+            delta3d = self._delta3d(loop.position, self.last_pos, delta)
+            distance = float(np.dot(delta3d.as_numpy.astype(np.float64), axle))
+
         loop.slide_along_wire(distance)
 
         self.last_pos = loop.position.copy()

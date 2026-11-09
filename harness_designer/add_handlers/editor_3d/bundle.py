@@ -25,7 +25,7 @@ splices/other bundles/wire layouts):
   space commits the current point as an interior waypoint (a
   ``BundleLayout``, exactly the mechanics ``handlers.
   bundle_layout_handler._create_bundle_layout_on_bundle`` already uses
-  for "Add Handle") and keeps growing; a left click on a fitting free
+  for "Add Layout") and keeps growing; a left click on a fitting free
   branch attaches the bundle there and ENDS the placement; a right click
   either cancels outright (no waypoint committed yet -- section 3:
   "Right click after only the first click: the whole placement is

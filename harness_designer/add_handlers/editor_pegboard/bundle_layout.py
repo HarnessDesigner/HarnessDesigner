@@ -150,6 +150,7 @@ class BundleLayout(_base.AddHandlerBase):
             self.target.db_obj.position_pegboard_id = (
                 self.target.objpegboard.position.db_id[:-2])
 
+            self.target.objpegboard.end_preview()
             self.target.objpegboard.is_visible = True
             self.mainframe.project.add_bundle_layout(self.target)
         else:

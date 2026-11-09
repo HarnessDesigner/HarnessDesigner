@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Union as _Union
 
 from . import base_pegboard as _base_pegboard
+from ..mixins import waypoint_handles as _handles
 from . import chain_edges as _chain_edges
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -84,12 +85,23 @@ class WireLayout(_base_pegboard.BasePegboard):
             color = _color.Color(0.5, 0.5, 0.5, 1.0)
 
         material = _materials.Plastic(color)
+
+        # the handle (and the preview of one being placed) is bigger than the wire: easy to see and to hit. The marker where a
+        # cable's conductor leaves the trunk is the conductor's own size, so it meets the lead without a step
+        if not db_obj.is_cable_split_point:
+            diameter *= _handles.HANDLE_SCALE
+
         scale = _point.Point(diameter, diameter, diameter)
         angle = _angle.Angle()
         position = db_obj.position_pegboard
 
         with parent.mainframe.editor_pegboard.context:
-            vbo = _sphere.create_vbo()
+            if db_obj.is_cable_split_point or _handles.wants_preview_geometry():
+                vbo = _sphere.create_vbo()
+            else:
+                # a waypoint is not drawn or picked as an object: the route draws its own corner (objects/mixins/waypoint_handles.py)
+                vbo = None
+
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         self.point3d_id = db_obj.position_pegboard_id
@@ -97,6 +109,13 @@ class WireLayout(_base_pegboard.BasePegboard):
         # the pseudo marker where a cable conductor's lead meets the cable strip is only drawn (see the 3D view)
         if db_obj.is_cable_split_point:
             self._pick_priority = -1
+
+        _handles.register(self)
+
+    @_check_types.do
+    def end_preview(self) -> None:
+        """The waypoint is placed: this layout keeps no geometry, the route draws its own corner (objects/mixins/waypoint_handles.py)."""
+        self._vbo = None
 
     @_check_types.do
     def can_rotate(self) -> bool:
@@ -163,8 +182,13 @@ class WireLayout(_base_pegboard.BasePegboard):
         # delete() would silently no-op, leaving this waypoint in the
         # database forever. Removing it also renumbers the rest of the
         # wire's route.
+        wire_obj = wire_db.get_object()
+
         ptables.pjt_wire_paths_table.remove(wire_db.db_id, 'pegboard', point_id)
         ptables.pjt_points_pegboard_table[point_id].delete()
+
+        if wire_obj is not None:
+            wire_obj.objpegboard.refresh_waypoints()
 
     @_check_types.do
     def can_drag(self) -> bool:
@@ -275,8 +299,15 @@ class WireLayout(_base_pegboard.BasePegboard):
 
         from .. import wire_layout as _wire_layout_facade
 
-        facade = _wire_layout_facade.WireLayout(mainframe, layout_db)
+        # drawn while it is placed, as a sphere HANDLE_SCALE times the wire's diameter (nothing is attached to it yet to size it by)
+        with _handles.preview_geometry():
+            facade = _wire_layout_facade.WireLayout(mainframe, layout_db)
+
         facade.objpegboard.is_visible = False
+        size = wire.objpegboard._scale.x * _handles.HANDLE_SCALE  # NOQA
+        facade.objpegboard._scale.x = size  # NOQA
+        facade.objpegboard._scale.y = size  # NOQA
+        facade.objpegboard._scale.z = size  # NOQA
 
         pos = facade.objpegboard.position
         pos += initial_pos - pos

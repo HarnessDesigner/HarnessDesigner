@@ -32,6 +32,7 @@ from ...geometry import angle as _angle
 from ...shapes import twisted_wire as _twisted_wire
 from ...gl import materials as _materials
 from . import wire as _wire_3d
+from ..mixins import tube as _tube
 from . import menu_ops as _menu_ops
 from ...gl.canvas_base import interaction as _interaction
 from ... import check_types as _check_types
@@ -46,9 +47,28 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-FAN_SPREAD = 2.0
-"""How far from the cable's axis a conductor's end lands when the cable is split, as a multiple of where it sits inside the
-cable."""
+FAN_ANGLE_DEG = 20.0
+"""The angle from the cable's axis at which the outermost conductor leaves when the cable is split: the split is the cross-section
+at the split plane projected onto the cable's true end from a light behind it, and this is how steep the light's cone is."""
+
+
+def fan_scale(radius: float, split: float) -> float:
+    """How much the cross-section of a split end grows when it is projected from the split plane onto the cable's true end.
+
+    The light sits on the cable's axis behind the plane, at the distance where the outermost conductor (*radius* from the axis)
+    is seen at :data:`FAN_ANGLE_DEG`; the screen is *split* mm beyond the plane, so everything on it is ``(reach + split) / reach``
+    times as far from the axis as it is in the plane. So the outermost lead always leaves at the same angle, whatever the cable's or
+    the conductors' diameter (a thin cable's cross-section is magnified more than a thick one's).
+
+    :param radius: How far the outermost conductor centre is from the axis, mm.
+    :param split: The distance from the split plane to the cable's true end, mm.
+    """
+    if radius < 1e-9:
+        return 1.0
+
+    reach = radius / math.tan(math.radians(FAN_ANGLE_DEG))
+
+    return (reach + split) / reach
 
 MIN_SPLIT_MM = 1.0
 """The shortest distance from the end that a split can be at."""
@@ -58,19 +78,13 @@ MIN_TRUNK_MM = 2.0
 
 
 class _Slot(_NamedTuple):
-    """Where one conductor (or the shield) of a cable sits, and where its end lands when the cable is split."""
+    """Where one conductor (or the shield) of a cable sits in its cross-section."""
 
     x: float
     """Where the conductor sits in the cable, across, mm (in the frame of the trunk's end segment)."""
 
     y: float
     """Where it sits, up, mm."""
-
-    fan_x: float
-    """Where the conductor's end lands when the cable is first split, across, mm."""
-
-    fan_y: float
-    """Up, mm."""
 
 
 @capturable()
@@ -99,12 +113,7 @@ class Cable(_wire_3d.Wire):
         return part.trunk_size
 
     @_check_types.do
-    def _gpu_single_allowed(self) -> bool:
-        """A cable view has looks of its own (twisted, ribbon, jacketed tube), never the single-wire one."""
-        return False
-
-    @_check_types.do
-    def _make_look(self, diameter: float) -> _Union[_wire_3d._TwistLook, None]:
+    def _make_look(self, diameter: float) -> _Union[_tube.TwistLook, None]:
         """A twisted cable's look as the wire's; a ribbon's is a row of conductors; any other cable is a plain tube.
 
         :param diameter: The cable's diameter, mm.
@@ -122,7 +131,7 @@ class Cable(_wire_3d.Wire):
         self.reload_splits()
 
     @_check_types.do
-    def _build_ribbon(self) -> _wire_3d._TwistLook:
+    def _build_ribbon(self) -> _tube.TwistLook:
         """The look of a ribbon cable: its conductors in a row across the trunk (``shapes.twisted_wire.ribbon_profile``), no
         twist. Colours come from the part's conductor rows; a part without them is drawn in the cable's colour."""
         part = self._part
@@ -137,13 +146,20 @@ class Cable(_wire_3d.Wire):
 
         self._ribbon = True
 
-        return _wire_3d._TwistLook(0.0, count * pitch * 0.5, _twisted_wire.ribbon_profile(count, pitch), materials, stripes)
+        return _tube.TwistLook(0.0, count * pitch * 0.5, _twisted_wire.ribbon_profile(count, pitch), materials, stripes, False)
 
     @_check_types.do
     def _recalculate_geometry(self) -> None:
         """As the wire's; a ribbon's rolled segments are worked out again with the path."""
         self._rolled = None
         super()._recalculate_geometry()
+
+    @_check_types.do
+    def _update_position(self, _: _Union[_point.Point, None]) -> None:
+        """As the wire's, then keep the split points of a split end on the trunk's split plane: a waypoint of the route moved by a
+        drag (or any other change of the route) turns or shifts the trunk's end, and the leads end at those points."""
+        super()._update_position(_)
+        self.parent.sync_split_ends()
 
     @_check_types.do
     def reload_roll(self) -> None:
@@ -190,8 +206,9 @@ class Cable(_wire_3d.Wire):
 
     @_check_types.do
     def reload_splits(self) -> None:
-        """Read the split distances and the conductors again after a split or a join: the trunk is drawn between the split
-        planes (the conductors leave it as wires of their own, the cable's leads)."""
+        """Read the split distances and the conductors again after a split or a join. A split end of the cable lies AT the split
+        plane (the trunk ends there; the conductors go on as wires of their own, the cable's leads), and the split distance is how
+        far beyond it the cable's end was before it was split: where the conductors' ends fan out from."""
         self._start_split = float(self.db_obj.start_split_mm)
         self._stop_split = float(self.db_obj.stop_split_mm)
         self._slots = self._build_slots()
@@ -228,7 +245,7 @@ class Cable(_wire_3d.Wire):
 
         for conductor in conductors:
             if conductor.is_shield:
-                slots.append(_Slot(0.0, -diameter * 0.5, 0.0, -diameter * 0.5 * FAN_SPREAD))
+                slots.append(_Slot(0.0, -diameter * 0.5))
             else:
                 if index >= len(circles):
                     break
@@ -236,36 +253,9 @@ class Cable(_wire_3d.Wire):
                 x, y, _radius = circles[index]
                 index += 1
 
-                slots.append(_Slot(x, y, x * FAN_SPREAD, y * FAN_SPREAD))
+                slots.append(_Slot(x, y))
 
         return slots
-
-    @_check_types.do
-    def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
-        """The trunk's path: as the wire's, but the first segment starts at the start split plane and the last ends at the stop
-        one, so that the cable is drawn only between the planes where its conductors leave it."""
-        segments = list(super()._segments())
-
-        if not segments:
-            return segments
-
-        if self._start_split > 0.0:
-            p1, p2 = segments[0]
-            vector = p2 - p1
-            length = float(np.linalg.norm(vector))
-
-            if length > self._start_split + 1e-6:
-                segments[0] = (p1 + vector / length * self._start_split, p2)
-
-        if self._stop_split > 0.0:
-            p1, p2 = segments[-1]
-            vector = p2 - p1
-            length = float(np.linalg.norm(vector))
-
-            if length > self._stop_split + 1e-6:
-                segments[-1] = (p1, p2 - vector / length * self._stop_split)
-
-        return segments
 
     @_check_types.do
     def _lead_frames(self) -> dict[bool, tuple[np.ndarray, np.ndarray, float]]:
@@ -274,42 +264,53 @@ class Cable(_wire_3d.Wire):
         conductors have turned through by then (0 for a cable that is not twisted)."""
         if self._twist is not None:
             rate = self._twist.rate
-            segments = [(s.position, s.angle, s.length, s.twist.phase) for s in self._twist_segments()]
+            segments = [(np.asarray(s.position), s.matrix, s.length, s.twist.phase) for s in self._twist_segments()]
         else:
             rate = 0.0
-            segments = [(position, angle, length, 0.0) for position, angle, _scale, length in self._segment_transforms()]
+            segments = [(position.as_numpy, angle.as_matrix_numpy, length, 0.0)
+                        for position, angle, _scale, length in self._segment_transforms()]
 
         if not segments:
             return {}
 
-        position, angle, _length, phase = segments[0]
-        frames = {True: (position.as_numpy, angle.as_matrix_numpy, phase)}
+        position, rotation, _length, phase = segments[0]
+        frames = {True: (position, rotation, phase)}
 
-        position, angle, length, phase = segments[-1]
-        rotation = angle.as_matrix_numpy
-        frames[False] = (position.as_numpy + rotation[:, 2] * length, rotation, phase + rate * length)
+        position, rotation, length, phase = segments[-1]
+        frames[False] = (position + rotation[:, 2] * length, rotation, phase + rate * length)
 
         return frames
 
     @_check_types.do
     def fan_out_positions(self, start: bool) -> list[np.ndarray]:
-        """Where each conductor's end lands when the *start* (or stop) end of the cable is split: across the cable's true end,
-        spread out from the axis, in conductor order (shield last). The places around the end are fixed (one per conductor row,
-        where that row sits in the cable, spread out); which conductor takes which is its ``start_order`` / ``stop_order``
-        (by default its ``idx``, so each lands straight out from where it sits)."""
-        segments = list(self._segment_transforms())
+        """Where each conductor's end lands when the *start* (or stop) end of the cable is split: the cross-section at the split plane
+        (the conductors' centres, :meth:`split_positions`) projected onto the cable's true end (the split distance beyond the plane,
+        out along the end segment) as if lit from a point on the axis behind it, so the projection is bigger (:func:`fan_scale`).
+        In conductor order (shield last). The places are fixed (one per conductor row); which conductor takes which is its
+        ``start_order`` / ``stop_order`` (by default its ``idx``, so each lands straight out from where it sits)."""
+        frames = self._lead_frames()
 
-        if not segments or not self._slots:
+        if start not in frames or not self._slots:
             return []
 
-        if start:
-            base = self.start_position.as_numpy
-            rotation = segments[0][1].as_matrix_numpy
-        else:
-            base = self.stop_position.as_numpy
-            rotation = segments[-1][1].as_matrix_numpy
+        # The cross-section at the plane, turned by the twist like the conductors in it (the same angle as split_positions, so each
+        # conductor's end lands straight out from where it leaves the trunk and no two leads cross)
+        position, rotation, theta = frames[start]
+        cosine = math.cos(theta)
+        sine = math.sin(theta)
 
-        places = [base + rotation @ np.array([slot.fan_x, slot.fan_y, 0.0]) for slot in self._slots]
+        split = self._start_split
+        outward = -rotation[:, 2]
+
+        if not start:
+            split = self._stop_split
+            outward = rotation[:, 2]
+
+        base = position + outward * split
+        scale = fan_scale(max(math.hypot(slot.x, slot.y) for slot in self._slots), split)
+
+        places = [base + rotation @ np.array([scale * (cosine * slot.x - sine * slot.y), scale * (sine * slot.x + cosine * slot.y), 0.0])
+                  for slot in self._slots]
 
         orders = [conductor.start_order if start else conductor.stop_order for conductor in self.db_obj.conductors]
 
@@ -344,6 +345,34 @@ class Cable(_wire_3d.Wire):
         self._bind_waypoints()
         self._recalculate_geometry()
         self.editor3d.Refresh()
+
+    @_check_types.do
+    def add_waypoint(self, position: _point.Point, insert_idx: int) -> None:
+        """Add a waypoint to the cable's route at *position*, as the *insert_idx*-th (the segment of the route it lies on, as
+        ``get_closest_point`` gives it), and have the cable catch up. A cable has no layout at its waypoints: the route is
+        just the point, which the rounded corner is drawn round.
+
+        :param position: Where the waypoint goes, on the straight route.
+        :param insert_idx: How many of the cable's waypoints come before it.
+        """
+        ptables = self.mainframe.project.ptables
+        point = ptables.pjt_points3d_table.insert(float(position.x), float(position.y), float(position.z))
+
+        ptables.pjt_cable_paths_table.add(self.db_obj.db_id, '3d', insert_idx, point.db_id)
+
+        self.refresh_waypoints()
+
+    @_check_types.do
+    def _delete_waypoint(self, point: _point.Point) -> None:
+        """Remove one waypoint of the cable's route: a cable has no layouts at its waypoints, so the point comes out of the route
+        and is deleted itself (the route is renumbered), then the cable catches up."""
+        ptables = self.mainframe.project.ptables
+        point_id = point.db_id[:-2]
+
+        ptables.pjt_cable_paths_table.remove(self.db_obj.db_id, '3d', point_id)
+        ptables.pjt_points3d_table[point_id].delete()
+
+        self.refresh_waypoints()
 
     @classmethod
     @_check_types.do
@@ -380,6 +409,10 @@ class Cable(_wire_3d.Wire):
             part_id, name, start_db.db_id, stop_db.db_id, None, None, True, True)
 
         facade = _cable_facade.Cable(mainframe, cable_db)
+
+        # hidden until the first click sets the start: the stop point stays at the origin through phase 0, so a visible
+        # cable would be drawn from the origin to the cursor (the session shows it once the end being placed follows the cursor)
+        facade.obj3d.is_visible = False
 
         handler = _add_cable.Cable(
             canvas, facade, part_id, phase=0, growing_point=facade.obj3d.start_position, start_circuit_id=None)
@@ -422,6 +455,9 @@ class Cable(_wire_3d.Wire):
         from ...add_handlers.editor_3d import cable as _add_cable  # NOQA -- avoid a cycle at import time
         from ...drag_handlers.editor_3d import cable as _drag_cable  # NOQA -- avoid a cycle at import time
 
+        if self._waypoint_drag:
+            return self._handle_waypoint_drag(last_pos, current_pos, interaction_type)
+
         handler = self._active_handler
 
         if isinstance(handler, _add_cable.Cable):
@@ -453,6 +489,10 @@ class Cable(_wire_3d.Wire):
         ):
             return False
 
+        # a press on one of this object's waypoint handles drags that waypoint (objects/mixins/waypoint_handles.py)
+        if self._arm_waypoint_drag(current_pos):
+            return True
+
         plan = _drag_cable.Cable.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
 
         if plan is None:
@@ -467,6 +507,9 @@ class CableMenu(QtWidgets.QMenu):
 
     # a ribbon can be turned about its length in 3D; lying flat on the peg board it has no roll
     _has_roll: bool = True
+
+    # a waypoint is placed in the 3D editor (add_handlers/editor_3d/wire_layout.py); the peg board's menu leaves the entry out
+    _has_add_layout: bool = True
 
     @_check_types.do
     def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: Cable):
@@ -483,6 +526,16 @@ class CableMenu(QtWidgets.QMenu):
 
         action = self.addAction('Select')
         action.triggered.connect(self.on_select)
+
+        if self._has_add_layout:
+            action = self.addAction('Add Layout')
+            action.setToolTip('Add a waypoint to the cable')
+            action.triggered.connect(self.on_add_layout)
+
+        action = self.addAction('Delete Layout')
+        action.setEnabled(bool(selected._waypoint_points))  # NOQA
+        action.setToolTip('Remove the waypoint nearest the right click')
+        action.triggered.connect(self.on_delete_layout)
 
         self.addSeparator()
 
@@ -533,6 +586,36 @@ class CableMenu(QtWidgets.QMenu):
         to_stop = float(np.linalg.norm(self.selected.stop_position.as_numpy - click))
 
         return to_start <= to_stop
+
+    @_check_types.do
+    def on_add_layout(self) -> None:
+        """Start the interactive waypoint placement (``add_handlers/editor_3d/wire_layout.py``, as for a wire), seeded at the
+        point of the cable that was right-clicked (the middle of the cable when the menu was opened some other way)."""
+        from . import wire_layout as _wire_layout_3d  # NOQA -- avoid a cycle at import time
+
+        mainframe = self.selected.mainframe
+        cable = self.selected.parent
+
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+        initial_pos = None
+
+        if click_pos is not None:
+            initial_pos, _angle, _insert_idx = self.selected.get_closest_point(click_pos)
+
+        if initial_pos is None:
+            middle = (self.selected.start_position.as_numpy + self.selected.stop_position.as_numpy) * 0.5
+            initial_pos = _point.Point(*middle.tolist())
+
+        @_check_types.do
+        def _do() -> None:
+            _wire_layout_3d.WireLayout.start_add(mainframe, cable, initial_pos)
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_delete_layout(self) -> None:
+        """Remove the waypoint nearest the right click that opened this menu."""
+        self.selected.delete_closest_waypoint(self.selected._context_menu_click_pos)  # NOQA
 
     @_check_types.do
     def on_split(self) -> None:

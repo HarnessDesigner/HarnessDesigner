@@ -8,7 +8,7 @@ through the cable's own peg-board waypoints, the mitred bends, the picking. What
 * it is drawn at the cable's trunk size (a ribbon is its width by its thickness, any other cable round), in the jacket colour
   (for a twisted or ribbon cable, which has none, the colour of its first conductor), with no stripe;
 * its ends are always free (the facade has no sibling), so a wire's crimp-end look never shows;
-* the trunk is drawn only between the split planes, the conductors leaving it as the cable's leads (ordinary wires);
+* a split end of the cable lies at the split plane, the conductors leaving it as the cable's leads (ordinary wires);
 * it is not tied to the slack handler: nothing is attached to a cable, so there is nothing to pull or bow, and its length is the
   3D length by construction (:meth:`Cable.seed_from_3d`);
 * a click on it only selects it: dragging a placed cable is not built (in 3D either).
@@ -41,40 +41,6 @@ if TYPE_CHECKING:
     from .. import cable as _cable
     from ...database.project_db import pjt_cable as _pjt_cable
     from ...ui.editor_pegboard import editor_pegboard as _editor_pegboard
-
-
-@_check_types.do
-def _trimmed(segments: list[tuple[np.ndarray, np.ndarray]], start_split: float,
-             stop_split: float) -> list[tuple[np.ndarray, np.ndarray]]:
-    """The trunk's path between the split planes: the first segment starts *start_split* mm along it and the last ends
-    *stop_split* mm before its end.
-
-    :param segments: The path, as ``(p1, p2)`` pairs.
-    :param start_split: Mm from the start end; 0 for none.
-    :param stop_split: Mm from the stop end; 0 for none.
-    """
-    segments = list(segments)
-
-    if not segments:
-        return segments
-
-    if start_split > 0.0:
-        p1, p2 = segments[0]
-        vector = p2 - p1
-        length = float(np.linalg.norm(vector))
-
-        if length > start_split + 1e-6:
-            segments[0] = (p1 + vector / length * start_split, p2)
-
-    if stop_split > 0.0:
-        p1, p2 = segments[-1]
-        vector = p2 - p1
-        length = float(np.linalg.norm(vector))
-
-        if length > stop_split + 1e-6:
-            segments[-1] = (p1, p2 - vector / length * stop_split)
-
-    return segments
 
 
 @capturable()
@@ -186,8 +152,15 @@ class Cable(_wire_pegboard.Wire):
         return result
 
     @_check_types.do
+    def _update_position(self, _: _Union[_point.Point, None]) -> None:
+        """As the wire's, then keep the board's split points of a split end on the trunk's split plane (see the 3D view)."""
+        super()._update_position(_)
+        self.parent.sync_board_split_ends()
+
+    @_check_types.do
     def reload_splits(self) -> None:
-        """Read the split distances again after a split or a join: the trunk is drawn between the split planes."""
+        """Read the split distances again after a split or a join: a split end lies at the split plane, and the distance is how far
+        beyond it the end was before the split."""
         self._start_split = float(self.db_obj.start_split_mm)
         self._stop_split = float(self.db_obj.stop_split_mm)
 
@@ -195,24 +168,15 @@ class Cable(_wire_pegboard.Wire):
         self.pegboard.Refresh()
 
     @_check_types.do
-    def _raw_segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
-        """The whole path from the start to the stop, whatever is split."""
-        return list(super()._segments())
-
-    @_check_types.do
-    def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
-        """The trunk's path: as the wire's, but between the split planes."""
-        return _trimmed(self._raw_segments(), self._start_split, self._stop_split)
-
-    @_check_types.do
     def _end_frame(self, start: bool) -> _Union[tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], None]:
-        """The flat frame at one end of the cable: where the end is, the direction going from it into the trunk, the direction
-        across the trunk (the same side for both ends of the cable) and the centre of the split plane.
+        """The flat frame at one end of the cable: where the cable's true end is (the split distance beyond the end it has now, when
+        the end is split), the direction going from it into the trunk, the direction across the trunk (the same side for both ends
+        of the cable) and the centre of the split plane (the end the cable has now).
 
         :param start: The start end (True) or the stop end (False).
         :returns: ``(end, inward, lateral, plane)``; ``None`` while the end segment has no length on the board.
         """
-        segments = self._raw_segments()
+        segments = list(self._segments())
 
         if not segments:
             return None
@@ -234,20 +198,21 @@ class Cable(_wire_pegboard.Wire):
         lateral = np.array([-forward[2], 0.0, forward[0]], dtype=np.float64)
         inward = forward if start else -forward
         split = self._start_split if start else self._stop_split
-        end = np.array([end[0], 0.0, end[2]], dtype=np.float64)
+        plane = np.array([end[0], 0.0, end[2]], dtype=np.float64)
 
-        return end, inward, lateral, end + inward * split
+        return plane - inward * split, inward, lateral, plane
 
     @_check_types.do
-    def _spacings(self, count: int) -> tuple[float, float]:
-        """How far apart the conductors sit across the trunk at the split plane, and how far apart their ends land: the
-        trunk's width shared out, and for any cable but a ribbon (whose conductors tear off the web side by side) that
-        spread out by :data:`~harness_designer.objects.objects_3d.cable.FAN_SPREAD`.
+    def _spacings(self, count: int, split: float) -> tuple[float, float]:
+        """How far apart the conductors sit across the trunk at the split plane, and how far apart their ends land: the trunk's
+        width shared out, and that projected onto the cable's true end, *split* mm beyond the plane, from a light behind it
+        (:func:`~harness_designer.objects.objects_3d.cable.fan_scale`, as in 3D).
 
         :param count: How many conductors (and the shield) there are.
+        :param split: The distance from the split plane to the cable's true end, mm.
         """
         inner = float(self._part.trunk_size[0]) / max(1, count)
-        outer = inner if self._part.is_ribbon else inner * _cable_3d.FAN_SPREAD
+        outer = inner * _cable_3d.fan_scale((count - 1) / 2.0 * inner, split)
 
         return inner, outer
 
@@ -265,7 +230,7 @@ class Cable(_wire_pegboard.Wire):
             return []
 
         _end, _inward, lateral, plane = frame
-        inner, _outer = self._spacings(count)
+        inner, _outer = self._spacings(count, 0.0)
 
         return [plane + lateral * ((index - (count - 1) / 2.0) * inner) for index in range(count)]
 
@@ -285,7 +250,12 @@ class Cable(_wire_pegboard.Wire):
             return []
 
         end, _inward, lateral, _plane = frame
-        _inner, outer = self._spacings(count)
+
+        split = self._start_split
+        if not start:
+            split = self._stop_split
+
+        _inner, outer = self._spacings(count, split)
 
         places = [end + lateral * ((index - (count - 1) / 2.0) * outer) for index in range(count)]
         orders = [conductor.start_order if start else conductor.stop_order for conductor in conductors]
@@ -355,6 +325,18 @@ class Cable(_wire_pegboard.Wire):
         self.refresh_waypoints()
 
     @_check_types.do
+    def _delete_waypoint(self, point: _point.Point) -> None:
+        """Remove one waypoint of the cable's route on the board: a cable has no layouts at its waypoints, so the point comes out of the
+        route and is deleted itself, then the cable catches up."""
+        ptables = self.parent.mainframe.project.ptables
+        point_id = point.db_id[:-2]
+
+        ptables.pjt_cable_paths_table.remove(self.db_obj.db_id, 'pegboard', point_id)
+        ptables.pjt_points_pegboard_table[point_id].delete()
+
+        self.refresh_waypoints()
+
+    @_check_types.do
     def refresh_waypoints(self) -> None:
         """Call after the cable's own waypoint rows change so the live callbacks, the cached length and the geometry catch
         up. As the wire's, without the slack handler (which a cable does not have)."""
@@ -384,6 +366,9 @@ class Cable(_wire_pegboard.Wire):
         """
         from ...drag_handlers.editor_pegboard import cable as _drag_cable  # NOQA -- avoid a cycle at import time
 
+        if self._waypoint_drag:
+            return self._handle_waypoint_drag(last_pos, current_pos, interaction_type)
+
         handler = self._active_handler
 
         if handler is not None:
@@ -406,6 +391,10 @@ class Cable(_wire_pegboard.Wire):
         ):
             return False
 
+        # a press on one of this object's waypoint handles drags that waypoint (objects/mixins/waypoint_handles.py)
+        if self._arm_waypoint_drag(current_pos):
+            return True
+
         plan = _drag_cable.Cable.plan_wire_drag(self.parent.mainframe.project, self.parent, current_pos)
 
         if plan is None:
@@ -419,6 +408,7 @@ class CableMenu(_cable_3d.CableMenu):
     """The context menu of a cable on the peg board: the 3D one without the roll."""
 
     _has_roll = False
+    _has_add_layout = False
 
     @_check_types.do
     def _click_world(self) -> _Union[np.ndarray, None]:

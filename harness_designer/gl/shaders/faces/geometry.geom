@@ -14,12 +14,14 @@ in vec3 fragPositionWorld[];
 in vec3 fragNormalWorld[];
 in float fragLocalZ[];
 in float fragStripe[];
+flat in int fragEntry[];
 
 out vec3 fragPositionGeom;
 out vec3 fragNormalGeom;
 out float isReflection;
 out float fragLocalZGeom;
 out float fragStripeGeom;
+flat out int fragEntryGeom;
 
 uniform mat4 projection;
 uniform mat4 view;
@@ -34,6 +36,7 @@ void main() {
         fragNormalGeom = fragNormalWorld[i];
         fragLocalZGeom = fragLocalZ[i];
         fragStripeGeom = fragStripe[i];
+        fragEntryGeom = fragEntry[i];
         isReflection = 0.0;
         EmitVertex();
     }
@@ -53,6 +56,7 @@ void main() {
             fragNormalGeom = normalize(reflectedNormal);
             fragLocalZGeom = fragLocalZ[i];
             fragStripeGeom = fragStripe[i];
+            fragEntryGeom = fragEntry[i];
             isReflection = 1.0;
             EmitVertex();
         }

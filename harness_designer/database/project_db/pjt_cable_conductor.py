@@ -311,14 +311,12 @@ class PJTCableConductor(PJTWire):
     @property
     @_check_types.do
     def length_mm(self) -> float:
-        """The length of the conductor's trunk in mm: the cable's length less what is split off at its two ends (the conductor's
-        leads, which are wires of their own). Along the cable's axis. An end that is not split counts in full.
+        """The length of the conductor's trunk in mm: the cable's length. A split end of the cable lies at the split plane, so what the
+        leads cover (wires of their own) is not in it. Along the cable's axis.
 
         :rtype: float
         """
-        cable = self.cable
-
-        return max(0.0, cable.length_mm - cable.start_split_mm - cable.stop_split_mm)
+        return self.cable.length_mm
 
     @property
     @_check_types.do

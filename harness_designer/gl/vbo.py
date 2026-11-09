@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Union as _Union
 import ctypes
 import threading
 import weakref
-from dataclasses import dataclass
 import numpy as np
 from OpenGL import GL
 from PySide6 import QtGui
@@ -16,14 +15,23 @@ from .. import utils as _utils
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from .. import check_types as _check_types
+from . import arena_pool as _arena_pool
+from . import arena_buffer as _arena_buffer
 
 if TYPE_CHECKING:
     from ..database.global_db import model3d as _model3d
+    from ..ui import mainframe as _mainframe
     from .shaders import program as _shader_program
 
 
-# Maximum triangle-soup vertices managed in the imported-model arena.
+# Triangle-soup vertices in a long-term model arena (one holding models with two or more users). A long arena is locked
+# when a model moving to the long tier does not fit in it, and a locked one is trimmed to the space it uses, so this is only
+# how large an open one is.
 MODEL_ARENA_CAPACITY_VERTICES = 4000000
+# A short-term arena (models with fewer than two users) is half the size of a long-term one and is never trimmed.
+MODEL_ARENA_SHORT_CAPACITY_VERTICES = MODEL_ARENA_CAPACITY_VERTICES // 2
+# How many users make a model long-term.
+MODEL_TIER_LONG_REFS = 2
 # Compaction threshold: rebuild arena when free-space fragmentation reaches this ratio.
 MODEL_ARENA_FRAGMENTATION_THRESHOLD = 0.35
 # Avoid rebuilding for tiny holes until at least this many vertices are reclaimable.
@@ -40,113 +48,18 @@ VERTEX_STRIDE_BYTES = FLOATS_PER_VERTEX * _FLOAT_SIZE
 Config = _config.Config
 
 
-@dataclass
-class _ArenaAllocation:
-    start: int
-    count: int
+class _MeshArena(_arena_buffer.BufferArena):
+    """One GPU buffer that model meshes are sub-allocated from; a slot is a vertex.
 
+    The bookkeeping is ``arena_pool.ArenaMap`` and the buffer mechanics (moving a model to another arena, packing down, trimming)
+    are ``arena_buffer.BufferArena``; what is left here is how a mesh is written into it.
+    """
 
-class _MeshArena:
-
-    @_check_types.do
-    def __init__(self, capacity_vertices: int):
-        self.capacity_vertices = int(capacity_vertices)
-        self._allocations: dict[str, _ArenaAllocation] = {}
-        self._free_ranges: list[tuple[int, int]] = [(0, self.capacity_vertices)]
-
-        self._buffer = None
-        self._create_buffer()
-
-    @property
-    @_check_types.do
-    def buffer(self) -> int:
-        return int(self._buffer)
-
-    @_check_types.do
-    def _create_empty_array_buffer(self) -> int:
-        buffer_id = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
-
-        GL.glBufferData(GL.GL_ARRAY_BUFFER,
-                        self.capacity_vertices * VERTEX_STRIDE_BYTES,
-                        None, GL.GL_DYNAMIC_DRAW)
-
-        return int(buffer_id)
-
-    @_check_types.do
-    def _create_buffer(self) -> None:
-        self._buffer = self._create_empty_array_buffer()
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-
-    @_check_types.do
-    def get_allocation(self, key: str) -> _ArenaAllocation | None:
-        return self._allocations.get(key)
-
-    @_check_types.do
-    def can_fit(self, vertex_count: int) -> bool:
-        needed = int(vertex_count)
-        if needed <= 0:
-            return False
-
-        return any(count >= needed for _, count in self._free_ranges)
-
-    @_check_types.do
-    def allocate(self, key: str, vertex_count: int) -> _ArenaAllocation:
-        if key in self._allocations:
-            return self._allocations[key]
-
-        needed = int(vertex_count)
-        if needed <= 0:
-            raise ValueError('vertex_count must be > 0')
-
-        for index, (start, count) in enumerate(self._free_ranges):
-            if count < needed:
-                continue
-
-            alloc = _ArenaAllocation(start=start, count=needed)
-            self._allocations[key] = alloc
-
-            if count == needed:
-                del self._free_ranges[index]
-            else:
-                self._free_ranges[index] = (start + needed, count - needed)
-
-            return alloc
-
-        free_total = self.free_vertices
-        raise RuntimeError('model mesh arena has no contiguous free range large enough: '
-                           f'requested {needed} vertices, '
-                           f'largest hole {self.largest_free_range}, '
-                           f'total free {free_total}, '
-                           f'capacity {self.capacity_vertices}')
-
-    @_check_types.do
-    def free(self, key: str) -> None:
-        alloc = self._allocations.pop(key, None)
-        if alloc is None:
-            return
-
-        self._free_ranges.append((alloc.start, alloc.count))
-        self._free_ranges.sort(key=lambda item: item[0])
-
-        merged: list[tuple[int, int]] = []
-        for start, count in self._free_ranges:
-            if not merged:
-                merged.append((start, count))
-                continue
-
-            prev_start, prev_count = merged[-1]
-            prev_end = prev_start + prev_count
-            if prev_end == start:
-                merged[-1] = (prev_start, prev_count + count)
-            else:
-                merged.append((start, count))
-
-        self._free_ranges = merged
+    STRIDE_BYTES: int = VERTEX_STRIDE_BYTES
 
     @_check_types.do
     def upload(self, key: str, data: np.ndarray) -> None:
-        alloc = self._allocations[key]
+        alloc = self.allocations[key]
 
         if len(data) != alloc.count * FLOATS_PER_VERTEX:
             raise ValueError('packed array length does not match the allocation: '
@@ -159,113 +72,6 @@ class _MeshArena:
                            data.nbytes, data)
 
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-
-    @property
-    @_check_types.do
-    def fragmentation(self) -> float:
-        if not self._free_ranges:
-            return 0.0
-
-        free_total = sum(count for _, count in self._free_ranges)
-        if free_total <= 0:
-            return 0.0
-
-        largest_hole = max(count for _, count in self._free_ranges)
-        return 1.0 - (largest_hole / float(free_total))
-
-    @property
-    @_check_types.do
-    def free_vertices(self) -> int:
-        return sum(count for _, count in self._free_ranges)
-
-    @property
-    @_check_types.do
-    def used_vertices(self) -> int:
-        return sum(alloc.count for alloc in self._allocations.values())
-
-    @property
-    @_check_types.do
-    def largest_free_range(self) -> int:
-        if not self._free_ranges:
-            return 0
-
-        return max(count for _, count in self._free_ranges)
-
-    @_check_types.do
-    def debug_metrics(self) -> dict:
-        free_ranges = list(self._free_ranges)
-
-        return dict(buffer_id=self._buffer,
-                    capacity_vertices=self.capacity_vertices,
-                    used_vertices=self.used_vertices,
-                    free_vertices=self.free_vertices,
-                    allocation_count=len(self._allocations),
-                    free_range_count=len(free_ranges),
-                    largest_free_range=self.largest_free_range,
-                    fragmentation=self.fragmentation,
-                    free_ranges=free_ranges)
-
-    @_check_types.do
-    def should_compact(self, threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
-                       min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES,
-                       needed_vertices: int = 0) -> bool:
-
-        needed = int(needed_vertices)
-
-        if 0 < needed <= self.largest_free_range:
-            return False
-
-        return (self.free_vertices >= int(min_free_vertices) and
-                self.fragmentation >= float(threshold))
-
-    @staticmethod
-    @_check_types.do
-    def _gpu_copy(src_buffer: int, dst_buffer: int, src_vertex: int,
-                  dst_vertex: int, vertex_count: int) -> None:
-
-        size = vertex_count * VERTEX_STRIDE_BYTES
-        read_offset = src_vertex * VERTEX_STRIDE_BYTES
-        write_offset = dst_vertex * VERTEX_STRIDE_BYTES
-
-        GL.glBindBuffer(GL.GL_COPY_READ_BUFFER, src_buffer)
-        GL.glBindBuffer(GL.GL_COPY_WRITE_BUFFER, dst_buffer)
-
-        GL.glCopyBufferSubData(GL.GL_COPY_READ_BUFFER, GL.GL_COPY_WRITE_BUFFER,
-                               read_offset, write_offset, size)
-
-    @_check_types.do
-    def compact(self) -> bool:
-        if not self._allocations:
-            self._free_ranges = [(0, self.capacity_vertices)]
-            return False
-
-        new_buffer = self._create_empty_array_buffer()
-
-        sorted_items = sorted(
-            self._allocations.items(), key=lambda item: item[1].start)
-
-        cursor = 0
-        for key, alloc in sorted_items:
-            self._gpu_copy(
-                self._buffer, new_buffer, alloc.start, cursor, alloc.count)
-
-            self._allocations[key] = (
-                _ArenaAllocation(start=cursor, count=alloc.count))
-
-            cursor += alloc.count
-
-        GL.glDeleteBuffers(1, [self._buffer])
-
-        self._buffer = new_buffer
-
-        self._free_ranges = []
-        if cursor < self.capacity_vertices:
-            self._free_ranges.append((cursor, self.capacity_vertices - cursor))
-
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        GL.glBindBuffer(GL.GL_COPY_READ_BUFFER, 0)
-        GL.glBindBuffer(GL.GL_COPY_WRITE_BUFFER, 0)
-        return True
 
 
 VBO_TYPE_PRIMITIVE = 0
@@ -589,8 +395,14 @@ class VBOHandlerBase:
 
     @_check_types.do
     def _clear_vaos(self) -> None:
-        for vao in self._vaos.values():
-            self._release_vao(vao)
+        # A VAO is not shared between contexts: its id means something only in the context that made it. Only the VAO of the
+        # current context can be deleted here; deleting another context's id would delete an unrelated VAO of this one. The
+        # other contexts' entries are dropped, so each of them builds a new VAO the next time it draws.
+        ctx = QtGui.QOpenGLContext.currentContext()
+        if ctx is not None:
+            vao = self._vaos.get(id(ctx))
+            if vao is not None:
+                self._release_vao(vao)
 
         self._vaos.clear()
 
@@ -888,7 +700,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         super().render(program, position, angle, scale, smooth)
 
 
-class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
+class PooledVBOHandler(VBOHandlerBase, _arena_buffer.ArenaPoolBase, metaclass=VBOSingleton):
     _model_arenas: list[_MeshArena] = []
 
     @_check_types.do
@@ -903,6 +715,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
         self.id = id_
         self._arena_kind = arena_kind
+        self._ref_count = 0
 
         self._model_arena: _MeshArena | None = None
 
@@ -920,6 +733,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
     def _format_arena_metrics(title: str, metrics: dict) -> str:
         res = [title,
                f"  buffer_id: {metrics['buffer_id']}",
+               f"  tier: {metrics['tier']} locked: {metrics['locked']}",
                f"  capacity_vertices: {metrics['capacity_vertices']}",
                f"  used_vertices: {metrics['used_vertices']}",
                f"  free_vertices: {metrics['free_vertices']}",
@@ -974,12 +788,15 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                 return arena
 
         for arena in cls._model_arenas:
-            if arena.can_fit(needed):
+            if arena.tier == _arena_pool.TIER_SHORT and arena.can_fit(needed):
                 arena.allocate(key, needed)
                 return arena
 
         for arena in cls._model_arenas:
-            if arena.should_compact(needed_vertices=needed):
+            if arena.tier != _arena_pool.TIER_SHORT:
+                continue
+
+            if arena.should_compact(MODEL_ARENA_FRAGMENTATION_THRESHOLD, MODEL_ARENA_MIN_FREE_VERTICES, needed):
                 before = arena.debug_metrics()
 
                 if arena.compact() and arena.can_fit(needed):
@@ -993,8 +810,8 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
         cls._debug_print_new_buffer_allocation(needed)
 
-        capacity = max(MODEL_ARENA_CAPACITY_VERTICES, needed)
-        arena = _MeshArena(capacity)
+        capacity = max(MODEL_ARENA_SHORT_CAPACITY_VERTICES, needed)
+        arena = _MeshArena(capacity, _arena_pool.TIER_SHORT)
         cls._model_arenas.append(arena)
 
         if cls._is_vbo_debug_enabled():
@@ -1068,6 +885,11 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                 self._model_arena = arena
                 self._clear_vaos()
 
+                if self._ref_count >= MODEL_TIER_LONG_REFS:
+                    PooledVBOHandler._dirty = True
+
+                PooledVBOHandler._request_maintenance()
+
             self._data = data
             self._vert_count = new_vert_count
             arena.upload(self.id, data)
@@ -1098,32 +920,124 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         self.local_aabb = self._compute_local_aabb()
         self.local_obb = self._compute_local_obb()
 
+    @property
+    @_check_types.do
+    def ref_count(self) -> int:
+        """How many objects use this model. ``vbo.ref_count += 1`` when an object takes it, ``-= 1`` when it lets go. A model with
+        ``MODEL_TIER_LONG_REFS`` or more users lives in a long-term arena, fewer in a short-term one; crossing that boundary
+        asks for a maintenance pass (which does the moving, later, at idle time). Main thread only: ``+=`` is a read and a
+        write. Only a model (arena) handler counts; for any other handler this does nothing."""
+        return self._ref_count
+
+    @ref_count.setter
+    @_check_types.do
+    def ref_count(self, value: int) -> None:
+        if self._arena_kind != VBO_TYPE_MODEL:
+            return
+
+        new_count = int(value)
+        if new_count < 0:
+            _logger.warning(f'[VBO] the user count of model {self.id} went below 0 ({new_count}), reset to 0')
+            new_count = 0
+
+        crossed = (self._ref_count >= MODEL_TIER_LONG_REFS) != (new_count >= MODEL_TIER_LONG_REFS)
+        self._ref_count = new_count
+
+        if crossed:
+            PooledVBOHandler._dirty = True
+            PooledVBOHandler._request_maintenance()
+
+    # ---- arena_buffer.ArenaPoolBase hooks (the scheduling and the replay of a plan are its) ----
+
     @classmethod
     @_check_types.do
-    def maintain_model_arena(
-        cls,
-        threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
-        min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES
-    ) -> bool:
+    def _pool_arenas(cls) -> list[_arena_buffer.BufferArena]:
+        return cls._model_arenas
 
-        compacted = False
+    @classmethod
+    @_check_types.do
+    def _compact_threshold(cls) -> float:
+        return MODEL_ARENA_FRAGMENTATION_THRESHOLD
+
+    @classmethod
+    @_check_types.do
+    def _compact_min_free(cls) -> int:
+        return MODEL_ARENA_MIN_FREE_VERTICES
+
+    @classmethod
+    @_check_types.do
+    def _long_capacity(cls) -> int:
+        return MODEL_ARENA_CAPACITY_VERTICES
+
+    @classmethod
+    @_check_types.do
+    def _short_capacity(cls) -> int:
+        return MODEL_ARENA_SHORT_CAPACITY_VERTICES
+
+    @classmethod
+    @_check_types.do
+    def _desired_tiers(cls) -> dict[str, int]:
+        desired: dict[str, int] = {}
+
         for arena in cls._model_arenas:
+            for key in arena.allocations:
+                handler = cls.get(key)
 
-            if not arena.should_compact(threshold=threshold,
-                                        min_free_vertices=min_free_vertices):
+                if handler is None:
+                    # its last reference is already gone and the callback that frees the allocation has not run yet
+                    desired[key] = arena.tier
+                elif handler.ref_count >= MODEL_TIER_LONG_REFS:
+                    desired[key] = _arena_pool.TIER_LONG
+                else:
+                    desired[key] = _arena_pool.TIER_SHORT
 
-                continue
+        return desired
 
-            before = arena.debug_metrics()
-            if not arena.compact():
-                continue
+    @classmethod
+    @_check_types.do
+    def _make_arena(cls, op: _arena_pool.ArenaOp) -> _arena_buffer.BufferArena:
+        return _MeshArena(op.capacity, op.tier, op.uid)
 
-            after = arena.debug_metrics()
-            cls._debug_print_compaction(before, after)
+    @classmethod
+    @_check_types.do
+    def _executed(cls, moved: list[tuple[str, _arena_buffer.BufferArena]], rebuilt: list[_arena_buffer.BufferArena]) -> None:
+        # A VAO holds the buffer id and the offset of its model, so every model that moved, and every model in an arena that
+        # was rebuilt, needs a new one (render() makes it the next time the model is drawn).
+        for key, target in moved:
+            handler = cls.get(key)
+
+            if handler is not None:
+                handler._model_arena = target  # NOQA
+                handler._clear_vaos()  # NOQA
+
+        for arena in rebuilt:
             cls._clear_model_vaos_for_arena(arena)
-            compacted = True
 
-        return compacted
+        # the other canvases share these buffers; make the copies visible to their contexts
+        GL.glFlush()
+
+    @classmethod
+    @_check_types.do
+    def _log_pass(cls, ops: list[_arena_pool.ArenaOp], before: list, after: list) -> None:
+        if not cls._is_vbo_debug_enabled():
+            return
+
+        steps: dict[str, int] = {}
+        for op in ops:
+            steps[op.kind] = steps.get(op.kind, 0) + 1
+
+        capacity_before = sum(metrics['capacity_vertices'] for metrics in before)
+        capacity_after = sum(metrics['capacity_vertices'] for metrics in after)
+        freed = (capacity_before - capacity_after) * VERTEX_STRIDE_BYTES / 1048576.0
+
+        lines = ['[VBO] model arena maintenance',
+                 '  steps: ' + ', '.join(f'{kind} x{count}' for kind, count in steps.items()),
+                 f'  capacity: {capacity_before} -> {capacity_after} vertices ({freed:.1f} MiB freed)']
+
+        for index, metrics in enumerate(after):
+            lines.append(cls._format_arena_metrics(f'  arena[{index}]', metrics))
+
+        cls._log_debug('\n'.join(lines))
 
     @classmethod
     @_check_types.do
@@ -1133,6 +1047,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                 continue
 
             arena.free(key)
+            cls._request_maintenance()
             break
 
     @classmethod

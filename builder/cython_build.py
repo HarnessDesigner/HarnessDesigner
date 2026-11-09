@@ -31,12 +31,17 @@ _SKIP_STEMS = frozenset(['__init__', '__main__'])
 # objects/objects_3d/wire_service_loop_search.pyx has NO pure-Python form
 # at all: wire_service_loop.py imports it directly, so a build without it
 # fails at import instead of running slowly.
+#
+# shapes/twisted_path.pyx is the same: objects_3d/wire.py imports it directly
+# (the pure-Python round_bends / plan / ring_count in shapes/twisted_wire.py
+# are its reference, and what the ribbon code still calls, not a fallback).
 _HAND_WRITTEN_EXTENSIONS = (
     'ray_tracing/bvh.pyx',
     'gl/culling/culling.pyx',
     'wire_routing/astar.pyx',
     'rope_pull/rope_pull.pyx',
     'objects/objects_3d/wire_service_loop_search.pyx',
+    'shapes/twisted_path.pyx',
 )
 
 

@@ -27,6 +27,7 @@ import numpy as np
 
 from ...geometry import point as _point
 from .. import mixins as _wire_type_base
+from ..mixins import waypoint_handles as _waypoint_handles
 from ...rope_pull import offline_store as _offline_store
 from ... import check_types as _check_types
 from ... import debug as _debug
@@ -39,7 +40,37 @@ if TYPE_CHECKING:
     from ...ui import editor_pegboard as _editor_pegboard
 
 
-class WireTypeMixin(_wire_type_base.WireTypeMixin):
+class WaypointDragMixin:
+    """The board's share of the waypoint drag (``objects/mixins/waypoint_handles.py``), for the wire, the cable and the bundle: the
+    ray under the mouse and the drag of a waypoint's layout."""
+
+    @_check_types.do
+    def _mouse_ray(self, mouse_pos: _point.Point) -> tuple[np.ndarray, np.ndarray]:
+        """The ray under *mouse_pos* (screen coordinates): the board is seen from straight above through an orthographic camera, so
+        it is the vertical line through the world X / Z point there."""
+        world = self.pegboard.editor.camera.screen_to_world(mouse_pos)
+
+        return (np.array([float(world.x), 1000000.0, float(world.z)], dtype=np.float32),
+                np.array([0.0, -1.0, 0.0], dtype=np.float32))
+
+    @_check_types.do
+    def _make_waypoint_drag(self, point: _point.Point) -> object | None:
+        """The drag of the waypoint at *point* (``objects/mixins/waypoint_handles.py``): the board's drag of the layout's data object
+        (``None`` when it cannot be dragged: a terminal's or cavity's routing point, a guard, or no layout at the waypoint).
+
+        :param point: The waypoint's Point.
+        """
+        from ...drag_handlers.editor_pegboard import generic as _drag_generic  # NOQA -- avoid a cycle at import time
+
+        layout = _waypoint_handles.layout_for(point.db_id)
+
+        if layout is None or not layout.can_drag():
+            return None
+
+        return _drag_generic.Generic(self.pegboard.editor, layout.parent)
+
+
+class WireTypeMixin(WaypointDragMixin, _wire_type_base.WireTypeMixin):
     """Peg-board chain-geometry helpers shared by ``Wire``/``Bundle`` --
     see the module docstring for the full rationale. A concrete class
     mixing this in must already provide ``start_position``/

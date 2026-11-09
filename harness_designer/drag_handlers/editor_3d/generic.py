@@ -67,8 +67,15 @@ class Generic(_editor_3d.DragHandler3D):
     """Generic single-position drag -- moves ``obj3d.position`` directly."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_window.CanvasWindow", target: "_objects.ObjectBase", arrow_object: object | None = None):
         super().__init__(canvas, target)
+
+        # What the move-arrows gizmo is sized by: the dragged object's own box, or (a waypoint, whose layout object has no
+        # geometry and so no box) the wire / bundle / cable the waypoint is dragged through
+        if arrow_object is None:
+            arrow_object = target.obj3d
+
+        self._arrow_object = arrow_object
 
         # Last object world Point used for incremental moves.
         self.last_pos = target.obj3d.position.copy()
@@ -118,11 +125,14 @@ class Generic(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, part of the shared contract
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
+        # Lets the axis-locked move keep the dragged object under the pointer.
+        self.cursor = mouse_pos
+
         position = self.target.obj3d.position
 
         delta3d = self._axis_locked_delta3d(
-            position, self.last_pos, delta, self.target.obj3d.aabb)
+            position, self.last_pos, delta, self._arrow_object.aabb)
         if delta3d is None:
             return
 

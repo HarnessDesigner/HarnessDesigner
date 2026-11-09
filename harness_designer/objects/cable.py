@@ -153,9 +153,9 @@ class Cable(_ObjectBase):
 
     @_check_types.do
     def max_split_mm(self, start: bool) -> float:
-        """The furthest from the end that the conductors can leave the cable: the length of the end segment of the trunk,
-        less what must stay of it (and less the other end's split when there is only the one segment). The split stays inside
-        the end segment so that no waypoint of the trunk is cut off.
+        """The furthest from the end that the conductors can leave the cable: the length of the end segment of the trunk (counting
+        what was split off it already: the end of a split cable lies at the split plane), less what must stay of it. The split stays
+        inside the end segment so that no waypoint of the trunk is cut off.
 
         :param start: Which end.
         :type start: bool
@@ -165,16 +165,13 @@ class Cable(_ObjectBase):
         db_obj = self.db_obj
         points = [db_obj.start_position3d.as_numpy, *(p.point.as_numpy for p in db_obj.waypoints3d),
                   db_obj.stop_position3d.as_numpy]
-        segments = len(points) - 1
 
         if start:
-            reach = float(np.linalg.norm(points[1] - points[0]))
-            other = db_obj.stop_split_mm if segments == 1 else 0.0
+            reach = float(np.linalg.norm(points[1] - points[0])) + db_obj.start_split_mm
         else:
-            reach = float(np.linalg.norm(points[-1] - points[-2]))
-            other = db_obj.start_split_mm if segments == 1 else 0.0
+            reach = float(np.linalg.norm(points[-1] - points[-2])) + db_obj.stop_split_mm
 
-        return max(0.0, reach - other - _cable_3d.MIN_TRUNK_MM)
+        return max(0.0, reach - _cable_3d.MIN_TRUNK_MM)
 
     @_check_types.do
     def lead_wires(self, start: bool) -> list["_wire.Wire"]:
@@ -368,7 +365,10 @@ class Cable(_ObjectBase):
 
             row = points[split_id]
             live = row.point
-            live += _point.Point(float(plane[0]), 0.0, float(plane[2])) - live
+            delta = _point.Point(float(plane[0]), 0.0, float(plane[2])) - live
+
+            if float(np.linalg.norm(delta.as_numpy)) > 1e-9:
+                live += delta
 
     @_check_types.do
     def follow_drag(self, view: str, before_start: np.ndarray, before_stop: np.ndarray) -> None:
@@ -402,6 +402,29 @@ class Cable(_ObjectBase):
 
             if float(np.linalg.norm(moved)) > 1e-9:
                 self._carry_free_leads(start, moved, board)
+
+    @_check_types.do
+    def sync_split_ends(self) -> None:
+        """Keep the split points of every split end on the trunk's split plane after the trunk's 3D route changed (a waypoint or an
+        end moved, by whatever dragged it): the leads end at the split points, so a split point left behind would leave the lead's end
+        apart from the cable. Called by the 3D view whenever one of its points moves; nothing while the cable has no split end (or is
+        still being built)."""
+        if self.obj3d is None or self.objpegboard is None:
+            return
+
+        for start in (True, False):
+            if self.is_split(start):
+                self._sync_split_points(start)
+
+    @_check_types.do
+    def sync_board_split_ends(self) -> None:
+        """The same for the board's split points after the board's route changed."""
+        if self.obj3d is None or self.objpegboard is None:
+            return
+
+        for start in (True, False):
+            if self.is_split(start):
+                self._move_board_split_points(start)
 
     @_check_types.do
     def _carry_free_leads(self, start: bool, moved: np.ndarray, board: bool) -> None:
@@ -507,18 +530,60 @@ class Cable(_ObjectBase):
             # the row is kept while the point moves: the point's write-back to it is a weak callback
             row = points[split_id]
             live = row.point
-            live += _point.Point(*(float(v) for v in plane)) - live
+            delta = _point.Point(*(float(v) for v in plane)) - live
+
+            if float(np.linalg.norm(delta.as_numpy)) > 1e-9:
+                live += delta
 
         self._move_board_split_points(start)
+
+    @_check_types.do
+    def _move_end(self, start: bool, distance: float, inward: bool) -> None:
+        """Move one end of the cable along its end segment, in 3D and on the board: *distance* mm toward the next point of the route
+        (inward) or away from it. A split moves the end to the split plane, so that the stretch the leads cover is not counted in
+        the cable's length as well; a join moves it back.
+
+        :param start: Which end.
+        :param distance: How far, mm.
+        :param inward: Toward the next point (True) or away from it (False).
+        """
+        for view in (self.obj3d, self.objpegboard):
+            segments = view._segments()  # NOQA
+
+            if not segments:
+                continue
+
+            if start:
+                p1, p2 = segments[0]
+                point = view.start_position
+                toward = p2 - p1
+            else:
+                p1, p2 = segments[-1]
+                point = view.stop_position
+                toward = p1 - p2
+
+            length = float(np.linalg.norm(toward))
+
+            if length < 1e-9:
+                continue
+
+            shift = toward / length * distance
+
+            if not inward:
+                shift = -shift
+
+            point += _point.Point(float(shift[0]), float(shift[1]), float(shift[2]))
 
     @_check_types.do
     def split_end(self, start: bool, distance: float) -> None:
         """Split the conductors out of the cable at one end, *distance* mm from the end.
 
-        The trunk is then drawn up to that plane only. Each conductor gets a split point on the plane (where the conductor
-        is at that plane) and a LEAD: an ordinary wire (``pjt_wires``, ``cable_conductor_id`` set) from the conductor's end
-        point to the split point. The end point stops following the cable's end and goes to its own place, spread out
-        across the cable's true end. On an end that is already split only the distance changes (the leads follow).
+        The cable's end moves to that plane (the stretch beyond it is the leads' now: counted in their lengths, not the cable's) and
+        the split distance records how far beyond it the end was, where the conductors' ends fan out. Each conductor gets a split point on the plane (where
+        the conductor is at that plane) and a LEAD: an ordinary wire (``pjt_wires``, ``cable_conductor_id`` set) from the conductor's
+        end point to the split point. The end point stops following the cable's end and goes to its own place, spread out across the
+        cable's true end. On an end that is already split only the distance changes (the end moves along its segment, the leads
+        follow).
 
         :param start: Which end.
         :type start: bool
@@ -539,15 +604,19 @@ class Cable(_ObjectBase):
 
         already = self.is_split(start)
 
-        if start:
-            db_obj.start_split_mm = distance
-        else:
-            db_obj.stop_split_mm = distance
-
-        self.obj3d.reload_splits()
-        self.objpegboard.reload_splits()
-
         if already:
+            # the end goes back to where the cable's end was, then in to the new plane; the conductors' ends stay where they are
+            before = db_obj.start_split_mm if start else db_obj.stop_split_mm
+            self._move_end(start, before, inward=False)
+
+            if start:
+                db_obj.start_split_mm = distance
+            else:
+                db_obj.stop_split_mm = distance
+
+            self._move_end(start, distance, inward=True)
+            self.obj3d.reload_splits()
+            self.objpegboard.reload_splits()
             self._sync_split_points(start)
             return
 
@@ -556,22 +625,37 @@ class Cable(_ObjectBase):
         board_points = ptables.pjt_points_pegboard_table
         side = 'start' if start else 'stop'
 
+        board = self._board_ready(start)
+
+        # the conductors' end points are the cable's old end, copied: they stay where the end is now (a point that was a child of the
+        # cable's end would be carried along when the end moves, so it is cut loose first)
+        for conductor in conductors:
+            points[conductor.start_position3d_id if start else conductor.stop_position3d_id].detach_from_parent()
+
+        # the cable's end moves to the split plane
+        if start:
+            db_obj.start_split_mm = distance
+        else:
+            db_obj.stop_split_mm = distance
+
+        self._move_end(start, distance, inward=True)
+
+        self.obj3d.reload_splits()
+        self.objpegboard.reload_splits()
+
+        # the end cross-section at the plane gives the conductors' split points (where the markers go and the leads start); the same
+        # cross-section projected onto the copied end, from a light behind it, gives where each conductor's end lands
         planes = self.obj3d.split_positions(start)
         targets = self.obj3d.fan_out_positions(start)
-
-        # the same split laid out flat on the board (nothing when the cable has no length there to lay it out on)
-        board = self._board_ready(start)
         board_planes = self.objpegboard.split_positions(start) if board else []
         board_targets = self.objpegboard.fan_out_positions(start) if board else []
 
-        for index, (conductor, plane, target) in enumerate(zip(conductors, planes, targets)):
-            end_id = conductor.start_position3d_id if start else conductor.stop_position3d_id
-
-            row = points[end_id]
-            row.detach_from_parent()
-
-            live = row.point
+        for conductor, target in zip(conductors, targets):
+            live = points[conductor.start_position3d_id if start else conductor.stop_position3d_id].point
             live += _point.Point(*(float(v) for v in target)) - live
+
+        for index, (conductor, plane) in enumerate(zip(conductors, planes)):
+            end_id = conductor.start_position3d_id if start else conductor.stop_position3d_id
 
             split_row = points.insert(float(plane[0]), float(plane[1]), float(plane[2]))
 
@@ -638,11 +722,15 @@ class Cable(_ObjectBase):
         points = self.mainframe.project.ptables.pjt_points3d_table
         board_points = self.mainframe.project.ptables.pjt_points_pegboard_table
         parent_id = db_obj.start_position3d_id if start else db_obj.stop_position3d_id
+        split_mm = db_obj.start_split_mm if start else db_obj.stop_split_mm
 
         self._drop_split_markers(start)
 
         for lead in self.lead_wires(start):
             lead.delete()
+
+        # the cable's end goes back out to where it was before the split, and the conductors join it there
+        self._move_end(start, split_mm, inward=False)
 
         for conductor in db_obj.conductors:
             if start:

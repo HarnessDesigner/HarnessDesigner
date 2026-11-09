@@ -51,6 +51,13 @@ class WireMarker(_editor_3d.DragHandler3D):
         direction = (np.asarray(wire.stop_position3d.as_float, dtype=np.float32)
                      - np.asarray(wire.start_position3d.as_float, dtype=np.float32))
 
+        # The wire's direction as a unit vector (all zeros for a wire of no length): the line
+        # the marker is dragged along.
+        self._direction = direction.astype(np.float64)
+        length = float(np.linalg.norm(self._direction))
+        if length > 1e-9:
+            self._direction /= length
+
         self._arrows = _wire_marker_arrow.WireMarkerArrow(
             target.obj3d.position, direction, canvas.mainframe, target.obj3d.aabb)
 
@@ -78,9 +85,19 @@ class WireMarker(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
+        self.cursor = mouse_pos
+
         position = self.target.obj3d.position
 
-        delta3d = self._delta3d(position, self.last_pos, delta)
+        # Follow the pointer along the wire (keeping the offset it was grabbed with) rather
+        # than adding up screen deltas, which drift away from the pointer wherever the wire
+        # does not run across the screen.
+        distance = self._line_latched_distance(position, self._direction, delta)
+        if distance is None:
+            delta3d = self._delta3d(position, self.last_pos, delta)
+        else:
+            delta3d = _point.Point(*(self._direction * distance))
+
         position += delta3d
         self.last_pos = position.copy()

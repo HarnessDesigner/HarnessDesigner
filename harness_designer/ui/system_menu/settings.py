@@ -39,6 +39,6 @@ class SettingsMenu(QtWidgets.QMenu):
         UNKNOWN details are inferred from the callable name and signature.
         """
         dlg = _debug_settings.DebugSettingsDialog(self.mainframe)
-        if dlg.exec() == dlg.Accepted:
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             dlg.SetValues()
             self.mainframe.update()   # QWidget.update() ≈ wx.Refresh(False)

@@ -7,6 +7,7 @@ import numpy as np
 from ....geometry import point as _point
 from .... import check_types as _check_types
 from ... import mixins as _wire_type_base
+from ...mixins import waypoint_handles as _waypoint_handles
 
 
 if TYPE_CHECKING:
@@ -81,6 +82,80 @@ class WireTypeMixin(_wire_type_base.WireTypeMixin):
         return closest
 
     @_check_types.do
+    def _make_waypoint_drag(self, point: _point.Point) -> object | None:
+        """The drag of the waypoint at *point* (``objects/mixins/waypoint_handles.py``): the plain 3D drag of the layout's data object
+        where the waypoint has one (``None`` when that cannot be dragged: a terminal's back point, a guard), the drag of the point
+        itself for a cable, which has none.
+
+        :param point: The waypoint's Point.
+        """
+        from ....drag_handlers.editor_3d import generic as _drag_generic  # NOQA -- avoid a cycle at import time
+        from ....drag_handlers.editor_3d import waypoint as _drag_waypoint  # NOQA -- avoid a cycle at import time
+
+        layout = _waypoint_handles.layout_for(point.db_id)
+
+        if layout is None:
+            return _drag_waypoint.Waypoint(self.editor3d.editor, self.parent, point, self)
+
+        if not layout.can_drag():
+            return None
+
+        return _drag_generic.Generic(self.editor3d.editor, layout.parent, arrow_object=self)
+
+    @_check_types.do
+    def _mouse_ray(self, mouse_pos: _point.Point) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+        """The ray under *mouse_pos* (viewport coordinates): its origin on the near plane and its unit direction, or
+        ``(None, None)`` when it cannot be constructed."""
+        viewport = self.editor3d.camera.viewport
+
+        vx, vy, vw, vh = viewport
+
+        x = mouse_pos.x
+        y = (vh - mouse_pos.y)
+
+        ndc_x = (2.0 * (x - vx) / vw) - 1.0
+        ndc_y = (2.0 * (y - vy) / vh) - 1.0
+
+        near_world = self.editor3d.camera.unproject_from_ndc(ndc_x, ndc_y, -1.0)
+        far_world = self.editor3d.camera.unproject_from_ndc(ndc_x, ndc_y, 1.0)
+
+        if near_world is None or far_world is None:
+            return None, None
+
+        ray_origin = np.array(near_world, dtype=np.float32)
+        ray_direction = np.array(far_world, dtype=np.float32) - ray_origin
+        ray_direction /= np.linalg.norm(ray_direction)
+
+        return ray_origin, ray_direction
+
+    @_check_types.do
+    def get_closest_curve_point(self, mouse_pos: _point.Point) -> np.ndarray | None:
+        """The point on the path AS DRAWN (corners rounded, ``objects/mixins/tube.py``) that the ray under *mouse_pos* passes
+        closest to, or ``None`` when there is no ray. The placement preview of a waypoint rides on this, so it sits on the tube
+        the user sees; the waypoint itself is committed on the straight path (:meth:`get_closest_endpoint`).
+
+        :param mouse_pos: Mouse position in viewport coordinates.
+        """
+        ray_origin, ray_direction = self._mouse_ray(mouse_pos)
+
+        if ray_origin is None:
+            return None
+
+        best_point = None
+        best_dist_sq = None
+
+        for chord_start, chord_end in self._curve_chords():
+            candidate = self._closest_point_on_segment_to_ray(chord_start, chord_end, ray_origin, ray_direction)
+            perp_vec = np.cross(candidate - ray_origin, ray_direction)
+            dist_sq = float(np.dot(perp_vec, perp_vec))
+
+            if best_dist_sq is None or dist_sq < best_dist_sq:
+                best_dist_sq = dist_sq
+                best_point = candidate
+
+        return best_point
+
+    @_check_types.do
     def _point_on_wire(
         self,
         mouse_pos: _point.Point
@@ -109,27 +184,10 @@ class WireTypeMixin(_wire_type_base.WireTypeMixin):
             ``(None, None)`` when the ray cannot be constructed.
         """
 
-        # Build ray from mouse position
-        viewport = self.editor3d.camera.viewport
+        ray_origin, ray_direction = self._mouse_ray(mouse_pos)
 
-        vx, vy, vw, vh = viewport
-
-        x = mouse_pos.x
-        y = (vh - mouse_pos.y)
-
-        ndc_x = (2.0 * (x - vx) / vw) - 1.0
-        ndc_y = (2.0 * (y - vy) / vh) - 1.0
-
-        # Unproject to get ray
-        near_world = self.editor3d.camera.unproject_from_ndc(ndc_x, ndc_y, -1.0)
-        far_world = self.editor3d.camera.unproject_from_ndc(ndc_x, ndc_y, 1.0)
-
-        if near_world is None or far_world is None:
+        if ray_origin is None:
             return None, None
-
-        ray_origin = np.array(near_world, dtype=np.float32)
-        ray_direction = np.array(far_world, dtype=np.float32) - ray_origin
-        ray_direction /= np.linalg.norm(ray_direction)
 
         camera = self.editor3d.camera
 

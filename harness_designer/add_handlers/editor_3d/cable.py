@@ -13,14 +13,20 @@ the project. Cancelling deletes the cable.
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from . import wire as _wire_add
 from ...geometry import point as _point
-from ...database.global_db.mixins import wire_conductor as _wire_conductor
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cable_path as _pjt_cable_path
+
+
+# A click this close (mm) to the point the previous click set adds no waypoint: two coincident waypoints are a bend that
+# cannot be seen and cannot be grabbed apart
+_SAME_SPOT_MM = 1.0
 
 
 class Cable(_wire_add.Wire):
@@ -35,13 +41,13 @@ class Cable(_wire_add.Wire):
     @property
     @_check_types.do
     def _waypoints_get_layouts(self) -> bool:
-        """A cable with no outer jacket (twisted or ribbon) has no layout at its waypoints: its conductors are what get
-        laid out, once the cable is split. A jacketed cable keeps them.
+        """No cable has a layout at its waypoints (WAYPOINT_REWORK_DESIGN.md): its route is drawn with rounded corners like a
+        wire's, and the only layouts a cable shows are the markers where the conductors of a split-out cable join the broken
+        out wires (``Cable._make_split_markers``).
 
         :rtype: bool
         """
-        return self.target.db_obj.part.cable_style not in (_wire_conductor.CableStyle.TWISTED,
-                                                           _wire_conductor.CableStyle.RIBBON)
+        return False
 
     @_check_types.do
     def _ensure_snap_probes(self) -> None:
@@ -88,6 +94,38 @@ class Cable(_wire_add.Wire):
         :type mouse_pos: :class:`_point.Point`
         """
         self._commit_waypoint()
+
+    @_check_types.do
+    def _commit_waypoint(self) -> None:
+        """Commit a waypoint where the end being placed is, unless it is where the previous point already is.
+
+        A click on the spot the last one set (the same click delivered twice, or a second click without moving) would add a waypoint
+        on top of the one before it: a second bend that cannot be seen, and that comes apart from the first the moment either is
+        dragged. The first click after the start is compared with the start.
+        """
+        cable = self.target.obj3d
+        is_start = self._growing_point is cable.start_position
+
+        if is_start:
+            other_end = cable.stop_position
+        else:
+            other_end = cable.start_position
+
+        waypoints = [row.point.as_numpy for row in self.target.db_obj.waypoints3d]
+
+        if not waypoints:
+            previous = other_end.as_numpy
+        elif is_start:
+            previous = waypoints[0]
+        else:
+            previous = waypoints[-1]
+
+        gap = np.asarray(self._growing_point.as_numpy, dtype=np.float64) - np.asarray(previous, dtype=np.float64)
+
+        if float(np.linalg.norm(gap)) < _SAME_SPOT_MM:
+            return
+
+        super()._commit_waypoint()
 
     @_check_types.do
     def finalize_at_last_point(self) -> None:

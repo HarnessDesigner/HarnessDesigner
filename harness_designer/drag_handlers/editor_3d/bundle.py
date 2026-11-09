@@ -94,7 +94,10 @@ class Bundle(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
+        # Lets the axis-locked move keep the grabbed spot of the bundle under the pointer.
+        self.cursor = mouse_pos
+
         delta3d = self._axis_locked_delta3d(
             self._anchor, self.last_pos, delta, self.target.obj3d.aabb)
         if delta3d is None:

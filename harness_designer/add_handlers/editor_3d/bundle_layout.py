@@ -3,7 +3,7 @@
 """Interactive bundle-waypoint placement for the 3D editor.
 
 Ported from ``handlers.bundle_layout_handler.AddBundleLayoutHandler`` --
-started only from the target bundle's own "Add Handle" context-menu
+started only from the target bundle's own "Add Layout" context-menu
 action (``objects_3d.bundle.BundleMenu.on_add_handle``), so unlike the
 original handler's own project-wide ``_find_bundle`` snap, this session
 is pinned to that one bundle for its whole life (there is no toolbar
@@ -76,8 +76,17 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        raw_pos, _is_at_endpoint = (
+        """Move the preview sphere to where the mouse points: onto the path AS DRAWN (the rounded corners), so it sits on the
+        tube the user sees; onto the end itself when the mouse is close enough to snap there. Where the waypoint will really go
+        (the straight path) is decided on the click, see :meth:`_finalize`."""
+        raw_pos, is_at_endpoint = (
             self._bundle.obj3d.get_closest_endpoint(mouse_pos))
+
+        if not is_at_endpoint:
+            curve_pos = self._bundle.obj3d.get_closest_curve_point(mouse_pos)
+
+            if curve_pos is not None:
+                raw_pos = curve_pos
 
         if not isinstance(raw_pos, _point.Point):
             raw_pos = _point.Point(*raw_pos)
@@ -114,10 +123,15 @@ class BundleLayout(_base.AddHandlerBase):
             self.target.db_obj.position3d_id = (
                 self.target.obj3d.position.db_id[:-2])
 
+            self.target.obj3d.end_preview()
             self.target.obj3d.is_visible = True
             self.mainframe.project.add_bundle_layout(self.target)
         else:
-            preview_position = _point.Point(*self.target.obj3d.position.as_float)
+            # the waypoint goes on the straight path (the preview sphere rides on the drawn, rounded one)
+            if not isinstance(raw_pos, _point.Point):
+                raw_pos = _point.Point(*raw_pos)
+
+            preview_position = _point.Point(*raw_pos.as_float)
             self.target.delete()
 
             self.target = _bundle_layout_handler._create_bundle_layout_on_bundle(  # NOQA

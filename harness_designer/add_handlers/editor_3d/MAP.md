@@ -10,11 +10,15 @@ Package docstring only; no code. Notes this is the 3D-editor add-placement packa
 
 #### bundle_layout.py
 
-`BundleLayout` — interactive waypoint placement, started only from a bundle's own "Add Handle" context-menu action, pinned to that one bundle for the whole session (no toolbar mode, so no "which bundle" ambiguity).
+`BundleLayout` — interactive waypoint placement, started only from a bundle's own "Add Layout" context-menu action, pinned to that one bundle for the whole session (no toolbar mode, so no "which bundle" ambiguity).
+
+**Preview (2026-11-08):** as `wire_layout.py`: a sphere 1.25 times the bundle's diameter riding on the drawn (rounded) path, the waypoint committed on the straight path, the sphere removed on the click.
 
 #### cable.py
 
 `Cable(wire.Wire)` (NEW 2026-11-05): the placement session of a cable, a subclass of the wire's session with everything that attaches taken out (no snap probes, no hover highlights, no terminal / splice / layout / wire picks, no circuit). First click sets the start, each further click commits a waypoint, right click ends the cable at the last waypoint: `finalize_at_last_point` then makes the conductors (`PJTCableConductorsTable.insert_for_cable`, from the FINAL end points, because each conductor's end points are children of the cable's and the cable's end point is replaced at every waypoint commit) and adds the cable to the project. Its route goes in `pjt_cable_paths` through the wire session's new `_paths_table` hook. A cable with no outer jacket (`CableStyle.TWISTED` or `RIBBON`) gets NO `WireLayout` at its waypoints (user, 2026-11-05): the wire session's new `_waypoints_get_layouts` hook, which this class answers from the part's `cable_style`. **Not run in the app.** When the placement ends it also SEEDS the cable onto the peg board (`cable.objpegboard.seed_from_3d()`, before the cable joins the project and its conductors are drawn), as a bundle is seeded.
+
+**No coincident waypoints (2026-11-08):** `Cable._commit_waypoint` adds nothing when the end being placed is within `_SAME_SPOT_MM` (1 mm) of the previous point (the last waypoint, or the other end for the first one): saved cables were found with two waypoints on the same spot (and one at the very end), which read as one bend until a drag pulled them apart ('the waypoint splits in two', 'dragging an end leaves a waypoint behind'). Cables made before this still have them: **Delete Layout** removes one.
 
 #### cover.py
 
@@ -54,11 +58,15 @@ Package docstring only; no code. Notes this is the 3D-editor add-placement packa
 
 #### wire.py
 
-`Wire` — two-click interactive placement (phase 0 = start point, phase 1 = stop point, growing one section at a time), snap probes (ambient "capable" highlight on every valid attach point for the whole session + "engaged" highlight on whichever is under the cursor), waypoint commit/cancel/finalize, extension mode (continuing an existing wire's dangling end). Ported from `handlers.wire_handler.AddWireHandler`; one real behavior change — a free-space start now has a real preview wire from the moment placement begins (used to create nothing until the first click).
+`Wire` — two-click interactive placement (phase 0 = start point, phase 1 = stop point, growing one section at a time), snap probes (ambient "capable" highlight on every valid attach point for the whole session + "engaged" highlight on whichever is under the cursor), waypoint commit/cancel/finalize, extension mode (continuing an existing wire's dangling end). Ported from `handlers.wire_handler.AddWireHandler`; one real behavior change — a free-space start now has a real wire from the moment placement begins (used to create nothing until the first click), but it is HIDDEN (`is_visible = False`, set in `objects_3d.wire.Wire._start_free_space` / `Cable.start_add_cable`) until the first click: the stop point sits at the origin through phase 0, so a visible wire would be drawn from the origin to the cursor. `hover` shows it once phase 1 has moved the stop to the cursor (same rule as the bundle session). The peg-board session does the same (`objects_pegboard.wire.Wire._start_free_space`, `add_handlers/editor_pegboard/wire.py` `hover`).
 
 #### wire_layout.py
 
-`WireLayout` — wire's own waypoint-placement counterpart of `bundle_layout.py`, started from a wire's "Add Handle" context-menu action.
+`WireLayout` — wire's own waypoint-placement counterpart of `bundle_layout.py`, started from a wire's "Add Layout" context-menu action.
+
+**Preview (2026-11-08, `WAYPOINT_REWORK_DESIGN.md`):** the sphere is `HANDLE_SCALE` (1.25) times the wire's diameter and rides on the path AS DRAWN (the rounded corners): `hover` asks the wire for `get_closest_curve_point`, or snaps to an end as before. The waypoint itself is committed on the STRAIGHT path (`get_closest_endpoint`), so inserting one never changes the shape of the other corners; the preview can differ from it by up to a fraction of a diameter near a corner, and is removed on the click (`_previewing` False: the layout is then undrawn and is only a drag handle while its wire is selected, see `objects/mixins/waypoint_handles.py`).
+
+**Cable (2026-11-08):** the same session places a waypoint on a CABLE (`ObjectBase.is_cable` on the target): no endpoint snapping (`_closest_endpoint`), and the click deletes the preview and calls `Cable.add_waypoint` (`_finalize_cable`) instead of making a `WireLayout`.
 
 #### wire_service_loop.py
 

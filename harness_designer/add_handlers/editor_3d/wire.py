@@ -20,8 +20,12 @@ what's different is only *how* a session gets constructed and driven:
 - One genuine behavior change, forced by the above: a free-space start
   used to create nothing until the first click (phase 0 was pure hover
   highlighting, no visible preview). Now the preview wire exists from
-  the moment placement begins, at a placeholder point, so phase 0 also
-  live-previews the start point following the cursor (``_growing_point``
+  the moment placement begins, at a placeholder point, HIDDEN until the
+  first click has set the start (``hover`` shows it once phase 1 has
+  moved the stop to the cursor) -- the stop point sits at the origin
+  through phase 0, so a visible wire would be drawn from the origin to
+  the cursor. Phase 0 still tracks the start point following the cursor
+  (``_growing_point``
   is the wire's own start position during phase 0 instead of only ever
   being the stop position) -- ``_hover_phase0``/``_handle_first_click`` are
   restructured to mirror ``_hover_phase1``/``_handle_second_click``'s
@@ -428,6 +432,13 @@ class Wire(_base.AddHandlerBase):
                 self._hover_phase0(mouse_pos)
             else:
                 self._hover_phase1(mouse_pos)
+
+            # A free-space wire / cable is hidden through phase 0 (see
+            # objects_3d.wire.Wire._start_free_space): the stop point is still
+            # at the origin until now, so it is shown only once the end being
+            # placed has been moved to the cursor.
+            if self._phase != 0 and not self.target.obj3d.is_visible:
+                self.target.obj3d.is_visible = True
 
     @_check_types.do
     def _hover_extension(self, mouse_pos: _point.Point) -> None:

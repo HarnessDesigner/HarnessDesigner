@@ -96,7 +96,7 @@ BUILT (compiled and, for the builder, test-built; the app was NOT launched, no t
     `conductor_colors`. `objects_3d/wire.py`: `_build_twist`, `_twist_segments` (cached in `_twist_plan`, cleared by
     `_recalculate_geometry`), `_render_twisted`.
   - Not done for a twisted wire: the debug edge / normal / vertex passes (no twist mode in those programs), the bare-conductor look at a
-    crimp end, `ray_trace_parts` (still the plain tube), LOD (rings do not thin out with distance), the fan-out (section 8), and the
+    crimp end, `ray_trace_parts` (done 2026-11-08: `ray_trace_meshes`), LOD (rings do not thin out with distance), the fan-out (section 8), and the
     pegboard / schematic views (3D only).
   - TE wires: most have no `od_mm` (401 of 2,962 twisted ones do) and so draw at zero size, like every TE wire with no `od_mm` does
     in the plain tube path; that is a catalog data gap, not a rendering one.
@@ -293,10 +293,10 @@ Row-id rules checked (2026-11-03, read `database/id_generator.py`, `project_db/p
     local coordinates (+ flag when absent), taper length.
 - Smooth bends (2026-11-07): a rigid mitre at a sharp waypoint distorts the conductors (the ring shift and its fade grow with
   `tan(bend / 2)`), so a twisted cable's corners are rounded before `plan` runs: `shapes/twisted_wire.round_bends` swaps each
-  corner for a tangent arc of chords (10 degrees apiece, radius 4 cable diameters, tighter where a segment is too short to hold it),
+  corner for a tangent arc of chords (10 degrees apiece, radius ONE diameter of the wire or of the whole cable since 2026-11-07 (was 4; user decision), tighter where a segment is too short to hold it),
   and the mitre then only closes the gap between chords. Checked numerically over 2000 random 5-150 degree bends (pieces meet to
   1e-13 mm, end directions unchanged, no turn between neighbours over 10 degrees); NOT run in the app. Picking / OBBs still use
-  the unrounded straight segments. The 4-diameter radius is a constant (`BEND_RADIUS_DIAMETERS`), not a setting.
+  the unrounded straight segments. The radius is a constant (`BEND_RADIUS_DIAMETERS`), not a setting; it is the diameter of the wire or of the whole cable, never of one conductor, and must stay above half a diameter or the inside of the bend folds over itself. The rounding applies to every look but a ribbon's.
 - Bundle ends: per-wire entry/exit offsets derived at render time as `entry_w = P_end + frame * offset_w`;
   wires stay bound to the shared Point and `_segments` (`objects/mixins/wire.py`) is the override point.
 
@@ -640,9 +640,9 @@ BUILT 2026-11-05, step 5a (app repo, uncommitted; NOT run in the app): splitting
 right-click menu of a cable offers "Split Conductors (start|stop end)" (for the end nearer the click; asks the distance from the end) or
 "Join Conductors". `PJTCable.start_split_mm` / `stop_split_mm` are the state (0 = not split). The split plane must lie inside the END
 SEGMENT of the trunk (distance at most that segment's length less 2 mm), so no trunk waypoint has to move to a lead; a lead therefore has no
-waypoints of its own yet. At a split the trunk is drawn only up to the plane (`Cable._segments` is trimmed, so the twist phase starts / ends
-at the plane), each conductor's end point is DETACHED from the cable's end (`PJTPoint3D.detach_from_parent`) and moved to a fan-out place
-across the cable's true end (conductor position x 2, a shield below the jacket), and each conductor is drawn as a straight tube from its
+waypoints of its own yet. At a split the cable's end moves to the plane (the trunk is not trimmed; the twist phase starts / ends at the end, and the stretch beyond it is the leads', so
+it is not counted twice), each conductor's end point is DETACHED from the cable's end (`PJTPoint3D.detach_from_parent`) and moved to a fan-out place
+across the cable's true end (the old end: the split distance beyond it; conductor position x 2, a shield below the jacket), and each conductor is drawn as a straight tube from its
 helix position at the plane to that point (rate-0 `TwistedTube`, so stripes work); join re-attaches the end points. DECISION: no split point
 ROWS yet (`start_split_point3d_id` stays NULL); the lead's start is computed at draw time from the trunk's plan (the helix phase through bends
 is only known to the view). They are needed in 5b, when a lead becomes a route of its own: the view's `reload_splits` would then write the
@@ -683,7 +683,7 @@ trunk. Checked with stand-ins (the walk, `connected_members`, the trunk length /
 NOT done: the circuit editor (`ui/editor_circuit`) and the object browser do not list conductors (they read `circuit.wires` /
 `wire_service_loops`), `Circuit.highlight` does not colour the trunk, a conductor in a bundle's heat (`_bundle_component` reads wires only), the
 shield as a return path, and `Wire.is_connected` / the schematic look of a split conductor.
-BUILT 2026-11-06, lead routing (NOT run in the app): a lead's waypoints already work through the ordinary wire code (right-click Add Handle ->
+BUILT 2026-11-06, lead routing (NOT run in the app): a lead's waypoints already work through the ordinary wire code (right-click Add Layout ->
 `WireLayout`, 3D route only); what needed doing was keeping the lead a lead. The conductor's split point is a drag anchor
 (`WireDragMixin.is_anchor_point`, so it cannot be dragged off the split plane and is not offered by `pick_free_end`); a lead is neither a wire-end snap
 target nor snaps to one (`SnapProbeSet`: wires that meet are merged into one row, which would lose the conductor); the lead's menu disables Add Splice /
@@ -691,7 +691,7 @@ Add Wire / Add Wire Service Loop / Add to Wire (they split or branch the row int
 service loop IN a lead (would need `cable_conductor_id` carried through `wire_topology` and `can_join` / `join_end` to follow the whole lead chain),
 a lead in the pegboard / schematic, and the first stretch of a lead leaving the plane along the trunk (a lead is straight until the user adds handles).
 BUILT 2026-11-06, fan-out order (NOT run in the app): `start_order` / `stop_order` (per conductor, per end; default `idx`) now decide which fan place a
-conductor's end lands in. The places are fixed per cable (one per conductor row: where that row sits in the cable, spread out by `FAN_SPREAD`), so
+conductor's end lands in. The places are fixed per cable (one per conductor row: where that row sits in the cable's end cross-section at the split plane, projected from a light behind it onto the copied end, `fan_scale`), so
 reordering swaps conductors between places; the shield is just another place (it can be moved off the bottom). Menu: "Fan-out Order (start|stop end)..."
 -> `ui/dialogs/fan_out_order.py` (Move Up / Move Down) -> `Cable.set_fan_order`, which moves the end points of a split end at once and only stores the
 order of an unsplit one (the first split uses it). Refused while anything is attached to a lead's free end (`can_reorder`, same rule as Join: the
@@ -761,3 +761,65 @@ object browser, the BOM or the cut list; no peg-board view; "Split Conductors" i
 
 Not checked yet: the add-wire handler and wire snapping, `Wire._segments`, the peg-board and schematic wire
 renderers, and how many places count wire rows.
+
+
+## 9. Single wires and bundles through the same shader (started 2026-11-07)
+
+User decision (2026-11-07): the twist stays for a single wire, so a stripe is drawn as a proper helix that follows the wire through
+a bend. The plain path draws a cylinder mesh per segment (`shapes/cylinder.py`: 360 sides, one axial span, the same mesh for every
+diameter and length, scaled by the shader) plus, for a stripe, the one shared helix mesh (`shapes/helix.py`) clipped to the
+segment by a `discard` in the fragment shader, so the whole mesh is submitted for every striped segment. Measured on the dev
+machine (2026-11-07, sandboxed script): the helix mesh is 66,118 triangles at 1 m, 170,607 at 2.5 m, 265,146 at 4 m and takes 1.8 s,
+5.9 s and 10.9 s to build (OCCT sweep and tessellation), and it is always built `_HELIX_OVERSHOOT_MM` (1 m) longer than the longest
+wire. The stripe is a separate solid of real thickness (`_STRIPE_THICKNESS_MM` on a radius-0.5 mesh, scaled with the wire) to hide
+bleed-through, which shows up close.
+
+Built as an option for comparing the two, not as the default: `Config.debug.rendering3d.gpu_single_wires` draws a 3D single wire
+through `Wire._build_single` (see `objects_3d/MAP.md`), and `wire_benchmark` times it (`gl/wire_benchmark.py`). Facts the build
+relies on: `shapes.twisted_wire.profile(1, od)` is degenerate (use `(0, 0, od / 2)`); the stripe pitch of the current helix mesh is a
+constant 60 mm per turn (`shapes.helix.PITCH_MM`), so `rate_from_tpi(25.4 / 60)` (2 pi / 60 rad per mm) matches it; the twisted shader's
+stripe is 60 degrees wide and snapped to one of 16 sides, the helix mesh's is about 38 degrees; `TWIST_SIDES` is a constant 16, so a
+thick wire or bundle would show a polygonal outline until the side count follows the diameter.
+
+Not decided or not built: bundles (a bundle's wires follow its unrounded skeleton points, so rounding a bundle's corners means the
+wires inside have to be rounded the same way); crimp ends and the debug passes for a wire drawn this way; the peg-board and
+schematic views; making it the default.
+
+Path building in Cython (2026-11-07, user decision: "do the path building in Cython on numpy arrays"). Profiled first, on a 3-segment
+wire with two bends (22 pieces, the case from the live log): the rebuild of `Wire._twist_segments` took 8.1 ms, of which 5.6 ms (69
+percent) was building a `Point` and an `Angle` per chord through the Decimal-backed geometry classes, 1.6 ms `plan`, 0.2 ms
+`round_bends`. The same pipeline with plain floats and no Cython: 2.3 ms. `shapes/twisted_path.pyx` (`build_path`) now does
+`round_bends` + each chord's frame + `plan` + `ring_count` on arrays: 0.016 ms; the whole `Wire._twist_segments` 0.1 ms on stand-in
+segments (the real `_segment_transforms` adds about 0.7 ms). Checked against the pure-Python functions over 20,000 random bent paths
+(276,000 pieces): every output equal, and the wire's `_twist_segments` against the old Point / Angle pipeline to about 1e-6 (the old
+`_rotation_from_direction` goes through float32). The pure-Python `round_bends` / `plan` / `ring_count` stay as the reference and for
+the ribbon code. Not run in the app.
+
+Per-piece data in a buffer instead of per-draw uniforms (2026-11-08, scratch prototype `D:\harness_designer_tmp\scripts\instanced_proto.py` and `wires100.py`, not in the
+repo; offscreen, run from source, type checking off). Today's twist path draws one piece per `glDrawArrays` and sets ~17 uniforms for each (39 us per draw), so a wire with 22
+pieces costs 0.85 ms of CPU per frame and the cost grows with every wire. The same pieces as rows (80 bytes: position+length, quaternion, phase+rings, two mitres) in a texture
+buffer, the vertex shader finding its piece from `gl_VertexID` through a prefix sum of vertex counts (no padding), drawn with ONE call: pixel-identical to the per-piece draws
+(max channel difference 0). One wire, 22 pieces: CPU 0.85 -> 0.04 ms, GPU 0.027 -> 0.016 ms. 100 random wires (0-10 bends each, random 3D angles, 5,558 pieces, 4.05M
+vertices), 50 frames averaged: whole render pass 220.9 ms (5,558 draws) -> 1.57 ms (1 draw), GPU work 1.48 ms (the 214.7 ms the timer shows for the per-piece draws includes the GPU
+waiting for the CPU). Per-instance attributes with the pieces split into long and short ones work too (3.87 ms for the 100 wires, because each group is padded to its longest piece:
+100 rings against 2 for a chord), so the texture buffer is the choice. Changing a path costs ~42 us for one wire (pack the rows + `glBufferSubData`), ~0.55 ms to re-send all
+100. The model for it is `gl/vbo.py`'s arena pooling: a wire pool of its own, compacted at idle time through `app.CallLater` (see `gl/MAP.md`); the shaders would also need the
+per-wire rate, profile and stripe materials in a row (the prototype shared one set across all wires). Not built yet.
+
+Built (2026-11-08), with one draw PER WIRE rather than per scene: `gl/wire_pool.py` (see `gl/MAP.md`), the `twistPool` mode in `faces/vertex.vert`, `TUBE.draw_pooled`, `Wire._draw_pooled`, behind
+`Config.debug.rendering3d.pooled_wires` (off by default). Measured offscreen through the real `FacesProgram` on the 100 random wires above (type checking off): whole render pass 218.9 ms with
+5,558 draws -> 6.4 ms with 100 draws (CPU submit 3.5 ms, GPU 2.8 ms); a single wire 0.85 ms -> 0.06 ms of CPU per frame; rewriting a wire's rows in place 8 us. Pixels identical to the per-piece
+path. The one-draw-for-everything figure above (1.57 ms) needs the wires of a scene gathered into one draw (a second-level search over the wires, per-wire material rows, a collector in the canvas
+render loop); not built. A wire's rows carry the first vertex of each piece relative to the wire, so they stay valid wherever the arena puts them; the arenas are compacted and drained at idle time by the
+same code as the model arenas (`gl/arena_buffer.py`). Not run in the app.
+
+The whole frame in one draw (2026-11-08, `gl/wire_batch.py`, `Config.debug.rendering3d.batched_wires`, off by default): each wire hands the canvas one 9-texel entry per conductor (its rows in the pool,
+twist rate, circle, material, stripe) and `CanvasBase._draw_scene` flushes them with one `glDrawArrays` per pool arena after the main object loop, and once more at the end for a selected wire. The vertex
+shader searches the entries, then the wire's rows; the fragment shader reads the material from the same texels through a flat varying, so the faces program stays one program. Measured offscreen on 100 random wires
+with their own radius, colour, stripe and rate (109 conductors, 4,987 pieces, 4.49M vertices; some twisted pairs, some glowing selected wires), 50 frames averaged, type checking off: whole render pass 177.1 ms with
+4,987 draws -> 8.6 ms with 109 draws (the per-conductor pool) -> 3.05 ms with ONE draw (CPU submit 0.23 ms, GPU 2.7 ms). Pixels identical to the per-piece path (max channel difference 0), including with the wires spread
+over 8 arenas (8 draws) and after an idle-time compaction (the wires' stamps change, their entries are made again). Updating a changed wire costs a few microseconds. Not run in the app.
+
+2026-11-08 (later): the batched draw was checked in the app by the user and is now the ONLY way a wire, cable or bundle is drawn: the `gpu_single_wires` / `pooled_wires` / `batched_wires` switches, the plain cylinder path, `TwistedTube`, the per-piece and per-wire shader modes are gone, and the drawing is `objects/mixins/tube.py` (`TubeMixin`) for the 3D and pegboard wire, cable and bundle (bundles are one plain tube with rounded corners of one diameter). See `WAYPOINT_REWORK_DESIGN.md`.
+
+2026-11-08 (last): the `wire_benchmark` GPU performance logging (`gl/wire_benchmark.py`, `Config.debug.rendering3d.wire_benchmark`, its Debug Settings check box) was removed; the benchmark numbers quoted above came from it.

@@ -34,7 +34,7 @@ No imports found -- a plain empty package marker, no re-exports.
 
 #### debug_settings.py
 
-`DebugSettingsDialog` (`_ColourPickerCtrl` helper) -- developer-facing debug toggles.
+`DebugSettingsDialog` (`_ColourPickerCtrl` helper) -- developer-facing debug toggles, developer-facing toggles for the faces / edges / normals / vertices passes and the other debug drawing options (the "Wire Benchmark" group and the GPU performance logging were removed 2026-11-08, together with the `gpu_single_wires` / `pooled_wires` / `batched_wires` check boxes).
 
 #### dialog_base.py
 

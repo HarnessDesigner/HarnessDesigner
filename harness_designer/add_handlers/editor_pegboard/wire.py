@@ -296,6 +296,13 @@ class Wire(_base.AddHandlerBase):
             self._clear_hover()
             self._set_growing_position(world_pos)
 
+        # A free-space wire is hidden through phase 0 (see
+        # objects_pegboard.wire.Wire._start_free_space): the stop point is
+        # still at the origin until now, so it is shown only once the end
+        # being placed has been moved to the cursor.
+        if self._phase != 0 and not self.target.objpegboard.is_visible:
+            self.target.objpegboard.is_visible = True
+
         self.mainframe.editor_pegboard.editor.update()
 
     # ------------------------------------------------------------------

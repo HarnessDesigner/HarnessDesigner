@@ -15,6 +15,7 @@ from .. import config as _config
 from . import toolbar as _toolbar
 from .. import gl as _gl
 from ..gl.canvas_base import interaction as _interaction
+from ..gl import vbo as _vbo
 from .. import handlers as _handlers
 from .. import app as _app
 from .. import check_types as _check_types
@@ -265,6 +266,9 @@ class MainFrame(QtWidgets.QMainWindow):
         from . import editor_3d
 
         self.editor3d = editor_3d.Editor3D(self)
+
+        # the pooled model buffers are compacted and trimmed at idle time, under this editor's GL context
+        _vbo.PooledVBOHandler.set_owner(self)
 
         splash.SetText('Creating 2D editor...')
         splash.flush()

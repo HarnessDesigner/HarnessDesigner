@@ -8,6 +8,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from ..mixins import waypoint_handles as _handles
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
@@ -99,11 +100,19 @@ class WireLayout(_base_3d.Base3D):
 
             if is_snap_probe:
                 diameter = max(diameter, _SNAP_PROBE_MIN_DIAMETER)
+            elif not db_obj.is_cable_split_point:
+                # the handle (and the preview of one being placed) is bigger than the wire: easy to see and to hit. The marker where a
+                # cable's conductor leaves the trunk is the conductor's own size, so it meets the lead without a step
+                diameter *= _handles.HANDLE_SCALE
 
             material = _materials.Plastic(color)
 
             scale = _point.Point(diameter, diameter, diameter)
-            vbo = _sphere.create_vbo()
+            if is_snap_probe or db_obj.is_cable_split_point or _handles.wants_preview_geometry():
+                vbo = _sphere.create_vbo()
+            else:
+                # a waypoint is not drawn or picked as an object: the route draws its own corner (objects/mixins/waypoint_handles.py)
+                vbo = None
             angle = _angle.Angle()
             position = db_obj.position3d
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
@@ -111,6 +120,13 @@ class WireLayout(_base_3d.Base3D):
             # the pseudo marker where a cable conductor's lead meets the trunk is only drawn: nothing to pick, drag or menu
             if db_obj.is_cable_split_point:
                 self._pick_priority = -1
+
+            _handles.register(self)
+
+    @_check_types.do
+    def end_preview(self) -> None:
+        """The waypoint is placed: this layout keeps no geometry, the route draws its own corner (objects/mixins/waypoint_handles.py)."""
+        self._vbo = None
 
     @_check_types.do
     def can_rotate(self) -> bool:
@@ -326,7 +342,7 @@ class WireLayout(_base_3d.Base3D):
             else:
                 upstream, downstream = wire_b, wire_a
 
-            from ..handlers import wire_topology as _wire_topology
+            from ...handlers import wire_topology as _wire_topology
 
             _wire_topology.merge_wires(self.mainframe.project, upstream, downstream)
             return
@@ -366,7 +382,7 @@ class WireLayout(_base_3d.Base3D):
         it for the whole session -- see
         add_handlers.editor_3d.wire_layout's own module docstring.
         *initial_pos* seeds the live preview's starting position (the
-        exact point that was right-clicked to open the "Add Handle" menu
+        exact point that was right-clicked to open the "Add Layout" menu
         item, when available).
         """
         canvas = mainframe.editor3d.editor
@@ -382,8 +398,15 @@ class WireLayout(_base_3d.Base3D):
 
         from .. import wire_layout as _wire_layout_facade
 
-        facade = _wire_layout_facade.WireLayout(mainframe, layout_db)
+        # drawn while it is placed, as a sphere HANDLE_SCALE times the wire's diameter (nothing is attached to it yet to size it by)
+        with _handles.preview_geometry():
+            facade = _wire_layout_facade.WireLayout(mainframe, layout_db)
+
         facade.obj3d.is_visible = False
+        size = wire.obj3d._scale.x * _handles.HANDLE_SCALE  # NOQA
+        facade.obj3d._scale.x = size  # NOQA
+        facade.obj3d._scale.y = size  # NOQA
+        facade.obj3d._scale.z = size  # NOQA
 
         from ...add_handlers.editor_3d import wire_layout as _add_wire_layout
 
@@ -465,7 +488,7 @@ class WireLayoutMenu(QtWidgets.QMenu):
         action.triggered.connect(self.on_select)
 
         self.addSeparator()
-        action = self.addAction('Delete')
+        action = self.addAction('Delete Layout')
         action.triggered.connect(self.on_delete)
 
     @_check_types.do

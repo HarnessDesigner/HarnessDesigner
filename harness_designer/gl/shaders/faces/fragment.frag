@@ -11,6 +11,11 @@ in float isReflection;
 in float fragLocalZGeom;
 in float fragStripeGeom;
 
+// The entry (see twistBatch in vertex.vert) of the batched wire this fragment belongs to, -1 for everything else: its material
+// is then in the texture buffer twistEntries instead of in the uniforms below.
+flat in int fragEntryGeom;
+uniform samplerBuffer twistEntries;
+
 out vec4 FragColor;
 
 uniform vec4 materialAmbient;
@@ -18,14 +23,6 @@ uniform vec4 materialDiffuse;
 uniform vec4 materialSpecular;
 uniform float materialShininess;
 uniform vec4 materialEmissive;
-
-// A twisted conductor's stripe (see twistVertex in vertex.vert): where the angular distance from the stripe's
-// centre is below twistStripeHalf (radians) the stripe's colours replace the material's. 0.0, the default, means
-// no stripe; only shapes/twisted_wire.py sets it, around one conductor's draw.
-uniform float twistStripeHalf;
-uniform vec4 twistStripeAmbient;
-uniform vec4 twistStripeDiffuse;
-uniform vec4 twistStripeSpecular;
 
 uniform vec3 lightPosition;
 uniform vec4 lightAmbient;
@@ -85,23 +82,61 @@ void main() {
     vec3 normal = normalize(fragNormalGeom);
     vec3 viewDir = normalize(viewPosition - fragPositionGeom);
 
-    vec4 baseAmbient = materialAmbient;
-    vec4 baseDiffuse = materialDiffuse;
-    vec4 baseSpecular = materialSpecular;
+    // The material: the uniforms, or the batched wire's entry (texels 2 to 8 of its 10, see twistBatch in vertex.vert).
+    vec4 matAmbient = materialAmbient;
+    vec4 matDiffuse = materialDiffuse;
+    vec4 matSpecular = materialSpecular;
+    vec4 matEmissive = materialEmissive;
+    float matShininess = materialShininess;
+    float rimPower = emissiveRimPower;
+    float rimIntensity = emissiveRimIntensity;
 
-    if (twistStripeHalf > 0.0) {
+    // A twisted conductor's stripe (see twistVertex in vertex.vert): where the angular distance from the stripe's centre is below
+    // stripeHalf (radians) the stripe's colours replace the material's. 0.0 means no stripe; only a batched wire's entry sets it.
+    float stripeHalf = 0.0;
+    vec4 stripeAmbient = vec4(0.0);
+    vec4 stripeDiffuse = vec4(0.0);
+    vec4 stripeSpecular = vec4(0.0);
+
+    if (fragEntryGeom >= 0) {
+        int entry = fragEntryGeom * 10;
+        vec4 shine = texelFetch(twistEntries, entry + 5);
+
+        stripeHalf = texelFetch(twistEntries, entry).w;
+        matAmbient = texelFetch(twistEntries, entry + 2);
+        matDiffuse = texelFetch(twistEntries, entry + 3);
+        matSpecular = texelFetch(twistEntries, entry + 4);
+        matShininess = shine.x;
+        matEmissive = vec4(shine.yzw, 1.0);
+
+        // the same as Material.set() works out for the uniforms
+        rimPower = (shine.y + shine.z + shine.w) * 2.0;
+        rimIntensity = rimPower;
+
+        stripeAmbient = texelFetch(twistEntries, entry + 6);
+        stripeDiffuse = texelFetch(twistEntries, entry + 7);
+        stripeSpecular = texelFetch(twistEntries, entry + 8);
+    }
+
+    vec4 baseAmbient = matAmbient;
+    vec4 baseDiffuse = matDiffuse;
+    vec4 baseSpecular = matSpecular;
+
+    // (outside the branch: a derivative inside one that differs between primitives is undefined)
+    float edge = max(fwidth(fragStripeGeom), 1e-5);
+
+    if (stripeHalf > 0.0) {
         // one pixel of blend at the edge of the stripe
-        float edge = max(fwidth(fragStripeGeom), 1e-5);
-        float inStripe = 1.0 - smoothstep(twistStripeHalf - edge, twistStripeHalf + edge, fragStripeGeom);
-        baseAmbient = mix(materialAmbient, twistStripeAmbient, inStripe);
-        baseDiffuse = mix(materialDiffuse, twistStripeDiffuse, inStripe);
-        baseSpecular = mix(materialSpecular, twistStripeSpecular, inStripe);
+        float inStripe = 1.0 - smoothstep(stripeHalf - edge, stripeHalf + edge, fragStripeGeom);
+        baseAmbient = mix(matAmbient, stripeAmbient, inStripe);
+        baseDiffuse = mix(matDiffuse, stripeDiffuse, inStripe);
+        baseSpecular = mix(matSpecular, stripeSpecular, inStripe);
     }
 
     bool fragAboveFloor = (fragPositionGeom.y > floorY);
 
     // Check if material is emissive
-    float emissiveStrength = max(max(materialEmissive.r, materialEmissive.g), materialEmissive.b);
+    float emissiveStrength = max(max(matEmissive.r, matEmissive.g), matEmissive.b);
     bool isEmissive = emissiveStrength > 0.0;
 
     vec3 ambient = lightAmbient.rgb * baseAmbient.rgb;
@@ -136,7 +171,7 @@ void main() {
 
             if (diffuseStrength > 0.0) {
                 vec3 reflectDir = reflect(-lightDir, normal);
-                float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
+                float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), matShininess);
                 specular = lightSpecular.rgb * (specularStrength * baseSpecular.rgb);
             }
         }
@@ -163,12 +198,12 @@ void main() {
     // ===== EMISSIVE GLOW =====
     if (isEmissive) {
         // ALL faces get the full emissive color
-        result = materialEmissive.rgb;
+        result = matEmissive.rgb;
 
         // Edges get EXTRA brightness on top
         float rimAmount = 1.0 - max(dot(viewDir, normal), 0.0);
-        rimAmount = pow(rimAmount, emissiveRimPower);
-        vec3 rimGlow = materialEmissive.rgb * rimAmount * emissiveRimIntensity;
+        rimAmount = pow(rimAmount, rimPower);
+        vec3 rimGlow = matEmissive.rgb * rimAmount * rimIntensity;
         result += rimGlow;
     }
     // =========================

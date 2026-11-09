@@ -19,7 +19,7 @@ construction) and its 6 concrete subclasses — `FacesProgram`/`EdgesProgram`/`V
 `GridProgram`/`FloorProgram`/`TextureProgram` — each wrapping one compiled program int from the
 matching submodule's own `compile_program()`. `FacesProgram` is the one with `has_normal_mode =
 True` and owns the headlight spotlight uniforms (`headlight_position`/`direction`/`diffuse`/
-`diameter`/`enabled`) and, since 2026-11-05, the twisted-conductor uniforms (`twist_rings`/`length`/`rate`/`phase`/`profile`/`start`/`end` and `twist_stripe_half`/`ambient`/`diffuse`/`specular`; see `faces/vertex.vert`). This class (together with `gl/vbo.py`'s `render()`, which takes a `Program`
+`diameter`/`enabled`) and, since 2026-11-05, the batched-conductor uniforms (`twist_batch`, `twist_pieces`, `twist_entries`, `twist_entry_count`; see `faces/vertex.vert`), and since 2026-11-08 the pooled-twist ones (`twist_pool`, `twist_pieces` = the texture unit, `twist_piece_base`, `twist_piece_count`), and the batched ones (`twist_batch`, `twist_entries` = the texture unit, `twist_entry_count`). This class (together with `gl/vbo.py`'s `render()`, which takes a `Program`
 object itself, never a raw location int) is meant to remain the only place in the app that calls
 `GL.glGetUniformLocation`/raw `GL.glUniform*`/`GL.glUseProgram` directly — every consumer
 (canvases, `vbo.py`, `materials/material.py`, drag/rotation handlers, floor renderers) gets handed
@@ -37,6 +37,10 @@ canvas program ids only valid in whichever canvas's context compiled them first,
 the cross-context `GL_INVALID_OPERATION` bug this per-canvas design replaced. Treat "one
 `ShaderProgram` per canvas instance," not "one `ShaderProgram` ever," as current when reasoning
 about this class.
+
+⚠ Correction (2026-11-08): the "non-shared GL context" above is not what `app.py` sets up -- it sets
+`AA_ShareOpenGLContexts`, so the canvases' contexts are one share group (buffers, textures and programs are shared; VAOs,
+framebuffers and query objects are not). One `ShaderProgram` per canvas is still how it is built.
 
 ## FOLDERS
 

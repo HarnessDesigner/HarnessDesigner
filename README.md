@@ -16,6 +16,16 @@ process. The controls have been written specifically for working with the variou
 components in a wiring harness and that is what makes it easy to use!
 
 UPDATE:
+
+Latest change is a big one. I reworked the rendering pipeline for wires and bundles.
+I liked how the multi-conductor cables worked out and I did some bench marks and
+found that the performance was better than how I was rendering a single wire or a bundle.
+so not only did the appearance come out better the performance was also better. 
+So I made some changes that allow wires and bundles to be rendered in the same manner
+as the multi-conductor cables. I also got rid of the sharp angle changes that existed 
+from how I was doing the bends.  no they are nice curved bends which looks much better 
+and it also lends well to moving the wire/bundle/cable. 
+
 I am getting close to  releasing an alpha test version. Recent things I have added
 
 
@@ -88,6 +98,10 @@ building this kind of a mesh.
 Bends are looking great for the multi conductor cables/wires. I am trying to pay as much 
 attention to detail as I can. 
 ![img_15.png](img_15.png)
+
+multi conductor cables  can have their individual conductors faned out so they can be 
+connected to terminals and splices. 
+![img_16.png](img_16.png)
 
 Doing some work in the schematic editor, specifically automatic routing of the 
 wires when a housing is moved or when a wire is added.  

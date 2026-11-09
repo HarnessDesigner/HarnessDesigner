@@ -1,36 +1,27 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""The maths and the draw call of a twisted wire (TWISTED_WIRE_DESIGN.md, sections 5 and 7).
+"""The maths of a twisted wire (TWISTED_WIRE_DESIGN.md, sections 5 and 7).
 
-A twisted pair or triple is drawn as one tube per conductor, per path segment. The tube has no mesh: the faces vertex shader
-(``gl/shaders/faces/vertex.vert``) makes every vertex from ``gl_VertexID`` when its ``twistRings`` uniform is above 0, so a
-change of the path or of the twist rate costs a few uniforms, not a new buffer. This module holds what is left on the Python side:
+A wire, cable or bundle is drawn as one tube per conductor over its whole path. The tube has no mesh: the faces vertex shader
+(``gl/shaders/faces/vertex.vert``) makes every vertex from ``gl_VertexID`` out of rows of ``gl/wire_pool.py``, drawn by
+``gl/wire_batch.py``, so a change of the path or of the twist rate rewrites a few rows, not a new buffer. This module holds the
+Python side:
 
 * :func:`profile` -- where each conductor's circle sits in the cable's cross-section.
 * :func:`plan` -- the per-segment bookkeeping of a bent wire: the phase the twist carries from one segment into the next and the
   mitre that closes the gap on the outside of a bend.
-* :class:`TwistedTube` -- sets the uniforms and issues the draw.
 
 Frames: a segment's local +Z is its direction and its local X/Y are the columns of its rotation matrix (``Angle.as_matrix_numpy``,
 a column-vector matrix: the columns are the local axes in world space). The cross-section turns rigidly about +Z by
 ``phase + rate * z``, which makes each conductor's centre follow a helix; the lay length is ``25.4 / tpi`` mm.
 """
 
-from typing import TYPE_CHECKING
 from typing import NamedTuple as _NamedTuple
 
 import math
 import numpy as np
-from OpenGL import GL
-from PySide6 import QtGui
 
 from .. import check_types as _check_types
-
-if TYPE_CHECKING:
-    from ..geometry import point as _point
-    from ..geometry import angle as _angle
-    from ..gl import materials as _materials
-    from ..gl.shaders import program as _program
 
 
 # Must match TWIST_SIDES in gl/shaders/faces/vertex.vert.
@@ -89,9 +80,10 @@ class SegmentTwist(_NamedTuple):
 
 _NO_MITRE = (0.0, 0.0, 1.0, 0.0)
 
-# The radius a twisted cable is bent round at a waypoint, in cable diameters (measured to the cable's axis). A real twisted pair is not
-# bent tighter than about four diameters; a corner drawn as a rigid mitre instead folds the conductors on the inside of the bend.
-BEND_RADIUS_DIAMETERS = 4.0
+# The radius a wire or cable is bent round at a waypoint, in diameters of the wire or of the whole cable (never of one conductor
+# inside it), measured to its axis: one diameter (user decision, 2026-11-07). It must stay above half a diameter, or the inside of
+# the bend folds over itself.
+BEND_RADIUS_DIAMETERS = 1.0
 
 # A rounded bend is drawn as chords of the arc, each turning the cable by about this much (radians); the mitre then only has
 # to close a gap of half a step at every joint.
@@ -461,71 +453,3 @@ def ring_count(length: float, rate: float, twist: SegmentTwist, outer_radius: fl
         rings = max(rings, math.ceil(length / outer_radius) + 1)
 
     return int(min(max(rings, 2), MAX_RINGS))
-
-
-class TwistedTube:
-    """Draws a conductor's tube with the faces program's twist mode. One instance serves every wire."""
-
-    def __init__(self):
-        self._vaos: dict[int, int] = {}
-
-    @_check_types.do
-    def _vao(self) -> int:
-        """An empty vertex array for the current GL context (the core profile will not draw without one bound)."""
-        context = QtGui.QOpenGLContext.currentContext()
-        if context is None:
-            raise RuntimeError('context has not been acquired')
-
-        key = id(context)
-
-        if key not in self._vaos:
-            self._vaos[key] = GL.glGenVertexArrays(1)
-
-        return self._vaos[key]
-
-    @_check_types.do
-    def draw(self, program: "_program.FacesProgram", position: "_point.Point", angle: "_angle.Angle", length: float,
-             twist: SegmentTwist, conductor: tuple[float, float, float], rate: float, rings: int,
-             stripe: "_materials.GLMaterial | None") -> None:
-        """Draw one conductor over one segment, in the material the caller has already set on ``program``.
-
-        :param program: The faces program, already entered (``with program:``).
-        :param position: World position of the segment's start.
-        :param angle: The segment's rotation, local +Z along the segment.
-        :param length: Segment length, mm.
-        :param twist: This segment's phase and mitres from :func:`plan`.
-        :param conductor: This conductor's ``(centre x, centre y, radius)`` from :func:`profile`.
-        :param rate: Twist rate, radians per mm.
-        :param rings: Ring count from :func:`ring_count`.
-        :param stripe: The stripe's material, or ``None`` for a conductor without a stripe.
-        """
-        program.position = position.as_float
-        program.rotation = [float(str(v)) for v in angle.as_quat_numpy.tolist()]
-        program.scale = (1.0, 1.0, 1.0)
-
-        program.twist_length = length
-        program.twist_rate = rate
-        program.twist_phase = twist.phase
-        program.twist_profile = conductor
-        program.twist_start = twist.start
-        program.twist_end = twist.end
-        program.twist_rings = rings
-
-        if stripe is not None:
-            program.twist_stripe_ambient = stripe.ambient
-            program.twist_stripe_diffuse = stripe.diffuse
-            program.twist_stripe_specular = stripe.specular
-            program.twist_stripe_half = STRIPE_HALF_ANGLE
-
-        try:
-            GL.glBindVertexArray(self._vao())
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, (rings - 1) * SIDES * 6)
-            GL.glBindVertexArray(0)
-        finally:
-            # every other draw relies on twistRings and twistStripeHalf already being 0 (see the notes on the uniforms in
-            # vertex.vert and fragment.frag)
-            program.twist_rings = 0
-            program.twist_stripe_half = 0.0
-
-
-TUBE = TwistedTube()

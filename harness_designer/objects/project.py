@@ -24,7 +24,6 @@ from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
 from . import cable as _cable
-from .objects_3d.wire import _HELIX_OVERSHOOT_MM  # NOQA
 from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
@@ -32,7 +31,6 @@ from .. import config as _config
 from .. import utils as _utils
 from .. import logger as _logger
 from ..gl import vbo as _vbo_handler
-from ..shapes import helix as _helix
 from .. import check_types as _check_types
 from ..database import id_generator as _id_generator
 from ..crash_dump import Attr, capturable
@@ -360,8 +358,8 @@ class Project:
         # during its own construction below (db_obj, ptables, the container
         # dicts) is already set at this point -- assign it now, before any
         # object loads, instead of waiting for this constructor to return.
-        # Objects loaded further down (e.g. Wire, whose stripe-VBO seeding
-        # reads mainframe.project.db_obj.wire_stripe_max_length) run inside
+        # Objects loaded further down (e.g. Wire, which reads
+        # mainframe.project in its constructor) run inside
         # this same call stack, and mainframe.project's getter re-enters
         # _open_project() -- re-showing the open-project dialog -- for as
         # long as it's still None.
@@ -398,22 +396,6 @@ class Project:
             mainframe.editor_pegboard.editor.request_fit_all(pegboard_bounds)
 
         count = 0
-
-        # Build the shared wire-stripe helix mesh at the project's last
-        # known max wire-segment length *before* any Wire loads, so it
-        # never needs to grow (and re-upload its VBO) more than once per
-        # session even if this project has hundreds of wires -- see
-        # shapes.helix.create_vbo and objects_3d.wire.WireStripe. Padded by
-        # the same _HELIX_OVERSHOOT_MM headroom WireStripe._ensure_stripe_capacity
-        # builds in when it grows the mesh mid-session -- otherwise the
-        # very first live drag/preview after loading would immediately
-        # trigger a regrow. VBO creation requires an acquired GL context,
-        # same as every other VBO-creating call site (e.g. Wire.__init__).
-        # with mainframe.editor3d.context:
-        #     # we have to store the VBO in a variable this way it doesn't get GC'd
-        #     # If we store it as a variable name that goes unusedCython may throw a
-        #     # a warning for it.
-        #     _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
         @_check_types.do
         def _load_objects(table_: "_pjt_bases.PJTTableBase", label: str, obj_cls: type[_ObjectBase], container: dict,

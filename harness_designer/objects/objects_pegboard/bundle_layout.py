@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Union as _Union
 
 from . import base_pegboard as _base_pegboard
+from ..mixins import waypoint_handles as _handles
 from . import chain_edges as _chain_edges
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -92,16 +93,36 @@ class BundleLayout(_base_pegboard.BasePegboard):
             diameter = db_obj.diameter
             color = _color.Color(0.5, 0.5, 0.5, 1.0)
 
-        scale = _point.Point(diameter, diameter, diameter)
+        size = diameter * _handles.HANDLE_SCALE
+        scale = _point.Point(size, size, size)
         material = _materials.Rubber(color)
 
         with parent.mainframe.editor_pegboard.context:
-            vbo = _sphere.create_vbo()
+            if _handles.wants_preview_geometry():
+                vbo = _sphere.create_vbo()
+            else:
+                # a waypoint is not drawn or picked as an object: the route draws its own corner (objects/mixins/waypoint_handles.py)
+                vbo = None
 
             super().__init__(parent, db_obj, vbo, angle,
                              position, scale, material)
 
         self.point3d_id = db_obj.position_pegboard_id
+
+        _handles.register(self)
+
+    @_check_types.do
+    def end_preview(self) -> None:
+        """The waypoint is placed: this layout keeps no geometry, the route draws its own corner (objects/mixins/waypoint_handles.py)."""
+        self._vbo = None
+
+    @_check_types.do
+    def _delete(self) -> None:
+        """Take this layout's waypoint out of its bundle before the layout goes (``handlers.bundle_layout_handler.remove_waypoint``)."""
+        from ...handlers import bundle_layout_handler as _bundle_layout_handler  # NOQA -- avoid a cycle at import time
+
+        _bundle_layout_handler.remove_waypoint(self.parent.mainframe.project, self.db_obj, 'pegboard')
+        super()._delete()
 
     @_check_types.do
     def can_rotate(self) -> bool:
@@ -182,8 +203,15 @@ class BundleLayout(_base_pegboard.BasePegboard):
 
         from .. import bundle_layout as _bundle_layout_facade
 
-        facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
+        # drawn while it is placed, as a sphere HANDLE_SCALE times the bundle's diameter (nothing is attached to it yet to size it by)
+        with _handles.preview_geometry():
+            facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
+
         facade.objpegboard.is_visible = False
+        size = bundle.objpegboard._diameter * _handles.HANDLE_SCALE  # NOQA
+        facade.objpegboard._scale.x = size  # NOQA
+        facade.objpegboard._scale.y = size  # NOQA
+        facade.objpegboard._scale.z = size  # NOQA
 
         pos = facade.objpegboard.position
         pos += initial_pos - pos

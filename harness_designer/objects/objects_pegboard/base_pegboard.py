@@ -21,6 +21,7 @@ from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
+    from ...drag_handlers import base as _drag_base
     from ...database.project_db import pjt_housing as _pjt_housing
     from ...database.project_db import pjt_transition as _pjt_transition
     from ...database.project_db import pjt_bundle as _pjt_bundle
@@ -597,12 +598,18 @@ class BasePegboard(_objectsvar.BaseVar):
             self.parent.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
-            from ...drag_handlers.editor_pegboard import generic as _drag_generic  # NOQA -- avoid a cycle at import time
-
-            self._active_handler = _drag_generic.Generic(self.pegboard.editor, self.parent)
+            self._active_handler = self._create_drag_handler()
             return True
 
         return False
+
+    @_check_types.do
+    def _create_drag_handler(self) -> "_drag_base.DragHandlerBase":
+        """The drag handler :meth:`handle_interaction` arms when a press on this already-selected object is a drag (and the one a
+        waypoint handle arms, ``objects/mixins/waypoint_handles.py``): the plain locked-X/Z drag of the object's position."""
+        from ...drag_handlers.editor_pegboard import generic as _drag_generic  # NOQA -- avoid a cycle at import time
+
+        return _drag_generic.Generic(self.pegboard.editor, self.parent)
 
     @_check_types.do
     def _handle_rotation_interaction(

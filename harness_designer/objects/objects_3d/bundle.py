@@ -20,6 +20,8 @@ from ...shapes import sphere as _sphere
 from ... import config as _config
 from ...gl import materials as _materials
 from . import mixins as _mixins
+from ..mixins import tube as _tube
+from ..mixins import waypoint_handles as _handles
 from ... import utils as _utils
 from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
@@ -43,7 +45,7 @@ Config = _config.Config.editor_3d
 
 
 @capturable()
-class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
+class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin, _tube.TubeMixin, _handles.WaypointOwnerMixin):
     """Represent a bundle in :mod:`harness_designer.objects.objects_3d.bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -59,6 +61,13 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 
+    # A bundle is one plain tube: no conductors of its own (objects/mixins/tube.py draws it from the single-tube look) and no stripe
+    _twist = None
+    _stripe_material = None
+
+    # it casts the outline of its drawn path on the floor, not a rectangle per section
+    _floor_projection_enabled = False
+
     @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
                  db_obj: "_pjt_bundle.PJTBundle"):
@@ -73,6 +82,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         """
 
         with parent.mainframe.editor3d.context:
+            self._init_tubes()
             self._part = db_obj.part
 
             # See handlers.bundle_diameter's own module docstring: the
@@ -313,6 +323,9 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         """
         from ...add_handlers.editor_3d import bundle as _add_bundle  # NOQA -- avoid a cycle at import time
 
+        if self._waypoint_drag:
+            return self._handle_waypoint_drag(last_pos, current_pos, interaction_type)
+
         if isinstance(self._active_handler, _add_bundle.Bundle):
             # A local reference, not another read of self._active_handler
             # below -- a CANCEL can delete this object's own facade,
@@ -350,6 +363,10 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             not self.can_drag()
         ):
             return False
+
+        # a press on one of this object's waypoint handles drags that waypoint (objects/mixins/waypoint_handles.py)
+        if self._arm_waypoint_drag(current_pos):
+            return True
 
         from ...drag_handlers.editor_3d import bundle as _drag_bundle  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> base_3d)
 
@@ -409,7 +426,10 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         for point in self._waypoint_points:
             point.unbind(self._update_position)
 
-        self._waypoint_points = [wp.point for wp in self.db_obj.waypoints3d]
+        # The rows are kept: a point writes its moves back to its row through a weak callback, so a move is saved only while
+        # something holds the row. A waypoint that has a layout is held by it; a cable's has none, so this is what saves its moves.
+        self._waypoint_rows = list(self.db_obj.waypoints3d)
+        self._waypoint_points = [row.point for row in self._waypoint_rows]
 
         for point in self._waypoint_points:
             point.bind(self._update_position)
@@ -481,6 +501,10 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
+    def _single_radius(self) -> float:
+        """Half the bundle's diameter, which can change (``diameter``, ``set_diameter``)."""
+        return self._scale.x * 0.5
+
     @_check_types.do
     def _endpoint_diameter(self) -> float:
         return self.db_obj.diameter
@@ -496,6 +520,8 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         values anything outside this class still reads (.scale, .angle,
         .obb, .aabb).
         """
+        self._twist_plan = None
+
         segments = self._segments()
 
         total_length = 0.0
@@ -655,41 +681,19 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
                 return True
 
-        return False
+        return self._handle_hit(ray_origin, ray_dir)
 
-    @_check_types.do
-    def ray_trace_parts(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, _materials.GLMaterial]]:
-        """Yield (position, angle, scale, material) for every straight tube
-        ``render()`` draws, one per sub-segment of the current path, so the
-        ray tracer can build the whole bundle instead of reading this
-        object's aggregate position/angle/scale, which is only a straight
-        start->stop chord.
-        """
-        material = self.material
-
-        for position, angle, scale, _seg_len in self._segment_transforms():
-            yield position, angle, scale, material
-
-    @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
-        """Render every sub-segment of the bundle's current path.
+        """Draw the bundle: hand it to the frame's batch (``objects/mixins/tube.py``), drawn with every wire and cable of the frame
+        in one call when the canvas has drawn its objects. The path's corners are rounded to a bend of one diameter.
 
-        Geometry is always current by the time this runs --
-        _update_position recomputes it synchronously the moment any
-        endpoint or waypoint moves, so there is nothing to catch up on
-        here. Each sub-segment is drawn as its own straight cylinder by
-        temporarily pointing this object's position/angle/scale at that
-        segment before delegating to Base3D.render() -- reuses its
-        existing faces/edges/normals/vertices debug-config gating and
-        material handling unchanged, once per segment.
+        Geometry is always current by the time this runs -- _update_position recomputes it synchronously the moment any endpoint
+        or waypoint moves, so there is nothing to catch up on here. Only the faces pass is drawn (no debug edge / normal / vertex
+        passes).
+
+        Called once per bundle per frame, so not wrapped in ``check_types.do``.
         """
-        real_position, real_angle, real_scale = self._position, self._angle, self._scale
-
-        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
-            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
-            super().render(shaders)
-
-        self._position, self._angle, self._scale = real_position, real_angle, real_scale
+        self._render_tubes()
 
     @_check_types.do
     def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
@@ -712,6 +716,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             real_position, real_angle, real_scale)
 
         self._render_waypoint_layouts(shaders)
+        self._render_floor_outline(shaders)
 
     @_check_types.do
     def _render_waypoint_layouts(self, shaders: "_shaders.ShaderProgram") -> None:
@@ -730,7 +735,8 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         self._vbo = _sphere.create_vbo()
         self._angle = _angle.Angle()
-        self._scale = _point.Point(self._diameter, self._diameter, self._diameter)
+        handle_size = self._diameter * _handles.HANDLE_SCALE
+        self._scale = _point.Point(handle_size, handle_size, handle_size)
 
         for point in self._waypoint_points:
             self._position = point
@@ -929,8 +935,13 @@ class BundleMenu(QtWidgets.QMenu):
         self.canvas = canvas
         self.selected = selected
 
-        action = self.addAction('Add Handle')
+        action = self.addAction('Add Layout')
         action.triggered.connect(self.on_add_handle)
+
+        action = self.addAction('Delete Layout')
+        action.setEnabled(bool(selected._waypoint_points))  # NOQA
+        action.setToolTip('Remove the waypoint nearest the right click')
+        action.triggered.connect(self.on_delete_layout)
 
         action = self.addAction('Add Transition')
         action.triggered.connect(self.on_add_transition)
@@ -981,6 +992,11 @@ class BundleMenu(QtWidgets.QMenu):
             _bundle_layout_3d.BundleLayout.start_add(mainframe, bundle, initial_pos)
 
         QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_delete_layout(self) -> None:
+        """Remove the waypoint nearest the right click that opened this menu."""
+        self.selected.delete_closest_waypoint(self.selected._context_menu_click_pos)  # NOQA
 
     @_check_types.do
     def on_add_transition(self) -> None:
