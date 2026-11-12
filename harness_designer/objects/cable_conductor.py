@@ -35,6 +35,70 @@ if TYPE_CHECKING:
     from . import wire as _wire_obj
 
 
+def follow_lead(wire: "_wire_obj.Wire", came_from: object) -> tuple["_wire_obj.Wire", object]:
+    """Follow a lead of a cable's conductor from where it was entered to its free end, THROUGH any wire service loops in it.
+
+    A wire service loop cuts a lead into pieces (``handlers/wire_topology.py``), so the piece next to the conductor does not end on
+    the terminal or splice: it ends on a loop, whose other side is the next piece. The loop is not a schematic element of a lead, so
+    the run of the conductor looks past it.
+
+    :param wire: The first piece of the lead (the one attached to the conductor's junction).
+    :param came_from: What *wire* was entered from (the conductor's junction object; for the next piece, the loop before it).
+    :returns: ``(the last piece, what its far end is attached to)``: a terminal or splice for a lead that is finished; anything
+        else (``None`` for a free end, a conductor...) for one that is not.
+    """
+    for _ in range(64):
+        if wire.stop_sibling is came_from:
+            far = wire.start_sibling
+        elif wire.start_sibling is came_from:
+            far = wire.stop_sibling
+        else:
+            far = wire.start_sibling
+
+        if far is None or not far.is_wire_service_loop:
+            return wire, far
+
+        following = far.start_sibling if far.stop_sibling is wire else far.stop_sibling
+
+        if following is None:
+            return wire, None
+
+        came_from, wire = far, following
+
+    return wire, None
+
+
+def lead_node(wire: "_wire_obj.Wire") -> "CableConductor | None":
+    """The conductor's junction object a wire is part of the lead of: the junction at the end of the wire when it is the lead proper,
+    or what it reaches through wire service loops when it is another piece of the lead. ``None`` for any other wire."""
+    for first in (wire.stop_sibling, wire.start_sibling):
+        came, sibling = wire, first
+
+        for _ in range(64):
+            if sibling is None:
+                break
+
+            if sibling.is_cable_conductor:
+                return sibling
+
+            if not sibling.is_wire_service_loop:
+                break
+
+            following = sibling.start_sibling if sibling.stop_sibling is came else sibling.stop_sibling
+
+            if following is None:
+                break
+
+            came, sibling = following, (following.stop_sibling if following.start_sibling is sibling else following.start_sibling)
+
+    return None
+
+
+def _end_position2d_id(wire: "_wire_obj.Wire", end: object) -> bytes:
+    """The 2D end point of *wire* at the end that is attached to *end*."""
+    return wire.db_obj.start_position2d_id if wire.start_sibling is end else wire.db_obj.stop_position2d_id
+
+
 @capturable()
 class ConductorRun(_ObjectBase):
     """A cable conductor as the schematic draws it: one wire from the terminal or splice at the end of its lead at the cable's
@@ -83,7 +147,7 @@ class ConductorRun(_ObjectBase):
         """
         lead = self.node.start_sibling
 
-        return None if lead is None else lead.start_sibling
+        return None if lead is None else follow_lead(lead, self.node)[1]
 
     @property
     @_check_types.do
@@ -94,7 +158,7 @@ class ConductorRun(_ObjectBase):
         """
         lead = self.node.stop_sibling
 
-        return None if lead is None else lead.start_sibling
+        return None if lead is None else follow_lead(lead, self.node)[1]
 
     @property
     @_check_types.do
@@ -117,8 +181,12 @@ class ConductorRun(_ObjectBase):
         node = self.node
         row = self.db_obj
 
-        start_id = node.start_sibling.db_obj.start_position2d_id
-        stop_id = node.stop_sibling.db_obj.start_position2d_id
+        # the leads' free ends (past any wire service loop in them)
+        start_wire, start_end = follow_lead(node.start_sibling, node)
+        stop_wire, stop_end = follow_lead(node.stop_sibling, node)
+
+        start_id = _end_position2d_id(start_wire, start_end)
+        stop_id = _end_position2d_id(stop_wire, stop_end)
 
         if self.objschematic is None:
             row.start_position2d_id = start_id
@@ -239,7 +307,7 @@ class CableConductor(_ObjectBase):
             connected = False
         else:
             connected = all(sibling is not None and (sibling.is_terminal or sibling.is_splice)
-                            for sibling in (start.start_sibling, stop.start_sibling))
+                            for sibling in (follow_lead(start, self)[1], follow_lead(stop, self)[1]))
 
         if connected:
             if self._run is None:

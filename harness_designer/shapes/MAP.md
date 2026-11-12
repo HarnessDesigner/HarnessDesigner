@@ -93,6 +93,12 @@ Procedural primitive generator exposing `create(...)` (raw mesh data) and `creat
 VBO), following this package's shared generator pattern, plus additional `create_based`/
 `create_vbo_based` variants.
 
+#### sleeve.py
+
+NEW 2026-11-11 (`SHIELD_SLEEVE_DESIGN.md`): the solder sleeve (cable shield terminator) mesh. Same pattern as `cylinder.py` (`create` / `create_vbo`, pooled VBO `'sleeve'`, built at unit size and scaled by `(D, D, L)`, base-anchored along +Z) but a HOLLOW tube with a wall (`WALL` = 0.10 of the diameter) whose ends taper down to a thin tip (`TAPER`, `TIP`), revolved from `profile()` (outside, top ring, inside, bottom ring, each its own vertices so the edges stay sharp). The winding is made outward by the sign of the enclosed volume. The solder ring seen through the tube is NOT part of it: it is `cylinder.py`, shorter, INSIDE the wall (`RING_DEPTH`; the tube is translucent). `sizes()` gives the drawn length: the catalog length (as supplied) times `RECOVERED_LENGTH` (a sleeve on a cable is shrunk), or, with none, from the cable's diameter (`DEFAULT_LENGTH_BASE_MM` + `DEFAULT_LENGTH_PER_MM` per mm, between `DEFAULT_LENGTH_MIN_MM` and `_MAX_MM`) (user, 2026-11-11: a flat 20 mm was too long). Registered in `cache_primitives`. Mesh checked on numpy (`twist/sleeve_mesh_test.py`: bounds, wall, volume, outward normals, scaling); not drawn in the app.
+
+`PIGTAIL_LENGTH_MM = 150.0` (user, 2026-11-11, from TE's drawings): the lead of a catalog sleeve that comes with one is 150 mm long measured from the MIDDLE of the sleeve; `Cable.add_shield_sleeve` makes it that long and `WireDragMixin._clamp_sleeve_pigtail` does not let a drag make it longer. A pigtail the user adds has no length limit.
+
 #### sphere.py
 
 Procedural primitive generator exposing `create(...)` (raw mesh data) and `create_vbo()` (pooled

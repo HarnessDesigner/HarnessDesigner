@@ -188,6 +188,39 @@ class Housing(_base_schematic.BaseSchematic):
             self._text_position @= self.angle
             self._text_position += self._position
 
+    @_check_types.do
+    def refresh_size(self) -> None:
+        """Size the housing rectangle (and the corner label on it) again from the housing's CURRENT cavity stack.
+
+        The size is read once in :meth:`__init__`. A housing whose catalog part had no cavities yet when it was placed (a model that
+        is still being downloaded, the cavities are set up afterwards) is made with the stack of ZERO cavities, a very thin
+        rectangle; ``PJTHousing.update_cavities`` calls this once the cavities exist (2026-11-11).
+        """
+        stack_geometry = self.db_obj.stack_geometry
+
+        padding = stack_geometry.text_padding
+        cavity_extent = stack_geometry.cavity_extent
+        housing_width = stack_geometry.housing_width
+
+        # the scale is a point the view is bound to: changing it recomputes the housing's OBB / AABB
+        with self._scale:
+            self._scale.x = housing_width
+            self._scale.z = cavity_extent
+
+        # the corner label, placed the way __init__ places it (housing-local, then turned with the housing, then to its position)
+        x = (housing_width / 2.0) - (padding * 2) - (self._text_vbo.width / 2.0)
+        z = (cavity_extent / 2.0) - (padding * 2) - (self._text_vbo.height / 2.0)
+
+        text_position = _point.Point(x, 0.0, z)
+        text_position @= self.angle
+        text_position += self._position
+
+        self._text_position.x = text_position.x
+        self._text_position.y = text_position.y
+        self._text_position.z = text_position.z
+
+        self.editor.Refresh(False)
+
     @property
     @_check_types.do
     def smooth(self) -> bool:

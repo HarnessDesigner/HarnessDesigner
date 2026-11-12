@@ -19,6 +19,18 @@ on the ``pjt_cable_conductors`` rows.
 ``roll_deg`` is how far a ribbon cable's flat side is turned about its axis, degrees, at the start of the trunk (0 for the
 frame the 3D view picks). Unused by any other cable.
 
+``start_shield_splice_id`` / ``stop_shield_splice_id`` are the solder sleeve (a ``pjt_splices`` row) that finishes the shield of that end
+of a shielded cable (NULL = no sleeve). Added 2026-11-11 (``update_fields`` adds them to an existing project); see
+``SHIELD_SLEEVE_DESIGN.md`` in the repo root.
+
+``shield_clipped`` says which ends of a shielded cable have the shield clipped off (user, 2026-11-11: a shield is grounded at one end
+only, or at none when it is just a protective jacket): 0 = neither end, 1 = the start end, 2 = the stop end, 3 = both. Added
+2026-11-11 (``update_fields`` adds it to an existing project, every existing cable gets 0).
+
+``bg_color`` is the background colour of the cable's rows in the peg-board wire tables, ``0xRRGGBB`` (NULL until one is chosen:
+``PJTCablesTable.insert`` picks a dark colour no other cable has, and ``PJTCable.bg_color`` picks one for a cable that has none).
+Added 2026-11-11 (``update_fields`` adds it to an existing project).
+
 NEW 2026-11-05, nothing draws a cable yet.
 """
 
@@ -31,6 +43,7 @@ from . import points3d as _points3d
 from . import points_pegboard as _points_pegboard
 from . import bundle_covers as _bundle_covers
 from . import transitions as _transitions
+from . import splices as _splices
 from .. import db_connectors as _con
 
 
@@ -71,6 +84,16 @@ pjt_table = _con.SQLTable(
     _con.FloatField('start_split_mm', default='"0.0"', no_null=True),
     _con.FloatField('stop_split_mm', default='"0.0"', no_null=True),
     _con.FloatField('roll_deg', default='"0.0"', no_null=True),
+    _con.IntField('bg_color', default='NULL'),
+    _con.UUIDField('start_shield_splice_id', default='NULL',
+                   references=_con.SQLFieldReference(_splices.pjt_table,
+                                                     _splices.pjt_id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
+    _con.UUIDField('stop_shield_splice_id', default='NULL',
+                   references=_con.SQLFieldReference(_splices.pjt_table,
+                                                     _splices.pjt_id_field,
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
+    _con.IntField('shield_clipped', default='0', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
     _con.IntField('is_visible_pegboard', default='1', no_null=True),

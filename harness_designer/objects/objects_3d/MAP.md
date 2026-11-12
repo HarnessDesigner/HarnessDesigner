@@ -44,6 +44,12 @@ Companion to `bundle.py`, same 3D + peg-board-only scope.
 
 **Slack handler (2026-11-09):** `refresh_waypoints` tells the facade's `WireSlackHandler` (`register_3d`) which points to watch, so a 3D move of the cable re-fits its board route to the new length.
 
+**Solder sleeve menu (2026-11-11, `SHIELD_SLEEVE_DESIGN.md`):** `CableMenu` has **Add Solder Sleeve (start|stop end)...** (a shielded cable's part; enabled when that end is split and has no sleeve: `Cable.can_add_shield_sleeve`) and **Remove Solder Sleeve**; the peg board's menu leaves them out (`_has_sleeve`). Add opens the part search ALREADY FILTERED to the sleeves the cable fits into (`on_add_sleeve`: `initial_params` = type `Solder Sleeve` OR `Solder Sleeve w/Pigtail`, `min_dia <= cable diameter`, `max_dia >= cable diameter` OR `max_dia == 0`, shown as editable text in the box); a part picked in the database editor is used directly only if it is a sleeve that fits, else the search opens. A catalog sleeve with no sizes (0/0) is listed (its size is not known, as `fits_cable` has it; user, 2026-11-11). Only a sleeve with a known min above the cable and no max is missed (a search cannot OR across columns).
+
+**Shielding Solder Sleeve (2026-11-11):** `on_add_sleeve`'s pre-filled search is now `type_id` = `Shielding Solder Sleeve` plus the diameter filter (the other sleeve types are not offered); a part picked in the database editor is used only when it is a shielding sleeve that fits (`twist/sleeve_search_test.py`).
+
+**Clip Shield (2026-11-11):** `CableMenu` (3D only, same block as the sleeve items) works like Split / Join: the line reads **Clip Shield (start|stop end)** and turns into **Unclip Shield (...)** once clipped (`on_clip_shield` / `on_unclip_shield`). None of Add / Remove Solder Sleeve, Clip, Unclip is enabled unless the end is split; a clipped shield greys out Add Solder Sleeve and a sleeve on the end greys out Clip Shield (it shows **Remove Solder Sleeve**). NOT run in the app.
+
 #### cavity.py
 
 `Cavity3D` owns its own selection/overlay state (`render_selected_overlay`, `render()`, its own `_terminal_marker`/`_wire_marker`) via the generic `is_selected` mechanism, reaching `Housing3D` only for the shared ray-mesh/picker primitives — this replaced an earlier, broken design where `Housing3D._surf_to_cavity`/`_cavity_markers` tracked selection as a hand-synchronized copy, which could desync from the real `is_selected` state (`harness_designer/objects/MAP.md` DESIGN NOTES, "Fixed (2026-09-04)... architectural root cause found"). Bind to `db_obj.angle3d` (the project cavity's world-space angle), never `db_obj.part.angle3d` (the baked catalog angle) — and don't override `_update_angle`/`_update_position` here; `Base3D`'s own implementation handles it correctly once the right angle is bound. The override existed at one point to propagate rotation deltas to the terminal, but combined with the project-angle binding it created a callback chain that fired during project loading (before all objects were initialized) and froze the app (this file's DESIGN NOTES, "Cavity 3D angle binding").
@@ -92,6 +98,8 @@ Inert placeholder for the concentric section widget (NEW 2026-10-25) -- it has n
 
 One file per harness part, same `Base3D(parent, db_obj)` shape.
 
+**Solder sleeve (2026-11-11, `SHIELD_SLEEVE_DESIGN.md`):** a splice whose part `is_solder_sleeve` is drawn with `shapes/sleeve.py` (a hollow tapered tube, scaled by `shapes.sleeve.sizes`: the diameter of the cable it is on, from `db_obj.shield_cable`, and the part's length or a default) and `render()` adds the solder ring (the cylinder primitive, INSIDE the wall of the tube, centred on it). The tube is TRANSLUCENT (`_SLEEVE_ALPHA`; the part's colour, a light grey without one), the ring a silver grey `Metallic` (module constants; the orange ring was wrong, user 2026-11-11). Draw order in `render()`: the ring first (opaque, writes depth), then the tube over it with the depth mask off, so the ring shows through; a selected sleeve is left to the canvas's translucent passes (`_draw_scene` sets the mask itself). Not run in the app (no GL here).
+
 #### table.py
 
 `Table(Base3D)` — the floating wire table's 3D-view rendering; same class name as `objects_pegboard/table.py`'s and `objects_schematic/table.py`'s own `Table`, not shared code — the facade is `objects/pegboard_table.py`.
@@ -100,6 +108,8 @@ One file per harness part, same `Base3D(parent, db_obj)` shape.
 
 Owns `detach_wires()` (terminal delete cuts wires free in all views) and `render_cavity_overlay` (wire/pin-side tint matching its seated cavity's marker) — both **NOT yet run in the GUI**, see `objects/MAP.md`'s terminal.py entry for the full mechanics. Its legacy overlay code shared the same fixed-function-GL trap as `housing.py` above until the same 2026-08-21 rewrite.
 
+
+**First model download (2026-11-11):** when the model of a terminal arrives for the first time (after the user has set its orientation), `_set_model` repositions the terminal (`reposition_from_model`) and now also gives a seated terminal its cavity's angle again (`HandlerBase.set_angle_from_cavity`, which copies the cavity's angle when the model data is not usable) -- a terminal added into a cavity of a rotated housing before its model existed stood unrotated. Not checked in the app.
 #### tpa_lock.py
 
 One file per harness part, same `Base3D(parent, db_obj)` shape.

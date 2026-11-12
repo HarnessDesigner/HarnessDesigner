@@ -192,6 +192,9 @@ class Section(_base_pegboard.BasePegboard):
             # material, and a cached position / angle / scale per line (see Table.__init__)
             self._connector_vbo = _cylinder.create_vbo()
             self._connector_material = _materials.Plastic(_color.Color(0, 0, 0))
+            # glows the same green as the selection ring while the section is selected, so the owners of a section
+            # stacked on others can be followed from its lines
+            self._connector_selected_material = _materials.Glowing(_color.Color(0, 255, 0))
 
         self._host.cursor_changed.connect(self._on_cursor_changed)
         self._host.close_requested.connect(self._on_close_requested)
@@ -471,6 +474,7 @@ class Section(_base_pegboard.BasePegboard):
             self._vbo, self._position, self._angle, self._scale, self._material)
         real_is_selected = self._is_selected
         self._is_selected = False
+        line_material = self._connector_selected_material if real_is_selected else self._connector_material
 
         for connector in self._connectors:
             if not connector.is_visible or connector.line_scale is None:
@@ -480,7 +484,7 @@ class Section(_base_pegboard.BasePegboard):
             self._position = connector.line_position
             self._angle = connector.line_angle
             self._scale = connector.line_scale
-            self._material = self._connector_material
+            self._material = line_material
 
             super().render(shaders)
 

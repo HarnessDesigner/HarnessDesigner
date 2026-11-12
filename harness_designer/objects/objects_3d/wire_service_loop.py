@@ -831,6 +831,17 @@ class WireServiceLoop(_base_3d.Base3D):
             split_state = _add_wsl.split_wire_for_loop(
                 mainframe, wire, p_start_db.db_id, p_stop_db.db_id, seg_idx)
 
+            # On the board the wire was cut at the same two places (handlers.wire_topology.split_wire_at_point): the loop's board
+            # points are those cuts, as its 3D points are the 3D ones, so the two pieces of wire meet it there.
+            after_loop = split_state.wire1.db_obj
+            before_loop = split_state.wire2.db_obj
+            board_after = ptables.pjt_wires_table.select('start_point_pegboard_id', id=after_loop.db_id)[0][0]
+            board_before = ptables.pjt_wires_table.select('stop_point_pegboard_id', id=before_loop.db_id)[0][0]
+
+            if board_after is not None and board_before is not None:
+                loop_db.start_position_pegboard_id = board_after
+                loop_db.stop_position_pegboard_id = board_before
+
             facade = _wsl_facade.WireServiceLoop(mainframe, loop_db)
             facade.identify(preview_material)
 

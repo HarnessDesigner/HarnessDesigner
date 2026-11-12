@@ -258,8 +258,17 @@ class Terminal(_base_3d.Base3D):
             self._model_is_first_download = False
 
             from ...handlers import terminal_handler as _terminal_handler
+            from ...handlers import handler_base as _handler_base
 
             _terminal_handler.reposition_from_model(self.db_obj)
+
+            # The model has just arrived (and been oriented by the user, the first time): a terminal seated in a cavity takes that
+            # cavity's angle again here, so it is right whatever happened to it between being added and the model being ready (a
+            # housing that is rotated stands the terminals in its cavities the same way).
+            pjt_cavity = self.db_obj.cavity
+            if pjt_cavity is not None:
+                # set_angle_from_cavity takes the facade (it reads .obj3d and .db_obj), not this 3D view.
+                _handler_base.HandlerBase.set_angle_from_cavity(self.parent, pjt_cavity)
 
     @_check_types.do
     def _refresh_overlay_state(self) -> None:

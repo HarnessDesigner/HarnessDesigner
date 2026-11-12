@@ -811,6 +811,38 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             self._stored_cavities = new_db_objs
 
+            self._after_cavities_created()
+
+    @_check_types.do
+    def _after_cavities_created(self) -> None:
+        """What a housing needs once its cavities were created LATE (the part had none when the housing was placed: its model was still
+        being downloaded; user, 2026-11-11), because everything was made for a housing with no cavities and an unrotated one:
+
+        * the cavities are made at their unrotated offsets, so the housing's current rotation in each view (3D, peg board, schematic) is
+          applied to them now: the angle cascade is run once from the identity rotation to the housing's own, which turns every
+          cavity's position (and its angle) about the housing as a rotate gesture would;
+        * the schematic view of the housing was sized for zero cavities (a very thin rectangle) and is sized again.
+        """
+        identity_quat = [1.0, 0.0, 0.0, 0.0]
+        identity_euler = [0.0, 0.0, 0.0]
+
+        for angle, quat_attr, euler_attr, cascade in (
+                (self.angle3d, '_o_quat3d', '_o_euler3d', self._update_angle3d),
+                (self.angle_pegboard, '_o_quat_pegboard', '_o_euler_pegboard', self._update_angle_pegboard),
+                (self.angle2d, '_o_quat2d', '_o_euler2d', self._update_angle2d)):
+            # (the sign of a quaternion does not matter: w = 1 or -1 is no rotation)
+            if abs(float(angle.as_quat_float[0])) > 1.0 - 1e-6:
+                continue
+
+            setattr(self, quat_attr, list(identity_quat))
+            setattr(self, euler_attr, list(identity_euler))
+            cascade(angle)
+
+        housing = self.get_object()
+
+        if housing is not None and housing.objschematic is not None:
+            housing.objschematic.refresh_size()
+
 
     @_check_types.do
     def get_object(self) -> _Union["_housing_obj.Housing", None]:

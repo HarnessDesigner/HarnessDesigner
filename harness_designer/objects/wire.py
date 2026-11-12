@@ -136,6 +136,18 @@ class Wire(_ObjectBase):
 
         return None
 
+    @property
+    @_check_types.do
+    def lead_node(self) -> _Union["_cable_conductor_obj.CableConductor", None]:
+        """The junction object of the cable conductor this wire is a lead OR A PIECE OF A LEAD of: unlike :attr:`conductor_node`
+        it looks through wire service loops, which cut a lead into pieces. ``None`` for an ordinary wire.
+
+        :rtype: :class:`_cable_conductor_obj.CableConductor` | None
+        """
+        from . import cable_conductor as _cc  # NOQA -- avoid a cycle at import time
+
+        return _cc.lead_node(self)
+
     @_check_types.do
     def set_sibling(
             self,
@@ -170,7 +182,7 @@ class Wire(_ObjectBase):
         # A lead that is cut free of its terminal or splice leaves its conductor with an end that is not attached: the
         # conductor is no longer drawn in the schematic. (Attaching is not hooked here: see on_wire_attached.)
         if other is None:
-            node = self.conductor_node
+            node = self.lead_node
 
             if node is not None:
                 node.refresh_schematic(False)
@@ -288,7 +300,7 @@ class Wire(_ObjectBase):
         if slack_handler is not None:
             slack_handler.release()
 
-        node = self.conductor_node
+        node = self.lead_node
 
         super().delete()
 

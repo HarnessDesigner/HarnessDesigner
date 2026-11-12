@@ -104,6 +104,115 @@ def hidden_waypoint_ids(ptables: "_ProjectTables", wire_id: bytes, view: str) ->
 
 
 @_check_types.do
+def _refresh_housing_tables(wires: list[_wire.Wire]) -> None:
+    """Tell the peg-board wire table of every housing a terminal on the ends of *wires* is seated in that its wires changed.
+
+    A housing's table bakes in the ids of the wires on it; a wire that was split or merged is a row that is gone, and the table
+    would show it (and fail when it is picked) until it requeries. Only the call site that changed the membership can say which
+    tables are affected (see ``objects_pegboard.base_pegboard.notify_table_wires_changed``).
+    """
+    from ..objects.objects_pegboard import base_pegboard as _base_pegboard  # NOQA -- avoid a cycle at import time
+
+    done = []
+
+    for wire in wires:
+        for sibling in (wire.start_sibling, wire.stop_sibling):
+            if sibling is None or not sibling.is_terminal:
+                continue
+
+            cavity_db = sibling.db_obj.cavity
+
+            if cavity_db is None:
+                continue
+
+            cavity_obj = cavity_db.get_object()
+
+            if cavity_obj is None or cavity_obj.housing is None:
+                continue
+
+            housing_db = cavity_obj.housing.db_obj
+
+            if any(housing_db is other for other in done):
+                continue
+
+            done.append(housing_db)
+            _base_pegboard.notify_table_wires_changed(housing_db)
+
+
+@_check_types.do
+def _board_ends(ptables: "_ProjectTables", wire_db: object) -> tuple[bytes, bytes] | None:
+    """The ids of *wire_db*'s two peg-board end points, or ``None`` when it has no board geometry (read without the lazy creation
+    of a missing point at the origin that the row's own ``start_position_pegboard_id`` does)."""
+    rows = ptables.pjt_wires_table.select(
+        'start_point_pegboard_id', 'stop_point_pegboard_id', id=wire_db.db_id)
+
+    if not rows or rows[0][0] is None or rows[0][1] is None:
+        return None
+
+    return rows[0][0], rows[0][1]
+
+
+@_check_types.do
+def _split_board(
+    ptables: "_ProjectTables", orig: object, wire: _wire.Wire, coord_point: object, split_idx: int,
+    board_ends: tuple[bytes, bytes],
+) -> tuple[bytes, list[bytes], list[bytes]]:
+    """Where a wire's board route is cut when the wire is split at *coord_point* in 3D: at the same fraction of the route's length.
+
+    :returns: ``(cut_point_id, waypoint_ids_before, waypoint_ids_after)``; the cut is a new peg-board point both halves share (as
+        they share the 3D one), and the board waypoints are divided the way the 3D ones are (the ones before the cut segment go
+        to the first half).
+    """
+    points3d = [wire.obj3d.start_position.as_numpy]
+    points3d.extend(wp.point.as_numpy for wp in orig.waypoints3d)
+    points3d.append(wire.obj3d.stop_position.as_numpy)
+
+    lengths3d = [float(np.linalg.norm(b - a)) for a, b in zip(points3d, points3d[1:])]
+    total3d = sum(lengths3d)
+
+    fraction = 0.5
+    if total3d > 1e-9:
+        a = points3d[split_idx]
+        segment = points3d[split_idx + 1] - a
+        segment_sq = float(np.dot(segment, segment))
+        t = 0.0
+
+        if segment_sq > 1e-12:
+            t = max(0.0, min(1.0, float(np.dot(coord_point.point.as_numpy - a, segment)) / segment_sq))
+
+        fraction = (sum(lengths3d[:split_idx]) + t * lengths3d[split_idx]) / total3d
+
+    board_points = ptables.pjt_points_pegboard_table
+    waypoints = orig.waypoints_pegboard
+    points = [board_points[board_ends[0]].point.as_numpy]
+    points.extend(wp.point.as_numpy for wp in waypoints)
+    points.append(board_points[board_ends[1]].point.as_numpy)
+
+    lengths = [float(np.linalg.norm(b - a)) for a, b in zip(points, points[1:])]
+    remaining = fraction * sum(lengths)
+    index = len(lengths) - 1
+
+    for i, length in enumerate(lengths):
+        if remaining <= length or i == len(lengths) - 1:
+            index = i
+            break
+
+        remaining -= length
+
+    a = points[index]
+    segment = points[index + 1] - a
+    t = 0.0
+
+    if lengths[index] > 1e-9:
+        t = max(0.0, min(1.0, remaining / lengths[index]))
+
+    position = a + segment * t
+    cut = board_points.insert(float(position[0]), float(position[1]), float(position[2]))
+
+    return cut.db_id, [wp.db_id for wp in waypoints[:index]], [wp.db_id for wp in waypoints[index:]]
+
+
+@_check_types.do
 def split_wire_at_point(
     project: "_project.Project",
     wire: _wire.Wire,
@@ -167,6 +276,14 @@ def split_wire_at_point(
     orig_start_sibling = wire.start_sibling
     orig_stop_sibling = wire.stop_sibling
 
+    # A wire that is on the board is cut there too, at the same fraction of its length: a half with no board end points would be
+    # given them at the board's origin, a wire nobody can see.
+    board_ends = _board_ends(ptables, orig)
+    board_cut = None
+
+    if board_ends is not None:
+        board_cut = _split_board(ptables, orig, wire, coord_point, split_idx, board_ends)
+
     wire1_db = ptables.pjt_wires_table.insert(
         part_id, name, circuit_id,
         start_id_3d, coord_id_3d,
@@ -192,6 +309,17 @@ def split_wire_at_point(
     paths_table.set_route(wire2_db.db_id, '3d', [wp.db_id for wp in after_3d])
     paths_table.set_route(wire1_db.db_id, '2d', [wp.db_id for wp in before_2d])
     paths_table.set_route(wire2_db.db_id, '2d', [wp.db_id for wp in after_2d])
+
+    if board_cut is not None:
+        cut_id, before_board, after_board = board_cut
+
+        wire1_db.start_position_pegboard_id = board_ends[0]
+        wire1_db.stop_position_pegboard_id = cut_id
+        wire2_db.start_position_pegboard_id = cut_id
+        wire2_db.stop_position_pegboard_id = board_ends[1]
+
+        paths_table.set_route(wire1_db.db_id, 'pegboard', before_board)
+        paths_table.set_route(wire2_db.db_id, 'pegboard', after_board)
 
     # The waypoints now belong to the two new wires; take them out of the
     # original's own route so its delete() finds nothing of its own to
@@ -231,6 +359,8 @@ def split_wire_at_point(
     if mainframe.get_selected() is wire:
         wire.set_selected(False)
     wire.delete()
+
+    _refresh_housing_tables([wire1_obj, wire2_obj])
 
     return wire1_obj, wire2_obj
 
@@ -277,6 +407,15 @@ def merge_wires(
     orig_start_sibling = wire_before.start_sibling
     orig_stop_sibling = wire_after.stop_sibling
 
+    before_board = _board_ends(ptables, wire_before.db_obj)
+    after_board = _board_ends(ptables, wire_after.db_obj)
+    board_waypoints = None
+
+    if before_board is not None and after_board is not None:
+        board_waypoints = (
+            [wp.db_id for wp in wire_before.db_obj.waypoints_pegboard]
+            + [wp.db_id for wp in wire_after.db_obj.waypoints_pegboard])
+
     # Two halves of a cable conductor's lead (a splice or service loop in it was deleted) are one wire of that conductor again.
     conductor_id = wire_before.db_obj.cable_conductor_id
     if conductor_id is None:
@@ -305,6 +444,11 @@ def merge_wires(
     paths_table.set_route(
         merged_db.db_id, '2d',
         [wp.db_id for wp in before_waypoints2d] + [wp.db_id for wp in after_waypoints2d])
+
+    if board_waypoints is not None:
+        merged_db.start_position_pegboard_id = before_board[0]
+        merged_db.stop_position_pegboard_id = after_board[1]
+        paths_table.set_route(merged_db.db_id, 'pegboard', board_waypoints)
 
     # The waypoints now belong to the merged wire; take them out of both
     # originals' routes so their delete() finds nothing of its own to
@@ -340,6 +484,8 @@ def merge_wires(
         if mainframe.get_selected() is w:
             w.set_selected(False)
         w.delete()
+
+    _refresh_housing_tables([merged_obj])
 
     return merged_obj
 
@@ -437,6 +583,8 @@ def merge_wires_in_place(
     wire_before.obj3d.refresh_waypoints()
     if pegboard:
         wire_before.objpegboard.refresh_waypoints()
+
+    _refresh_housing_tables([wire_before])
 
     _wire_reroute.on_wire_attached(project, wire_before)
 

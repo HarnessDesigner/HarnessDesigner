@@ -140,6 +140,10 @@ Row/table class backing a settings entity (distinct from `database/config_db.py`
 
 `Splice` row/table class for the `splices` global-catalog table. Has `DeratingMixin`; the table's `__getitem__` calls `load_deratings()` on the part it hands back, so the part's manufacturer derating table (`deratings`) is read with the part. `SplicesTable.__getitem__` by a string looks the splice up in a `name` column that the `splices` table does not have (found 2026-10-24, not fixed; terminals and wires use `part_number`).
 
+**Solder sleeves (2026-11-11, `SHIELD_SLEEVE_DESIGN.md`):** `is_solder_sleeve` (type `Solder Sleeve` or `Solder Sleeve w/Pigtail`), `has_pigtail` (decides whether the pigtail wire is made with the sleeve, `Cable.add_shield_sleeve`; the type `Solder Sleeve w/Pigtail`, or "Pre-Installed Lead" in the description for a catalog built before the builder gave that type), `recovered_dia` / `expanded_dia` (`min_dia` / `max_dia`: for a sleeve what it shrinks to and what it slides over) and `fits_cable(diameter)` (a part with no sizes fits anything). The catalog's sleeve sizes only exist after the catalog database is rebuilt with the fixed `harness_designer_database` scraper.
+
+**Shielding Solder Sleeve (user, 2026-11-11):** a NEW splice type (`Universal/splice_types.json` id 10) for the sleeves that are plain round tubes and can be put on a shielded cable (checked against TE's drawings: 41 of the catalog's 79 sleeves). `Splice.is_shielding_sleeve` is true only for it; `is_solder_sleeve` is true for all three sleeve types (the other 38 keep `Solder Sleeve` / `Solder Sleeve w/Pigtail`: unequal end diameters, odd shape or made for a terminal, so they are not drawn as a tube and are not offered for a cable). A shielding sleeve that has a lead fitted keeps "Pre-Installed Lead" in its description, which `has_pigtail` reads. `fits_pigtail(cable_dia, pigtail_dia)`: a pigtail the USER adds must fit WITH the cable (side by side, the two diameters together <= `max_dia`; the cable alone must fit too).
+
 #### splice_types.py
 
 `SpliceType` row/table class for the `splice_types` global lookup table.

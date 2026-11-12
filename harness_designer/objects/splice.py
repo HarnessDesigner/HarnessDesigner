@@ -179,13 +179,16 @@ class Splice(_ObjectBase):
         self._branch_wire_refs = [ref for ref in self._branch_wire_refs if ref() is not wire]
 
     @_check_types.do
-    def delete(self) -> None:
+    def delete(self, keep_branch: bool = False) -> None:
         """Reconnect the through-pair back into a single wire (undoing
         the fork handlers.splice_handler made when this splice was
         placed), and give each branch wire its own fresh point at the
         same location before actually deleting this splice -- a branch
         is a dead end, not a through-path, so those wires are simply left
         dangling rather than reconnected to anything.
+
+        :param keep_branch: Leave the branch wires on the branch point (the caller makes a splice on that same point right away: a
+            solder sleeve put in its new place, ``Cable._sync_shield_sleeve``).
         """
         from ..handlers import wire_topology as _wire_topology
 
@@ -200,7 +203,7 @@ class Splice(_ObjectBase):
         branch_point_id = self.db_obj.branch_position3d_id
         branch_pos = self.db_obj.branch_position3d
 
-        for branch_wire in self.branch_wires:
+        for branch_wire in [] if keep_branch else self.branch_wires:
             is_start = branch_wire.obj3d.start_position.db_id[:-2] == branch_point_id
 
             new_point = ptables.pjt_points3d_table.insert(

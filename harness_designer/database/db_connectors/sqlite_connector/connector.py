@@ -107,7 +107,8 @@ class SQLConnector(_base.ConnectorBase):
         super().__init__(mainframe, db_path)
 
         self._connection: sqlite3.Connection = None
-        self._cursor: sqlite3.Cursor = None
+        self._local = threading.local()
+        self._cursor = None
         self.database_name = 'harness_designer'
         self.cred_manager: _manager.CredManager = None
 
@@ -120,6 +121,38 @@ class SQLConnector(_base.ConnectorBase):
         # not queue up one modal dialog per call; every occurrence is
         # still logged, just not re-shown.
         self._shown_sql_errors: set[str] = set()
+
+    @property
+    def _cursor(self) -> sqlite3.Cursor | None:
+        """The cursor of the calling thread (made on first use), or ``None`` while there is no connection.
+
+        One cursor shared by every thread broke a statement of one thread in the middle of another's (``Recursive use of cursors not
+        allowed``, or the rows of one query read by the other's ``fetchall``): the circuit editor builds its rows on a worker thread
+        while the main thread drags objects (their children's positions are looked up by a query), and that cost a housing its
+        terminals. A cursor of its own for each thread, on the one connection (``check_same_thread=False``), keeps each thread's
+        ``execute`` and the ``fetch`` that follows it together."""
+        if self._connection is None:
+            return None
+
+        local = self._local
+
+        if getattr(local, 'connection', None) is not self._connection:
+            local.cursor = self._connection.cursor()
+            local.connection = self._connection
+
+        return local.cursor
+
+    @_cursor.setter
+    def _cursor(self, value: sqlite3.Cursor | None) -> None:
+        """Set the calling thread's cursor; ``None`` forgets it (the connector was closed)."""
+        local = self._local
+
+        if value is None:
+            local.connection = None
+            local.cursor = None
+        else:
+            local.cursor = value
+            local.connection = self._connection
 
     @_check_types.do
     def get_part_counts(self) -> dict[str, int]:

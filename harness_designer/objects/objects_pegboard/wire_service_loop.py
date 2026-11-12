@@ -15,6 +15,7 @@ from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
     from .. import wire_service_loop as _wire_service_loop
 
@@ -95,10 +96,10 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         # there is no boot or if the boot is not visible.
         self._part = db_obj.part
 
-        # scale/material built fresh from the catalog part's own data,
-        # mirroring objects_3d.wire_service_loop.WireServiceLoop.__init__'s
-        # own construction exactly (diameter-derived scale, Plastic
-        # material from the part's color) -- never borrowed from obj3d.
+        # A loop is not drawn on the board (2026-11-11, user): the length it adds to a wire is counted in the wire's length
+        # (handlers.rope_pull_handler._pinned_info), but the loop itself is one point there, its start and stop on one spot, which is
+        # where the two wires on its sides meet. The mesh is only here because BasePegboard leaves the position unbound without one:
+        # it is never drawn (render below) and the stop point is not derived from it (_sync_stop_position).
         diameter = self._part.od_mm
         scale = _point.Point(diameter, diameter, diameter)
         material = _materials.Plastic(self._part.color.ui)
@@ -106,8 +107,6 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         position = db_obj.start_position_pegboard
         position2 = db_obj.stop_position_pegboard
 
-        # Must exist before BaseVar.__init__ binds the position/angle
-        # callbacks below -- both overrides read it.
         self._last_centroid: np.ndarray | None = None
 
         with parent.mainframe.editor_pegboard.context:
@@ -125,9 +124,6 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         self._p1 = position
         self._p2 = position2
 
-        # Always derive the stop point fresh from the start point/angle/
-        # scale rather than trusting whatever was last persisted -- same
-        # self-healing as the 3D version.
         self._last_centroid = self._world_centroid()
         self._sync_stop_position()
 
@@ -168,28 +164,17 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def _world_centroid(self) -> np.ndarray:
-        """World-space centroid of the loop's own OBB -- the rotation pivot
-        (see :meth:`_update_angle`), not the start/stop connection points.
-        """
-        centroid = self._vbo.local_obb.mean(axis=0)
-        centroid = centroid * self._scale.as_numpy
-        centroid = centroid @ self._angle
-        centroid = centroid + self._position.as_numpy
-
-        return centroid
+        """Where the loop is: its one point (there is no mesh, see ``__init__``)."""
+        return self._position.as_numpy.copy()
 
     @_check_types.do
     def _sync_stop_position(self) -> None:
-        """Recompute the derived stop point from the current start
-        position, angle and scale -- the same scale/rotate/translate of
-        the VBO's own endpoint that the render applies to the full mesh.
-        """
-        tmp = self._vbo.endpoint.copy()
-        tmp *= self._scale
-        tmp @= self._angle
-        tmp += self._position
+        """Put the stop point on the start point: the loop is one point on the board (see ``__init__``)."""
+        self._p2 += self._position - self._p2
 
-        self._p2 += tmp - self._p2
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """A loop is not drawn on the board (see ``__init__``)."""
 
     @_check_types.do
     def _update_position(self, position: _point.Point) -> None:

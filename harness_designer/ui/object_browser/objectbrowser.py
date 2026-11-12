@@ -952,10 +952,9 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         results = []
         for splice in self.mainframe.project.splices:
             splice_db = splice.db_obj
-            for w in splice_db.wires:
-                if w.db_id == wire_id:
-                    results.append(splice_db)
-                    break
+            # PJTSplice.wires is three lists (start side, stop side, branch side), not a flat list
+            if any(w.db_id == wire_id for side in splice_db.wires for w in side):
+                results.append(splice_db)
 
         return results
 
@@ -1822,7 +1821,15 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         self._set_data(treeitem, ref)
 
-        for wire in obj.db_obj.wires:
+        # PJTSplice.wires is three lists (the wires on the start, the stop and the branch point), not one
+        seen = set()
+
+        for wire in (w for group in obj.db_obj.wires for w in group):
+            if wire.db_id in seen:
+                continue
+
+            seen.add(wire.db_id)
+
             ref2 = weakref.ref(wire, self.__remove_refs)
             self._weakrefs.append(ref2)
             child = self._append_item(treeitem, f'Wire: {wire.name}')

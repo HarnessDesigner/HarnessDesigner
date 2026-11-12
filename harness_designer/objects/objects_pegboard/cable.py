@@ -421,3 +421,4 @@ class CableMenu(_cable_3d.CableMenu):
 
     _has_roll = False
     _has_add_layout = False
+    _has_sleeve = False

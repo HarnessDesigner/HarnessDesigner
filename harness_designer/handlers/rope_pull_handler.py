@@ -144,6 +144,7 @@ only deleting an existing layout's live facade object (via its own
 """
 
 from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
 
 import math
 import uuid
@@ -186,9 +187,54 @@ Config = _config.Config.editor_pegboard.rope_pull
 # loop that genuinely cannot fit.
 _MAX_REPULLS = 16
 
+# How many times a node may be pulled in ONE solve, all nodes together, before the move is refused. A solve that is going to succeed
+# needs a few dozen at most (the most seen in a project with a cable of nine conductors and loops was 66); one that does not fit (the
+# move is more than the chains allow) otherwise spends hundreds, over and over, in the binary search of every drag frame.
+_MAX_PULLS_PER_SOLVE = 120
+
 # A re-pull smaller than this (mm) is floating-point noise, not a chain that
 # still needs relief -- matches solve_chain's own default tolerance.
 _REPULL_TOLERANCE_MM = 1e-6
+
+# Floor on the diameter the fold limit (_fold_limit) is measured with, so a zero or missing diameter never makes a chain that cannot fold.
+_MIN_FOLD_DIAMETER_MM = 1.0
+
+
+def _short(point_id: bytes | None) -> str:
+    """A point or row id as a few hex characters (the part of it that tells two ids apart), for the trace."""
+    if point_id is None:
+        return 'None'
+
+    return point_id.hex()[8:16]
+
+
+def _xz(xz: tuple[float, float] | None) -> str:
+    """A board position as ``(x, z)`` to 0.01 mm, for the trace."""
+    if xz is None:
+        return 'None'
+
+    return f'({xz[0]:.2f}, {xz[1]:.2f})'
+
+
+def _label(chain_db_obj: object) -> str:
+    """What a chain is, for the trace: its kind and short id (a lead of a cable's conductor says so)."""
+    if isinstance(chain_db_obj, _pjt_cable.PJTCable):
+        return f'cable {_short(chain_db_obj.db_id)}'
+
+    if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+        return f'bundle {_short(chain_db_obj.db_id)}'
+
+    if chain_db_obj.cable_conductor_id is not None:
+        return f'lead {_short(chain_db_obj.db_id)} of conductor {_short(chain_db_obj.cable_conductor_id)}'
+
+    return f'wire {_short(chain_db_obj.db_id)}'
+
+
+def _trace(make_parts: Callable[[], tuple]) -> None:
+    """One line of the solver's trace in the log, when ``Config.trace`` is on (see config). *make_parts* builds the parts of the line:
+    it is called only then, so a solve that is not traced pays for none of the formatting."""
+    if Config.trace:
+        _logger.info('[rope]', *make_parts())
 
 
 @_check_types.do
@@ -296,6 +342,10 @@ def _canonical_point_id(points_table: object, point_id: bytes) -> bytes:
     return parent_id if parent_id is not None else point_id
 
 
+# Wires already reported by _stub_boundary as not starting with their terminal's/cavity's stub points (reported once each).
+_unmatched_stub_wires: set[bytes] = set()
+
+
 @_debug.logfunc
 @_check_types.do
 def _stub_boundary(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire") -> tuple[int, int]:
@@ -328,8 +378,21 @@ def _stub_boundary(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire
             found += 1
         return found
 
-    leading = count(_structural_stub_ids(ptables, wire_db_obj.start_position_pegboard_id), False)
-    trailing = count(_structural_stub_ids(ptables, wire_db_obj.stop_position_pegboard_id), True)
+    start_expected = _structural_stub_ids(ptables, wire_db_obj.start_position_pegboard_id)
+    stop_expected = _structural_stub_ids(ptables, wire_db_obj.stop_position_pegboard_id)
+
+    leading = count(start_expected, False)
+    trailing = count(stop_expected, True)
+
+    # The part of a wire inside a housing (its terminal's and its cavity's stub, out to the back of the cavity) is found by those
+    # stub points' ids. A wire whose board route does not start with them (made before the stubs were tagged, or damaged) has that
+    # part counted as free wire: it is measured from the terminal, not from the back of the cavity.
+    if (leading < len(start_expected) or trailing < len(stop_expected)) and wire_db_obj.db_id not in _unmatched_stub_wires:
+        _unmatched_stub_wires.add(wire_db_obj.db_id)
+        _logger.warning(
+            f'wire {wire_db_obj.db_id.hex()}: its board route does not start with the stub points of its terminal/cavity '
+            f'(found {leading} of {len(start_expected)} at the start, {trailing} of {len(stop_expected)} at the end): the part '
+            f'inside the housing is measured as free wire')
 
     if leading + trailing > len(old_ids):
         overlap = leading + trailing - len(old_ids)
@@ -1145,20 +1208,268 @@ def _pulled_far_position(
 
 @_debug.logfunc
 @_check_types.do
+def _fold_limit(chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"], required_length: float) -> float:
+    """The closest the two ends of a chain can come before it folds over on itself: one zig-zag's worth of spacing
+    (``zigzag_length_factor`` diameters, the same spacing the solver gives a zig-zag its room with), never more than the chain's own
+    length. Slack is taken up as bends until the ends are this close; closer than that the chain would fold, so the far end is
+    pushed (:func:`_pushed_far_position`)."""
+    return min(Config.zigzag_length_factor * max(_chain_diameter(chain_db_obj), _MIN_FOLD_DIAMETER_MM), max(required_length, 0.0))
+
+
+@_debug.logfunc
+@_check_types.do
+def _pushed_far_position(
+    far_xz: tuple[float, float], near_target_xz: tuple[float, float], min_span: float, old_span: float,
+    hint_xz: tuple[float, float]
+) -> tuple[float, float]:
+    """*far_xz* unmoved, unless the near end was moved CLOSER to it and the straight distance between them is now less than
+    *min_span* (the chain would fold over on itself): then *far_xz* is pushed straight away from *near_target_xz* until the distance
+    is exactly *min_span*.
+
+    :param old_span: The distance before the near end moved: a chain that is already closer than *min_span* is left alone unless it
+        is being compressed further (a reconcile that moves nothing never pushes anything).
+    :param hint_xz: The far end minus the near end as it was, for the direction when the two now coincide.
+    """
+    dx = far_xz[0] - near_target_xz[0]
+    dz = far_xz[1] - near_target_xz[1]
+    straight = math.hypot(dx, dz)
+
+    if straight >= min_span - 1e-6 or straight >= old_span - 1e-6:
+        return far_xz
+
+    if straight < 1e-9:
+        dx, dz = hint_xz
+        straight = math.hypot(dx, dz)
+
+        if straight < 1e-9:
+            dx, dz, straight = 1.0, 0.0, 1.0
+
+    scale = min_span / straight
+    return near_target_xz[0] + dx * scale, near_target_xz[1] + dz * scale
+
+
+@_debug.logfunc
+@_check_types.do
+def _housing_id_of(ptables: "_PJTPegboardTable", attach_point_id: bytes) -> bytes | None:
+    """The housing a terminal whose attach point is *attach_point_id* is seated in, or ``None`` (not a terminal's attach point, or a
+    terminal that is not in a cavity)."""
+    rows = ptables.pjt_terminals_table.select('id', attach_point_pegboard_id=attach_point_id)
+    if not rows:
+        return None
+
+    cavity_id = ptables.pjt_terminals_table[rows[0][0]].cavity_id
+    if cavity_id is None:
+        return None
+
+    housing_rows = ptables.pjt_cavities_table.select('housing_id', id=cavity_id)
+    if not housing_rows:
+        return None
+
+    return housing_rows[0][0]
+
+
+@_debug.logfunc
+@_check_types.do
+def _lead_pieces(ptables: "_PJTPegboardTable", conductor_id: bytes, split_id: bytes) -> tuple[list, list, bytes]:
+    """Follow a conductor's lead outward from the cable's split point at *split_id*, over the wire service loops in it.
+
+    :returns: ``(pieces, loops, end_id)``: the wires of the lead in order from the split point, the loops between them, and the board
+        point the lead ends on (a terminal's attach point, or a free end).
+    """
+    wires_table = ptables.pjt_wires_table
+    loops_table = ptables.pjt_wire_service_loops_table
+    rows = wires_table.select('id', 'start_point_pegboard_id', 'stop_point_pegboard_id', cable_conductor_id=conductor_id)
+
+    pieces: list = []
+    loops: list = []
+    used: set = set()
+    current = split_id
+
+    while True:
+        found = None
+
+        for wire_id, start_id, stop_id in rows:
+            if wire_id in used:
+                continue
+
+            if start_id == current:
+                found = (wire_id, stop_id)
+            elif stop_id == current:
+                found = (wire_id, start_id)
+
+            if found is not None:
+                break
+
+        if found is None:
+            return pieces, loops, current
+
+        used.add(found[0])
+        pieces.append(wires_table[found[0]])
+        current = found[1]
+
+        loop_rows = loops_table.select('id', OR=True, start_point_pegboard_id=current, stop_point_pegboard_id=current)
+        if not loop_rows:
+            return pieces, loops, current
+
+        loop = loops_table[loop_rows[0][0]]
+        loops.append(loop)
+
+        if loop.start_position_pegboard_id == current:
+            current = loop.stop_position_pegboard_id
+        else:
+            current = loop.start_position_pegboard_id
+
+
+@_debug.logfunc
+@_check_types.do
+def _pinned_info(ptables: "_PJTPegboardTable", cable_db_obj: "_pjt_cable.PJTCable", cache: dict) -> dict:
+    """What the leads of a cable that are PINNED (their free end is in a terminal seated in a housing) may be on the board.
+
+    The board does not share the 3D view's positions: where the conductors of a cable come together (the split point) can be anywhere
+    relative to the housing they plug into, so a lead's length there cannot be its length in 3D. Instead, for each end of the cable and
+    each housing its leads plug into, the LONGEST of those leads (its wires plus the coil of every wire service loop in it, which is
+    not drawn on the board) is the most any of them may be: a shorter lead has no slack, it is straight; none may be longer. The
+    wires of one lead share that length in proportion to their own.
+
+    :returns: ``{'caps': {wire id: most that wire may be (mm)}, 'loop_points': {board point ids of the loops in pinned leads},
+        'leads': [the pinned leads that have loops: {'pieces', 'caps' (of each piece), 'loops', 'split_id', 'end_id'}]}``, built once per
+        solve (kept in *cache*).
+    """
+    key = ('pinned', cable_db_obj.db_id)
+    info = cache.get(key)
+    if info is not None:
+        return info
+
+    caps: dict = {}
+    loop_points: set = set()
+    with_loops: list = []
+
+    for start in (True, False):
+        groups: dict = {}
+
+        for conductor in cable_db_obj.conductors:
+            split_id = conductor.start_split_point_pegboard_id if start else conductor.stop_split_point_pegboard_id
+            if split_id is None:
+                continue
+
+            pieces, loops, end_id = _lead_pieces(ptables, conductor.db_id, split_id)
+            if not pieces:
+                continue
+
+            housing_id = _housing_id_of(ptables, end_id)
+            if housing_id is None:
+                continue
+
+            lengths = [_anchors_and_length(ptables, piece)[2] for piece in pieces]
+            total = sum(lengths) + sum(float(loop.length_mm) for loop in loops)
+            groups.setdefault(housing_id, []).append((pieces, lengths, loops, total, split_id, end_id))
+
+        for leads in groups.values():
+            longest = max(lead[3] for lead in leads)
+
+            for pieces, lengths, loops, _total, split_id, end_id in leads:
+                scale = longest / max(sum(lengths), 1e-9)
+
+                for piece, length in zip(pieces, lengths):
+                    caps[piece.db_id] = length * scale
+
+                for loop in loops:
+                    loop_points.add(loop.start_position_pegboard_id)
+                    loop_points.add(loop.stop_position_pegboard_id)
+
+                if loops:
+                    # (the lead is a straight line from the housing to the split point, the loops at their share of it: see
+                    # _evaluate_points' place_pinned_loops)
+                    with_loops.append({
+                        'pieces': pieces, 'caps': [length * scale for length in lengths], 'loops': loops,
+                        'split_id': split_id, 'end_id': end_id})
+
+    info = cache[key] = {'caps': caps, 'loop_points': loop_points, 'leads': with_loops}
+    return info
+
+
+@_debug.logfunc
+@_check_types.do
+def _pinned_cap(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire", cache: dict) -> float | None:
+    """The most *wire_db_obj* may be on the board when it is a wire of a PINNED lead (see :func:`_pinned_info`), else ``None``."""
+    conductor_id = wire_db_obj.cable_conductor_id
+    if conductor_id is None:
+        return None
+
+    cable_id = ptables.pjt_cable_conductors_table[conductor_id].cable_id
+    return _pinned_info(ptables, ptables.pjt_cables_table[cable_id], cache)['caps'].get(wire_db_obj.db_id)
+
+
+@_debug.logfunc
+@_check_types.do
+def straighten_pinned_leads(mainframe: "_ui.MainFrame") -> int:
+    """Take the bends out of every wire of a PINNED lead (see :func:`_pinned_info`) that has any: a pinned wire has no slack, and a
+    project saved before that rule (or after a drag that went wrong) has bends in them that nothing would re-solve until the housing
+    or the cable is next dragged. Each such wire is re-solved as a drag of nothing: it is straight afterwards, and a wire that is
+    already over its cap is left as long as it is (``tolerate_stretch``), never pulled in here.
+
+    :returns: How many wires were straightened.
+    """
+    ptables = mainframe.project.ptables
+    cache: dict = {}
+    count = 0
+
+    for cable_db_obj in ptables.pjt_cables_table:
+        for wire_id in _pinned_info(ptables, cable_db_obj, cache)['caps']:
+            wire_db_obj = ptables.pjt_wires_table[wire_id]
+            leading, trailing = _stub_boundary(ptables, wire_db_obj)
+
+            if len(ptables.pjt_wire_paths_table.point_ids(wire_id, 'pegboard')) <= leading + trailing:
+                continue
+
+            realize_length_change(mainframe, wire_db_obj, tolerate_stretch=True)
+            count += 1
+
+    _trace(lambda: ('straightened', count, 'pinned wires',))
+
+    return count
+
+
+@_debug.logfunc
+@_check_types.do
+def _pinned_loop_points(ptables: "_PJTPegboardTable", cache: dict) -> set:
+    """The board points of every wire service loop that is in a pinned lead: those loops are a single point on the board."""
+    points: set = set()
+
+    for cable_db_obj in ptables.pjt_cables_table:
+        points |= _pinned_info(ptables, cable_db_obj, cache)['loop_points']
+
+    return points
+
+
+@_debug.logfunc
+@_check_types.do
+def _is_owned_end(ptables: "_PJTPegboardTable", point_id: bytes) -> bool:
+    """Whether *point_id* is a point of a terminal (its attach point), a splice or a wire service loop, rather than a bare wire end."""
+    if ptables.pjt_terminals_table.select('id', attach_point_pegboard_id=point_id):
+        return True
+
+    for table in (ptables.pjt_splices_table, ptables.pjt_wire_service_loops_table):
+        if table.select('id', OR=True, start_point_pegboard_id=point_id, stop_point_pegboard_id=point_id):
+            return True
+
+    return False
+
+
+@_debug.logfunc
+@_check_types.do
 def _cable_node(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, list[bytes]] | None:
     """The part of a placed cable that moves as one piece with *point_id*, as :func:`_node_for_point` answers it, or ``None`` when no
     cable owns the point, or the point is one of the cable's two ends.
 
-    A conductor's split point or free end (where a lead comes out of the trunk, or the lead's end when nothing is attached to it)
-    is the whole cable, translated together: something pulling on a lead drags the cable it comes out of, ends, waypoints and the
-    other conductors' points too, and none of the cable's own length is used up.
+    A conductor's split point or free end (where a lead comes out of the trunk, or the lead's end when nothing is attached to it) is
+    the END of the cable it comes out of, translated together with the cable's own end point and the other conductors' split points
+    and free ends: something pulling on a lead drags that end of the cable. The rest of the cable is not part of it: the cable is a
+    rope between its two ends (a chain, solved like a wire), so its own slack is used up before its far end is pulled, and
+    the far end's conductors only move when the cable is taut (and, in the other direction, are pushed when it has folded).
 
-    The cable's own ends are a lone point each, as a free wire end is: the cable is a rope, the far end is pulled alone when the
-    near one is dragged too far. The conductor points that go with an end are carried by the cable (``Cable.follow_drag`` for a drag
-    of the cable, the end's own callback for the split points), which is why they are not in the node: they would be moved twice.
-
-    The conductor points are listed only for a split end (a conductor of an end that is not split has points that are children of
-    the cable's: they follow by themselves).
+    The cable's own end point answers the same group when the end is split. An end that is not split is a lone point (``None``): its
+    conductors' points are children of the end's and follow by themselves.
     """
     for cable in ptables.pjt_cables_table:
         owned: dict[bool, list[bytes]] = {True: [], False: []}
@@ -1172,14 +1483,18 @@ def _cable_node(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, lis
 
                 owned[start].append(split_id)
                 end_id = conductor.start_position_pegboard_id if start else conductor.stop_position_pegboard_id
-                if end_id is not None:
+
+                # The lead's free end goes with the cable only when nothing is on it: a terminal's attach point, a splice's or a loop's
+                # point belongs to that object (and its housing), and moving it here would tear it off. That lead is simply pulled
+                # on, as any wire is, when the cable moves away from it.
+                if end_id is not None and not _is_owned_end(ptables, end_id):
                     owned[start].append(end_id)
 
         ends = {True: cable.start_position_pegboard_id, False: cable.stop_position_pegboard_id}
 
-        if point_id in owned[True] or point_id in owned[False]:
-            waypoint_ids = ptables.pjt_cable_paths_table.point_ids(cable.db_id, 'pegboard')
-            return 'rigid', [ends[True], ends[False], *waypoint_ids, *owned[True], *owned[False]]
+        for start in (True, False):
+            if owned[start] and (point_id == ends[start] or point_id in owned[start]):
+                return 'rigid', [ends[start], *owned[start]]
 
     return None
 
@@ -1192,11 +1507,13 @@ def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str,
     together with it as one object (a Transition's own centre PLUS
     every one of its branches -- centre always ``points[0]`` -- a
     Splice's or WireServiceLoop's own start AND stop together, or a
-    Housing's single point); *kind* is ``'transition'`` (the only kind
-    that ROTATES when pulled -- see :func:`_rotated_and_translated`'s
-    own caller) or ``'rigid'`` (pure translation, same delta for every
-    point in *points*). ``None`` if *point_id* belongs to none of
-    these (a genuinely free point, owned by nothing).
+    Housing's single point); *kind* is ``'transition'`` (ROTATES when
+    pulled -- see :func:`_rotated_and_translated`'s own caller),
+    ``'loop'`` (a wire service loop: the point the pull arrives through
+    is pulled, the other one is laid inline, straight on from the wire
+    that pulls, at the loop's own span) or ``'rigid'`` (pure translation,
+    same delta for every point in *points*). ``None`` if *point_id*
+    belongs to none of these (a genuinely free point, owned by nothing).
 
     **A seated Terminal resolves to its own Housing.** *point_id* being
     a terminal's real wire-attachment point
@@ -1276,6 +1593,10 @@ def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str,
             start_point_pegboard_id=point_id, stop_point_pegboard_id=point_id)
         if rows:
             obj = table[rows[0][0]]
+
+            if table is ptables.pjt_wire_service_loops_table:
+                return 'loop', [obj.start_position_pegboard_id, obj.stop_position_pegboard_id]
+
             return 'rigid', [obj.start_position_pegboard_id, obj.stop_position_pegboard_id]
 
     return None
@@ -1370,7 +1691,7 @@ def _fixed_count_span(
 def _evaluate_points(
     ptables: "_PJTPegboardTable", point_targets: list[tuple[bytes, tuple[float, float]]],
     cascade: bool = True, chain_cache: dict | None = None, seed_chains: list[tuple] | None = None,
-    held_ids: set[bytes] | None = None,
+    held_ids: set[bytes] | None = None, tolerate_stretch: bool = False,
 ) -> tuple[list[tuple], dict[bytes, tuple[float, float]], dict[bytes, float]] | None:
     """Pure solve, no DB writes -- every ``(point_id, target_xz)`` pair
     in *point_targets* moving AT ONCE, cascading through whatever else
@@ -1384,6 +1705,10 @@ def _evaluate_points(
     have to be pulled (see the bundle-wire branch in the loop below).
     *held_ids*: point ids that must not be pulled back by that branch (the
     wire end the user is dragging) -- the bundle is pulled instead.
+    *tolerate_stretch*: a chain whose ends are ALREADY further apart than its length (saved that way, or left so by an earlier edit) is
+    taken as taut at the span it has: only stretching it further pulls, and the move is not refused because of what was wrong before it.
+    For a drag (``resolve_rigid_move``) and the safety net of a point's move; not for a change of the chain's own length, which is
+    exactly the stretch that has to be pulled out (``realize_length_change`` from a 3D length edit).
 
     *chain_cache*: forwarded to every :func:`_chains_for_point` call
     this makes (see that function's own *cache* parameter). ``None``
@@ -1456,6 +1781,8 @@ def _evaluate_points(
     if chain_cache is None:
         chain_cache = {}
 
+    _trace(lambda: ('solve', [(_short(point_id), _xz(xz)) for point_id, xz in point_targets], f'held={[_short(i) for i in (held_ids or [])]}',))
+
     fixed: dict[bytes, tuple[float, float]] = dict(point_targets)
     write_points: dict[bytes, tuple[float, float]] = {}
     write_yaws: dict[bytes, float] = {}
@@ -1469,11 +1796,12 @@ def _evaluate_points(
     # not fit): past _MAX_REPULLS it is left where it is and the chain is
     # left to fail its own feasibility check, which refuses the move.
     repulls: dict[bytes, int] = {}
+    pull_count = [0]
 
     @_check_types.do
     def pull_node(
         point_id: bytes, from_xz: tuple[float, float], to_xz: tuple[float, float],
-        chain_id: bytes, is_repull: bool
+        chain_id: bytes, is_repull: bool, inline_from: tuple[float, float] | None = None
     ) -> bool:
         """Move the rigid node that owns *point_id* so that point's
         EFFECTIVE position goes from *from_xz* to *to_xz*, deciding every
@@ -1483,11 +1811,22 @@ def _evaluate_points(
         its points move on from where this solve put them (fixed[]) instead
         of from where the DB has them.
 
+        *inline_from*: where the chain that pulls (or pushes) the node has its near end. A wire service loop uses it to stay in line
+        with that wire: its other point is laid at the loop's own span straight on from the near end through *to_xz*.
+
         :returns: ``False`` when a re-pull would exceed _MAX_REPULLS -- the
             node is left untouched.
         """
+        pull_count[0] += 1
+        if pull_count[0] > _MAX_PULLS_PER_SOLVE:
+            _trace(lambda: ('  pull budget used up: the move is refused',))
+            return False
+
         node = _node_for_point(ptables, point_id)
         kind, node_points = ('rigid', [point_id]) if node is None else node
+
+        _trace(lambda: ('  pull node', kind, [_short(p) for p in node_points], 'through', _short(point_id), _xz(from_xz), '->', _xz(to_xz),
+               f'repull={is_repull}', f'inline_from={_xz(inline_from)}',))
 
         if is_repull:
             repull_count = repulls.get(node_points[0], 0) + 1
@@ -1537,10 +1876,43 @@ def _evaluate_points(
                 fixed[p] = new_xz
                 write_points[p] = new_xz
                 pending.append(p)
+        elif kind == 'loop' and inline_from is not None and len(node_points) == 2:
+            other_id = node_points[1] if node_points[0] == point_id else node_points[0]
+            other_old = moved_from(other_id)
+            span = math.hypot(other_old[0] - from_xz[0], other_old[1] - from_xz[1])
+
+            # a loop in a pinned lead is not drawn on the board: a single point, its two points on one spot
+            if point_id in _pinned_loop_points(ptables, chain_cache):
+                span = 0.0
+
+            ux, uz = to_xz[0] - inline_from[0], to_xz[1] - inline_from[1]
+            length = math.hypot(ux, uz)
+
+            if length < 1e-9:
+                ux, uz = other_old[0] - from_xz[0], other_old[1] - from_xz[1]
+                length = math.hypot(ux, uz)
+
+            if length < 1e-9:
+                ux, uz, length = 1.0, 0.0, 1.0
+
+            placed = ((point_id, to_xz), (other_id, (to_xz[0] + ux / length * span, to_xz[1] + uz / length * span)))
+
+            for p, new_xz in placed:
+                if p in fixed and p not in write_points:
+                    continue
+
+                fixed[p] = new_xz
+                write_points[p] = new_xz
+                pending.append(p)
         else:
             delta = (to_xz[0] - from_xz[0], to_xz[1] - from_xz[1])
 
             for p in node_points:
+                # A point the user is placing (a dragged target) is decided already and must not be moved again by the pull: a lead's
+                # free end is one of the points of the cable it pulls, and moving it too left the lead as long as it was dragged.
+                if p in fixed and p not in write_points:
+                    continue
+
                 p_xz = moved_from(p)
                 new_xz = (p_xz[0] + delta[0], p_xz[1] + delta[1])
                 fixed[p] = new_xz
@@ -1566,9 +1938,14 @@ def _evaluate_points(
     @_check_types.do
     def pull_if_needed(
         chain_id: bytes, far_point_id: bytes, far_xz: tuple[float, float],
-        near_target_xz: tuple[float, float], required_length: float
+        near_target_xz: tuple[float, float], required_length: float,
+        min_span: float = 0.0, near_old_xz: tuple[float, float] | None = None,
     ) -> tuple[float, float]:
+        """The far end of a chain whose near end is going to *near_target_xz*: pulled straight toward it when the chain is too short
+        to reach, pushed straight away from it when the near end was moved so close that the chain would fold over on itself
+        (*min_span*), left alone otherwise (the chain's own bends take the slack up, or give it back)."""
         is_repull = False
+        entry_far_xz = far_xz
 
         if far_point_id in fixed:
             # fixed[] holds the far end's RAW (terminal attach point) new
@@ -1607,13 +1984,35 @@ def _evaluate_points(
             return far_xz
 
         pulled_xz = _pulled_far_position(far_xz, near_target_xz, required_length)
+
+        # A node that an earlier chain pulled and this one pulls again is held by several chains at once (the leads of a cable's end
+        # all run to one housing, each taut in its own direction): the straight pull toward the near end satisfies one chain and
+        # breaks the next, again and again, and never settles. The move that keeps every one of them as it was is to carry the node by
+        # what its near end moved (the near ends are points of one rigid group that moved together): a chain that was fine stays fine.
+        if is_repull and pulled_xz != far_xz and near_old_xz is not None:
+            carried_xz = (entry_far_xz[0] + near_target_xz[0] - near_old_xz[0], entry_far_xz[1] + near_target_xz[1] - near_old_xz[1])
+
+            if math.hypot(carried_xz[0] - near_target_xz[0], carried_xz[1] - near_target_xz[1]) <= required_length + _REPULL_TOLERANCE_MM:
+                pulled_xz = carried_xz
+
+        if pulled_xz == far_xz and near_old_xz is not None:
+            pulled_xz = _pushed_far_position(
+                far_xz, near_target_xz, min_span,
+                math.hypot(entry_far_xz[0] - near_old_xz[0], entry_far_xz[1] - near_old_xz[1]),
+                (entry_far_xz[0] - near_old_xz[0], entry_far_xz[1] - near_old_xz[1]))
+
+        _trace(lambda: ('  far end', _short(far_point_id), 'of', _short(chain_id), 'near', _xz(near_target_xz), 'far', _xz(far_xz),
+               'span', round(math.hypot(far_xz[0] - near_target_xz[0], far_xz[1] - near_target_xz[1]), 2),
+               'length', round(required_length, 2), 'fold', round(min_span, 2), '->', _xz(pulled_xz),))
+
         if is_repull:
             if math.hypot(pulled_xz[0] - far_xz[0], pulled_xz[1] - far_xz[1]) <= _REPULL_TOLERANCE_MM:
                 return far_xz
         elif pulled_xz == far_xz:
             return far_xz
 
-        if not pull_node(far_point_id, far_xz, pulled_xz, chain_id, is_repull):
+        if not pull_node(far_point_id, far_xz, pulled_xz, chain_id, is_repull, near_target_xz):
+            _trace(lambda: ('  re-pull limit reached for', _short(far_point_id), ': left where it is',))
             return far_xz
 
         return pulled_xz
@@ -1794,121 +2193,234 @@ def _evaluate_points(
 
     held_ids = held_ids or set()
 
-    while pending or seed_queue:
-        if pending:
-            point_id = pending.pop()
-            target_xz = fixed[point_id]
-            chains = _chains_for_point(ptables, point_id, chain_cache)
-        else:
-            point_id = target_xz = None
-            chains = [seed_queue.pop()]
+    def place_pinned_loops() -> bool:
+        """Lay the wire service loops of every pinned lead this solve touched on the straight line from the housing to the split point.
 
-        for chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end in chains:
-            if chain_db_obj.db_id in seen_chains:
-                continue
-            seen_chains.add(chain_db_obj.db_id)
+        A pinned lead has no slack: it is one straight line, a loop in it at its share of that line (the pieces' caps, counted from the
+        split point). A loop only moves when a piece beside it has to pull it, so a housing or a cable moved sideways left the loop
+        where it was and the lead bent there. Each loop's two points go to their place; the pieces beside them are solved again.
 
-            start_xz, stop_xz, required_length, leading, trailing = _anchors_and_length(
-                ptables, chain_db_obj)
+        :returns: whether any loop point was moved.
+        """
+        moved = False
 
-            # A wire routed through ONE bundle is solved as a bundle/wire
-            # assembly (bundle_wire_model), not as one start -> stop span.
-            if drag_end is not _rope_pull.DragEnd.WAYPOINT and _is_wire_chain(chain_db_obj):
-                outcome = eval_bundle_wire(
-                    chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz)
-                if outcome == 'infeasible':
-                    return None
-                if outcome == 'done':
+        for cable_db_obj in ptables.pjt_cables_table:
+            for lead in _pinned_info(ptables, cable_db_obj, chain_cache)['leads']:
+                pieces = lead['pieces']
+
+                if not any(piece.db_id in seen_chains for piece in pieces):
                     continue
 
-            # target_xz is where point_id -- the chain's own RAW
-            # start/stop anchor (a terminal's attach_position_pegboard)
-            # -- is headed. When this end has its own leading/trailing
-            # stub exclusion, that is NOT where the solver's own anchor
-            # for this end should land: the EFFECTIVE anchor (start_xz/
-            # stop_xz above, already past the stub -- the terminal's
-            # own wire_position_pegboard, or the cavity's if seated,
-            # see _stub_boundary) moves by the exact same rigid delta
-            # (never a different one -- the whole terminal/housing only
-            # ever translates), so it is this end's own OLD effective
-            # position plus that same delta, not target_xz itself.
-            # Using target_xz directly here measured every zig-zag span
-            # from the terminal's own raw crimp point instead, double-
-            # counting the stub segment's own length against a
-            # required_length that had already excluded it -- confirmed
-            # live, 2026-10-13: a housing's own terminal never let its
-            # wire reach taut/pull its far end correctly, because the
-            # solver always saw less slack than the chain actually had.
-            effective_target = target_xz
-            if drag_end is _rope_pull.DragEnd.START and leading:
-                raw_anchor = chain_db_obj.start_position_pegboard
-                effective_target = (
-                    start_xz[0] + (target_xz[0] - float(raw_anchor.x)),
-                    start_xz[1] + (target_xz[1] - float(raw_anchor.z)))
-            elif drag_end is _rope_pull.DragEnd.STOP and trailing:
-                raw_anchor = chain_db_obj.stop_position_pegboard
-                effective_target = (
-                    stop_xz[0] + (target_xz[0] - float(raw_anchor.x)),
-                    stop_xz[1] + (target_xz[1] - float(raw_anchor.z)))
+                last = pieces[-1]
+                start_xz, stop_xz = _anchors_and_length(ptables, last)[:2]
+                end_id, split_id = lead['end_id'], lead['split_id']
+                tip = start_xz if last.start_position_pegboard_id == end_id else stop_xz
 
-            if drag_end is _rope_pull.DragEnd.START:
-                stop_xz = pull_if_needed(
-                    chain_db_obj.db_id, chain_db_obj.stop_position_pegboard_id, stop_xz,
-                    effective_target, required_length)
-            elif drag_end is _rope_pull.DragEnd.STOP:
-                start_xz = pull_if_needed(
-                    chain_db_obj.db_id, chain_db_obj.start_position_pegboard_id, start_xz,
-                    effective_target, required_length)
-            # DragEnd.WAYPOINT: both real anchors stay exactly as read --
-            # the anchor model never lets a waypoint drag move them, and
-            # a waypoint belongs to exactly one chain by construction,
-            # so nothing ever cascades INTO this branch either.
+                # the effective end moves by the delta of the terminal's own point
+                if end_id in fixed:
+                    raw = points_table[end_id].point
+                    tip = (tip[0] + fixed[end_id][0] - float(raw.x), tip[1] + fixed[end_id][1] - float(raw.z))
 
-            # The near end can itself be a point an earlier pull in this
-            # solve moved (this chain is being evaluated from the pulled
-            # node's side, with its far end a dragged -- authoritative --
-            # point). If it still does not fit, the node is the only thing
-            # that can give: pull it again toward the far end by whatever
-            # is still missing, instead of refusing the move.
-            if cascade and drag_end is not _rope_pull.DragEnd.WAYPOINT and point_id in write_points:
-                other_xz = stop_xz
-                if drag_end is _rope_pull.DragEnd.STOP:
-                    other_xz = start_xz
+                if split_id in fixed:
+                    split = fixed[split_id]
+                else:
+                    split_point = points_table[split_id].point
+                    split = (float(split_point.x), float(split_point.z))
 
-                relieved_xz = _pulled_far_position(effective_target, other_xz, required_length)
-                shift = math.hypot(
-                    relieved_xz[0] - effective_target[0], relieved_xz[1] - effective_target[1])
+                total = sum(lead['caps'])
+                if total < 1e-9:
+                    continue
 
-                if shift > _REPULL_TOLERANCE_MM:
-                    if pull_node(point_id, effective_target, relieved_xz, chain_db_obj.db_id, True):
-                        effective_target = relieved_xz
-                        target_xz = fixed[point_id]
+                done = 0.0
 
-            result = _rope_pull.solve_chain(
-                start_xz, stop_xz, required_length, drag_end, effective_target,
-                _chain_diameter(chain_db_obj), Config.zigzag_length_factor, Config.threshold_factor)
+                for k, loop in enumerate(lead['loops']):
+                    done += lead['caps'][k]
+                    fraction = done / total
+                    wanted = (split[0] + (tip[0] - split[0]) * fraction, split[1] + (tip[1] - split[1]) * fraction)
+                    loop_moved = False
 
-            if not result.accepted:
-                return None
+                    for loop_point_id in (loop.start_position_pegboard_id, loop.stop_position_pegboard_id):
+                        if loop_point_id in fixed:
+                            now = fixed[loop_point_id]
+                        else:
+                            loop_point = points_table[loop_point_id].point
+                            now = (float(loop_point.x), float(loop_point.z))
 
-            entries.append((
-                chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                drag_end, point_id, target_xz, result, start_xz, stop_xz, required_length,
-                leading, trailing))
+                        if math.hypot(now[0] - wanted[0], now[1] - wanted[1]) <= 1e-3:
+                            continue
 
-            # Wires routed through this bundle follow it: their ends are pulled
-            # behind it, slack absorbed, exactly as when the wire itself is dragged.
-            if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
-                for wire_db_obj in chain_db_obj.wires:
-                    if wire_db_obj.db_id in seen_chains:
-                        continue
-                    seen_chains.add(wire_db_obj.db_id)
+                        fixed[loop_point_id] = wanted
+                        write_points[loop_point_id] = wanted
+                        pending.append(loop_point_id)
+                        loop_moved = True
 
+                    if loop_moved:
+                        moved = True
+                        stale_ids = {pieces[k].db_id, pieces[k + 1].db_id}
+                        seen_chains.difference_update(stale_ids)
+                        entries[:] = [entry for entry in entries if entry[0].db_id not in stale_ids]
+
+        return moved
+
+    place_rounds = 0
+
+    while True:
+        while pending or seed_queue:
+            if pending:
+                point_id = pending.pop()
+                target_xz = fixed[point_id]
+                chains = _chains_for_point(ptables, point_id, chain_cache)
+            else:
+                point_id = target_xz = None
+                chains = [seed_queue.pop()]
+
+            for chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end in chains:
+                if chain_db_obj.db_id in seen_chains:
+                    continue
+                seen_chains.add(chain_db_obj.db_id)
+
+                start_xz, stop_xz, required_length, leading, trailing = _anchors_and_length(
+                    ptables, chain_db_obj)
+
+                # A wire of a lead PINNED to a housing has no slack: it is straight, and the most it may be is the longest lead's length of
+                # its cable end and housing (_pinned_info). Its length in 3D has no say: the board's positions are not the 3D view's.
+                pinned_cap = None
+
+                if drag_end is not _rope_pull.DragEnd.WAYPOINT and _is_wire_chain(chain_db_obj):
+                    pinned_cap = _pinned_cap(ptables, chain_db_obj, chain_cache)
+
+                    if pinned_cap is not None:
+                        required_length = pinned_cap
+
+                if tolerate_stretch:
+                    required_length = max(required_length, math.hypot(stop_xz[0] - start_xz[0], stop_xz[1] - start_xz[1]))
+
+                # A wire routed through ONE bundle is solved as a bundle/wire
+                # assembly (bundle_wire_model), not as one start -> stop span.
+                if drag_end is not _rope_pull.DragEnd.WAYPOINT and _is_wire_chain(chain_db_obj):
                     outcome = eval_bundle_wire(
-                        wire_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table,
-                        _wire_layout.WireLayout, _rope_pull.DragEnd.START, None, None)
+                        chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz)
                     if outcome == 'infeasible':
+                        _trace(lambda: ('  REFUSED:', _label(chain_db_obj), 'through its bundle is infeasible',))
                         return None
+                    if outcome == 'done':
+                        continue
+
+                # target_xz is where point_id -- the chain's own RAW
+                # start/stop anchor (a terminal's attach_position_pegboard)
+                # -- is headed. When this end has its own leading/trailing
+                # stub exclusion, that is NOT where the solver's own anchor
+                # for this end should land: the EFFECTIVE anchor (start_xz/
+                # stop_xz above, already past the stub -- the terminal's
+                # own wire_position_pegboard, or the cavity's if seated,
+                # see _stub_boundary) moves by the exact same rigid delta
+                # (never a different one -- the whole terminal/housing only
+                # ever translates), so it is this end's own OLD effective
+                # position plus that same delta, not target_xz itself.
+                # Using target_xz directly here measured every zig-zag span
+                # from the terminal's own raw crimp point instead, double-
+                # counting the stub segment's own length against a
+                # required_length that had already excluded it -- confirmed
+                # live, 2026-10-13: a housing's own terminal never let its
+                # wire reach taut/pull its far end correctly, because the
+                # solver always saw less slack than the chain actually had.
+                effective_target = target_xz
+                if drag_end is _rope_pull.DragEnd.START and leading:
+                    raw_anchor = chain_db_obj.start_position_pegboard
+                    effective_target = (
+                        start_xz[0] + (target_xz[0] - float(raw_anchor.x)),
+                        start_xz[1] + (target_xz[1] - float(raw_anchor.z)))
+                elif drag_end is _rope_pull.DragEnd.STOP and trailing:
+                    raw_anchor = chain_db_obj.stop_position_pegboard
+                    effective_target = (
+                        stop_xz[0] + (target_xz[0] - float(raw_anchor.x)),
+                        stop_xz[1] + (target_xz[1] - float(raw_anchor.z)))
+
+                min_span = _fold_limit(chain_db_obj, required_length)
+
+                if pinned_cap is not None:
+                    min_span = 0.0
+
+                if drag_end is _rope_pull.DragEnd.START:
+                    stop_xz = pull_if_needed(
+                        chain_db_obj.db_id, chain_db_obj.stop_position_pegboard_id, stop_xz,
+                        effective_target, required_length, min_span, start_xz)
+                elif drag_end is _rope_pull.DragEnd.STOP:
+                    start_xz = pull_if_needed(
+                        chain_db_obj.db_id, chain_db_obj.start_position_pegboard_id, start_xz,
+                        effective_target, required_length, min_span, stop_xz)
+                # DragEnd.WAYPOINT: both real anchors stay exactly as read --
+                # the anchor model never lets a waypoint drag move them, and
+                # a waypoint belongs to exactly one chain by construction,
+                # so nothing ever cascades INTO this branch either.
+
+                # The near end can itself be a point an earlier pull in this
+                # solve moved (this chain is being evaluated from the pulled
+                # node's side, with its far end a dragged -- authoritative --
+                # point). If it still does not fit, the node is the only thing
+                # that can give: pull it again toward the far end by whatever
+                # is still missing, instead of refusing the move.
+                if cascade and drag_end is not _rope_pull.DragEnd.WAYPOINT and point_id in write_points:
+                    other_xz = stop_xz
+                    if drag_end is _rope_pull.DragEnd.STOP:
+                        other_xz = start_xz
+
+                    relieved_xz = _pulled_far_position(effective_target, other_xz, required_length)
+                    shift = math.hypot(
+                        relieved_xz[0] - effective_target[0], relieved_xz[1] - effective_target[1])
+
+                    if shift > _REPULL_TOLERANCE_MM:
+                        if pull_node(point_id, effective_target, relieved_xz, chain_db_obj.db_id, True, other_xz):
+                            effective_target = relieved_xz
+                            target_xz = fixed[point_id]
+
+                # a pinned wire is as long as the straight line between its ends (never over its cap: then nothing can be solved)
+                if pinned_cap is not None:
+                    if drag_end is _rope_pull.DragEnd.START:
+                        far_xz = stop_xz
+                    else:
+                        far_xz = start_xz
+
+                    required_length = min(required_length, math.hypot(far_xz[0] - effective_target[0], far_xz[1] - effective_target[1]))
+
+                result = _rope_pull.solve_chain(
+                    start_xz, stop_xz, required_length, drag_end, effective_target,
+                    _chain_diameter(chain_db_obj), Config.zigzag_length_factor, Config.threshold_factor)
+
+                _trace(lambda: (' ', _label(chain_db_obj), drag_end.name, 'start', _xz(start_xz), 'stop', _xz(stop_xz), 'near', _xz(effective_target),
+                       'length', round(required_length, 2), 'accepted', result.accepted, 'bends', max(len(result.points) - 2, 0),))
+
+                if not result.accepted:
+                    _trace(lambda: ('  REFUSED:', _label(chain_db_obj), 'cannot reach even straight: the move is infeasible',))
+                    return None
+
+                entries.append((
+                    chain_db_obj, path_table, layouts_table, layout_facade_cls,
+                    drag_end, point_id, target_xz, result, start_xz, stop_xz, required_length,
+                    leading, trailing))
+
+                # Wires routed through this bundle follow it: their ends are pulled
+                # behind it, slack absorbed, exactly as when the wire itself is dragged.
+                if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+                    for wire_db_obj in chain_db_obj.wires:
+                        if wire_db_obj.db_id in seen_chains:
+                            continue
+                        seen_chains.add(wire_db_obj.db_id)
+
+                        outcome = eval_bundle_wire(
+                            wire_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table,
+                            _wire_layout.WireLayout, _rope_pull.DragEnd.START, None, None)
+                        if outcome == 'infeasible':
+                            _trace(lambda: ('  REFUSED: a wire through the bundle is infeasible',))
+                            return None
+
+
+        # the loops of the pinned leads are put on their straight lines, and what that moves is solved from there
+        place_rounds += 1
+        if place_rounds > 3 or not place_pinned_loops():
+            break
+
+    _trace(lambda: ('  done:', len(entries), 'chains,', len(write_points), 'points moved', {_short(p): _xz(xz) for p, xz in write_points.items()},))
 
     return entries, write_points, write_yaws
 
@@ -1958,6 +2470,8 @@ def _commit_points(
     :func:`is_committing`. Exception-safe: the depth is always restored.
     """
     global _commit_depth
+
+    _trace(lambda: ('commit', len(entries), 'chains', f'in_progress={in_progress}', [(_label(entry[0]), len(entry[7].points) - 2) for entry in entries],))
 
     _commit_depth += 1
     try:
@@ -2787,7 +3301,7 @@ def resolve_rigid_move(
     mainframe: "_ui.MainFrame",
     point_starts: list[tuple[bytes, _point.Point]],
     full_delta: tuple[float, float],
-    iterations: int = 32,
+    iterations: int = 16,
     in_progress: bool = True
 ) -> float:
     """Binary-search the largest fraction ``t`` in ``[0, 1]`` such that
@@ -2857,18 +3371,18 @@ def resolve_rigid_move(
     # the same unwritten ptables state.
     chain_cache: dict = {}
 
-    full_result = _evaluate_points(ptables, candidate(1.0), chain_cache=chain_cache)
+    full_result = _evaluate_points(ptables, candidate(1.0), chain_cache=chain_cache, tolerate_stretch=True)
     if full_result is not None:
         _commit_points(mainframe, *full_result, in_progress=in_progress)
         return 1.0
 
     lo, hi = 0.0, 1.0
     best_t = 0.0
-    best_result = _evaluate_points(ptables, candidate(0.0), chain_cache=chain_cache)
+    best_result = _evaluate_points(ptables, candidate(0.0), chain_cache=chain_cache, tolerate_stretch=True)
 
     for _ in range(iterations):
         mid = (lo + hi) / 2.0
-        mid_result = _evaluate_points(ptables, candidate(mid), chain_cache=chain_cache)
+        mid_result = _evaluate_points(ptables, candidate(mid), chain_cache=chain_cache, tolerate_stretch=True)
 
         if mid_result is not None:
             lo = mid
@@ -2876,6 +3390,8 @@ def resolve_rigid_move(
             best_result = mid_result
         else:
             hi = mid
+
+    _trace(lambda: ('drag resolved: fraction', round(best_t, 4), 'of', _xz(full_delta), f'feasible={best_result is not None}',))
 
     if best_result is not None:
         _commit_points(mainframe, *best_result, in_progress=in_progress)
@@ -2889,7 +3405,8 @@ def realize_length_change(
     mainframe: "_ui.MainFrame",
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
     in_progress: bool = False,
-    held_point_id: bytes | None = None
+    held_point_id: bytes | None = None,
+    tolerate_stretch: bool = False
 ) -> bool:
     """Re-solve *chain_db_obj*'s peg-board chain after its real 3D
     length changed (a ``BundleLayout``/``WireLayout`` marker was dragged
@@ -2926,6 +3443,9 @@ def realize_length_change(
         runs the drag's own very last frame) lets the waypoint count
         finally catch up to whatever it actually needs.
 
+    :param tolerate_stretch: See :func:`_evaluate_points`. The slack handler's safety net after a point moved passes ``True``; a
+        change of a wire's own 3D length (the reason this function exists) does not.
+
     :returns: Whether the whole cascade this change triggers (if any)
         was feasible. ``False`` means something in it is infeasible
         even after every pull it allows -- a closed loop that doesn't
@@ -2941,7 +3461,8 @@ def realize_length_change(
         # either end of the wire may be pulled to reach it (see the
         # bundle-wire branch in _evaluate_points).
         result = _evaluate_points(
-            ptables, [], cascade=is_enabled(), held_ids={held_point_id} if held_point_id else None, seed_chains=[(
+            ptables, [], cascade=is_enabled(), held_ids={held_point_id} if held_point_id else None,
+            tolerate_stretch=tolerate_stretch, seed_chains=[(
                 chain_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table,
                 _wire_layout.WireLayout, _rope_pull.DragEnd.START)])
         if result is None:
@@ -2950,8 +3471,18 @@ def realize_length_change(
         _commit_points(mainframe, *result, in_progress=in_progress)
         return True
 
-    raw_start = chain_db_obj.start_position_pegboard
-    raw_start_xz = (float(raw_start.x), float(raw_start.z))
+    # The end the user is dragging (the slack handler passes the point that moved) stays where it is and the chain pulls whatever is
+    # on its other end; otherwise it is the start that stays and the stop that gives.
+    held_end = chain_db_obj.stop_position_pegboard
+    held_end_id = chain_db_obj.stop_position_pegboard_id
+
+    if held_point_id is None or held_point_id != held_end_id or held_end_id == chain_db_obj.start_position_pegboard_id:
+        held_end = chain_db_obj.start_position_pegboard
+        held_end_id = chain_db_obj.start_position_pegboard_id
+
+    raw_start_xz = (float(held_end.x), float(held_end.z))
+
+    _trace(lambda: ('realize', _label(chain_db_obj), 'held end', _short(held_end_id), f'(moved point: {_short(held_point_id)})', _xz(raw_start_xz),))
 
     # The RAW anchor's own current position, not _anchors_and_length's
     # EFFECTIVE one -- _evaluate_points' own main loop now derives the
@@ -2960,7 +3491,7 @@ def realize_length_change(
     # terms, or that delta math reads a nonzero "move" (the stub
     # segment's own fixed offset) out of what should be a pure no-op.
     result = _evaluate_points(
-        ptables, [(chain_db_obj.start_position_pegboard_id, raw_start_xz)], cascade=is_enabled())
+        ptables, [(held_end_id, raw_start_xz)], cascade=is_enabled(), tolerate_stretch=tolerate_stretch)
     if result is None:
         return False
 
@@ -3202,7 +3733,7 @@ def finalize_drag(mainframe: "_ui.MainFrame") -> bool:
             point = points_table[point_id].point
             seeds.append((point_id, (float(point.x), float(point.z))))
 
-        result = _evaluate_points(ptables, seeds, cascade=is_enabled())
+        result = _evaluate_points(ptables, seeds, cascade=is_enabled(), tolerate_stretch=True)
         if result is None:
             feasible = False
             continue

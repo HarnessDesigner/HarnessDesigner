@@ -347,6 +347,9 @@ class Table(_base_pegboard.BasePegboard):
             # docstring) until an endpoint actually moves.
             self._connector_vbo = _cylinder.create_vbo()
             self._connector_material = _materials.Plastic(_color.Color(0, 0, 0))
+            # the line glows the same green as the selection border while the table is selected, so the
+            # owner of a table stacked on others can be followed from its line
+            self._connector_selected_material = _materials.Glowing(_color.Color(0, 255, 0))
             self._connector_position: _point.Point | None = None
             self._connector_angle: _angle.Angle | None = None
             self._connector_scale: _point.Point | None = None
@@ -425,7 +428,8 @@ class Table(_base_pegboard.BasePegboard):
     def _on_wire_selected(self, wire_id: bytes) -> None:
         """A wire row was picked in this table -- light up everything
         that wire touches (see ``wire_highlight``)."""
-        self.pegboard.wire_highlight.show(self, self.db_obj.table.db, wire_id)
+        # a row can stand for several wires (every piece of wire of a conductor's leads, those of a cable's conductors)
+        self.pegboard.wire_highlight.show(self, self.db_obj.table.db, self._host.table.wire_ids_for_key(wire_id))
 
     @_check_types.do
     def _on_wire_deselected(self) -> None:
@@ -781,11 +785,13 @@ class Table(_base_pegboard.BasePegboard):
         real_vbo, real_position, real_angle, real_scale, real_material = (
             self._vbo, self._position, self._angle, self._scale, self._material)
 
+        real_is_selected = self._is_selected
+
         self._vbo = self._connector_vbo
         self._position = self._connector_position
         self._angle = self._connector_angle
         self._scale = self._connector_scale
-        self._material = self._connector_material
+        self._material = self._connector_selected_material if real_is_selected else self._connector_material
 
         # BaseVar.material is a PROPERTY that returns self._selected_
         # material whenever self._is_selected is True, ignoring
@@ -801,8 +807,8 @@ class Table(_base_pegboard.BasePegboard):
         # 2026-09-16. Temporarily clearing is_selected for this one
         # nested render call routes material back to self._material
         # (the connector's own), same as it would for an unselected
-        # table.
-        real_is_selected = self._is_selected
+        # table. (A selected table's glow green was picked above, from the
+        # saved flag, not through that property.)
         self._is_selected = False
 
         super().render(shaders)
@@ -1544,7 +1550,7 @@ class Table(_base_pegboard.BasePegboard):
         if not table.selectionModel().isRowSelected(index.row()):
             return None
 
-        return table.GetSelection()
+        return table.selected_wire_id()
 
     @_check_types.do
     def _wire_drag_started(self, screen_pos: _point.Point) -> bool:

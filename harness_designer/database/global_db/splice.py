@@ -426,6 +426,101 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         self._table.update(self._db_id, max_dia=value)
         self._populate('max_dia')
 
+    # ------------------------------------------------------------------ solder sleeves (cable shield terminators)
+    # (SHIELD_SLEEVE_DESIGN.md in the repo root)
+
+    SLEEVE_TYPE = 'Solder Sleeve'
+    SLEEVE_PIGTAIL_TYPE = 'Solder Sleeve w/Pigtail'
+    SLEEVE_SHIELDING_TYPE = 'Shielding Solder Sleeve'
+
+    @property
+    @_check_types.do
+    def is_solder_sleeve(self) -> bool:
+        """Whether this splice is a solder sleeve (a shield terminator) of any kind, with or without a pigtail.
+
+        :rtype: bool
+        """
+        return self.type.name in (self.SLEEVE_TYPE, self.SLEEVE_PIGTAIL_TYPE, self.SLEEVE_SHIELDING_TYPE)
+
+    @property
+    @_check_types.do
+    def is_shielding_sleeve(self) -> bool:
+        """Whether this solder sleeve can be put on the end of a shielded cable: a plain, round sleeve (type ``Shielding Solder Sleeve``,
+        checked against TE's drawings). The other sleeves of the catalog have ends of different diameters, an odd shape or are made for
+        a terminal, and are not drawn as a tube.
+
+        :rtype: bool
+        """
+        return self.type.name == self.SLEEVE_SHIELDING_TYPE
+
+    @property
+    @_check_types.do
+    def has_pigtail(self) -> bool:
+        """Whether a solder sleeve comes with its pigtail (a wire lead) already fitted. The builder gives such a part the type
+        ``Solder Sleeve w/Pigtail``; a catalog built before that has them as ``Solder Sleeve`` with "Pre-Installed Lead" in the
+        description, which is read as well.
+
+        :rtype: bool
+        """
+        name = self.type.name
+
+        if name == self.SLEEVE_PIGTAIL_TYPE:
+            return True
+
+        return (name in (self.SLEEVE_TYPE, self.SLEEVE_SHIELDING_TYPE) and
+                'pre-installed lead' in (self.description or '').lower())
+
+    @property
+    @_check_types.do
+    def recovered_dia(self) -> float:
+        """The inside diameter a solder sleeve shrinks to, mm (``min_dia``); 0.0 when the catalog gives none.
+
+        :rtype: float
+        """
+        return self.min_dia
+
+    @property
+    @_check_types.do
+    def expanded_dia(self) -> float:
+        """The inside diameter a solder sleeve slides over, mm (``max_dia``); 0.0 when the catalog gives none.
+
+        :rtype: float
+        """
+        return self.max_dia
+
+    @_check_types.do
+    def fits_cable(self, diameter: float) -> bool:
+        """Whether a cable of *diameter* (mm) fits this solder sleeve: it slides over at the expanded diameter and shrinks down onto
+        it, so it must be between the recovered and the expanded diameter. A part with no sizes in the catalog (0.0) fits anything.
+
+        :param diameter: The cable's outside diameter, mm.
+        :type diameter: float
+        :rtype: bool
+        """
+        low, high = self.recovered_dia, self.expanded_dia
+
+        if high <= 0.0:
+            return True
+
+        return low <= diameter <= high
+
+    @_check_types.do
+    def fits_pigtail(self, cable_diameter: float, pigtail_diameter: float) -> bool:
+        """Whether a cable and a pigtail the USER adds to a sleeve both fit in it: the two lie side by side, and the smallest tube that
+        holds two round wires is as wide as the two diameters together, so the sleeve must slide over that at its expanded diameter (a
+        cable alone has to fit too). A sleeve that comes with its pigtail has it from the catalog and is not asked.
+
+        :param cable_diameter: The cable's outside diameter, mm.
+        :type cable_diameter: float
+        :param pigtail_diameter: The pigtail's outside diameter, mm (0 or less when not known).
+        :type pigtail_diameter: float
+        :rtype: bool
+        """
+        if not self.fits_cable(cable_diameter):
+            return False
+
+        return self.fits_cable(cable_diameter + max(pigtail_diameter, 0.0))
+
 
 class SpliceControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a splice control in :mod:`harness_designer.database.global_db.splice`.

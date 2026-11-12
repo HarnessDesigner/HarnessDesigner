@@ -10,6 +10,8 @@ table can show which branch each wire goes through:
 - the wire itself, if it is visible in the peg-board view -- otherwise the
   bundle(s) it is routed through (a wire inside a bundle isn't drawn; the
   bundle is)
+- the CABLE the wire is a lead of (a conductor's piece of wire), or the bundle(s)/branches that cable is
+  routed through, from ``pjt_cable_paths``
 - each transition BRANCH the wire is routed through -- never the whole
   transition, only its branches
 - the wire's end parts: the housing when the terminal is seated in one,
@@ -87,7 +89,7 @@ class WireHighlight:
         self._circuit: _Union["_circuit.Circuit", None] = None
 
     @_check_types.do
-    def show(self, owner: "_base_pegboard.BasePegboard", ptables: "_project_db.PJTTables", wire_id: bytes) -> None:
+    def show(self, owner: "_base_pegboard.BasePegboard", ptables: "_project_db.PJTTables", wire_id: _Union[bytes, list[bytes]]) -> None:
         """Highlight everything *wire_id* touches, replacing any
         highlight already showing.
 
@@ -96,21 +98,30 @@ class WireHighlight:
         :type owner: object
         :param ptables: The project's tables.
         :type ptables: :class:`_project_db.PJTTables`
-        :param wire_id: The selected ``pjt_wires`` row id.
-        :type wire_id: bytes
+        :param wire_id: The selected ``pjt_wires`` row id, or the ids of the wires a selected row stands for (a conductor's
+            pieces of wire, a cable's).
+        :type wire_id: bytes | list[bytes]
         """
         self._undo()
         self._owner = owner
 
         material = _materials.Glowing(_color.Color(*Config.wire_highlight_color))
+        wire_ids = [wire_id] if isinstance(wire_id, bytes) else list(wire_id)
 
         # the circuit goes first: an object holds one override material, so the blue lit below wins over the
         # circuit material on the wire, bundle and end parts
-        self._light_circuit(ptables, wire_id)
-        self._light_wire_or_bundles(ptables, wire_id, material)
-        self._light_branches(ptables, wire_id, material)
-        self._light_ends(ptables, wire_id, material)
-        self._select_in_sections(wire_id)
+        for one in wire_ids:
+            self._light_circuit(ptables, one)
+
+        lit_cables: set[bytes] = set()
+
+        for one in wire_ids:
+            self._light_wire_or_bundles(ptables, one, material)
+            self._light_branches(ptables, one, material)
+            self._light_ends(ptables, one, material)
+            self._light_cable(ptables, one, material, lit_cables)
+
+        self._select_in_sections(wire_ids[0] if wire_ids else None)
 
         self._editor.Refresh()
 
@@ -204,11 +215,41 @@ class WireHighlight:
             self._add_object(ptables.pjt_bundles_table[bundle_id].get_object(), material)
 
     @_check_types.do
+    def _light_cable(self, ptables: "_project_db.PJTTables", wire_id: bytes, material: _materials.GLMaterial,
+                     lit_cables: set[bytes]) -> None:
+        """Light the CABLE a wire is a lead (or a piece of one) of: the cable is one of the components the wire runs through. The
+        cable itself when it is visible on the board, otherwise the bundle(s) it is routed through (a cable inside a bundle isn't
+        drawn), and the transition branches its route passes, like a plain wire. A wire that is not a cable's lead does nothing;
+        a cable is lit once however many of its wires are selected (*lit_cables*)."""
+        conductor_id = ptables.pjt_wires_table[wire_id].cable_conductor_id
+        if conductor_id is None:
+            return
+
+        cable_id = ptables.pjt_cable_conductors_table[conductor_id].cable_id
+        if cable_id in lit_cables:
+            return
+
+        lit_cables.add(cable_id)
+        cable_facade = ptables.pjt_cables_table[cable_id].get_object()
+
+        if cable_facade is not None and cable_facade.objpegboard is not None and cable_facade.objpegboard.is_visible:
+            self._add_object(cable_facade, material)
+        else:
+            for bundle_id in ptables.pjt_cable_paths_table.bundle_ids_for_wire(cable_id):
+                self._add_object(ptables.pjt_bundles_table[bundle_id].get_object(), material)
+
+        self._light_branches(ptables, cable_id, material, ptables.pjt_cable_paths_table)
+
+    @_check_types.do
     def _light_branches(self, ptables: "_project_db.PJTTables", wire_id: bytes,
-                        material: _materials.GLMaterial) -> None:
+                        material: _materials.GLMaterial, paths_table=None) -> None:
         """Light each transition branch the wire is routed through --
-        the branch only, never the transition's hub or body."""
-        for branch_id in ptables.pjt_wire_paths_table.transition_branch_ids_for_wire(wire_id):
+        the branch only, never the transition's hub or body. *paths_table* is the route table to read (a cable's is
+        ``pjt_cable_paths``; the default is the wires')."""
+        if paths_table is None:
+            paths_table = ptables.pjt_wire_paths_table
+
+        for branch_id in paths_table.transition_branch_ids_for_wire(wire_id):
             branch = ptables.pjt_transition_branches_table[branch_id]
 
             transition_facade = branch.transition.get_object()

@@ -33,6 +33,7 @@ from ...ray_tracing import tube_mesh as _tube_mesh
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
+from ... import logger as _logger
 from OpenGL import GL
 
 
@@ -53,6 +54,10 @@ _TWIST_JOIN_GAP_MM = 0.01
 
 # objects.terminal.Terminal, imported the first time a wire asks whether its end crimps into one (a cycle at import time)
 _TERMINAL = None
+
+
+# Pool keys of the wires already reported as having no length (see TubeMixin._render_tubes).
+_reported_empty: set[str] = set()
 
 
 class TwistLook(_NamedTuple):
@@ -353,6 +358,17 @@ class TubeMixin:
         self._obb_manager.mark_visible(self._obb_index)
 
         if not _debug_config.draw_faces:
+            return
+
+        self._twist_segments()
+
+        # A path with no length (both ends on one spot) packs to no rows, and asking the pool for none raised on every frame (a render
+        # failure report each time). There is nothing to draw; say so once, with which wire it is.
+        if len(self._pool_rows) == 0:
+            if self._pool_key not in _reported_empty:
+                _reported_empty.add(self._pool_key)
+                _logger.warning(f'{type(self).__name__} {self.db_obj.db_id.hex()} has no length (its ends are on one spot): not drawn')
+
             return
 
         self._batch_wire(self._active_look(), self.is_selected)

@@ -29,6 +29,7 @@ _cylinder_helix_vbo = None
 _stripe_cylinder_helix_vbo = None
 _rectangle_vbo = None
 _sphere_vbo = None
+_sleeve_vbo = None
 
 
 @_check_types.do
@@ -58,6 +59,7 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash_screen.
     from . import helix
     from . import rectangle
     from . import sphere
+    from . import sleeve
     from . import text
 
     global _arrow_vbo
@@ -70,6 +72,7 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash_screen.
     global _stripe_cylinder_helix_vbo
     global _rectangle_vbo
     global _sphere_vbo
+    global _sleeve_vbo
 
     @_check_types.do
     def _on_glyph_progress(done: int, total: int) -> None:
@@ -125,6 +128,9 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash_screen.
 
             splash.SetText('Loading sphere shape...')
             _sphere_vbo = _timed('sphere', sphere.create_vbo)
+
+            splash.SetText('Loading solder sleeve shape...')
+            _sleeve_vbo = _timed('sleeve', sleeve.create_vbo)
 
             splash.SetText('Loading disc ring shape...')
             _disc_ring_vbo = _timed('disc_ring', disc_ring.create_vbo)

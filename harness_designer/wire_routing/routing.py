@@ -21,9 +21,9 @@ one cavity's height (:func:`_lane_spacing`) -- the pitch terminals
 already stack at -- with the lattice anchored at the start so a bundle
 leaving a housing stays evenly spaced. A* (4-directional, state =
 node + arrival direction, with a bend-cost penalty so straighter runs
-are preferred) finds the path; consecutive non-turning nodes are then collapsed away, so a wire
-that doesn't need to bend at all comes back with an empty waypoint
-list.
+are preferred) finds the path; consecutive non-turning nodes are then
+collapsed away, so a wire that doesn't need to bend at all comes back
+with an empty waypoint list.
 """
 
 from collections.abc import Container, Iterable
@@ -105,7 +105,10 @@ def _lane_spacing() -> float:
 
 
 @_check_types.do
-def _terminal_cylinder_rect(term2d: "_terminal_schematic.Terminal") -> tuple[float, float, float, float] | None:
+def _terminal_cylinder_rect(
+    term2d: "_terminal_schematic.Terminal"
+) -> tuple[float, float, float, float] | None:
+
     """
     One ``objects_schematic/terminal.py`` ``Terminal``'s own rendered
     wire-stub cylinder (``_cylinder_start`` -> ``_wire_position``, the same
@@ -204,6 +207,7 @@ def attached_terminal_cylinder_rects(
     project: "_project.Project",
     wire: "_wire_obj.Wire"
 ) -> list[tuple[float, float, float, float]]:
+
     """
     The :func:`_terminal_cylinder_rect` of each Terminal *wire* is
     directly attached to -- the :class:`RoutingFrame`-batch mirror of

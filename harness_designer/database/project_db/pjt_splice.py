@@ -212,9 +212,34 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         self.delete_table_overlay()
 
+        # a solder sleeve that finishes a cable's shield: the cable no longer has it (its column references this row)
+        cables_table = self._table.db.pjt_cables_table
+
+        for column in ('start_shield_splice_id', 'stop_shield_splice_id'):
+            for row in cables_table.select('id', **{column: self._db_id}):
+                cables_table.update(row[0], **{column: None})
+
         super().delete()
 
         self._table.db.pjt_circuits_table.members_changed(circuit_id)
+
+    @property
+    @_check_types.do
+    def shield_cable(self) -> tuple | None:
+        """The cable this splice is the solder sleeve of, as ``(the cable's row, True for its start end / False for its stop end)``;
+        ``None`` for a splice that is not a sleeve on a cable (``pjt_cables.start_shield_splice_id`` / ``stop_shield_splice_id``).
+
+        :rtype: tuple | None
+        """
+        cables_table = self._table.db.pjt_cables_table
+
+        for start, column in ((True, 'start_shield_splice_id'), (False, 'stop_shield_splice_id')):
+            rows = cables_table.select('id', **{column: self._db_id})
+
+            if rows:
+                return cables_table[rows[0][0]], start
+
+        return None
 
     @_check_types.do
     def get_object(self) -> "_splice_obj.Splice":

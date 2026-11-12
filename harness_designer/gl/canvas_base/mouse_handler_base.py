@@ -305,6 +305,12 @@ class MouseHandlerBase:
         every other picking call site in this module already hands out.
         """
 
+        # Nothing is dragged, rotated or armed while a project is still loading: its objects are half built and its database is being
+        # read; the views can still be looked around.
+        # (a canvas in a dialog, such as the housing editor, has a dialog for its ``mainframe``, which loads no project)
+        if getattr(self.canvas.mainframe, 'project_loading', False):
+            return False
+
         target = self.canvas.active_handler_obj
         if target is None and clicked_object is not None:
             target = self._get_view_object(clicked_object)

@@ -15,6 +15,7 @@ so it is not a plain field).
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
+import colorsys
 import weakref
 from PySide6 import QtWidgets
 
@@ -103,6 +104,30 @@ class PJTCablesTable(PJTTableBase):
 
         cables.pjt_table.update_fields(self)
 
+    # The colours of the cables' rows in the peg-board wire tables are DARK (they sit on a dark theme): hues spread by the golden
+    # angle, so each new cable lands far from the ones before it, at this saturation and value (HSV, 0..1).
+    BG_SATURATION = 0.55
+    BG_VALUE = 0.40
+
+    @_check_types.do
+    def next_bg_color(self) -> int:
+        """A dark background colour no other cable of the project has, as ``0xRRGGBB``.
+
+        :rtype: int
+        """
+        used = {row[0] for row in self.select('bg_color') if row[0] is not None}
+        index = len(used)
+
+        while True:
+            hue = (index * 0.381966) % 1.0
+            red, green, blue = colorsys.hsv_to_rgb(hue, self.BG_SATURATION, self.BG_VALUE)
+            value = (round(red * 255) << 16) | (round(green * 255) << 8) | round(blue * 255)
+
+            if value not in used:
+                return value
+
+            index += 1
+
     @_check_types.do
     def __iter__(self) -> _Iterable["PJTCable"]:
         """Iterate over every cable of the open project.
@@ -167,7 +192,8 @@ class PJTCablesTable(PJTTableBase):
             self, part_id=part_id, name=name, bundle_id=None, transition_id=None,
             start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
             start_point_pegboard_id=start_point_pegboard_id, stop_point_pegboard_id=stop_point_pegboard_id,
-            start_split_mm=0.0, stop_split_mm=0.0, roll_deg=0.0, notes='',
+            start_split_mm=0.0, stop_split_mm=0.0, roll_deg=0.0, bg_color=self.next_bg_color(),
+            start_shield_splice_id=None, stop_shield_splice_id=None, notes='',
             is_visible3d=int(is_visible3d), is_visible_pegboard=int(is_visible_pegboard), smooth=None)
 
         return PJTCable(self, db_id)
@@ -296,6 +322,148 @@ class PJTCable(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosit
 
     @property
     @_check_types.do
+    def bg_color(self) -> int:
+        """The background colour of this cable's rows in the peg-board wire tables, ``0xRRGGBB``. A cable that has none yet (made
+        before the column existed) is given a dark one no other cable has, which is stored, so it stays the same.
+
+        :rtype: int
+        """
+        value = self._table.select('bg_color', id=self._db_id)[0][0]
+
+        if value is None:
+            value = self._table.next_bg_color()
+            self._table.update(self._db_id, bg_color=value)
+
+        return value
+
+    @bg_color.setter
+    @_check_types.do
+    def bg_color(self, value: int) -> None:
+        """Set the background colour of this cable's rows in the peg-board wire tables.
+
+        :param value: ``0xRRGGBB``.
+        :type value: int
+        """
+        self._table.update(self._db_id, bg_color=int(value) & 0xFFFFFF)
+        self._populate('bg_color')
+
+    @property
+    @_check_types.do
+    def start_shield_splice_id(self) -> bytes | None:
+        """The solder sleeve (``pjt_splices`` row id) that finishes the shield at the cable's start end; ``None`` for none.
+
+        :rtype: bytes | None
+        """
+        return self._table.select('start_shield_splice_id', id=self._db_id)[0][0]
+
+    @start_shield_splice_id.setter
+    @_check_types.do
+    def start_shield_splice_id(self, value: bytes | None) -> None:
+        """Set (or clear) the solder sleeve of the start end.
+
+        :param value: A ``pjt_splices`` row id, or ``None``.
+        :type value: bytes | None
+        """
+        self._table.update(self._db_id, start_shield_splice_id=value)
+        self._populate('start_shield_splice_id')
+
+    @property
+    @_check_types.do
+    def stop_shield_splice_id(self) -> bytes | None:
+        """The solder sleeve (``pjt_splices`` row id) that finishes the shield at the cable's stop end; ``None`` for none.
+
+        :rtype: bytes | None
+        """
+        return self._table.select('stop_shield_splice_id', id=self._db_id)[0][0]
+
+    @stop_shield_splice_id.setter
+    @_check_types.do
+    def stop_shield_splice_id(self, value: bytes | None) -> None:
+        """Set (or clear) the solder sleeve of the stop end.
+
+        :param value: A ``pjt_splices`` row id, or ``None``.
+        :type value: bytes | None
+        """
+        self._table.update(self._db_id, stop_shield_splice_id=value)
+        self._populate('stop_shield_splice_id')
+
+    # which ends have the shield clipped off: 0 none, 1 start, 2 stop, 3 both (the two bits)
+    SHIELD_CLIPPED_START = 1
+    SHIELD_CLIPPED_STOP = 2
+
+    @property
+    @_check_types.do
+    def shield_clipped(self) -> int:
+        """Which ends have the shield clipped off: 0 = neither, 1 = the start end, 2 = the stop end, 3 = both.
+
+        :rtype: int
+        """
+        return int(self._table.select('shield_clipped', id=self._db_id)[0][0] or 0)
+
+    @shield_clipped.setter
+    @_check_types.do
+    def shield_clipped(self, value: int) -> None:
+        """Set which ends have the shield clipped off.
+
+        :param value: 0 neither, 1 start, 2 stop, 3 both.
+        :type value: int
+        """
+        if value not in (0, 1, 2, 3):
+            raise ValueError(f'shield_clipped must be 0, 1, 2 or 3, got {value!r}')
+
+        self._table.update(self._db_id, shield_clipped=int(value))
+        self._populate('shield_clipped')
+
+    @_check_types.do
+    def shield_end_clipped(self, start: bool) -> bool:
+        """Whether the shield is clipped off at one end.
+
+        :param start: ``True`` for the start end, ``False`` for the stop end.
+        :type start: bool
+        """
+        bit = self.SHIELD_CLIPPED_START if start else self.SHIELD_CLIPPED_STOP
+        return bool(self.shield_clipped & bit)
+
+    @_check_types.do
+    def set_shield_end_clipped(self, start: bool, clipped: bool) -> None:
+        """Clip off, or put back, the shield at one end; the other end is left as it is.
+
+        :param start: ``True`` for the start end, ``False`` for the stop end.
+        :type start: bool
+        :param clipped: Whether the shield is clipped at that end.
+        :type clipped: bool
+        """
+        bit = self.SHIELD_CLIPPED_START if start else self.SHIELD_CLIPPED_STOP
+        value = self.shield_clipped
+
+        self.shield_clipped = (value | bit) if clipped else (value & ~bit)
+
+    @_check_types.do
+    def shield_splice_id(self, start: bool) -> bytes | None:
+        """The solder sleeve of one end.
+
+        :param start: ``True`` for the start end, ``False`` for the stop end.
+        :type start: bool
+        :rtype: bytes | None
+        """
+        return self.start_shield_splice_id if start else self.stop_shield_splice_id
+
+    @_check_types.do
+    def set_shield_splice_id(self, start: bool, value: bytes | None) -> None:
+        """Set (or clear) the solder sleeve of one end.
+
+        :param start: ``True`` for the start end, ``False`` for the stop end.
+        :type start: bool
+        :param value: A ``pjt_splices`` row id, or ``None``.
+        :type value: bytes | None
+        """
+        if start:
+            self.start_shield_splice_id = value
+        else:
+            self.stop_shield_splice_id = value
+
+    @property
+    @_check_types.do
     def conductors(self) -> list["_pjt_cable_conductor.PJTCableConductor"]:
         """Every conductor of the cable, then its shield if it has one, in ``idx`` order.
 
@@ -394,6 +562,17 @@ class PJTCable(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosit
 
         for conductor in self.conductors:
             conductor.delete()
+
+        # the sleeves of the shield go with the cable (the column is cleared first: it references the splice row)
+        for start in (True, False):
+            sleeve_id = self.shield_splice_id(start)
+
+            if sleeve_id is not None:
+                self.set_shield_splice_id(start, None)
+                splices_table = self._table.db.pjt_splices_table
+
+                if sleeve_id in splices_table:
+                    splices_table[sleeve_id].delete()
 
         self._table.db.pjt_cable_paths_table.delete_for_wire(self.db_id)
 

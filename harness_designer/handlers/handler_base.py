@@ -177,24 +177,29 @@ class HandlerBase:
         Align *acc_obj*'s angle3d to match *pjt_cavity*'s world-space rotation.
 
         Mirrors :meth:`set_angle_from_housing` but uses the cavity quaternion.
-        Returns True when the angle was written, False when data is missing.
+
+        The angle that ends up on *acc_obj* is the cavity's own (that is the invariant a housing rotation keeps, see
+        ``PJTHousing._update_angle3d``); the part's model only decides which Euler triple stands for it. When the model, its OBB or
+        its forward/up faces are not there yet (a part added before its model has loaded, or one that has not been oriented), the
+        angle is still copied from the cavity (:meth:`_mirror_cavity_angle`) instead of being left at zero: a terminal added into a
+        cavity of a rotated housing stood unrotated.
         """
 
         part = acc_obj.db_obj.part
         if part is None:
-            return False
+            return cls._mirror_cavity_angle(acc_obj, pjt_cavity)
 
         model3d = part.model3d
         if model3d is None:
-            return False
+            return cls._mirror_cavity_angle(acc_obj, pjt_cavity)
 
         local_obb = acc_obj.obj3d._vbo.local_obb  # NOQA
         if local_obb is None:
-            return False
+            return cls._mirror_cavity_angle(acc_obj, pjt_cavity)
 
         fwd_face, up_face = model3d.forward_up
         if fwd_face == -1 or up_face == -1:
-            return False
+            return cls._mirror_cavity_angle(acc_obj, pjt_cavity)
 
         q_c = pjt_cavity.angle3d._q  # NOQA
         q_obj = acc_obj.obj3d.angle._q  # NOQA
@@ -204,12 +209,12 @@ class HandlerBase:
         fwd = cls.obb_face_direction(rotated, local_obb, fwd_face)
         up = cls.obb_face_direction(rotated, local_obb, up_face)
         if fwd is None or up is None:
-            return False
+            return cls._mirror_cavity_angle(acc_obj, pjt_cavity)
 
         right = np.cross(up, fwd)  # NOQA
         rn = float(np.linalg.norm(right))
         if rn < 1e-8:
-            return False
+            return cls._mirror_cavity_angle(acc_obj, pjt_cavity)
 
         right /= rn
         up = np.cross(fwd, right)  # NOQA
@@ -223,6 +228,38 @@ class HandlerBase:
             obj_angle.x = new_euler[0]
             obj_angle.y = new_euler[1]
             obj_angle.z = new_euler[2]
+            obj_angle._matrix[:] = q_c.as_matrix  # NOQA
+
+        obj_angle._q.w = q_c.w  # NOQA
+        obj_angle._q.x = q_c.x  # NOQA
+        obj_angle._q.y = q_c.y  # NOQA
+        obj_angle._q.z = q_c.z  # NOQA
+        obj_angle._process_callbacks()  # NOQA
+
+        return True
+
+    @classmethod
+    @_check_types.do
+    def _mirror_cavity_angle(cls, acc_obj: "_ObjectBase", pjt_cavity: "_pjt_cavity.PJTCavity") -> bool:
+        """
+        Give *acc_obj* exactly the angle of *pjt_cavity* (its Euler angles, matrix and quaternion), without looking at the
+        object's model: what a housing rotation does to the terminals and seals in its cavities.
+
+        :returns: True when the angle was written, False when *acc_obj* has no 3D object yet.
+        """
+        obj3d = acc_obj.obj3d
+        if obj3d is None:
+            return False
+
+        cav_angle = pjt_cavity.angle3d
+        q_c = cav_angle._q  # NOQA
+        euler = cav_angle.as_euler_float
+
+        obj_angle = obj3d.angle
+        with obj_angle:
+            obj_angle.x = euler[0]
+            obj_angle.y = euler[1]
+            obj_angle.z = euler[2]
             obj_angle._matrix[:] = q_c.as_matrix  # NOQA
 
         obj_angle._q.w = q_c.w  # NOQA

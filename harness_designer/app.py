@@ -8,6 +8,8 @@ from collections.abc import Callable
 import os
 import sys
 import time
+import datetime
+import faulthandler
 import threading
 import traceback as _traceback
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -29,6 +31,10 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenG
 os.environ.setdefault('QSG_RHI_BACKEND', 'opengl')
 
 _call_on_main = None
+
+# How long the main thread may be blocked before the watchdog writes the stacks (App._start_hang_watchdog). A project's load runs
+# in the main thread but handles events as it goes, so it does not count as blocked.
+_HANG_SECONDS = 20
 
 
 @_check_types.do
@@ -211,6 +217,7 @@ class App(QtCore.QObject):
         self.logger = logger
         logger.startup()
         self._log_gpu_info()
+        self._start_hang_watchdog()
 
         # Capture Qt's own native warnings/errors (e.g. "Cannot make
         # QOpenGLContext current in a different thread") into the log --
@@ -236,6 +243,37 @@ class App(QtCore.QObject):
         # Kick off the background loading thread once the event loop is running
         self._start_loading_thread()
         return True
+
+    @_check_types.do
+    def _start_hang_watchdog(self) -> None:
+        """Write the stack of every thread to ``log/hang_<time>.txt`` when the main thread has not run for a while.
+
+        A hung application writes no crash data (nothing raises). A timer on the main thread re-arms ``faulthandler``'s watchdog
+        every second; when the main thread is blocked past ``_HANG_SECONDS`` the watchdog (its own thread) dumps all stacks, again
+        every ``_HANG_SECONDS`` while it stays blocked, so the file shows where the application is stuck. The file is removed at exit
+        when nothing was written to it.
+        """
+        from .utils import paths as _paths
+
+        log_dir = os.path.join(_paths.get_appdata(), 'log')
+        os.makedirs(log_dir, exist_ok=True)
+
+        stamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        self._hang_path = os.path.join(log_dir, f'hang_{stamp}.txt')
+        self._hang_file = open(self._hang_path, 'w')
+
+        faulthandler.enable(file=self._hang_file)
+
+        self._hang_timer = QtCore.QTimer(self)
+        self._hang_timer.setInterval(1000)
+        self._hang_timer.timeout.connect(self._hang_beat)
+        self._hang_timer.start()
+        self._hang_beat()
+
+    @_check_types.do
+    def _hang_beat(self) -> None:
+        """The main thread is alive: push the watchdog's deadline out again."""
+        faulthandler.dump_traceback_later(_HANG_SECONDS, repeat=True, file=self._hang_file)
 
     @_check_types.do
     def _log_gpu_info(self) -> None:
@@ -403,6 +441,15 @@ class App(QtCore.QObject):
     def OnExit(self) -> None:
         """Called automatically by MainLoop when the event loop ends."""
         from . import config
+
+        faulthandler.cancel_dump_traceback_later()
+        self._hang_file.flush()
+        empty = os.path.getsize(self._hang_path) == 0
+
+        if empty:
+            faulthandler.disable()
+            self._hang_file.close()
+            os.remove(self._hang_path)
 
         if self.logger:
             self.logger.info('Saving Config Data...')

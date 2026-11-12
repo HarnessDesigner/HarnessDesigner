@@ -101,6 +101,7 @@ from collections.abc import Callable
 import numpy as np
 
 from ..geometry import point as _point
+from ..shapes import sleeve as _sleeve_shape
 from ..gl import object_picker as _object_picker
 from .. import debug as _debug
 from .. import check_types as _check_types
@@ -380,6 +381,16 @@ class WireDragMixin:
         for column in columns:
             if conductors.select('id', **{column: check_id}):
                 return True
+
+        # The branch point of a solder sleeve on a cable's shield (its pigtail's end is set onto the sleeve): the sleeve is moved by
+        # the cable (Cable._sync_shield_sleeve), the wire's end on it is not moved by a drag. The board does not draw sleeves.
+        if points_table is not project.ptables.pjt_points_pegboard_table:
+            ptables = project.ptables
+
+            for row in ptables.pjt_cables_table.select('start_shield_splice_id', 'stop_shield_splice_id'):
+                for sleeve_id in row:
+                    if sleeve_id is not None and ptables.pjt_splices_table.select('id', id=sleeve_id, branch_point3d_id=check_id):
+                        return True
 
         return False
 
@@ -977,9 +988,83 @@ class WireDragMixin:
         the old, always-two-points segment-only plan; generalizing it to
         also cover this shared algorithm's single-point (true-end) case
         is follow-up work, not done here.
+
+        The one limit the 3D view has: the pigtail of a solder sleeve that comes with one is at most
+        ``sleeve.PIGTAIL_LENGTH_MM`` long, measured from the middle of the sleeve (:meth:`_clamp_sleeve_pigtail`).
         """
 
-        return delta
+        return self._clamp_sleeve_pigtail(moving_points, delta)
+
+    @_check_types.do
+    def _clamp_sleeve_pigtail(self, moving_points: list[_point.Point], delta: _point.Point) -> _point.Point:  # NOQA
+
+        """
+        Keep the pigtail of a catalog solder sleeve (user, 2026-11-11) from being dragged longer than
+        ``sleeve.PIGTAIL_LENGTH_MM`` (150 mm), counted from the MIDDLE of the sleeve along the wire's route (the sleeve's end, each
+        bend, the end being dragged). A drag that would make it longer is shortened to the longest it may be; one that does not
+        make it longer is left alone (so a pigtail that is already too long can still be pulled in). A wire that is not the pigtail
+        of such a sleeve, and every drag in the peg-board view (it does not draw sleeves), is not limited.
+        """
+
+        target = self.target
+        project = self.canvas.mainframe.project
+
+        if self._points_table(project) is not project.ptables.pjt_points3d_table:
+            return delta
+
+        sleeve = None
+        sleeve_at_stop = False
+
+        for sibling, at_stop in ((target.start_sibling, False), (target.stop_sibling, True)):
+            part = getattr(getattr(sibling, 'db_obj', None), 'part', None)
+
+            if part is not None and getattr(part, 'is_solder_sleeve', False) and part.has_pigtail:
+                sleeve, sleeve_at_stop = sibling, at_stop
+                break
+
+        if sleeve is None:
+            return delta
+
+        wire_db = target.db_obj
+        route = [wire_db.start_position3d, *(p.point for p in wire_db.waypoints3d), wire_db.stop_position3d]
+
+        if sleeve_at_stop:
+            route.reverse()
+
+        points = [np.asarray(p.as_numpy, dtype=np.float64) for p in route]
+        row = sleeve.db_obj
+        centre = (np.asarray(row.start_position3d.as_numpy, dtype=np.float64) +
+                  np.asarray(row.stop_position3d.as_numpy, dtype=np.float64)) / 2.0
+        longest = _sleeve_shape.PIGTAIL_LENGTH_MM - float(np.linalg.norm(centre - points[0]))
+
+        step = np.asarray(delta.as_numpy, dtype=np.float64)
+        moved = [i for i, p in enumerate(points)
+                 if any(float(np.linalg.norm(p - np.asarray(m.as_numpy, dtype=np.float64))) < 1e-6 for m in moving_points)]
+
+        if not moved:
+            return delta
+
+        def length(t: float) -> float:
+            shifted = [p + step * t if i in moved else p for i, p in enumerate(points)]
+            return float(sum(np.linalg.norm(b - a) for a, b in zip(shifted, shifted[1:])))
+
+        if length(1.0) <= max(longest, length(0.0)) + 1e-6:
+            return delta
+
+        if length(0.0) >= longest:
+            return _point.Point(0.0, 0.0, 0.0)
+
+        low, high = 0.0, 1.0
+
+        for _ in range(24):
+            middle = (low + high) / 2.0
+
+            if length(middle) <= longest:
+                low = middle
+            else:
+                high = middle
+
+        return _point.Point(*(float(v) for v in step * low))
 
     @_check_types.do
     def _arm_drag(self, canvas: "_canvas_window_base.CanvasWindowBase",

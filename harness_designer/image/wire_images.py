@@ -1109,6 +1109,23 @@ def _catalog_wire_image(wire: "_wire.Wire") -> _Union[Image, None]:
 
 
 @_check_types.do
+def _conductor_image(conductor: object) -> _Union[Image, None]:
+    """
+    Build the image of one catalog conductor of a cable (the part of a lead, see ``PJTWire.part``): a single wire of the
+    conductor's colour, stripe and core.
+
+    :param conductor: The catalog conductor.
+    :type conductor: :class:`WireConductor`
+
+    :returns: The image, or ``None`` when it has no colour (the "no color" id).
+    :rtype: :class:`Image` | None
+    """
+
+    return _draw_wire(conductor._table.db, None, 1, conductor.color_id, conductor.stripe_color_id,   # NOQA
+                      conductor.core_material_id, False, None, [])
+
+
+@_check_types.do
 def _loop_image(wire: "_wire.Wire") -> _Union[Image, None]:
     """
     Build the image of a wire service loop from the colours of its catalog wire.
@@ -1147,7 +1164,8 @@ def build_image(
     * a catalog :class:`Wire`: a :class:`WireImage`, :class:`TwistedWireImage`,
       :class:`CableImage` or :class:`CoaxImage`, whichever its wire type,
       conductors, ``tpi`` and shield call for (see :func:`_catalog_wire_image`);
-    * a project :class:`PJTWire`: the same, for its catalog wire (``row.part``);
+    * a project :class:`PJTWire`: the same, for its catalog wire (``row.part``); a lead of a cable's conductor has the conductor
+      for its part: a single wire in its colours;
     * a :class:`WireImageRow`: the same as a catalog wire, from plain query
       results (the parts editor's list, which does not make a ``Wire`` row per line);
     * a project :class:`PJTWireServiceLoop`: a :class:`WireLoopImage` in the
@@ -1169,6 +1187,7 @@ def build_image(
     # not at the top: the database packages import this one's package,
     # and this module has to stay loadable alone
     from ..database.global_db import wire as gl_wire
+    from ..database.global_db import wire_conductor as gl_wire_conductor
     from ..database.project_db import pjt_wire, pjt_wire_service_loop
 
     if isinstance(row, WireImageRow):
@@ -1180,7 +1199,13 @@ def build_image(
         return _catalog_wire_image(row)
 
     if isinstance(row, pjt_wire.PJTWire):
-        return _catalog_wire_image(row.part)
+        part = row.part
+
+        # the wire of a lead of a cable's conductor is that conductor, not a catalog wire
+        if isinstance(part, gl_wire_conductor.WireConductor):
+            return _conductor_image(part)
+
+        return _catalog_wire_image(part)
 
     if isinstance(row, pjt_wire_service_loop.PJTWireServiceLoop):
         return _loop_image(row.part)

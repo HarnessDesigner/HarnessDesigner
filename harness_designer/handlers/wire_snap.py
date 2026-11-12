@@ -224,6 +224,23 @@ def check_splice_compat(splice: "_splice.Splice",
     if splice_part is None:
         return True, None, None
 
+    # A solder sleeve (the shield terminator of a cable, SHIELD_SLEEVE_DESIGN.md) takes ONE wire, its pigtail: it is a snap point for a
+    # wire only while it has none. A sleeve that comes with its pigtail has that wire from the moment it is added (a plain wire on
+    # the branch point, see Cable.add_shield_sleeve); one without has none until the user snaps one on.
+    if splice_part.is_solder_sleeve and splice.branch_wires:
+        return False, 'This solder sleeve already has a pigtail', None
+
+    # A pigtail the user adds: the cable and the pigtail must BOTH fit in the sleeve (together, side by side). The length of such a
+    # pigtail is not limited; only the one a catalog sleeve comes with is (see shapes.sleeve.PIGTAIL_LENGTH_MM).
+    if splice_part.is_solder_sleeve and not splice_part.has_pigtail:
+        cable_diameter = _sleeve_cable_diameter(splice)
+        wire_od = wire_part.od_mm or 0.0
+
+        if cable_diameter > 0.0 and not splice_part.fits_pigtail(cable_diameter, wire_od):
+            return (False,
+                    f'The cable ({cable_diameter:.2f} mm) and this wire ({wire_od:.2f} mm) together do not fit this solder sleeve '
+                    f'({splice_part.min_dia:.2f} to {splice_part.max_dia:.2f} mm)', None)
+
     if not _awg_fits(splice_part, wire_part):
         awg_min = splice_part.wire_size_awg_min
         awg_max = splice_part.wire_size_awg_max
@@ -242,6 +259,21 @@ def check_splice_compat(splice: "_splice.Splice",
     attached = ([through_wire] if through_wire is not None else []) + splice.branch_wires
 
     return True, None, capacity_warning(attached, splice_part, wire_part, 'splice')
+
+
+@_check_types.do
+def _sleeve_cable_diameter(splice: "_splice.Splice") -> float:
+    """The outside diameter (mm) of the cable a solder sleeve is on, 0.0 when it is not on one (see ``Cable.add_shield_sleeve``)."""
+    cables = splice.mainframe.project.ptables.pjt_cables_table
+    sleeve_id = splice.db_obj.db_id
+
+    for column in ('start_shield_splice_id', 'stop_shield_splice_id'):
+        found = cables.select('id', **{column: sleeve_id})
+
+        if found:
+            return float(cables[found[0][0]].part.trunk_size[0])
+
+    return 0.0
 
 
 @_check_types.do

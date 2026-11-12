@@ -72,6 +72,23 @@ class WireSlackHandler:
     # own handlers, each nested inside the last.
     _reconciling_any = False
 
+    # How many project loads are running (see :meth:`loading`). Shared by every instance: while a project loads nothing is reconciled.
+    _loading = 0
+
+    @classmethod
+    @contextlib.contextmanager
+    def loading(cls):
+        """A ``with`` block around a project's load: no wire or cable reconciles in it. A saved project's geometry is already right
+        and is the authority; objects being built one after another (a cable laying its split points on the trunk, a layout
+        binding its point) move points that would each re-fit the wires, in a project only half built, and the re-fit deletes the
+        layouts of the route that the load has not reached yet (``KeyError`` out of the load of the next one)."""
+        cls._loading += 1
+
+        try:
+            yield
+        finally:
+            cls._loading -= 1
+
     @_check_types.do
     def __init__(self, wire: _Union["_wire_obj.Wire", "_cable_obj.Cable"]):
         # a placed cable is a chain the solver treats as it does a wire (free ends, no stubs, no layouts): it has the same safety net
@@ -316,7 +333,7 @@ class WireSlackHandler:
         point happens to move.
         """
         # The wire was deleted (see release): its row is gone, so there is nothing to reconcile and looking it up raises KeyError.
-        if self._released or self._suspended:
+        if self._released or self._suspended or WireSlackHandler._loading:
             return
 
         # A commit (rope_pull_handler._commit_points) already reconciles
@@ -338,7 +355,7 @@ class WireSlackHandler:
             mainframe = self._wire.mainframe
             in_progress = mainframe.project.ptables.gesture_depth > 0
             _rope_pull_handler.realize_length_change(
-                mainframe, self._wire.db_obj, in_progress=in_progress, held_point_id=held_point_id)
+                mainframe, self._wire.db_obj, in_progress=in_progress, held_point_id=held_point_id, tolerate_stretch=True)
         finally:
             # The flag is cleared even when re-registering raises: left set, it would make every wire's reconcile return early for the
             # rest of the session.

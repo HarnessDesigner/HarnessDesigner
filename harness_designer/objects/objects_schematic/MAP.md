@@ -56,6 +56,8 @@ One file per harness part, same `BaseSchematic(parent, db_obj)` shape.
 
 Schematic housing rendering, same `BaseSchematic(parent, db_obj)` shape as the rest of this directory.
 
+**`refresh_size()` (2026-11-11):** the rectangle's size and the corner label are read from `db_obj.stack_geometry` once, in `__init__`; a housing placed before its part had cavities was a very thin rectangle for good. `PJTHousing._after_cavities_created` calls this after `update_cavities` filled the cavities in: the scale (a bound point, so the OBB / AABB follow) and the label position are set again. NOT run in the app.
+
 #### note.py
 
 One file per harness part, same `BaseSchematic(parent, db_obj)` shape.

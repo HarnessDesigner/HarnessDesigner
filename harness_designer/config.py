@@ -1212,6 +1212,12 @@ class Config(metaclass=ConfigDB):
             # and no waypoints are added, removed or re-solved.
             enabled = True
 
+            # Write one log line for every decision the solver makes (which chain,
+            # which end, pulled / pushed / bends, which node
+            # moved and by how much, why a move was refused). Off by default:
+            # a drag runs the solver many times a frame.
+            trace = False
+
             # Zig-zag count cap: a span gets at most one zig-zag per this
             # many bundle/wire diameters of its own straight start-to-stop
             # length (never fewer than one). Placeholder, not tuned.

@@ -72,6 +72,8 @@ compositing, not `Image.__add__` (a masked paste). Imports only `check_types`, `
 scratch script can load it under a throwaway package name (do NOT import `harness_designer` for that, it opens the real
 config; PySide6 may also be missing, so stub `PySide6.QtGui`).
 
+**A lead's part (2026-11-11):** `build_image` of a `PJTWire` whose part is a `WireConductor` (a lead of a cable's conductor) draws that conductor, `_conductor_image`: one wire in the conductor's colour, stripe and core. It raised `TypeError: cannot draw a WireConductor` for the circuit editor before.
+
 ## FOLDERS
 
 #### cursors/

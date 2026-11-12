@@ -571,6 +571,9 @@ class CableMenu(QtWidgets.QMenu):
     # a waypoint is placed in the 3D editor (add_handlers/editor_3d/wire_layout.py); the peg board's menu leaves the entry out
     _has_add_layout: bool = True
 
+    # a solder sleeve on a shielded cable's split end is put on and taken off in the 3D editor (the board does not draw splices)
+    _has_sleeve: bool = True
+
     @_check_types.do
     def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: Cable):
         """Initialise the :class:`CableMenu` instance.
@@ -615,6 +618,33 @@ class CableMenu(QtWidgets.QMenu):
         action = self.addAction(f'Fan-out Order ({end_name} end)...')
         action.setEnabled(len(cable.db_obj.conductors) > 1 and cable.can_reorder(self._start))
         action.triggered.connect(self.on_fan_out)
+
+        if self._has_sleeve and cable.db_obj.part.shielded:
+            # (user, 2026-11-11) none of these work unless the end is split; a clipped shield takes no sleeve (Add is greyed out) and a
+            # sleeve on the end greys out Clip. The clip line turns into Unclip, as Split Conductors turns into Join.
+            split = cable.is_split(self._start)
+
+            if cable.shield_sleeve(self._start) is None:
+                action = self.addAction(f'Add Solder Sleeve ({end_name} end)...')
+                action.setEnabled(cable.can_add_shield_sleeve(self._start))
+                action.setToolTip('Finish the shield of this end with a solder sleeve. The end has to be split, and the shield not clipped.')
+                action.triggered.connect(self.on_add_sleeve)
+            else:
+                action = self.addAction(f'Remove Solder Sleeve ({end_name} end)')
+                action.setEnabled(split)
+                action.triggered.connect(self.on_remove_sleeve)
+
+            if cable.shield_clipped(self._start):
+                action = self.addAction(f'Unclip Shield ({end_name} end)')
+                action.setEnabled(cable.can_unclip_shield(self._start))
+                action.setToolTip('Put the shield back at this end: its lead is made again. The end has to be split.')
+                action.triggered.connect(self.on_unclip_shield)
+            else:
+                action = self.addAction(f'Clip Shield ({end_name} end)')
+                action.setEnabled(cable.can_clip_shield(self._start))
+                action.setToolTip('Cut the shield off at this end (a shield is usually connected at one end only; both ends can be clipped). '
+                                  'The end has to be split and have no sleeve.')
+                action.triggered.connect(self.on_clip_shield)
 
         if self._has_roll and cable.db_obj.part.is_ribbon:
             action = self.addAction('Roll Ribbon...')
@@ -721,6 +751,101 @@ class CableMenu(QtWidgets.QMenu):
 
             if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 cable.set_fan_order(start, [ordered[index] for index in dialog.GetValue()])
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_add_sleeve(self) -> None:
+        """Ask for the solder sleeve (the part picked in the splices page of the database editor, else a search) and put it on this end."""
+        cable = self.selected.parent
+        start = self._start
+        mainframe = self.selected.mainframe
+        canvas = self.canvas
+
+        @_check_types.do
+        def _do() -> None:
+            from ...ui.dialogs import part_search as _part_search  # NOQA -- avoid a cycle at import time
+            from ...ui import editor_db as _editor_db  # NOQA
+
+            diameter = float(cable.db_obj.part.trunk_size[0])
+            splices_table = mainframe.global_db.splices_table
+            part_id = mainframe.editor_db.editor.splices.GetSelection()
+
+            if part_id is not None:
+                # the part picked in the database editor is used only when it is a sleeve that fits this cable
+                picked = splices_table[part_id]
+
+                if not (picked.is_shielding_sleeve and picked.fits_cable(diameter)):
+                    part_id = None
+
+            if part_id is None:
+                # the search opens already filled in with the sleeves the cable fits into:
+                # the type Shielding Solder Sleeve (the plain, round sleeves, with or without a pigtail), and
+                # min_dia <= cable diameter <= max_dia
+                params = _part_search.SearchParameters()
+                params.add('type_id', _part_search.SearchTerm(phrase='Shielding Solder Sleeve'))
+                params.add('min_dia', _part_search.SearchTerm(operator='<=', value=f'{diameter:.6g}'))
+                params.add('max_dia', _part_search.SearchTerm(operator='>=', value=f'{diameter:.6g}'))
+                # a sleeve whose catalog gives no sizes (0 / 0) is listed too: its size is not known (as `fits_cable` has it)
+                params.add('max_dia', _part_search.SearchTerm(operator='==', value='0'))
+
+                dlg = _part_search.SearchDialog(
+                    mainframe, _editor_db.SplicesPage, splices_table, 'Add Solder Sleeve', initial_params=params)
+
+                part_id = dlg.GetValue() if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted else None
+                dlg.deleteLater()
+
+            if part_id is None:
+                return
+
+            try:
+                cable.add_shield_sleeve(start, part_id)
+            except ValueError as err:
+                QtWidgets.QMessageBox.warning(canvas, 'Add Solder Sleeve', str(err))
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_clip_shield(self) -> None:
+        """Cut the shield off at this end."""
+        cable = self.selected.parent
+        start = self._start
+        canvas = self.canvas
+
+        @_check_types.do
+        def _do() -> None:
+            try:
+                cable.clip_shield(start)
+            except ValueError as err:
+                QtWidgets.QMessageBox.warning(canvas, 'Clip Shield', str(err))
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_unclip_shield(self) -> None:
+        """Take the clip off the shield at this end."""
+        cable = self.selected.parent
+        start = self._start
+        canvas = self.canvas
+
+        @_check_types.do
+        def _do() -> None:
+            try:
+                cable.unclip_shield(start)
+            except ValueError as err:
+                QtWidgets.QMessageBox.warning(canvas, 'Unclip Shield', str(err))
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_remove_sleeve(self) -> None:
+        """Take the solder sleeve off this end."""
+        cable = self.selected.parent
+        start = self._start
+
+        @_check_types.do
+        def _do() -> None:
+            cable.remove_shield_sleeve(start)
 
         QtCore.QTimer.singleShot(0, _do)
 

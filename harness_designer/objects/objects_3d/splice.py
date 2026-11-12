@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Union as _Union
 
 import math
 import build123d
+from OpenGL import GL
 from PySide6 import QtCore, QtWidgets
 
 from ...geometry import point as _point
@@ -12,6 +13,7 @@ from ...geometry import line as _line
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
+from ...shapes import sleeve as _sleeve
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
@@ -27,9 +29,16 @@ if TYPE_CHECKING:
     from .. import splice as _splice
     from ... import ui as _ui
     from .. import wire as _wire_facade
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_3d
+
+# A solder sleeve (SHIELD_SLEEVE_DESIGN.md): the tube's colour when the part has none, and the solder ring on it.
+# The tube is translucent (_SLEEVE_ALPHA of 255) so the ring, which lies inside its wall, shows through; the ring is solder, a silver grey.
+_SLEEVE_COLOR = (205, 208, 214)
+_SLEEVE_ALPHA = 85
+_RING_COLOR = (178, 181, 188)
 
 
 @_check_types.do
@@ -147,11 +156,88 @@ class Splice(_base_3d.Base3D):
 
             material = _materials.Rubber(self._part.color.ui)
 
+            # A solder sleeve is not a plain cylinder: a hollow tube with a wall (shapes/sleeve.py), scaled by the diameter of the
+            # cable it is on, with the solder ring (the cylinder primitive) on it, drawn by render().
+            self._ring_vbo = None
+            self._ring_material = None
+            self._ring_shape = None
+            self._ring_key = None
+            self._ring_position = _point.Point(0.0, 0.0, 0.0)
+
+            if self._part.is_solder_sleeve:
+                on_cable = db_obj.shield_cable
+                cable_od = on_cable[0].part.od_mm if on_cable is not None else 0.0
+
+                self._ring_shape = shape = _sleeve.sizes(cable_od, self._part.min_dia, self._part.max_dia, self._part.length)
+                scale = _point.Point(shape['diameter'], shape['diameter'], shape['length'])
+                vbo = _sleeve.create_vbo()
+
+                tube_color = self._part.color
+                has_color = tube_color is not None and tube_color.db_id not in (None, b'\x00' * 16)
+                tube_rgb = tuple(tube_color.ui.rgb) if has_color else _SLEEVE_COLOR
+                material = _materials.Plastic(_color.Color(*tube_rgb, _SLEEVE_ALPHA))
+
+                self._ring_vbo = _cylinder.create_vbo()
+                self._ring_material = _materials.Metallic(_color.Color(*_RING_COLOR))
+
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the splice. A solder sleeve is a translucent tube with its solder ring INSIDE the wall, so the ring is drawn first (an
+        opaque cylinder, writing depth) and the tube over it, blended, without writing depth: the ring shows through the tube, and
+        what the tube is drawn over (the cable, the ring) stays. A selected sleeve is drawn by the canvas's own translucent passes,
+        which set the depth mask themselves, so it is left alone then.
+
+        :param shaders: The canvas's shader programs.
+        """
+        if self._ring_vbo is None or not self.is_visible or self._vbo is not _sleeve.create_vbo():
+            super().render(shaders)
+            return
+
+        self._render_ring(shaders)
+
+        if self.is_selected:
+            super().render(shaders)
+            return
+
+        GL.glDepthMask(GL.GL_FALSE)
+
+        try:
+            super().render(shaders)
+        finally:
+            GL.glDepthMask(GL.GL_TRUE)
+
+    @_check_types.do
+    def _render_ring(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the solder ring of a sleeve: a cylinder inside the wall of the tube, centred on it along its axis, from the sleeve's
+        start point to its stop point."""
+        start = self._p1.as_numpy
+        stop = self._p2.as_numpy
+        key = (tuple(start), tuple(stop))
+
+        if key != self._ring_key:
+            axis = stop - start
+            norm = float(math.sqrt(float((axis * axis).sum())))
+
+            if norm < 1e-9:
+                return
+
+            at = start + axis / norm * self._ring_shape['ring_offset']
+            self._ring_position = _point.Point(float(at[0]), float(at[1]), float(at[2]))
+            self._ring_key = key
+
+        shape = self._ring_shape
+        ring_scale = _point.Point(shape['ring_diameter'], shape['ring_diameter'], shape['ring_length'])
+        angle = self._ring_vbo.render_angle(self._angle)
+
+        with shaders.faces:
+            self._ring_material.set(shaders.faces)
+            self._ring_vbo.render(shaders.faces, self._ring_position, angle, ring_scale, self.smooth)
 
     @classmethod
     @_check_types.do

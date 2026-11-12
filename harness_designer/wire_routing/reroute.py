@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Shared "reroute one wire" transaction for the 2D schematic editor's
+"""
+Shared "reroute one wire" transaction for the 2D schematic editor's
 auto-router (see ``routing.py``) -- the single choke point every
 caller (initial wire finalize, live drag rerouting, the release-time
 overlap sweep, Auto Arrange's full-project pass) goes through to
@@ -35,14 +36,14 @@ if TYPE_CHECKING:
     from ..geometry import point as _point
     from ..objects import project as _project
     from ..objects import wire as _wire_obj
-    from ..objects import terminal as _terminal_obj
-    from ..objects import splice as _splice_obj
-    from ..objects import housing as _housing_obj
 
 
 @_check_types.do
-def on_wire_attached(project: "_project.Project", wire: "_wire_obj.Wire") -> None:
-    """Call once, right after a fresh Terminal/Splice attach completes on
+def on_wire_attached(project: "_project.Project",
+                     wire: "_wire_obj.Wire") -> None:
+
+    """
+    Call once, right after a fresh Terminal/Splice attach completes on
     either of *wire*'s ends -- ``objects.terminal.Terminal.add_wire``'s own
     internal ``set_sibling`` call for a terminal, or the explicit
     ``wire.set_sibling(splice, end)`` each splice-attach call site makes
@@ -76,12 +77,16 @@ def on_wire_attached(project: "_project.Project", wire: "_wire_obj.Wire") -> Non
     (``Project._reconcile_wire_sibling_graph``), which must never re-route
     or re-touch the canvas for a wire whose path is already persisted.
 
-    A lead of a cable's conductor is never drawn in the schematic. What is drawn is the conductor, as one wire from the
-    terminal or splice one lead ends on to the one the other ends on (:class:`~harness_designer.objects.cable_conductor.
-    ConductorRun`): attaching a lead is the moment that wire may have become complete, so the conductor is asked.
+    A lead of a cable's conductor is never drawn in the schematic. What is drawn
+    is the conductor, as one wire from the terminal or splice one lead ends on to
+    the one the other ends on (:class:`~harness_designer.objects.cable_conductor.
+    ConductorRun`): attaching a lead is the moment that wire may have become
+    complete, so the conductor is asked.
     """
-    if wire.is_wire and wire.conductor_node is not None:
-        wire.conductor_node.refresh_schematic(True)
+
+    # (a piece of a lead cut by a wire service loop counts: the conductor looks past the loop)
+    if wire.is_wire and wire.lead_node is not None:
+        wire.lead_node.refresh_schematic(True)
         return
 
     if not wire.is_connected:
@@ -93,13 +98,16 @@ def on_wire_attached(project: "_project.Project", wire: "_wire_obj.Wire") -> Non
     # editor_schematic.wire) keeps those points and only has the rest routed.
     # Read here, not passed in: Terminal.add_wire calls this itself, deep
     # inside the attach, where the add handler can't reach it.
-    reroute_wire(project, wire, fixed_prefix=wire.route_prefix)
+    reroute_wire(project, wire, fixed_prefix=wire.route_prefix)  # NOQA
     wire.mainframe.editor2d.add_object(wire)
 
 
 @_check_types.do
-def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, float] | None:
-    """If *wire*'s *end* ('start'/'stop') is attached to a Terminal, the
+def _terminal_exit_stub_point(wire: "_wire_obj.Wire",
+                              end: str) -> tuple[float, float] | None:
+
+    """
+    If *wire*'s *end* ('start'/'stop') is attached to a Terminal, the
     world ``(x, z)`` point ``Config.layout.terminal_stub_length`` out
     from that end along the terminal's own wire-stub cylinder's real
     direction -- ``cylinder_start -> wire_position``, the same two
@@ -135,6 +143,7 @@ def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, 
     get a stub any more, the first (now shared) one included -- not only
     whichever arrived after the second.
     """
+
     from ..objects import terminal as _terminal
 
     sibling = wire.start_sibling if end == 'start' else wire.stop_sibling
@@ -183,15 +192,20 @@ def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, 
     # would just mask smaller real diagonal cases elsewhere.
     if abs(dx) >= abs(dz):
         sign = 1.0 if dx >= 0.0 else -1.0
+
         return wire_x + sign * stub_length, wire_z
 
     sign = 1.0 if dz >= 0.0 else -1.0
+
     return wire_x, wire_z + sign * stub_length
 
 
 @_check_types.do
-def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_routing.WireEnds:
-    """*wire*'s two true 2D ends, the terminal exit stub (if any) at each,
+def wire_ends(project: "_project.Project",
+              wire: "_wire_obj.Wire") -> _wire_routing.WireEnds:
+
+    """
+    *wire*'s two true 2D ends, the terminal exit stub (if any) at each,
     and the splice/terminal-cylinder rects it's attached to -- what a
     routing frame needs to know about it.
 
@@ -206,21 +220,29 @@ def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_rout
     search turn" treatment a splice-attached end already gets (see
     :meth:`~.routing.RoutingFrame.route`).
     """
+
     db_obj = wire.db_obj
     start = db_obj.start_position2d
     stop = db_obj.stop_position2d
 
     return _wire_routing.WireEnds(
-        (float(start.x), float(start.z)), (float(stop.x), float(stop.z)),
-        _terminal_exit_stub_point(wire, 'start'), _terminal_exit_stub_point(wire, 'stop'),
+        (float(start.x), float(start.z)),
+        (float(stop.x), float(stop.z)),
+        _terminal_exit_stub_point(wire, 'start'),
+        _terminal_exit_stub_point(wire, 'stop'),
         _wire_routing.attached_splice_rects(project, wire)
         + _wire_routing.attached_terminal_cylinder_rects(project, wire))
 
 
 @_check_types.do
-def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
-                pack_with: list["_wire_obj.Wire"] = []) -> _Union["_wire_routing.RoutingFrame", None]:
-    """One shared routing grid for *wires* (see
+def build_frame(
+    project: "_project.Project",
+    wires: list["_wire_obj.Wire"],
+    pack_with: list["_wire_obj.Wire"] = []
+) -> _Union["_wire_routing.RoutingFrame", None]:
+
+    """
+    One shared routing grid for *wires* (see
     :class:`~.routing.RoutingFrame`), to pass to :func:`reroute_wire` as
     ``frame`` for each of them -- or ``None`` if it can't be built (nothing
     to route, or the compiled search isn't available), in which case
@@ -228,7 +250,9 @@ def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
 
     :param pack_with: Wires outside *wires* that sit on the same housing --
         the routes prefer to run right alongside these (and alongside each
-        other as they settle); see :meth:`~.routing.RoutingFrame.__init__`."""
+        other as they settle); see :meth:`~.routing.RoutingFrame.__init__`.
+    """
+
     if not wires:
         return None
 
@@ -237,9 +261,14 @@ def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
 
 
 @_check_types.do
-def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int, tuple[float, float]]]
-                  ) -> list[tuple["_point.Point", float, float]]:
-    """Turn a wire's *updates* -- ``(index into the wire's path with the
+def shift_targets(
+    waypoint_points: list,
+    at_start: bool,
+    updates: list[tuple[int, tuple[float, float]]]
+) -> list[tuple["_point.Point", float, float]]:
+
+    """
+    Turn a wire's *updates* -- ``(index into the wire's path with the
     moving end first, new (x, z))``, as :func:`~.routing.plan_shift` returns
     them -- into ``(waypoint Point, x, z)`` triples.
 
@@ -248,6 +277,7 @@ def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int
     end, so for a wire that moves at its stop end the numbering runs the
     other way.
     """
+
     count = len(waypoint_points)
     targets = []
 
@@ -264,8 +294,11 @@ def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int
 
 
 @_check_types.do
-def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point", float, float]]) -> None:
-    """Move every ``(waypoint Point, x, z)`` in *targets* -- across ALL the
+def apply_shifts(project: "_project.Project",
+                 targets: list[tuple["_point.Point", float, float]]) -> None:
+
+    """
+    Move every ``(waypoint Point, x, z)`` in *targets* -- across ALL the
     wires being shifted.
 
     Every caller of this function (a wire's own schematic drag, and
@@ -280,6 +313,7 @@ def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point"
     own ``batch_update`` call. Outside a gesture this runs exactly as it
     always has: one real ``UPDATE`` per point.
     """
+
     if not targets:
         return
 
@@ -294,9 +328,15 @@ def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point"
 
 
 @_check_types.do
-def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires: list["_wire_obj.Wire"],
-                 delta: tuple[float, float]) -> list["_wire_obj.Wire"]:
-    """Let the wires of a housing that has just moved by *delta* follow it
+def follow_moved(
+    project: "_project.Project",
+    obj: "_objects.ObjectBase",
+    wires: list["_wire_obj.Wire"],
+    delta: tuple[float, float]
+) -> list["_wire_obj.Wire"]:
+
+    """
+    Let the wires of a housing that has just moved by *delta* follow it
     without a new route wherever their existing path can (see
     :func:`~.routing.plan_shift`), and return the ones that can't -- those
     still need :func:`reroute_wire`. A route is worth keeping until it
@@ -308,12 +348,14 @@ def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires:
     :param wires: The wires attached to *obj* (see :func:`wires_attached_to`),
         in the order they should be placed -- shortest first.
     """
+
     from ..objects import housing as _housing
 
     if not isinstance(obj, _housing.Housing):
         return list(wires)
 
-    terminals = {cavity.terminal for cavity in obj.cavities if cavity.terminal is not None}
+    terminals = {cavity.terminal for cavity in obj.cavities
+                 if cavity.terminal is not None}
 
     jobs = []
     at_start = {}
@@ -326,16 +368,20 @@ def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires:
         if starts_here == stops_here:
             # Both ends on this housing (the whole path moves) or, oddly, neither.
             rest.append(wire)
+
             continue
 
         end = 'start' if starts_here else 'stop'
         stub = _terminal_exit_stub_point(wire, end)
         if stub is None:
             rest.append(wire)
+
             continue
 
         objs = wire.objschematic
-        path = [(float(p.x), float(p.z)) for p in [objs._p1] + list(objs._waypoint_points) + [objs._p2]]  # NOQA
+        path = [(float(p.x), float(p.z))
+                for p in [objs._p1] + list(objs._waypoint_points) + [objs._p2]]  # NOQA
+
         if not starts_here:
             path.reverse()
 
@@ -349,7 +395,9 @@ def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires:
             axis = 1
             sign = 1 if out_z >= 0.0 else -1
 
-        jobs.append(_wire_routing.ShiftJob(wire, path, axis, sign, math.hypot(out_x, out_z)))
+        jobs.append(
+            _wire_routing.ShiftJob(wire, path, axis, sign, math.hypot(out_x, out_z)))
+
         at_start[wire] = starts_here
 
     plan = _wire_routing.plan_shift(project, jobs, delta) if jobs else {}
@@ -362,7 +410,8 @@ def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires:
             rest.append(job.wire)
             continue
 
-        targets.extend(shift_targets(job.wire.objschematic._waypoint_points, at_start[job.wire], updates))  # NOQA
+        targets.extend(shift_targets(
+            job.wire.objschematic._waypoint_points, at_start[job.wire], updates))  # NOQA
 
     # One write for the whole batch, not one commit per waypoint.
     apply_shifts(project, targets)
@@ -375,8 +424,12 @@ def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires:
 
 
 @_check_types.do
-def _skipped_stub_segments(skip_wires: Iterable["_wire_obj.Wire"]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
-    """The fixed terminal-exit stubs (true end -> stub point) of every wire
+def _skipped_stub_segments(
+    skip_wires: Iterable["_wire_obj.Wire"]
+) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+
+    """
+    The fixed terminal-exit stubs (true end -> stub point) of every wire
     in *skip_wires*, as ``((x1, z1), (x2, z2))`` segments.
 
     A skipped (unsettled) sibling's current path is deliberately ignored,
@@ -385,12 +438,15 @@ def _skipped_stub_segments(skip_wires: Iterable["_wire_obj.Wire"]) -> list[tuple
     routed before it must keep out of that lane, or it can leave the
     sibling's own start boxed in (terminals are only a few mm apart).
     """
+
     segments = []
 
     for skipped in skip_wires:
         db_obj = skipped.db_obj
 
-        for end, point in (('start', db_obj.start_position2d), ('stop', db_obj.stop_position2d)):
+        for end, point in (('start', db_obj.start_position2d),
+                           ('stop', db_obj.stop_position2d)):
+
             stub = _terminal_exit_stub_point(skipped, end)
             if stub is not None:
                 segments.append(((float(point.x), float(point.z)), stub))
@@ -399,18 +455,29 @@ def _skipped_stub_segments(skip_wires: Iterable["_wire_obj.Wire"]) -> list[tuple
 
 
 @_check_types.do
-def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int) -> _pjt_point2d.PJTPoint2D:
-    """Append a new interior 2D waypoint at ``(x, z)`` as index *idx* of
+def add_waypoint(
+    project: "_project.Project",
+    wire: "_wire_obj.Wire",
+    x: float,
+    z: float,
+    idx: int
+) -> _pjt_point2d.PJTPoint2D:
+
+    """
+    Append a new interior 2D waypoint at ``(x, z)`` as index *idx* of
     *wire*'s path, with its own WireLayout handle -- every interior bend has
     one, so it is a real selectable/draggable object. Returns the new point
     row. The caller refreshes the wire (``objschematic.refresh_waypoints()``)
-    once it is done adding."""
+    once it is done adding.
+    """
+
     from ..objects import wire_layout as _wire_layout
 
     ptables = project.ptables
 
     point = ptables.pjt_points2d_table.insert(x, 0.0, z)
-    ptables.pjt_wire_paths_table.add(wire.db_obj.db_id, '2d', idx, point.db_id)
+    ptables.pjt_wire_paths_table.add(
+        wire.db_obj.db_id, '2d', idx, point.db_id)
 
     layout_db = ptables.pjt_wire_layouts_table.insert(point2d_id=point.db_id)
     layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
@@ -420,16 +487,22 @@ def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, 
 
 
 @_check_types.do
-def remove_waypoint(project: "_project.Project", point: "_pjt_point2d.PJTPoint2D") -> None:
-    """Delete a waypoint row *point* (a ``PJTPoint2D``) and its WireLayout.
+def remove_waypoint(project: "_project.Project",
+                    point: "_pjt_point2d.PJTPoint2D") -> None:
+
+    """
+    Delete a waypoint row *point* (a ``PJTPoint2D``) and its WireLayout.
 
     The point has to come out of its wire's route first: a route row counts
     as a reference on its own, and ``PJTPoint2D.delete()`` silently refuses
     while the point is still referenced (see the note in
-    :func:`reroute_wire`). The caller refreshes the wire afterwards."""
+    :func:`reroute_wire`). The caller refreshes the wire afterwards.
+    """
+
     ptables = project.ptables
 
-    _pjt_wire.delete_layouts_at(ptables.pjt_wire_layouts_table, 'point2d_id', point.db_id)
+    _pjt_wire.delete_layouts_at(
+        ptables.pjt_wire_layouts_table, 'point2d_id', point.db_id)
 
     paths_table = ptables.pjt_wire_paths_table
     for wire_id in paths_table.wire_ids_for_point('2d', point.db_id):
@@ -441,7 +514,9 @@ def remove_waypoint(project: "_project.Project", point: "_pjt_point2d.PJTPoint2D
 @_check_types.do
 def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
                   waypoints: list[tuple[float, float]]) -> None:
-    """Reconcile *wire*'s interior 2D waypoint rows to match *waypoints*
+
+    """
+    Reconcile *wire*'s interior 2D waypoint rows to match *waypoints*
     exactly, in order -- the shared "make the DB match this exact path"
     tail of :func:`reroute_wire`, factored out so a caller that already
     knows the exact path it wants (not one that needs A* to find it) can
@@ -461,6 +536,7 @@ def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
     occupies -- this doesn't try to detect or preserve "the same
     logical bend" on its own.
     """
+
     ptables = project.ptables
     db_obj = wire.db_obj
 
@@ -477,9 +553,11 @@ def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
     # optional.
     for old_point, (x, z) in zip(old_waypoints[:common], waypoints[:common]):
         point = old_point.point
+
         with point:
             point.x = x
             point.z = z
+
         point._process_callbacks()  # NOQA
 
         if layouts_table.for_point2d_id(old_point.db_id) is None:
@@ -501,7 +579,10 @@ def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
 
 @_check_types.do
 def _axis_aligned(a: tuple[float, float], b: tuple[float, float]) -> bool:
-    """Whether *a* -> *b* is a real horizontal or vertical run (not a point)."""
+    """
+    Whether *a* -> *b* is a real horizontal or vertical run (not a point).
+    """
+
     dx = abs(a[0] - b[0])
     dz = abs(a[1] - b[1])
 
@@ -512,9 +593,16 @@ def _axis_aligned(a: tuple[float, float], b: tuple[float, float]) -> bool:
 
 
 @_check_types.do
-def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
-                 skip_wires: frozenset["_wire_obj.Wire"] | set["_wire_obj.Wire"] = frozenset(), frame: _Union["_wire_routing.RoutingFrame", None] = None, fixed_prefix: list[tuple[float, float]] | None = None) -> None:
-    """Recompute *wire*'s orthogonal 2D path and reconcile its interior
+def reroute_wire(
+    project: "_project.Project",
+    wire: "_wire_obj.Wire",
+    skip_wires: frozenset["_wire_obj.Wire"] | set["_wire_obj.Wire"] = frozenset(),
+    frame: _Union["_wire_routing.RoutingFrame", None] = None,
+    fixed_prefix: list[tuple[float, float]] | None = None
+) -> None:
+
+    """
+    Recompute *wire*'s orthogonal 2D path and reconcile its interior
     waypoint rows against the result -- moves whatever old waypoints can
     be reused (one DB write per point moved, no delete/insert at all)
     and only deletes/inserts the DIFFERENCE in count when the new path
@@ -547,17 +635,19 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
 
     :param skip_wires: See :func:`routing._wire_segments` -- forwarded
         unchanged to :func:`routing.route`.
+
     :param frame: A :class:`~.routing.RoutingFrame` (see :func:`build_frame`)
         that *wire* is part of. When given, the route comes from it -- one
         grid shared by the whole batch, which also tracks which of the
         batch are settled -- and *skip_wires* isn't needed.
+
     :param fixed_prefix: The first interior waypoints of the path, already
         placed by hand, as ``(x, z)`` in order from the start end (a terminal
         exit stub included, if the user's path starts with one). They are kept
         exactly, whatever their angle, and only the rest of the path -- from the
         last of them to the stop end -- is routed. Not used with *frame*.
     """
-    ptables = project.ptables
+
     db_obj = wire.db_obj
 
     start = db_obj.start_position2d
@@ -576,24 +666,34 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
         route_start = own_path[-1]
 
         # Fold-back guard only makes sense against a real cardinal run.
-        start_anchor = own_path[-2] if _axis_aligned(own_path[-2], route_start) else None
+        if _axis_aligned(own_path[-2], route_start):
+            start_anchor = own_path[-2]
+        else:
+            start_anchor = None
 
         own_lanes = list(zip(own_path, own_path[1:]))
         if stop_stub is not None:
             own_lanes.append((stop_xz, stop_stub))
     else:
-        route_start = start_xz if start_stub is None else start_stub
-
-        start_anchor = None if start_stub is None else start_xz
+        if start_stub is None:
+            route_start = start_xz
+            start_anchor = None
+        else:
+            route_start = start_stub
+            start_anchor = start_xz
 
         # The wire's own stubs count as lanes too (see RoutingFrame.route).
         own_lanes = []
         if start_stub is not None:
             own_lanes.append((start_xz, start_stub))
+
         if stop_stub is not None:
             own_lanes.append((stop_xz, stop_stub))
 
-    route_stop = stop_xz if stop_stub is None else stop_stub
+    if stop_stub is None:
+        route_stop = stop_xz
+    else:
+        route_stop = stop_stub
 
     if frame is not None and wire in frame:
         interior = frame.route(wire)
@@ -610,10 +710,12 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
         full_path = [start_xz]
         if start_stub is not None:
             full_path.append(start_stub)
+
         full_path.extend(interior)
 
     if stop_stub is not None:
         full_path.append(stop_stub)
+
     full_path.append(stop_xz)
 
     # A waypoint the wire runs straight through is no bend at all -- and one
@@ -630,7 +732,8 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
 
 @_check_types.do
 def is_junction_wire(wire: "_wire_obj.Wire") -> bool:
-    """Whether either of *wire*'s own ends is attached to a Terminal that
+    """
+    Whether either of *wire*'s own ends is attached to a Terminal that
     currently has more than one wire -- a schematic-view wire-junction
     (see ``objects.terminal.Terminal._make_room_for_second_wire``).
 
@@ -646,6 +749,7 @@ def is_junction_wire(wire: "_wire_obj.Wire") -> bool:
     ``_attached`` sort and ``objects_schematic.auto_arrange.auto_arrange``'s
     own wire loop, both of which sort on this first.
     """
+
     from ..objects import terminal as _terminal
 
     for sibling in (wire.start_sibling, wire.stop_sibling):
@@ -657,7 +761,8 @@ def is_junction_wire(wire: "_wire_obj.Wire") -> bool:
 
 @_check_types.do
 def crow_flies_distance(wire: "_wire_obj.Wire") -> float:
-    """Straight-line world distance between *wire*'s own true start and
+    """
+    Straight-line world distance between *wire*'s own true start and
     stop 2D points -- used to order a same-frame multi-wire routing
     batch shortest-first (see ``drag_handlers.editor_schematic.generic
     .Generic``): the shortest, most-constrained run gets first pick of
@@ -666,14 +771,18 @@ def crow_flies_distance(wire: "_wire_obj.Wire") -> float:
     :func:`routing._wire_segments`'s own ``skip_wires``) rather than the
     other way around.
     """
+
     start = wire.db_obj.start_position2d
     stop = wire.db_obj.stop_position2d
-    return math.hypot(float(stop.x) - float(start.x), float(stop.z) - float(start.z))
+
+    return math.hypot(float(stop.x) - float(start.x),
+                      float(stop.z) - float(start.z))
 
 
 @_check_types.do
 def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
-    """Every wire directly attached to *obj* -- a ``Terminal``/``Splice``
+    """
+    Every wire directly attached to *obj* -- a ``Terminal``/``Splice``
     exposes ``.wires`` directly; a ``Housing`` has none of its own, so
     it's built from every seated terminal across its cavities (those
     already have correct live positions by the time this is called each
@@ -683,6 +792,7 @@ def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
     segment-drag interaction, not this generic path) returns an empty
     list.
     """
+
     from ..objects import terminal as _terminal
     from ..objects import splice as _splice
     from ..objects import housing as _housing
@@ -696,6 +806,7 @@ def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
             terminal = cavity.terminal
             if terminal is not None:
                 result.extend(terminal.wires)
+
         return _schematic_wires(result)
 
     return []
@@ -703,13 +814,18 @@ def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
 
 @_check_types.do
 def _schematic_wires(wires: list["_wire_obj.Wire"]) -> list:
-    """*wires* as the schematic has them: an ordinary wire is itself, a lead of a cable's conductor is not drawn but the conductor
-    it belongs to is (one wire between the terminals its two leads end on), so the lead is replaced by that conductor's
-    :class:`~harness_designer.objects.cable_conductor.ConductorRun`, once, and a lead whose conductor is not drawn is left out."""
+    """
+    *wires* as the schematic has them: an ordinary wire is itself, a lead of a
+    cable's conductor is not drawn but the conductor it belongs to is (one wire
+    between the terminals its two leads end on), so the lead is replaced by that
+    conductor's :class:`~harness_designer.objects.cable_conductor.ConductorRun`,
+    once, and a lead whose conductor is not drawn is left out.
+    """
+
     result = []
 
     for wire in wires:
-        node = wire.conductor_node
+        node = wire.lead_node
 
         if node is None:
             result.append(wire)
@@ -722,12 +838,14 @@ def _schematic_wires(wires: list["_wire_obj.Wire"]) -> list:
 @_check_types.do
 def _path_overlaps_rect(wire: "_wire_obj.Wire",
                         rect: tuple[float, float, float, float]) -> bool:
-    """Cheap check: does any of *wire*'s current 2D sub-segments cross
+    """
+    Cheap check: does any of *wire*'s current 2D sub-segments cross
     or run inside *rect* (``(min_x, min_z, max_x, max_z)``)? Used to
     filter which wires actually need the expensive
     :func:`reroute_wire`/A* call during :func:`sweep_for_overlaps`,
     rather than blindly rerouting every wire in the project.
     """
+
     min_x, min_z, max_x, max_z = rect
 
     for p1, p2 in wire.objschematic._segments():  # NOQA
@@ -739,6 +857,7 @@ def _path_overlaps_rect(wire: "_wire_obj.Wire",
 
         if seg_max_x < min_x or max_x < seg_min_x:
             continue
+
         if seg_max_z < min_z or max_z < seg_min_z:
             continue
 
@@ -748,9 +867,12 @@ def _path_overlaps_rect(wire: "_wire_obj.Wire",
 
 
 @_check_types.do
-def sweep_for_overlaps(project: "_project.Project", moved_obj: "_objects.ObjectBase",
+def sweep_for_overlaps(project: "_project.Project",
+                       moved_obj: "_objects.ObjectBase",
                        already_rerouted: list["_wire_obj.Wire"]) -> None:
-    """Run once, on drag/rotate release: for every connected wire *not*
+
+    """
+    Run once, on drag/rotate release: for every connected wire *not*
     already live-rerouted this operation, reroute it if its current
     path now comes within ``Config.layout.housing_spacing`` of
     *moved_obj*'s new footprint -- a cheap AABB-vs-segment check first,
@@ -768,6 +890,7 @@ def sweep_for_overlaps(project: "_project.Project", moved_obj: "_objects.ObjectB
     editor_schematic.generic.Rings2D.detach) alongside the drag handler
     that already called this.
     """
+
     bounds = moved_obj.objschematic.get_bounds()
     if bounds is None:
         return

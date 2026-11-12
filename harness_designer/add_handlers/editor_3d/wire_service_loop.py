@@ -121,6 +121,52 @@ def restore_wire_from_split(
     _wire_topology.merge_wires_in_place(project, state.wire2, state.wire1)
 
 
+def closest_on_segment_to_ray(
+    p1: np.ndarray, p2: np.ndarray, origin: np.ndarray, direction: np.ndarray, reach: float = 0.0
+) -> tuple[np.ndarray, float] | tuple[None, None]:
+    """The point of the segment *p1* -> *p2* that is nearest the ray (*origin*, unit *direction*), kept clear of the segment's ends by
+    the loop's own extent.
+
+    The mouse is a ray through the scene, not a point on the camera's focal plane: the wire is at its own depth, and the point of the
+    focal plane under the mouse, projected onto the wire, can be far from where the wire is under the mouse (more so in perspective).
+    The point of the wire nearest the ray is the one that is under the cursor.
+
+    :param reach: The signed distance, along the segment's direction, from the loop's start point to its stop point (negative: the
+        stop is behind the start, toward *p1*). The loop is not a point: its start is kept at least that far from the end the stop
+        points toward, so the whole loop stays on the segment (and out of what the segment ends in, a housing for one).
+
+    :returns: ``(position, distance of position from p1)``, or ``(None, None)`` for a segment of no length.
+    """
+    p1 = np.asarray(p1, dtype=np.float64)
+    p2 = np.asarray(p2, dtype=np.float64)
+    origin = np.asarray(origin, dtype=np.float64)
+    direction = np.asarray(direction, dtype=np.float64)
+
+    seg = p2 - p1
+    length = float(np.linalg.norm(seg))
+    if length < 0.001:
+        return None, None
+
+    d = seg / length
+    w0 = p1 - origin
+    b = float(np.dot(d, direction))
+    dd = float(np.dot(d, w0))
+    e = float(np.dot(direction, w0))
+    denom = 1.0 - b * b
+
+    # nearest point of the segment's line to the ray's line; a ray along the wire has no nearest point: the middle will do
+    s = (b * e - dd) / denom if abs(denom) > 1e-9 else length / 2.0
+
+    lo = max(0.0, -reach)
+    hi = min(length, length - reach)
+    if lo > hi:
+        lo = hi = (lo + hi) / 2.0
+
+    s = min(max(s, lo), hi)
+
+    return p1 + d * s, s
+
+
 class WireServiceLoop(_base.AddHandlerBase):
     """Fixed-wire service-loop placement -- see the module docstring."""
 
@@ -177,11 +223,8 @@ class WireServiceLoop(_base.AddHandlerBase):
         live-dragged point, so projecting against them directly would
         feed the drag position back into its own input every frame.
         """
-        world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
-        position = line.project_to_line(world_pos)
-
-        p1 = line.p1.as_numpy
-        p2 = line.p2.as_numpy
+        p1 = line.p1.as_numpy.astype(np.float64)
+        p2 = line.p2.as_numpy.astype(np.float64)
         direction = p2 - p1
         length = np.linalg.norm(direction)
 
@@ -191,7 +234,25 @@ class WireServiceLoop(_base.AddHandlerBase):
         direction = direction / length
         wire_angle = _angle.Angle.from_direction(direction)
 
-        return position, wire_angle
+        # How far the loop's stop point lies from its start along the wire (it lies behind it): the start is kept that far from
+        # the end of the segment the stop points toward.
+        reach = 0.0
+        if self.target is not None:
+            start = self.target.obj3d.start_position.as_numpy.astype(np.float64)
+            stop = self.target.obj3d.stop_position.as_numpy.astype(np.float64)
+            reach = float(np.dot(stop - start, direction))
+
+        origin, ray = self.camera.get_mouse_ray(mouse_pos)
+
+        if origin is None:
+            world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
+            return line.project_to_line(world_pos), wire_angle
+
+        position, _distance = closest_on_segment_to_ray(p1, p2, origin, ray, reach)
+        if position is None:
+            return None, None
+
+        return _point.Point(*[float(v) for v in position]), wire_angle
 
     @_check_types.do
     def _update_preview(self, position: _point.Point) -> None:

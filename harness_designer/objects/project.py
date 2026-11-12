@@ -47,6 +47,44 @@ Config = _config.Config.project
 
 
 @_check_types.do
+def _link_junction_board_points(project: "Project") -> None:
+    """Make every wire service loop and splice share its peg-board end points with the wires on its two sides.
+
+    A wire is linked to a loop or a splice by a shared point id (the rope pull finds what a pull on a wire's end moves through the
+    point ids on the board, as the sibling graph does through the 3D ones). A loop or a splice made before the board points were
+    shared has two board points of its own, apart from the ends of the wires beside it: pulled on from one side, the wire there
+    came away from it, and what was past it (the rest of a conductor, say) did not follow, so the wires added up to more than the
+    length they have in 3D. The loop or splice takes the board end points of the wires on its sides, which is where the wires are:
+    the wire that starts at its start point gives it that board point, the wire that ends at its stop point gives it that one.
+
+    A junction with no wire (or more than one) on a side, or a wire without board end points, is left as it is. Runs before the
+    loops and the splices are built: they read their board position when they are made.
+    """
+    ptables = project.ptables
+    ends: dict[bytes, list[bytes]] = {}
+
+    for start3d, stop3d, start_board, stop_board in ptables.pjt_wires_table.select(
+            'start_point3d_id', 'stop_point3d_id', 'start_point_pegboard_id', 'stop_point_pegboard_id'):
+        if start_board is None or stop_board is None:
+            continue
+
+        ends.setdefault(start3d, []).append(start_board)
+        ends.setdefault(stop3d, []).append(stop_board)
+
+    for table in (ptables.pjt_wire_service_loops_table, ptables.pjt_splices_table):
+        for row in table:
+            current = table.select('start_point_pegboard_id', 'stop_point_pegboard_id', id=row.db_id)[0]
+            start_boards = ends.get(row.start_position3d_id, [])
+            stop_boards = ends.get(row.stop_position3d_id, [])
+
+            if len(start_boards) == 1 and start_boards[0] != current[0]:
+                row.start_position_pegboard_id = start_boards[0]
+
+            if len(stop_boards) == 1 and stop_boards[0] != current[1]:
+                row.stop_position_pegboard_id = stop_boards[0]
+
+
+@_check_types.do
 def _reconcile_wire_sibling_graph(project: "Project") -> None:
     """Rebuild the in-memory sibling graph (Wire <-> Terminal/Splice/
     WireServiceLoop) from persisted point-id matches.
@@ -421,125 +459,133 @@ class Project:
             return cur_count
 
         start_time = time.time()
-        count = _load_objects(
-            ptables.pjt_notes_table, 'Note',
-            _note.Note, self._notes,
-            count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_circuits_table, 'Circuit',
-            _circuit.Circuit, self._circuits,
-            count, self._obj_count)
+        # Nothing is reconciled while the objects load (see WireSlackHandler.loading).
+        from ..handlers import wire_slack_handler as _wire_slack_handler  # NOQA -- avoid a cycle at import time
 
-        # Loaded before housings: a housing whose model is already cached
-        # from a prior session runs its Model3D.load() callback (_set_model,
-        # ending in match_cavity_surfaces()) synchronously, during its own
-        # construction below -- match_cavity_surfaces() needs this housing's
-        # cavities to already exist (Cavity.get_object() resolving to real
-        # wrapper objects) or it leaves every cavity's surf_idx/
-        # wire_surf_idx unset, permanently unclickable for the rest of the
-        # session (it's a one-shot callback, never reruns on its own).
-        # Cavity construction has no dependency on the housing wrapper
-        # existing yet -- it only reads its own pjt_cavities row, whose
-        # position3d/angle3d/obb/aabb were already fully computed and
-        # persisted at insert time.
-        count = _load_objects(
-            ptables.pjt_cavities_table, 'Cavity',
-            _cavity.Cavity, self._cavities,
-            count, self._obj_count)
+        with mainframe.loading_project(), _wire_slack_handler.WireSlackHandler.loading():
+            count = _load_objects(
+                ptables.pjt_notes_table, 'Note',
+                _note.Note, self._notes,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_housings_table, 'Housing',
-            _housing.Housing, self._housings,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_circuits_table, 'Circuit',
+                _circuit.Circuit, self._circuits,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_covers_table, 'Cover',
-            _cover.Cover, self._covers,
-            count, self._obj_count)
+            # Loaded before housings: a housing whose model is already cached
+            # from a prior session runs its Model3D.load() callback (_set_model,
+            # ending in match_cavity_surfaces()) synchronously, during its own
+            # construction below -- match_cavity_surfaces() needs this housing's
+            # cavities to already exist (Cavity.get_object() resolving to real
+            # wrapper objects) or it leaves every cavity's surf_idx/
+            # wire_surf_idx unset, permanently unclickable for the rest of the
+            # session (it's a one-shot callback, never reruns on its own).
+            # Cavity construction has no dependency on the housing wrapper
+            # existing yet -- it only reads its own pjt_cavities row, whose
+            # position3d/angle3d/obb/aabb were already fully computed and
+            # persisted at insert time.
+            count = _load_objects(
+                ptables.pjt_cavities_table, 'Cavity',
+                _cavity.Cavity, self._cavities,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_cpa_locks_table, 'CPA Lock',
-            _cpa_lock.CPALock, self._cpa_locks,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_housings_table, 'Housing',
+                _housing.Housing, self._housings,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_tpa_locks_table, 'TPA Lock',
-            _tpa_lock.TPALock, self._tpa_locks,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_covers_table, 'Cover',
+                _cover.Cover, self._covers,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_boots_table, 'Boot',
-            _boot.Boot, self._boots,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_cpa_locks_table, 'CPA Lock',
+                _cpa_lock.CPALock, self._cpa_locks,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_terminals_table, 'Terminal',
-            _terminal.Terminal, self._terminals,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_tpa_locks_table, 'TPA Lock',
+                _tpa_lock.TPALock, self._tpa_locks,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_seals_table, 'Seal',
-            _seal.Seal, self._seals,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_boots_table, 'Boot',
+                _boot.Boot, self._boots,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_wires_table, 'Wire',
-            _wire.Wire, self._wires,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_terminals_table, 'Terminal',
+                _terminal.Terminal, self._terminals,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_cables_table, 'Cable',
-            _cable.Cable, self._cables,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_seals_table, 'Seal',
+                _seal.Seal, self._seals,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
-            _wire_service_loop.WireServiceLoop, self._wire_service_loops,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_wires_table, 'Wire',
+                _wire.Wire, self._wires,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_wire_markers_table, 'Wire Marker',
-            _wire_marker.WireMarker, self._wire_markers,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_cables_table, 'Cable',
+                _cable.Cable, self._cables,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_wire_layouts_table, 'Wire Layout',
-            _wire_layout.WireLayout, self._wire_layouts,
-            count, self._obj_count)
+            # A loop's and a splice's board points are the board ends of the wires beside them (see the function); before they are built.
+            _link_junction_board_points(self)
 
-        count = _load_objects(
-            ptables.pjt_splices_table, 'Splice',
-            _splice.Splice, self._splices,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
+                _wire_service_loop.WireServiceLoop, self._wire_service_loops,
+                count, self._obj_count)
 
-        # Terminal/Wire/WireServiceLoop/Splice all exist by now -- rebuild
-        # the in-memory sibling graph between them from persisted point-id
-        # matches (set_sibling/add_wire's own bookkeeping is weakrefs only,
-        # nothing DB-persisted -- see objects.wire.Wire.set_sibling).
-        _reconcile_wire_sibling_graph(self)
-        _register_connected_wires_in_schematic(self)
+            count = _load_objects(
+                ptables.pjt_wire_markers_table, 'Wire Marker',
+                _wire_marker.WireMarker, self._wire_markers,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_bundles_table, 'Bundle',
-            _bundle.Bundle, self._bundles,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_wire_layouts_table, 'Wire Layout',
+                _wire_layout.WireLayout, self._wire_layouts,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_bundle_layouts_table, 'Bundle Layout',
-            _bundle_layout.BundleLayout, self._bundle_layouts,
-            count, self._obj_count)
+            count = _load_objects(
+                ptables.pjt_splices_table, 'Splice',
+                _splice.Splice, self._splices,
+                count, self._obj_count)
 
-        count = _load_objects(
-            ptables.pjt_transitions_table, 'Transition',
-            _transition.Transition, self._transitions,
-            count, self._obj_count)
+            # Terminal/Wire/WireServiceLoop/Splice all exist by now -- rebuild
+            # the in-memory sibling graph between them from persisted point-id
+            # matches (set_sibling/add_wire's own bookkeeping is weakrefs only,
+            # nothing DB-persisted -- see objects.wire.Wire.set_sibling).
+            _reconcile_wire_sibling_graph(self)
+            _register_connected_wires_in_schematic(self)
 
-        # Bundle/Transition both exist by now -- rebuild the in-memory
-        # sibling graph between them from persisted point-id matches
-        # (see _reconcile_wire_sibling_graph above for why this is a
-        # from-scratch rebuild rather than something reload can skip).
-        _reconcile_bundle_sibling_graph(self)
+            count = _load_objects(
+                ptables.pjt_bundles_table, 'Bundle',
+                _bundle.Bundle, self._bundles,
+                count, self._obj_count)
+
+            count = _load_objects(
+                ptables.pjt_bundle_layouts_table, 'Bundle Layout',
+                _bundle_layout.BundleLayout, self._bundle_layouts,
+                count, self._obj_count)
+
+            count = _load_objects(
+                ptables.pjt_transitions_table, 'Transition',
+                _transition.Transition, self._transitions,
+                count, self._obj_count)
+
+            # Bundle/Transition both exist by now -- rebuild the in-memory
+            # sibling graph between them from persisted point-id matches
+            # (see _reconcile_wire_sibling_graph above for why this is a
+            # from-scratch rebuild rather than something reload can skip).
+            _reconcile_bundle_sibling_graph(self)
 
         # Concentric section widgets: one per placed row (``pjt_pegboard_
         # sections``, one per concentric), built once everything they sit
@@ -581,6 +627,13 @@ class Project:
 
         if pegboard_bounds is None:
             mainframe.editor_pegboard.editor.request_fit_all()
+
+        # A pinned wire has no bends (a project saved before that rule, or after a drag that went wrong, has some): straighten them now,
+        # as one write.
+        from ..handlers import rope_pull_handler as _rope_pull_handler  # NOQA -- avoid a cycle at import time
+
+        with self.gesture():
+            _rope_pull_handler.straighten_pinned_leads(mainframe)
 
         mainframe.editor_circuit.editor.load_project(self.ptables)
 

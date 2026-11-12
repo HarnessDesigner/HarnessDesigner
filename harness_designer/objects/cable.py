@@ -12,6 +12,8 @@ root.
 
 from typing import TYPE_CHECKING
 
+import weakref
+
 import numpy as np
 
 from . import ObjectBase as _ObjectBase
@@ -20,6 +22,7 @@ from ..geometry import point as _point
 from .objects_3d import cable as _cable_3d
 from .objects_pegboard import cable as _cable_pegboard
 from .objects_schematic import cable as _cable_schematic
+from ..shapes import sleeve as _sleeve_shape
 from .. import check_types as _check_types
 from ..crash_dump import capturable
 
@@ -629,6 +632,7 @@ class Cable(_ObjectBase):
                 live += delta
 
         self._move_board_split_points(start)
+        self._sync_shield_sleeve(start)
 
     @_check_types.do
     def _move_end(self, start: bool, distance: float, inward: bool) -> None:
@@ -768,7 +772,10 @@ class Cable(_ObjectBase):
             else:
                 conductor.stop_split_point3d_id = split_row.db_id
 
-            lead_db = ptables.pjt_wires_table.insert(
+            # a clipped shield (``shield_clipped`` column) has no lead: it is not connected at this end
+            no_lead = conductor.is_shield and db_obj.shield_end_clipped(start)
+
+            lead_db = None if no_lead else ptables.pjt_wires_table.insert(
                 db_obj.part_id, f'{conductor.name} ({side})', None, end_id, split_row.db_id,
                 None, None, True, False, None, None, False, cable_conductor_id=conductor.db_id)
 
@@ -784,12 +791,16 @@ class Cable(_ObjectBase):
                 else:
                     conductor.stop_split_point_pegboard_id = split_peg.db_id
 
-                lead_db.start_position_pegboard_id = end_peg_id
-                lead_db.stop_position_pegboard_id = split_peg.db_id
+                if lead_db is not None:
+                    lead_db.start_position_pegboard_id = end_peg_id
+                    lead_db.stop_position_pegboard_id = split_peg.db_id
 
-                lead_db.stop_position_pegboard  # NOQA
-                end_peg = lead_db.start_position_pegboard
-                end_peg += _point.Point(float(board_targets[index][0]), 0.0, float(board_targets[index][2])) - end_peg
+                    lead_db.stop_position_pegboard  # NOQA
+                    end_peg = lead_db.start_position_pegboard
+                    end_peg += _point.Point(float(board_targets[index][0]), 0.0, float(board_targets[index][2])) - end_peg
+
+            if lead_db is None:
+                continue
 
             lead = _wire_facade.Wire(self.mainframe, lead_db)
             self.mainframe.project.add_wire(lead)
@@ -825,6 +836,11 @@ class Cable(_ObjectBase):
 
         if not self.can_join(start):
             raise ValueError('something is attached to a conductor of this end')
+
+        # the sleeve sits on the split plane: with the end joined there is none (user, 2026-11-11), and a clipped shield is
+        # unclipped again: clip, sleeve and Unclip all belong to a split end
+        self.remove_shield_sleeve(start)
+        db_obj.set_shield_end_clipped(start, False)
 
         points = self.mainframe.project.ptables.pjt_points3d_table
         board_points = self.mainframe.project.ptables.pjt_points_pegboard_table
@@ -881,6 +897,402 @@ class Cable(_ObjectBase):
         self.objpegboard.reload_splits()
         self.refresh_browser()
 
+    # ------------------------------------------------------------------ solder sleeve on a shielded, split end
+    # (SHIELD_SLEEVE_DESIGN.md: the sleeve is a splice, `pjt_cables.start_shield_splice_id` / `stop_shield_splice_id` say which)
+
+    @_check_types.do
+    def shield_sleeve(self, start: bool):
+        """The solder sleeve (the splice's facade) on one end of the cable; ``None`` when that end has none.
+
+        :param start: Which end.
+        :type start: bool
+        """
+        sleeve_id = self.db_obj.shield_splice_id(start)
+
+        if sleeve_id is None:
+            return None
+
+        return self.mainframe.project.ptables.pjt_splices_table[sleeve_id].get_object()
+
+    @_check_types.do
+    def _shield_lead(self, start: bool):
+        """The lead (the wire) of the shield conductor at one end; ``None`` when the end is not split or the shield has none."""
+        shield = next((conductor for conductor in self.db_obj.conductors if conductor.is_shield), None)
+
+        if shield is None:
+            return None
+
+        return next((lead for lead in self.lead_wires(start) if lead.db_obj.cable_conductor_id == shield.db_id), None)
+
+    @_check_types.do
+    def can_add_shield_sleeve(self, start: bool) -> bool:
+        """Whether a solder sleeve can be put on one end: the cable's part is shielded, the end is split (the sleeve sits at the split
+        plane, where the conductors leave), has no sleeve yet, and nothing is connected to the shield's own lead (the sleeve takes its
+        place: the shield is finished by the sleeve and the pigtail, not by a lead).
+
+        :param start: Which end.
+        :type start: bool
+        """
+        db_obj = self.db_obj
+
+        if not (bool(db_obj.part.shielded) and self.is_split(start) and db_obj.shield_splice_id(start) is None and
+                not db_obj.shield_end_clipped(start) and any(conductor.is_shield for conductor in db_obj.conductors)):
+            return False
+
+        lead = self._shield_lead(start)
+
+        if lead is None:
+            return True
+
+        pieces, junctions, blocked = self.lead_chain(lead)
+        return len(pieces) == 1 and not junctions and not blocked
+
+    @_check_types.do
+    def shield_clipped(self, start: bool) -> bool:
+        """Whether the shield is clipped off at one end (the cable's ``shield_clipped`` column, bit 1 for the start, bit 2 for the
+        stop): a clipped end has no sleeve and, once split, no lead for the shield. Both ends can be clipped (user, 2026-11-11: a
+        shield used only as a protective jacket is not connected anywhere).
+
+        :param start: Which end.
+        :type start: bool
+        """
+        db_obj = self.db_obj
+
+        return bool(db_obj.part.shielded) and db_obj.shield_end_clipped(start)
+
+    @_check_types.do
+    def can_clip_shield(self, start: bool) -> bool:
+        """Whether the shield can be clipped off at one end (the way a split is the end's own state, nothing here works unless the end
+        is split): the cable is shielded and has a shield, the end is split, not clipped yet and has no sleeve (user, 2026-11-11: with a
+        sleeve on it the clip is greyed out), and nothing is connected to the shield's lead (it is deleted by the clip).
+
+        :param start: Which end.
+        :type start: bool
+        """
+        db_obj = self.db_obj
+
+        if not (bool(db_obj.part.shielded) and any(conductor.is_shield for conductor in db_obj.conductors) and self.is_split(start) and
+                not db_obj.shield_end_clipped(start) and db_obj.shield_splice_id(start) is None):
+            return False
+
+        lead = self._shield_lead(start)
+
+        if lead is None:
+            return True
+
+        pieces, junctions, blocked = self.lead_chain(lead)
+        return len(pieces) == 1 and not junctions and not blocked
+
+    @_check_types.do
+    def clip_shield(self, start: bool) -> None:
+        """Cut the shield off at one end: the end's bit of ``shield_clipped`` is set and the shield's own lead is deleted. The end gets
+        no sleeve. Either end, or both, can be clipped; :meth:`unclip_shield` makes the lead again.
+
+        :param start: Which end.
+        :type start: bool
+        :raises ValueError: Raised when the end cannot be clipped (see :meth:`can_clip_shield`).
+        """
+        if not self.can_clip_shield(start):
+            raise ValueError("the shield can be clipped on a split end of a shielded cable that has no sleeve and nothing connected "
+                             "to the shield's lead")
+
+        self.db_obj.set_shield_end_clipped(start, True)
+        lead = self._shield_lead(start)
+
+        if lead is not None:
+            lead.delete()
+
+        self.obj3d.editor3d.Refresh()
+        self.refresh_browser()
+
+    @_check_types.do
+    def can_unclip_shield(self, start: bool) -> bool:
+        """Whether the clip of one end can be taken back: the end is split and clipped.
+
+        :param start: Which end.
+        :type start: bool
+        """
+        return self.shield_clipped(start) and self.is_split(start)
+
+    @_check_types.do
+    def unclip_shield(self, start: bool) -> None:
+        """Take the clip off one end: the shield is whole there again, so its lead is made again, from the conductor's end point to
+        its split point (as :meth:`split_end` makes it), ready to be connected.
+
+        :param start: Which end.
+        :type start: bool
+        :raises ValueError: Raised when the end is not split or not clipped (see :meth:`can_unclip_shield`).
+        """
+        if not self.can_unclip_shield(start):
+            raise ValueError('the clip can be taken off a split end whose shield is clipped')
+
+        self.db_obj.set_shield_end_clipped(start, False)
+        self._make_shield_lead(start)
+
+        self.obj3d.editor3d.Refresh()
+        self.objpegboard.pegboard.Refresh()
+        self.refresh_browser()
+
+    @_check_types.do
+    def _make_shield_lead(self, start: bool) -> None:
+        """Make the lead of the shield conductor of a split end that has none (a clip taken off): an ordinary wire from the conductor's
+        end point to its split point on the plane, attached to the conductor's junction, as :meth:`split_end` makes each lead."""
+        from . import wire as _wire_facade  # NOQA -- avoid a cycle at import time
+
+        db_obj = self.db_obj
+        conductor = next((c for c in db_obj.conductors if c.is_shield), None)
+
+        if conductor is None or self._shield_lead(start) is not None:
+            return
+
+        split_id = conductor.start_split_point3d_id if start else conductor.stop_split_point3d_id
+
+        if split_id is None:
+            return
+
+        end_id = conductor.start_position3d_id if start else conductor.stop_position3d_id
+        wires_table = self.mainframe.project.ptables.pjt_wires_table
+        side = 'start' if start else 'stop'
+
+        lead_db = wires_table.insert(
+            db_obj.part_id, f'{conductor.name} ({side})', None, end_id, split_id, None, None, True, False, None, None, False,
+            cable_conductor_id=conductor.db_id)
+
+        split_peg_id = conductor.start_split_point_pegboard_id if start else conductor.stop_split_point_pegboard_id
+
+        if split_peg_id is not None:
+            # the row keeps both board points from here on (a point's write-back to its row is a weak callback)
+            lead_db.start_position_pegboard_id = conductor.start_position_pegboard_id if start else conductor.stop_position_pegboard_id
+            lead_db.stop_position_pegboard_id = split_peg_id
+
+            lead_db.stop_position_pegboard  # NOQA
+            lead_db.start_position_pegboard  # NOQA
+
+        lead = _wire_facade.Wire(self.mainframe, lead_db)
+        self.mainframe.project.add_wire(lead)
+
+        node = self.conductor_object(conductor)
+        lead.set_sibling(node, lead.obj3d.stop_position)
+        node.set_lead(start, lead)
+
+        # the shield's end point goes to its place in the fan-out on the board
+        self._move_board_ends(start)
+
+    @_check_types.do
+    def _sleeve_pose(self, start: bool, length: float) -> tuple[np.ndarray, np.ndarray] | None:
+        """Where the sleeve of one end lies: from the split plane (its start, where the conductors leave) a *length* into the trunk
+        (its stop); ``None`` while the end's frame is not known."""
+        frame = self.obj3d._end_frame(start)  # NOQA
+
+        if frame is None:
+            return None
+
+        end = np.asarray(frame[0], dtype=np.float64)
+        inward = np.asarray(frame[1], dtype=np.float64)
+
+        return end, end + inward * length
+
+    @_check_types.do
+    def _pigtail_part_id(self, sleeve_part) -> bytes | None:
+        """The catalog wire for the pigtail of a sleeve that comes with one: a plain wire (one conductor, no shield) of the gauge the
+        sleeve's lead takes (the middle of its AWG range; 20 AWG when the part gives none). ``None`` when the catalog has no such wire."""
+        known = [value for value in (sleeve_part.wire_size_awg_min, sleeve_part.wire_size_awg_max) if value is not None]
+        target = sum(known) / len(known) if known else 20.0
+
+        rows = self.mainframe.project.ptables.global_db.wires_table.select(
+            'id', 'wire_size_awg', num_conductors=1, shielded=0)
+        rows = [row for row in rows if row[1] is not None]
+
+        if not rows:
+            return None
+
+        return min(rows, key=lambda row: abs(row[1] - target))[0]
+
+    @_check_types.do
+    def _build_sleeve(self, start: bool, part_id: bytes, part, pose: tuple[np.ndarray, np.ndarray], branch_id: bytes | None):
+        """Make the splice of a sleeve (its rows, the cable's column, the object) between the two points of *pose*; its branch point
+        is the row *branch_id* when given (a sleeve put in its new place keeps it, with the pigtail on it), else a new one at the
+        start of the pose."""
+        from . import splice as _splice_facade  # NOQA -- avoid a cycle at import time
+
+        ptables = self.mainframe.project.ptables
+        points = ptables.pjt_points3d_table
+
+        start_row = points.insert(*(float(v) for v in pose[0]))
+        stop_row = points.insert(*(float(v) for v in pose[1]))
+
+        if branch_id is None:
+            branch_id = points.insert(*(float(v) for v in pose[0])).db_id
+
+        splice_db = ptables.pjt_splices_table.insert(
+            part_id, f'{part.manufacturer.name} {part.part_number}', start_row.db_id, stop_row.db_id, branch_id, None, None)
+
+        # the cable knows its sleeve before the view is made: the view sizes itself from the cable it is on
+        self.db_obj.set_shield_splice_id(start, splice_db.db_id)
+
+        sleeve = _splice_facade.Splice(self.mainframe, splice_db)
+        self.mainframe.project.add_splice(sleeve)
+
+        # a sleeve is on the cable, not a part of the schematic wiring
+        sleeve.objschematic.is_visible = False
+
+        return sleeve
+
+    @_check_types.do
+    def _make_pigtail(self, sleeve, pose: tuple[np.ndarray, np.ndarray], length: float, part_id: bytes) -> None:
+        """Make the pigtail of a sleeve that comes with one: a plain wire of the catalog part *part_id*, *length* mm long, leaving the
+        sleeve's branch point (the sleeve's end at the split plane) straight out along the cable's axis. Its end on the sleeve is
+        pinned (``WireDragMixin.is_anchor_point``); its free end is the user's to move, as any wire's."""
+        from . import wire as _wire_facade  # NOQA -- avoid a cycle at import time
+
+        ptables = self.mainframe.project.ptables
+        outward = pose[0] - pose[1]
+        outward = outward / max(float(np.linalg.norm(outward)), 1e-9)
+        free = pose[0] + outward * length
+
+        free_row = ptables.pjt_points3d_table.insert(*(float(v) for v in free))
+        wire_db = ptables.pjt_wires_table.insert(
+            part_id, 'Pigtail', None, free_row.db_id, sleeve.db_obj.branch_position3d_id, None, None, True, False, None, None, False)
+
+        wire = _wire_facade.Wire(self.mainframe, wire_db)
+        self.mainframe.project.add_wire(wire)
+
+        sleeve.add_wire(wire)
+        wire.set_sibling(sleeve, wire.obj3d.stop_position)
+
+    @_check_types.do
+    def add_shield_sleeve(self, start: bool, part_id: bytes):
+        """Put a solder sleeve on a split end of the shielded cable: a splice (``part_id`` is a ``splices`` row whose type is a shielding
+        solder sleeve) lying along the trunk from the split plane, sized by the cable's diameter. The sleeve finishes the shield, so the
+        shield's own lead is deleted. A sleeve that comes with a pigtail gets it: a plain wire, 150 mm from the middle of the sleeve
+        (``sleeve.PIGTAIL_LENGTH_MM``, which is also the longest a drag can make it), set onto the sleeve's branch point at the split
+        plane (that end is pinned). One without is
+        a snap point: the user adds whatever wire they want to it (the snap rule is ``wire_snap.check_splice_compat``, one wire).
+
+        :param start: Which end.
+        :type start: bool
+        :param part_id: The catalog splice.
+        :type part_id: bytes
+        :returns: The sleeve (the splice's facade).
+        :raises ValueError: Raised when the cable cannot take one there (see :meth:`can_add_shield_sleeve`), when the part is not a
+            solder sleeve, when the cable is not within the part's range of diameters or when the sleeve has a pigtail and the catalog
+            has no wire for it.
+        """
+        db_obj = self.db_obj
+
+        if not self.can_add_shield_sleeve(start):
+            raise ValueError('a solder sleeve needs a shielded cable with this end split, no sleeve on it yet and nothing connected '
+                             'to the shield\'s lead')
+
+        ptables = self.mainframe.project.ptables
+        part = ptables.global_db.splices_table[part_id]
+
+        if not part.is_shielding_sleeve:
+            raise ValueError('that part is not a shielding solder sleeve (type "Shielding Solder Sleeve")')
+
+        diameter = float(db_obj.part.trunk_size[0])
+
+        if not part.fits_cable(diameter):
+            raise ValueError(f'a cable of {diameter:.2f} mm does not fit this sleeve ({part.min_dia:.2f} to {part.max_dia:.2f} mm)')
+
+        shape = _sleeve_shape.sizes(diameter, part.min_dia, part.max_dia, part.length)
+        pose = self._sleeve_pose(start, shape['length'])
+
+        if pose is None:
+            raise ValueError('the direction of the cable at this end is not known')
+
+        pigtail_part = None
+
+        if part.has_pigtail:
+            pigtail_part = self._pigtail_part_id(part)
+
+            if pigtail_part is None:
+                raise ValueError('the catalog has no plain wire for the pigtail of this sleeve')
+
+        # the sleeve takes the place of the shield's own lead
+        lead = self._shield_lead(start)
+
+        if lead is not None:
+            lead.delete()
+
+        sleeve = self._build_sleeve(start, part_id, part, pose, None)
+
+        if pigtail_part is not None:
+            # 150 mm from the middle of the sleeve to the end of the lead; the lead leaves the sleeve's end at the split plane
+            self._make_pigtail(sleeve, pose, max(_sleeve_shape.PIGTAIL_LENGTH_MM - shape['length'] / 2.0, 1.0), pigtail_part)
+
+        self.obj3d.editor3d.Refresh()
+        return sleeve
+
+    @_check_types.do
+    def remove_shield_sleeve(self, start: bool) -> None:
+        """Take the solder sleeve off one end. A pigtail that has nothing connected at its far end goes with the sleeve; one that is
+        connected stays (it is left as a wire of its own, as with any splice). The shield's own lead is not made again: join the end
+        and split it again for that.
+
+        :param start: Which end.
+        :type start: bool
+        """
+        sleeve = self.shield_sleeve(start)
+
+        if sleeve is None:
+            return
+
+        branch_id = sleeve.db_obj.branch_position3d_id
+
+        for wire in list(sleeve.branch_wires):
+            far = wire.start_sibling if wire.db_obj.stop_position3d_id == branch_id else wire.stop_sibling
+
+            if far is None:
+                wire.delete()
+
+        sleeve.delete()
+        self.obj3d.editor3d.Refresh()
+
+    @_check_types.do
+    def _sync_shield_sleeve(self, start: bool) -> None:
+        """Keep the sleeve of one end on the split plane after the end moved (the cable was dragged, a waypoint moved, the split
+        distance changed). A splice's angle is only worked out when it is made, so a sleeve that is out of place is made again; its
+        branch point is kept and moved (the pigtail's end on it goes along), and the pigtail is put on the new sleeve."""
+        sleeve = self.shield_sleeve(start)
+
+        if sleeve is None:
+            return
+
+        row = sleeve.db_obj
+        part = row.part
+        shape = _sleeve_shape.sizes(float(self.db_obj.part.trunk_size[0]), part.min_dia, part.max_dia, part.length)
+        pose = self._sleeve_pose(start, shape['length'])
+
+        if pose is None:
+            return
+
+        near = (float(np.linalg.norm(row.start_position3d.as_numpy - pose[0])) < 1e-3 and
+                float(np.linalg.norm(row.stop_position3d.as_numpy - pose[1])) < 1e-3)
+
+        if near:
+            return
+
+        part_id = row.part_id
+        branch_id = row.branch_position3d_id
+
+        # the row is kept while the point moves: the point's write-back to it is a weak callback
+        branch_row = self.mainframe.project.ptables.pjt_points3d_table[branch_id]
+        live = branch_row.point
+        delta = _point.Point(*(float(v) for v in pose[0])) - live
+
+        if float(np.linalg.norm(delta.as_numpy)) > 1e-9:
+            live += delta
+
+        pigtails = sleeve.branch_wires
+        sleeve.delete(keep_branch=True)
+        moved = self._build_sleeve(start, part_id, part, pose, branch_id)
+
+        for wire in pigtails:
+            moved.add_wire(wire)
+            end = wire.obj3d.stop_position if wire.db_obj.stop_position3d_id == branch_id else wire.obj3d.start_position
+            wire.set_sibling(moved, end)
+
     @property
     @_check_types.do
     def start_sibling(self) -> None:
@@ -904,6 +1316,9 @@ class Cable(_ObjectBase):
         """Delete the cable: its leads, its view, its registry entry, its conductors and its row."""
         self._slack_handler.release()
 
+        for start in (True, False):
+            self.remove_shield_sleeve(start)
+
         junctions = []
 
         for start in (True, False):
@@ -912,8 +1327,21 @@ class Cable(_ObjectBase):
             for lead in self.lead_wires(start):
                 junctions.extend(self.lead_chain(lead)[1])
 
+        # a row of a conductor's wire that has no object (it never loaded) would be left pointing at a conductor that is gone, and
+        # the project would not open again
+        wires_table = self.mainframe.project.ptables.pjt_wires_table
+        without_object = []
+
+        for conductor in self.db_obj.conductors:
+            for wire_db in wires_table.leads_of(conductor.db_id):
+                if wire_db.get_object() is None:
+                    without_object.append(wire_db)
+
         for piece in self.conductor_wires():
             piece.delete()
+
+        for wire_db in without_object:
+            wire_db.delete()
 
         self._remove_junctions(junctions)
 

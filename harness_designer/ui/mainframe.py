@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Union as _Union
 from collections.abc import Callable
 
+import contextlib
 import gc
 import types
 
@@ -72,6 +73,20 @@ class MainFrame(QtWidgets.QMainWindow):
     project_db: "_project_db.PJTTables" = None
     _project: "_project.Project" = None
     _project_opened: bool = False
+
+    # True while a project's objects are being built (see loading_project): the load handles events as it goes, so the views can be
+    # looked around, but what is half built cannot be dragged.
+    project_loading: bool = False
+
+    @contextlib.contextmanager
+    def loading_project(self):
+        """A ``with`` block around a project's load: :attr:`project_loading` is true in it (also when the load raises)."""
+        self.project_loading = True
+
+        try:
+            yield
+        finally:
+            self.project_loading = False
 
     @property
     @_check_types.do
