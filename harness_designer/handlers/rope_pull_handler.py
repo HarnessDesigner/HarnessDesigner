@@ -1490,6 +1490,19 @@ def _cable_node(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, lis
                 if end_id is not None and not _is_owned_end(ptables, end_id):
                     owned[start].append(end_id)
 
+        # A solder sleeve on a split end lies on the split plane and goes with the end: its three board points, which are also the
+        # end of its pigtail (the lead's end on the sleeve is the sleeve's branch point), so the pigtail is solved as a wire of the end.
+        for start in (True, False):
+            sleeve_id = cable.start_shield_splice_id if start else cable.stop_shield_splice_id
+
+            if sleeve_id is None or not owned[start]:
+                continue
+
+            sleeve = ptables.pjt_splices_table[sleeve_id]
+            owned[start].extend(
+                point for point in (sleeve.start_position_pegboard_id, sleeve.stop_position_pegboard_id,
+                                    sleeve.branch_position_pegboard_id) if point is not None)
+
         ends = {True: cable.start_position_pegboard_id, False: cable.stop_position_pegboard_id}
 
         for start in (True, False):

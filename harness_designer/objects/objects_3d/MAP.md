@@ -50,6 +50,8 @@ Companion to `bundle.py`, same 3D + peg-board-only scope.
 
 **Clip Shield (2026-11-11):** `CableMenu` (3D only, same block as the sleeve items) works like Split / Join: the line reads **Clip Shield (start|stop end)** and turns into **Unclip Shield (...)** once clipped (`on_clip_shield` / `on_unclip_shield`). None of Add / Remove Solder Sleeve, Clip, Unclip is enabled unless the end is split; a clipped shield greys out Add Solder Sleeve and a sleeve on the end greys out Clip Shield (it shows **Remove Solder Sleeve**). NOT run in the app.
 
+**Sleeve colour (user, 2026-11-12):** the tube was nearly invisible (a clear / whitish part colour at 85/255). `_SLEEVE_COLOR` is now a translucent blue (70, 140, 225) at `_SLEEVE_ALPHA` 120; it is used when the part has no colour or a light one (darkest channel > `_SLEEVE_LIGHT` = 170: white, clear, natural); a darker part colour (black, red...) is kept. NOT seen in the app.
+
 #### cavity.py
 
 `Cavity3D` owns its own selection/overlay state (`render_selected_overlay`, `render()`, its own `_terminal_marker`/`_wire_marker`) via the generic `is_selected` mechanism, reaching `Housing3D` only for the shared ray-mesh/picker primitives — this replaced an earlier, broken design where `Housing3D._surf_to_cavity`/`_cavity_markers` tracked selection as a hand-synchronized copy, which could desync from the real `is_selected` state (`harness_designer/objects/MAP.md` DESIGN NOTES, "Fixed (2026-09-04)... architectural root cause found"). Bind to `db_obj.angle3d` (the project cavity's world-space angle), never `db_obj.part.angle3d` (the baked catalog angle) — and don't override `_update_angle`/`_update_position` here; `Base3D`'s own implementation handles it correctly once the right angle is bound. The override existed at one point to propagate rotation deltas to the terminal, but combined with the project-angle binding it created a callback chain that fired during project loading (before all objects were initialized) and froze the app (this file's DESIGN NOTES, "Cavity 3D angle binding").
@@ -57,6 +59,10 @@ Companion to `bundle.py`, same 3D + peg-board-only scope.
 #### circuit.py
 
 The 3D editor's view of a circuit: an inert placeholder (`Base3D` built with no vbo/angle/position/scale/material, never visible, `obb` None), built like a `Note` that was never placed in this editor. A circuit has nothing to draw; the view exists so the canvas can hold the circuit as its one selected object (see `objects/circuit.py`). The mouse can not pick it. Added 2026-10-25. Its `set_selected` is overridden (2026-10-25): deselecting also calls `Circuit.deselect_in_editor()`, so the circuit editor stops showing the circuit's row as selected (it clears the row only when that row is the selected one, otherwise it does nothing).
+
+#### conductor_run.py
+
+The 3D editor's view of a cable conductor as the schematic draws it (`objects/cable_conductor.py` `ConductorRun`): an inert placeholder built like `circuit.py` (no vbo/angle/position/scale/material, never visible, not pickable), so the run can be the selected object without the canvas logging `the selected ConductorRun has no view in the editor3d canvas` (user's log, 2026-11-12). Added 2026-11-13; checked with stand-ins (`twist/conductor_run_view_test.py`).
 
 #### cover.py
 

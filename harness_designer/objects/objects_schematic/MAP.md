@@ -34,6 +34,8 @@ Companion to `bundle.py`, same caveat about actual schematic scope.
 
 #### cavity.py
 
+**Empty cavity marker (2026-11-12, user):** a cavity with no terminal is drawn with the wire stub and the "(" a seated terminal has (from the same `CavityGeometry`: `bracket_position`, `cylinder_start`, `cylinder_stop`) and a RED X at the end of the stub, meaning nothing can be connected there. `_render_label` calls `_render_empty_marker` while `_empty` (set in `__init__`, kept by `_on_terminal_changed`, which the terminal's `cavity_id` setter fires through the synthetic `terminal_id` tag); `_marker_pieces` works the world places out again only when the housing's position / angle changed, `_marker_world` uses `point_at_180` at exactly 180 degrees (a closing bracket instead of the opening one there, as `Terminal` does); the glyphs (`_glyph`) are shared by every empty cavity. A seated terminal draws its own, so the marker goes while one is seated. Stand-in test `twist/empty_cavity_test.py` (the geometry only); NOT seen in the app.
+
 Per MEMORY.md ("schematic cavity names all rendered at the housing's own position"), a cavity's schematic name-label position historically collapsed to the housing's own position for cavities created via `PJTHousing.update_cavities()`'s older per-cavity insert path (now fixed — see MEMORY.md for the full root cause/fix). Also: don't read 2D position off `Position2DMixin.position2d`'s `.y` and expect the real "y" axis — that was a pre-2026-09-24 trap, since fixed at the schema level (`pjt_points2d` now has a real `z` column); see MEMORY.md for history if old code/comments still reference the `.y`->`.z` remap.
 
 #### circuit.py
@@ -78,6 +80,8 @@ Inert placeholder for the concentric section widget (NEW 2026-10-25) -- it has n
 
 One file per harness part, same `BaseSchematic(parent, db_obj)` shape.
 
+**Shield ring (2026-11-12, user's design; replaces the dot and the wire-fitted ellipse):** a solder sleeve is drawn as a DASHED ELLIPSE ACROSS the shielded wires (`SHIELD_DASH_THICKNESS` 0.3 of a wire: thin) and nothing else: NO dot. Its state is stored on the sleeve's row (`wire_routing/shield_ring.py`): the connected narrow end is the splice's own `point2d` (where the black shield wire, the pigtail, ends), `ring_dir`, `ring_size`, `ring_hard`; `reload_ring()` re-reads it and redoes the view's bounds (the ring's box, which the router reads as an obstacle, so other wires route around it). Picking: `hit_test_step2/3` hit only the two narrow ends (`_tip_at`, `HANDLE_FACTOR` splice diameters), so wires inside the box are not hidden. The user cannot move the ring as a whole; a press on the CONNECTED narrow end of a selected ring drags it (`_RingDrag` index 0 -> `shield_ring.move_ring`: hard set there, the shield wire is routed to it, the cable's wires are routed through it), a press on the FAR end sizes it (index 1 -> `resize_ring`: longer is wider, long : short = 3 : 1, also hard set). The ring goes AROUND the wires (user, 2026-11-12): `_pieces` raises the dashes of the half on the far side of the wires from the housing (`shield_ring.beyond_sign`) clear above the wires (`SHIELD_OVER_GAP`, drawn on top: the canvas is top-down with depth testing) and leaves the other half on the wires' plane, where they cover it. NOT seen in the app.
+
 #### table.py
 
 `Table(BaseSchematic)` — the floating wire table's schematic-view rendering; same class name as the 3D/peg-board `Table`, not shared code.
@@ -98,9 +102,13 @@ One file per harness part, same `BaseSchematic(parent, db_obj)` shape.
 
 Wire family; schematic has no waypoints — a wire's end is simply the terminal's `wire_position2d`.
 
+**Shield wire (2026-11-12, user):** the pigtail of a solder sleeve that finishes a cable's shield (`_shield_terminal_at_start`: one end is a view with `is_shield`) is drawn by `_shield_draws` as a 45 degree TAPER (`shapes/taper.py`) at its terminal, from the full wire size down to the thickness of the ring's dashes, then thin (`taper.END_RATIO` of a wire) all the way to the ring; no stripe pass. Picking and bounds still use the full size. **The round dots (user, 2026-11-12):** every bend of a wire has a `WireLayout` (a sphere of the wire's own size, rendered by the default `render`), which is hidden inside a normal wire; on the thin shield wire they showed as dots, coming and going as the route changed. `wire.THIN_POINTS` holds the `id` of every bend/end Point of a shield wire (set in `Wire.render`, cleared in `_bind_waypoints` / `_delete`) and `WireLayout.render` draws those handles as thin as the wire. Stand-in test `twist/taper_test.py`; not seen in the app and `twist/thin_handle_test.py`; not seen in the app.
+
 #### wire_layout.py
 
 Part of the wire family.
+
+**Thin handles (2026-11-12):** `render` draws the handle of a bend of a shield wire (`wire.THIN_POINTS`) as thin as that wire (`taper.END_RATIO`), see `wire.py`.
 
 **Deleting a cable (2026-11-09):** `_reconnect_wires` refreshes the route registration only if the wire row has a view of this kind (`view is not None`): deleting a cable deletes its conductors' layouts, and a conductor row's object has no such view (it raised `'NoneType' object has no attribute 'refresh_waypoints'`).
 

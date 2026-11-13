@@ -111,7 +111,8 @@ class Generic(_editor_schematic.DragHandlerSchematic):
         # the same reason: what's attached doesn't change mid-drag, only
         # its routed path does.
         #
-        # Sorted junction wires first (see ``wire_routing.reroute.
+        # Sorted the wires of a shielded cable first (``wire_routing.reroute.is_shield_group_wire``: they have to run side by side
+        # close to the housing, and the rest route around them), then junction wires (see ``wire_routing.reroute.
         # is_junction_wire``'s own docstring -- a wire-junction terminal's
         # own wires need to claim their lanes around its pushed-out
         # attach point before anyone else routes near it), then, within
@@ -122,7 +123,12 @@ class Generic(_editor_schematic.DragHandlerSchematic):
         # __call__.
         self._attached = sorted(
             _wire_reroute.wires_attached_to(target),
-            key=lambda w: (not _wire_reroute.is_junction_wire(w), _wire_reroute.crow_flies_distance(w)))
+            key=lambda w: (not _wire_reroute.is_shield_group_wire(w), not _wire_reroute.is_junction_wire(w),
+                           _wire_reroute.crow_flies_distance(w)))
+
+        # the wires of shielded cables are routed through their rings as a group, first; everything else as a batch
+        self._plain = [w for w in self._attached if not _wire_reroute.is_shield_group_wire(w)]
+        self._shield_cables = _wire_reroute.shield_cables(self._attached)
 
         # Open the move gesture for this drag's whole lifetime (WRITE_DESIGN.md
         # section 4.12): every write this drag triggers -- the housing/
@@ -180,8 +186,20 @@ class Generic(_editor_schematic.DragHandlerSchematic):
         # A route is worth keeping until it collides: wires whose end moved with
         # the housing just FOLLOW it where their existing path can, and only the
         # ones that can't get a new route.
+        #
+        #
+        # The wires of a shielded cable are not followed: the cable is routed again as a whole FIRST (``route_shield_group``: its shield
+        # rings are placed again, unless the user hard set them, pushed away from the housing far enough for the wires between the
+        # cable's to get out, and its wires are routed through them), before the rest, which route around the ring (user, 2026-11-12).
+        if not self._route_shield_cables(project):
+            # No place for a shield ring where the wires now are (user, 2026-11-12): the move is not allowed. The object goes back
+            # to where it was and the cable is routed as it was; the next frame tries again from the mouse's new position.
+            objschematic.drag(_point.Point(-float(world_delta.x), 0.0, -float(world_delta.z)))
+            self._route_shield_cables(project)
+            return
+
         remaining = _wire_reroute.follow_moved(
-            project, self.target, self._attached, (float(world_delta.x), float(world_delta.z)))
+            project, self.target, self._plain, (float(world_delta.x), float(world_delta.z)))
 
         t_follow = time.perf_counter()
 
@@ -192,7 +210,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
             # A wire that had to be re-routed found no legal lane between the
             # wires that followed: a real collision, so re-nest the whole bundle.
             renested = True
-            self._route(project, self._attached)
+            self._route(project, self._plain)
 
         if _TIMING:
             t_end = time.perf_counter()
@@ -219,7 +237,21 @@ class Generic(_editor_schematic.DragHandlerSchematic):
             unsettled.discard(wire)
             _wire_reroute.reroute_wire(project, wire, skip_wires=unsettled, frame=frame)
 
-        self._deadlocked = frame is not None and bool(frame.relaxed) and len(wires) < len(self._attached)
+        self._deadlocked = frame is not None and bool(frame.relaxed) and len(wires) < len(self._plain)
+
+    @_check_types.do
+    def _route_shield_cables(self, project: "_project.Project") -> bool:
+        """Route every shielded cable that has a wire on the dragged object again (see ``reroute.route_shield_group``).
+
+        :returns: ``False`` when a shield ring of one of them found no place (the drag has to be refused).
+        """
+        placed = True
+
+        for cable in self._shield_cables:
+            if not _wire_reroute.route_shield_group(project, cable):
+                placed = False
+
+        return placed
 
     @_check_types.do
     def delete(self) -> None:

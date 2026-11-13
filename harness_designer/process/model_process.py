@@ -52,12 +52,16 @@ class ModelLoadError(ModelException):
     pass
 
 
-def _ocp_read_shape(shape: "TopoDS_Shape", lin_deflection: float = 0.001, is_relative: bool = True, ang_deflection: float = 0.1) -> tuple[np.ndarray, np.ndarray]:
-    BRepMesh_IncrementalMesh(
-        theShape=shape, theLinDeflection=lin_deflection,
-        isRelative=is_relative, theAngDeflection=ang_deflection, isInParallel=True
-    )
+def _ocp_read_shape(
+    shape: "TopoDS_Shape",
+    lin_deflection: float = 0.001,
+    is_relative: bool = True,
+    ang_deflection: float = 0.1
+) -> tuple[np.ndarray, np.ndarray]:
 
+    BRepMesh_IncrementalMesh(theShape=shape, theLinDeflection=lin_deflection,
+                             isRelative=is_relative, theAngDeflection=ang_deflection,
+                             isInParallel=True)
     vertices = []
     faces = []
     offset = 0
@@ -82,7 +86,8 @@ def _ocp_read_shape(shape: "TopoDS_Shape", lin_deflection: float = 0.001, is_rel
         facet_reversed = anExpSF.Current().Orientation() == TopAbs_REVERSED
         order = [1, 3, 2] if facet_reversed else [1, 2, 3]
 
-        # Use index access instead of Triangles() iterator — more reliable across OCP versions
+        # Use index access instead of Triangles() iterator
+        # — more reliable across OCP versions
         for i in range(1, poly_triangulation.NbTriangles() + 1):
             tri = poly_triangulation.Triangle(i)
             faces.append([tri.Value(j) + offset - 1 for j in order])
@@ -97,15 +102,18 @@ def _ocp_read_shape(shape: "TopoDS_Shape", lin_deflection: float = 0.001, is_rel
 
 
 def _load_with_assimp(path: str) -> tuple[np.ndarray, np.ndarray]:
-    """Load the with assimp.
+    """
+    Load the with assimp.
 
     UNKNOWN details are inferred from the callable name and signature.
 
     :param path: Filesystem path.
     :type path: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     flags = (pyassimp.postprocess.aiProcess_Triangulate |
              pyassimp.postprocess.aiProcess_JoinIdenticalVertices)
 
@@ -133,15 +141,18 @@ def _load_with_assimp(path: str) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _load_vrml(file: str) -> tuple[np.ndarray, np.ndarray]:
-    """Load the vrml.
+    """
+    Load the vrml.
 
     UNKNOWN details are inferred from the callable name and signature.
 
     :param file: Value for ``file``.
     :type file: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     reader = Vrml_Provider()
     reader.ReadFile(file)
     reader.TransferRoots()
@@ -177,12 +188,14 @@ _ASSEMBLY_MARKERS = (
 
 
 def _find_assembly_markers(file: str) -> list[str]:
-    """Return which (if any) of ``_ASSEMBLY_MARKERS`` appear in a STEP file.
+    """
+    Return which (if any) of ``_ASSEMBLY_MARKERS`` appear in a STEP file.
 
     STEP files are plain text, one entity definition per line
     (``#123=ENTITY_NAME(...);``), so this is a straightforward text scan --
     no need to actually parse the file through OCP just to answer this.
     """
+
     with open(file, 'r', errors='ignore') as f:
         text = f.read()
 
@@ -190,8 +203,11 @@ def _find_assembly_markers(file: str) -> list[str]:
             if re.search(rf'=\s*{marker}\s*\(', text)]
 
 
-def _read_cad_shape(reader: STEPControl_Reader | IGESControl_Reader, file: str) -> "TopoDS_Shape":
-    """Read *file* with *reader* and return everything in it as one shape.
+def _read_cad_shape(reader: STEPControl_Reader | IGESControl_Reader,
+                    file: str) -> "TopoDS_Shape":
+
+    """
+    Read *file* with *reader* and return everything in it as one shape.
 
     ``Shape()`` only returns the first transferred root. A STEP part is
     normally a single solid root, but an IGES part is one root per surface
@@ -201,12 +217,16 @@ def _read_cad_shape(reader: STEPControl_Reader | IGESControl_Reader, file: str) 
 
     :param reader: A fresh STEP or IGES reader.
     :type reader: STEPControl_Reader | IGESControl_Reader
+
     :param file: Path to the file to read.
     :type file: str
+
     :returns: The whole file's geometry as a single shape.
     :rtype: TopoDS_Shape
+
     :raises ModelLoadError: Raised when the file cannot be read or holds no geometry.
     """
+
     status = reader.ReadFile(file)
     if status != IFSelect_RetDone:
         raise ModelLoadError(f'could not be read (reader status: {status})')
@@ -215,21 +235,29 @@ def _read_cad_shape(reader: STEPControl_Reader | IGESControl_Reader, file: str) 
     shape = reader.OneShape()
 
     if shape.IsNull():
-        raise ModelLoadError('was read but no geometry could be transferred from it')
+        raise ModelLoadError(
+            'was read but no geometry could be transferred from it')
 
     return shape
 
 
-def _load_step(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, np.ndarray]:
-    """Load the step.
+def _load_step(
+    file: str,
+    use_loose_tessellation: bool = False
+) -> tuple[np.ndarray, np.ndarray]:
+
+    """
+    Load the step.
 
     :param file: Path to the STEP file.
     :type file: str
+
     :param use_loose_tessellation: Skip the default (tight/relative)
         tessellation pass entirely and go straight to the coarser
         settings -- for a retry after the default pass hung the model
         watchdog on a first attempt (see ThreadWorker.run).
     :type use_loose_tessellation: bool
+
     :returns: Packed vertices/faces arrays.
     :rtype: tuple[numpy.ndarray, numpy.ndarray]
     """
@@ -271,15 +299,18 @@ def _load_step(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndar
 
 
 def _load_iges(file: str) -> tuple[np.ndarray, np.ndarray]:
-    """Load the iges.
+    """
+    Load the iges.
 
     UNKNOWN details are inferred from the callable name and signature.
 
     :param file: Value for ``file``.
     :type file: UNKNOWN
+
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
+
     shape = _read_cad_shape(IGESControl_Reader(), file)
 
     vertices, faces = _ocp_read_shape(shape)
@@ -287,24 +318,34 @@ def _load_iges(file: str) -> tuple[np.ndarray, np.ndarray]:
     return vertices, faces
 
 
-def _load(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, np.ndarray]:
-    """Execute the load operation.
+def _load(
+    file: str,
+    use_loose_tessellation: bool = False
+) -> tuple[np.ndarray, np.ndarray]:
+
+    """
+    Execute the load operation.
 
     :param file: Value for ``file``.
     :type file: str
+
     :param use_loose_tessellation: Forwarded to ``_load_step`` -- only
         meaningful for STEP files, ignored for every other format.
     :type use_loose_tessellation: bool
+
     :returns: Return value. UNKNOWN details.
     :rtype: tuple[np.ndarray, np.ndarray]
+
     :raises ModelLoadError: Raised when the operation cannot be completed.
     """
+
     if file.endswith('.vrml') or file.endswith('wrl'):
         vertices, faces = _load_vrml(file)
     elif file.endswith('.iges') or file.endswith('.igs'):
         vertices, faces = _load_iges(file)
     elif file.endswith('.step') or file.endswith('stp'):
-        vertices, faces = _load_step(file, use_loose_tessellation=use_loose_tessellation)
+        vertices, faces = _load_step(
+            file, use_loose_tessellation=use_loose_tessellation)
     else:
         try:
             vertices, faces = _load_with_assimp(file)
@@ -322,7 +363,6 @@ def _load(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, 
 
 
 def _center_model(vertices: np.ndarray) -> np.ndarray:
-
     # this code block makes sure the model has 0, 0 as the center of
     # the model. I have found that the models that are loaded from
     # the manufacturers don't always have 0, 0 as the center of the model
@@ -343,35 +383,50 @@ def _center_model(vertices: np.ndarray) -> np.ndarray:
 # on the GPU as well as increasing the speed in which the GPU renders
 # a model
 def _reduce_triangles(
-    verts: np.ndarray, faces: np.ndarray, target_count: int,
-    aggressiveness: float = 7.0, update_rate: int = 1,
-    max_iterations: int = 150, lossless: bool = False,
-    threshold_lossless: float = 1e-3, alpha: float = 1e-9,
-    K: int = 3, preserve_border: bool = False
+    verts: np.ndarray,
+    faces: np.ndarray,
+    target_count: int,
+    aggressiveness: float = 7.0,
+    update_rate: int = 1,
+    max_iterations: int = 150,
+    lossless: bool = False,
+    threshold_lossless: float = 1e-3,
+    alpha: float = 1e-9,
+    K: int = 3,
+    preserve_border: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
 
     """
     target_count : int
         Target number of triangles, not used if lossless is True
+
     update_rate : int
-        Number of iterations between each update.
+        Number of iterations between each update
         If lossless flag is set to True, rate is 1
+
     aggressiveness : float
         Parameter controlling the growth rate of the threshold at each
         iteration when lossless is False.
+
     max_iterations : int
         Maximal number of iterations
+
     verbose : bool
         control verbosity
+
     lossless : bool
         Use the lossless simplification method
+
     threshold_lossless : float
         Maximal error after which a vertex is not deleted, only for
         lossless method.
+
     alpha : float
         Parameter for controlling the threshold growth
+
     K : int
         Parameter for controlling the thresold growth
+
     preserve_border : bool
         Flag for preserving vertices on open border. Left False here --
         BRepMesh_IncrementalMesh (see _ocp_read_shape) triangulates each
@@ -412,7 +467,9 @@ def _reduce_triangles(
 
 class ThreadWorker(threading.Thread):
 
-    def __init__(self, db_broker: types.ModuleType, credentials: dict[str, Any], message: dict[str, Any], out_queue: multiprocessing.Queue):
+    def __init__(self, db_broker: types.ModuleType, credentials: dict[str, Any],
+                 message: dict[str, Any], out_queue: multiprocessing.Queue):
+
         self.db_broker = db_broker
         self.credentials = credentials
         self.message = message
@@ -611,17 +668,25 @@ class ThreadWorker(threading.Thread):
             # and streams it straight into the GPU vertex buffer.
             unpacked_verts = packed[:vertex_count * 3].reshape(-1, 3)
             aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
-            aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
-            aabb = [[float(str(item2)) for item2 in item1] for item1 in aabb.tolist()]
+
+            aabb = np.array(
+                [aabb1.as_float, aabb2.as_float], dtype=np.float32)
+
+            aabb = [[float(str(item2)) for item2 in item1]
+                    for item1 in aabb.tolist()]
+
             obb = _utils.compute_obb(aabb1,  aabb2)
-            obb = [[float(str(item2)) for item2 in item1] for item1 in obb.tolist()]
+
+            obb = [[float(str(item2)) for item2 in item1]
+                   for item1 in obb.tolist()]
 
             uuid = str(_uuid.uuid4())
 
             directory = os.path.join(model_dir, uuid[:2])
             os.makedirs(directory, exist_ok=True)
 
-            _utils.save_hdm(os.path.join(directory, f'{uuid}{_utils.HDM_EXTENSION}'), packed)
+            _utils.save_hdm(os.path.join(
+                directory, f'{uuid}{_utils.HDM_EXTENSION}'), packed)
 
             message['step'] = 9
             self.out_queue.put(message)
@@ -630,7 +695,8 @@ class ThreadWorker(threading.Thread):
             # the model metadata (vertex_count, aabb, obb).
             connector.execute('UPDATE models3d SET file_type_id=?, uuid=?, '
                               'vertex_count=?, aabb=?, obb=? WHERE id=?;',
-                              (file_type_id, uuid, vertex_count, str(aabb), str(obb), model_id))
+                              (file_type_id, uuid, vertex_count,
+                               str(aabb), str(obb), model_id))
 
             connector.commit()
 
@@ -650,18 +716,25 @@ class ThreadWorker(threading.Thread):
                 connector.close()
 
 
-def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Queue,
-                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock) -> None:
+def _process_worker(
+    in_queue: multiprocessing.Queue,
+    out_queue: multiprocessing.Queue,
+    exit_event: multiprocessing.Event,
+    print_lock: multiprocessing.Lock
+) -> None:
 
     """
     Downloads and converts the models
 
     :param in_queue: Queue used to receive messages from the monitor thread.
     :type in_queue: multiprocessing.Queue
+
     :param out_queue: Queue used to send notifications back to the monitor thread.
     :type out_queue: multiprocessing.Queue
+
     :param exit_event: Process event used to coordinate startup and shutdown.
     :type exit_event: multiprocessing.Event
+
     :param print_lock: Lock used when printing diagnostics.
     :type print_lock: multiprocessing.Lock
 
@@ -812,13 +885,16 @@ class ProcessWorker:
 
         :returns: ``None``.
         :rtype: None
-        :raises RuntimeError: Raised when the connector or worker enters an unexpected state.
+
+        :raises RuntimeError: Raised when the connector or worker
+                              enters an unexpected state.
         """
 
         self.process.start()
         self.exit_event.wait(timeout=10.0)
         if not self.exit_event.is_set():
-            raise RuntimeError('image process_worker failed to start within 10 seconds')
+            raise RuntimeError(
+                'image process_worker failed to start within 10 seconds')
 
         self.exit_event.clear()
 
@@ -829,7 +905,8 @@ class ProcessWorker:
         return self.process.is_alive()
 
     def send(self, message: dict[str, Any]) -> None:
-        """Queue an image identifier for background resource collection.
+        """
+        Queue an image identifier for background resource collection.
 
         :param message: message to send.
         :type message: UNKNOWN
@@ -837,6 +914,7 @@ class ProcessWorker:
         :returns: ``None``.
         :rtype: None
         """
+
         self.out_queue.put(message)
 
     def recv(self) -> dict[str, Any] | None:  # NOQA

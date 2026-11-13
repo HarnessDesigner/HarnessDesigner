@@ -12,13 +12,20 @@ from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
+import numpy as np
+
+from ... import utils as _utils
 from ...shapes import sphere as _sphere
+from ...shapes import taper as _taper
+from ...shapes import cylinder as _cylinder
+from ...geometry import line as _line
 from ... import check_types as _check_types
 from ... import bounds as _bounds
 
 
 if TYPE_CHECKING:
     from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from ...gl import shaders as _shaders
     from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_splice as _pjt_splice
     from .. import splice as _splice
@@ -27,6 +34,51 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor_schematic
+
+# A solder sleeve that finishes a cable's shield (the pigtail is the shield's connection) is shown in the schematic the way a shield is drawn on
+# a schematic: a DASHED ELLIPSE across the shielded wires, with the shield wire connected to one of its narrow ends (user, 2026-11-12). Nothing
+# else of the sleeve is drawn (no dot): the ring's state is stored on the sleeve's row (see ``wire_routing/shield_ring.py``), the connected narrow
+# end is the sleeve's own point, and the user changes the ring only by its two narrow ends: dragging the connected one moves the ring (it is then
+# hard set there), dragging the other one makes the ring longer or shorter (and wider or narrower, 1:3).
+SHIELD_DASHES = 36              # dashes round the ellipse
+SHIELD_DASH_FRACTION = 0.55     # how much of each period is drawn
+SHIELD_DASH_THICKNESS = _taper.END_RATIO   # a dash's thickness as a part of a wire's (user, 2026-11-12: 0.7 was too thick); the shield wire ends as thin
+SHIELD_OVER_GAP = 0.05          # how far (mm) the dashes that go over the wires clear them
+HANDLE_FACTOR = 1.5             # how near (in splice diameters) a click has to be to a narrow end to take it
+
+
+def _rings():
+    """The ``wire_routing.shield_ring`` module (imported when used: it imports the router, which imports this view's objects)."""
+    from ...wire_routing import shield_ring as _shield_ring
+
+    return _shield_ring
+
+
+class _RingDrag:
+    """The drag of one narrow end of a shield ring: the connected end (``index`` 0) moves the ring, the far end (1) sizes it."""
+
+    def __init__(self, view: "Splice", index: int):
+        self._view = view
+        self._index = index
+        self._project = view.parent.mainframe.project
+
+        # one gesture for the whole drag, as every drag does (WRITE_DESIGN.md section 4.12)
+        self._project.begin_gesture()
+
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA
+        view = self._view
+        editor = view.editor2d.editor
+        world = editor.camera.screen_to_world(mouse_pos)
+        place = (float(world.x), float(world.z))
+
+        with editor.context:
+            if self._index == 0:
+                _rings().move_ring(self._project, view.parent, place)
+            else:
+                _rings().resize_ring(self._project, view.parent, place)
+
+    def delete(self) -> None:
+        self._project.end_gesture()
 
 
 class Splice(_base_schematic.BaseSchematic):
@@ -70,9 +122,181 @@ class Splice(_base_schematic.BaseSchematic):
         scale = _point.Point(diameter, diameter, diameter)
         material = _materials.Generic(_color.Color(*Config.colors.splice))
 
+        part = db_obj.part
+        self._is_shield = part is not None and part.is_solder_sleeve
+
+        # the ring of a shield (see render): its stored state, and the dashes worked out from it
+        self._ring = _rings().ring_of(db_obj) if self._is_shield else None
+        self._ring_key = None
+        self._ring_pieces = []
+        self._dash_material = _materials.Generic(_color.Color(*Config.colors.label))
+
         with parent.mainframe.editor2d.editor.context:
             vbo = _sphere.create_vbo()
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    @property
+    def is_shield(self) -> bool:
+        """Whether this splice is a solder sleeve that finishes a cable's shield (drawn as a dashed ring across the shielded wires)."""
+        return self._is_shield
+
+    @_check_types.do
+    def reload_ring(self) -> None:
+        """Read the ring's stored state again (it was placed, moved or sized) and redo its bounds, which the router reads as an obstacle."""
+        self._ring = _rings().ring_of(self.db_obj) if self._is_shield else None
+        self._ring_key = None
+
+        self._compute_obb()
+        self._compute_aabb()
+
+        self.editor2d.Refresh()
+
+    @_check_types.do
+    def _compute_obb(self) -> None:
+        """The box of the ring (a thin box over the whole ellipse); the sphere's of an ordinary splice."""
+        if self._ring is None:
+            super()._compute_obb()
+            return
+
+        rect = _rings().ring_rect(self._ring)
+        corners = _utils.compute_obb(_point.Point(rect[0], -0.1, rect[1]), _point.Point(rect[2], 0.1, rect[3]))
+
+        if self._obb is None:
+            self._obb = self._obb_manager.read(self._obb_index)
+
+        self._obb[:] = corners
+
+    @_check_types.do
+    def _compute_aabb(self) -> None:
+        """See :meth:`_compute_obb`."""
+        if self._ring is None:
+            super()._compute_aabb()
+            return
+
+        rect = _rings().ring_rect(self._ring)
+        self._aabb[0] = (rect[0], -0.1, rect[1])
+        self._aabb[1] = (rect[2], 0.1, rect[3])
+
+    @_check_types.do
+    def _update_position(self, position: _point.Point) -> None:
+        """The sleeve's point is the ring's connected end: the ring moves with it."""
+        super()._update_position(position)
+
+        if self._is_shield and self._ring is not None:
+            self.reload_ring()
+
+    @_check_types.do
+    def _tip_at(self, x: float, z: float) -> int | None:
+        """Which narrow end of the ring (0 the connected one, 1 the far one) the schematic point ``(x, z)`` is on; ``None`` for neither."""
+        if self._ring is None:
+            return None
+
+        radius = HANDLE_FACTOR * float(Config.object_sizes.splice.diameter)
+
+        for index, tip in enumerate((self._ring.tip, self._ring.far)):
+            if float(np.hypot(x - tip[0], z - tip[1])) <= radius:
+                return index
+
+        return None
+
+    @_check_types.do
+    def _ray_hits_tip(self, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
+        """Whether a ray from the (top-down) camera reaches the schematic plane (y = 0) on a narrow end of the ring."""
+        if abs(float(ray_direction[1])) < 1e-9:
+            return False
+
+        t = -float(ray_origin[1]) / float(ray_direction[1])
+        x = float(ray_origin[0]) + t * float(ray_direction[0])
+        z = float(ray_origin[2]) + t * float(ray_direction[2])
+
+        return self._tip_at(x, z) is not None
+
+    @_check_types.do
+    def hit_test_step2(self, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
+        """A ring is picked on its narrow ends only (the wires and everything else inside its box are not hidden by it)."""
+        if self._ring is None:
+            return super().hit_test_step2(ray_origin, ray_direction)
+
+        return self._ray_hits_tip(ray_origin, ray_direction)
+
+    @_check_types.do
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
+        """See :meth:`hit_test_step2`."""
+        if self._ring is None:
+            return super().hit_test_step3(ray_origin, ray_dir)
+
+        return self._ray_hits_tip(ray_origin, ray_dir)
+
+    @_check_types.do
+    def _pieces(self) -> list[tuple]:
+        """The dashes of the ring, each as ``(start, angle, scale)`` in the world; worked out again only when the ring changed."""
+        ring = self._ring
+        key = (round(ring.center[0], 3), round(ring.center[1], 3), ring.u, round(ring.a, 3))
+
+        if key == self._ring_key:
+            return self._ring_pieces
+
+        cx, cz = ring.center
+        ux, uz = ring.u
+        vx, vz = -uz, ux
+        a, b = ring.a, ring.b
+        wire = float(Config.object_sizes.wire.diameter)
+        thickness = wire * SHIELD_DASH_THICKNESS
+        period = 2.0 * np.pi / SHIELD_DASHES
+        pieces = []
+
+        # The ring goes AROUND the wires (user, 2026-11-12): the half of it on the far side of the wires from the housing is over them (raised
+        # clear of the wires: drawn on top), the half on the housing's side is under them (on the plane of the wires, which cover it where they cross).
+        side = _rings().beyond_sign(self.parent)
+        over_y = wire / 2.0 + thickness / 2.0 + SHIELD_OVER_GAP
+
+        def at(angle: float) -> _point.Point:
+            return _point.Point(cx + ux * a * np.cos(angle) + vx * b * np.sin(angle), 0.0,
+                                cz + uz * a * np.cos(angle) + vz * b * np.sin(angle))
+
+        for index in range(SHIELD_DASHES):
+            first = index * period
+            flat = at(first)
+            line = _line.Line(flat, at(first + period * SHIELD_DASH_FRACTION))
+            length = line.length()
+
+            if length > 1e-6:
+                over = float(np.sin(first + period * SHIELD_DASH_FRACTION / 2.0)) * side > 0.0
+                start = _point.Point(flat.x, over_y if over else 0.0, flat.z)
+                pieces.append((start, line.get_angle(flat), _point.Point(thickness, thickness, length)))
+
+        self._ring_pieces = pieces
+        self._ring_key = key
+
+        return pieces
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """An ordinary splice is its sphere. A solder sleeve is drawn as the dashed ring only (no dot): the shield wire ends on its connected
+        narrow end."""
+        if not self._is_shield:
+            super().render(shaders)
+            return
+
+        if not self.is_visible or self._position is None or self._ring is None:
+            return
+
+        # the picker only considers what was marked this frame
+        self._aabb_manager.mark_visible(self._aabb_index)
+        self._obb_manager.mark_visible(self._obb_index)
+
+        real = (self._vbo, self._angle, self._scale, self._position, self._material)
+        self._vbo = _cylinder.create_vbo()
+        self._material = self._dash_material
+
+        try:
+            for start, angle, scale in self._pieces():
+                self._angle = angle
+                self._scale = scale
+                self._position = start
+                super().render(shaders)
+        finally:
+            self._vbo, self._angle, self._scale, self._position, self._material = real
 
     @property
     @_check_types.do
@@ -194,6 +418,19 @@ class Splice(_base_schematic.BaseSchematic):
                 self._active_handler = None
 
             return handled
+
+        # a shield ring: a press on one of its narrow ends (when it is selected) starts the drag of that end
+        if (
+            self._is_shield and self._ring is not None and self._active_handler is None and
+            interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
+            clicked_object is self.parent and self.parent.mainframe.get_selected() is self.parent and self.can_drag()
+        ):
+            world = self.editor2d.editor.camera.screen_to_world(current_pos)
+            index = self._tip_at(float(world.x), float(world.z))
+
+            if index is not None:
+                self._active_handler = _RingDrag(self, index)
+                return True
 
         return super().handle_interaction(
             last_pos, current_pos, had_motion, interaction_type, clicked_object)

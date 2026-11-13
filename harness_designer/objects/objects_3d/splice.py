@@ -30,15 +30,36 @@ if TYPE_CHECKING:
     from ... import ui as _ui
     from .. import wire as _wire_facade
     from ...gl import shaders as _shaders
+    from ...database.global_db import splice as _global_splice
 
 
 Config = _config.Config.editor_3d
 
-# A solder sleeve (SHIELD_SLEEVE_DESIGN.md): the tube's colour when the part has none, and the solder ring on it.
+# A solder sleeve (SHIELD_SLEEVE_DESIGN.md): the tube's colour when the part has none (or a clear / whitish one, which would almost vanish
+# against the background: user, 2026-11-12), a translucent blue, and the solder ring on it.
 # The tube is translucent (_SLEEVE_ALPHA of 255) so the ring, which lies inside its wall, shows through; the ring is solder, a silver grey.
-_SLEEVE_COLOR = (205, 208, 214)
-_SLEEVE_ALPHA = 85
+_SLEEVE_COLOR = (70, 140, 225)
+_SLEEVE_ALPHA = 120
+_SLEEVE_LIGHT = 170     # a part colour whose darkest channel is above this (white, clear, natural) is drawn in _SLEEVE_COLOR instead
 _RING_COLOR = (178, 181, 188)
+
+
+@_check_types.do
+def sleeve_tube_material(part: "_global_splice.Splice") -> "_materials.GLMaterial":
+    """The translucent material of a solder sleeve's tube, for the 3D view and the peg board: the part's colour, or a translucent blue
+    when it has none or a light one (see ``_SLEEVE_COLOR``).
+
+    :param part: The catalog sleeve.
+    :type part: :class:`_global_splice.Splice`
+    """
+    tube_color = part.color
+    has_color = tube_color is not None and tube_color.db_id not in (None, b'\x00' * 16)
+    tube_rgb = tuple(tube_color.ui.rgb)[:3] if has_color else _SLEEVE_COLOR
+
+    if min(tube_rgb) > _SLEEVE_LIGHT:
+        tube_rgb = _SLEEVE_COLOR
+
+    return _materials.Plastic(_color.Color(*tube_rgb, _SLEEVE_ALPHA))
 
 
 @_check_types.do
@@ -121,12 +142,14 @@ class Splice(_base_3d.Base3D):
             area2 = [0.0]
 
             for wire in wires[0]:
-                dia = wire.od_mm
+                # `wire` is the project's row: the outside diameter belongs to its catalog part
+                dia = float(wire.part.od_mm or 0.0)
                 area = math.pi * ((dia / 2.0) ** 2.0)
                 area1.append(area)
 
             for wire in wires[-1]:
-                dia = wire.od_mm
+                # `wire` is the project's row: the outside diameter belongs to its catalog part
+                dia = float(wire.part.od_mm or 0.0)
                 area = math.pi * ((dia / 2.0) ** 2.0)
                 area2.append(area)
 
@@ -172,10 +195,7 @@ class Splice(_base_3d.Base3D):
                 scale = _point.Point(shape['diameter'], shape['diameter'], shape['length'])
                 vbo = _sleeve.create_vbo()
 
-                tube_color = self._part.color
-                has_color = tube_color is not None and tube_color.db_id not in (None, b'\x00' * 16)
-                tube_rgb = tuple(tube_color.ui.rgb) if has_color else _SLEEVE_COLOR
-                material = _materials.Plastic(_color.Color(*tube_rgb, _SLEEVE_ALPHA))
+                material = sleeve_tube_material(self._part)
 
                 self._ring_vbo = _cylinder.create_vbo()
                 self._ring_material = _materials.Metallic(_color.Color(*_RING_COLOR))

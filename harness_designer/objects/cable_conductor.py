@@ -12,6 +12,7 @@ It has no view of its own: the trunk is drawn by the cable (:mod:`.objects_3d.ca
 is only the sibling-graph node. The :class:`.cable.Cable` makes and owns these (one per conductor row, made when first asked
 for), and ``Project._reconcile_wire_sibling_graph`` links the leads on a project load. See ``TWISTED_WIRE_DESIGN.md``.
 
+In the 3D and peg-board editors the run has inert placeholder views (``objects_3d/conductor_run.py``, ``objects_pegboard/conductor_run.py``) so it can be the selected object.
 In the schematic the conductor is drawn as one wire between the terminals (or splices) its two leads end on, while both leads
 end on one: that is :class:`ConductorRun`, made and dropped by :meth:`CableConductor.refresh_schematic`.
 """
@@ -24,6 +25,8 @@ from PySide6 import QtCore
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import cable_conductor as _conductor_schematic
+from .objects_3d import conductor_run as _run_3d
+from .objects_pegboard import conductor_run as _run_pegboard
 from .. import check_types as _check_types
 from ..crash_dump import capturable, dump_property
 
@@ -112,6 +115,8 @@ class ConductorRun(_ObjectBase):
     belongs to the cable.
     """
     objschematic: "_conductor_schematic.CableConductor" = None
+    obj3d: "_run_3d.ConductorRun" = None
+    objpegboard: "_run_pegboard.ConductorRun" = None
     db_obj: "_pjt_cable_conductor.PJTCableConductor" = None
 
     # a run is never drawn by hand, so there is no hand-placed start of its path (the router asks)
@@ -127,6 +132,10 @@ class ConductorRun(_ObjectBase):
         super().__init__(node.mainframe, node.db_obj)
 
         self._node_ref = weakref.ref(node)
+
+        # the run can be the selected object, and every canvas needs a view of it to hold it: inert placeholders (nothing to draw in them)
+        self.obj3d = _run_3d.ConductorRun(self, node.db_obj)
+        self.objpegboard = _run_pegboard.ConductorRun(self, node.db_obj)
 
     @property
     @_check_types.do

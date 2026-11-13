@@ -466,6 +466,9 @@ class Cable(_ObjectBase):
             if float(np.linalg.norm(delta.as_numpy)) > 1e-9:
                 live += delta
 
+        # the sleeve of this end (and its pigtail) lies on the same plane
+        self._sync_board_sleeve(start)
+
     @_check_types.do
     def follow_drag(self, view: str, before_start: np.ndarray, before_stop: np.ndarray) -> None:
         """Let the conductors follow after a drag step moved the cable's points in one view.
@@ -1127,19 +1130,157 @@ class Cable(_ObjectBase):
         splice_db = ptables.pjt_splices_table.insert(
             part_id, f'{part.manufacturer.name} {part.part_number}', start_row.db_id, stop_row.db_id, branch_id, None, None)
 
+        # on the board the sleeve lies at the board's split plane of this end (before its board view is made: the view is turned once,
+        # when it is made, and a point that is still at the origin would be seeded from the 3D position)
+        self._place_sleeve_on_board(start, splice_db, part)
+
+        # in the schematic a sleeve is shown once its pigtail is connected to something (``wire_routing.reroute.on_wire_attached`` shows
+        # it and puts it beside what the pigtail is connected to); stored, so it stays hidden after a reload (the view's own
+        # ``is_visible`` setter writes a column that does not exist)
+        splice_db.is_visible2d = False
+
         # the cable knows its sleeve before the view is made: the view sizes itself from the cable it is on
         self.db_obj.set_shield_splice_id(start, splice_db.db_id)
 
         sleeve = _splice_facade.Splice(self.mainframe, splice_db)
         self.mainframe.project.add_splice(sleeve)
 
-        # a sleeve is on the cable, not a part of the schematic wiring
-        sleeve.objschematic.is_visible = False
-
         return sleeve
 
     @_check_types.do
-    def _make_pigtail(self, sleeve, pose: tuple[np.ndarray, np.ndarray], length: float, part_id: bytes) -> None:
+    def _board_sleeve_pose(self, start: bool, length: float) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+        """Where the sleeve of one end lies on the board: from the split plane (its start, where the conductors leave) a *length* into
+        the trunk (its stop), and the direction out of the trunk (the way a pigtail leaves it). ``None`` while the end has no length on
+        the board."""
+        frame = self.objpegboard._end_frame(start)  # NOQA
+
+        if frame is None:
+            return None
+
+        plane = np.asarray(frame[3], dtype=np.float64)
+        inward = np.asarray(frame[1], dtype=np.float64)
+
+        return plane, plane + inward * length, -inward
+
+    @_check_types.do
+    def _place_sleeve_on_board(self, start: bool, splice_db, part) -> bool:
+        """Put the three board points of a sleeve's row (start, stop, branch) where the sleeve lies on the board (user, 2026-11-12: they
+        were left at the origin, so the sleeve was not on the board). ``False`` while the end has no place on the board.
+
+        :param start: Which end of the cable.
+        :type start: bool
+        :param splice_db: The sleeve's row.
+        :param part: The catalog sleeve.
+        """
+        shape = _sleeve_shape.sizes(float(self.db_obj.part.trunk_size[0]), part.min_dia, part.max_dia, part.length)
+        pose = self._board_sleeve_pose(start, shape['length'])
+
+        if pose is None:
+            return False
+
+        points = self.mainframe.project.ptables.pjt_points_pegboard_table
+        held = []  # the rows stay referenced while their points move: the write-back to a row is a weak callback
+
+        for point_id, target in ((splice_db.start_position_pegboard_id, pose[0]), (splice_db.stop_position_pegboard_id, pose[1]),
+                                 (splice_db.branch_position_pegboard_id, pose[0])):
+            row = points[point_id]
+            held.append(row)
+            live = row.point
+            delta = _point.Point(float(target[0]), 0.0, float(target[2])) - live
+
+            if float(np.linalg.norm(delta.as_numpy)) > 1e-9:
+                live += delta
+
+        return True
+
+    @_check_types.do
+    def _sync_board_sleeve(self, start: bool) -> None:
+        """Keep the sleeve of one end, and its pigtail, on the board's split plane after the cable moved on the board.
+
+        The sleeve's three board points go to their place and its view turns to the new direction. The end of a pigtail that is on the
+        sleeve goes to the plane; the other end goes along by the distance the plane moved, unless something is attached to it (it stays,
+        and the pigtail stretches), as the free ends of the leads do (:meth:`_carry_free_leads`). A pigtail with no place on the board yet
+        (made before the board knew sleeves: its ends are at the origin) is laid out straight from the sleeve."""
+        sleeve = self.shield_sleeve(start)
+
+        if sleeve is None:
+            return
+
+        row = sleeve.db_obj
+        part = row.part
+        shape = _sleeve_shape.sizes(float(self.db_obj.part.trunk_size[0]), part.min_dia, part.max_dia, part.length)
+        pose = self._board_sleeve_pose(start, shape['length'])
+
+        if pose is None:
+            return
+
+        plane = _point.Point(float(pose[0][0]), 0.0, float(pose[0][2]))
+        old = row.start_position_pegboard
+        shift = plane - old
+
+        self._place_sleeve_on_board(start, row, part)
+        sleeve.objpegboard.reload_pose()
+
+        points = self.mainframe.project.ptables.pjt_points_pegboard_table
+        branch3d_id = row.branch_position3d_id
+        held = []
+
+        for wire in sleeve.branch_wires:
+            wire_db = wire.db_obj
+            at_stop = wire_db.stop_position3d_id == branch3d_id
+
+            near = points[wire_db.stop_position_pegboard_id if at_stop else wire_db.start_position_pegboard_id]
+            far = points[wire_db.start_position_pegboard_id if at_stop else wire_db.stop_position_pegboard_id]
+            held.extend((near, far))
+
+            near_live = near.point
+            near_live += plane - near_live
+
+            attached = wire.start_sibling is not None if at_stop else wire.stop_sibling is not None
+
+            if attached:
+                continue
+
+            far_live = far.point
+
+            if abs(float(far_live.x)) < 1e-9 and abs(float(far_live.z)) < 1e-9:
+                reach = max(float(wire_db.length_mm), 1.0)
+                target = _point.Point(float(plane.x + pose[2][0] * reach), 0.0, float(plane.z + pose[2][2] * reach))
+                far_live += target - far_live
+            elif float(np.linalg.norm(shift.as_numpy)) > 1e-9:
+                far_live += shift
+
+    @_check_types.do
+    def _pigtail_start_length(self, start: bool, sleeve_length: float) -> float:
+        """How long a catalog pigtail is when it is made (user, 2026-11-12): the same as the other conductors' leads of that end, but never
+        past the cap: 150 mm measured from the MIDDLE of the sleeve (``sleeve.PIGTAIL_LENGTH_MM``), so at most 150 - length / 2 from the
+        sleeve's end where the pigtail leaves it. It can be made shorter (and a drag can only shorten it past the cap).
+
+        :param start: Which end.
+        :type start: bool
+        :param sleeve_length: The sleeve's length on the cable, mm.
+        :type sleeve_length: float
+        :returns: Mm from the sleeve's end at the split plane to the free end; at least 1.
+        :rtype: float
+        """
+        cap = _sleeve_shape.PIGTAIL_LENGTH_MM - sleeve_length / 2.0
+
+        # the other leads of the end (the shield's own is deleted by now)
+        lengths = [float(lead.db_obj.length_mm) for lead in self.lead_wires(start) if lead.db_obj.length_mm]
+
+        if lengths:
+            reference = max(lengths)
+        else:
+            # no other lead to copy: how far the conductors fan out from the split plane
+            reference = float(self.db_obj.start_split_mm if start else self.db_obj.stop_split_mm)
+
+        if reference <= 0.0:
+            reference = cap
+
+        return max(min(reference, cap), 1.0)
+
+    @_check_types.do
+    def _make_pigtail(self, sleeve, pose: tuple[np.ndarray, np.ndarray], length: float, part_id: bytes, start: bool | None = None) -> None:
         """Make the pigtail of a sleeve that comes with one: a plain wire of the catalog part *part_id*, *length* mm long, leaving the
         sleeve's branch point (the sleeve's end at the split plane) straight out along the cable's axis. Its end on the sleeve is
         pinned (``WireDragMixin.is_anchor_point``); its free end is the user's to move, as any wire's."""
@@ -1154,6 +1295,23 @@ class Cable(_ObjectBase):
         wire_db = ptables.pjt_wires_table.insert(
             part_id, 'Pigtail', None, free_row.db_id, sleeve.db_obj.branch_position3d_id, None, None, True, False, None, None, False)
 
+        # on the board its end on the sleeve is the board's split plane and its free end is *length* out of the trunk (user, 2026-11-12: the
+        # lead was at the origin on the board); the points are set before the wire's board view is made
+        board = None if start is None else self._board_sleeve_pose(start, 0.0)
+
+        if board is not None:
+            pegs = ptables.pjt_points_pegboard_table
+            free_peg = pegs.insert(float(board[0][0] + board[2][0] * length), 0.0, float(board[0][2] + board[2][2] * length))
+            wire_db.start_position_pegboard_id = free_peg.db_id
+
+            # the end on the sleeve is the sleeve's own branch point (already on the plane: _build_sleeve), as in 3D, so the
+            # rope pull sees the lead as the sleeve's wire
+            wire_db.stop_position_pegboard_id = sleeve.db_obj.branch_position_pegboard_id
+
+        # in the schematic its end on the sleeve is the sleeve's own point (user's bug, 2026-11-12: it was a point of its own, so the
+        # lead did not follow the sleeve when it was dragged and was not routed again), as a wire snapped onto a splice has it
+        wire_db.stop_position2d_id = sleeve.db_obj.position2d_id
+
         wire = _wire_facade.Wire(self.mainframe, wire_db)
         self.mainframe.project.add_wire(wire)
 
@@ -1164,7 +1322,8 @@ class Cable(_ObjectBase):
     def add_shield_sleeve(self, start: bool, part_id: bytes):
         """Put a solder sleeve on a split end of the shielded cable: a splice (``part_id`` is a ``splices`` row whose type is a shielding
         solder sleeve) lying along the trunk from the split plane, sized by the cable's diameter. The sleeve finishes the shield, so the
-        shield's own lead is deleted. A sleeve that comes with a pigtail gets it: a plain wire, 150 mm from the middle of the sleeve
+        shield's own lead is deleted. A sleeve that comes with a pigtail gets it: a plain wire as long as the other conductors' leads of
+        that end (:meth:`_pigtail_start_length`), at most 150 mm from the middle of the sleeve
         (``sleeve.PIGTAIL_LENGTH_MM``, which is also the longest a drag can make it), set onto the sleeve's branch point at the split
         plane (that end is pinned). One without is
         a snap point: the user adds whatever wire they want to it (the snap rule is ``wire_snap.check_splice_compat``, one wire).
@@ -1218,20 +1377,27 @@ class Cable(_ObjectBase):
         sleeve = self._build_sleeve(start, part_id, part, pose, None)
 
         if pigtail_part is not None:
-            # 150 mm from the middle of the sleeve to the end of the lead; the lead leaves the sleeve's end at the split plane
-            self._make_pigtail(sleeve, pose, max(_sleeve_shape.PIGTAIL_LENGTH_MM - shape['length'] / 2.0, 1.0), pigtail_part)
+            self._make_pigtail(sleeve, pose, self._pigtail_start_length(start, shape['length']), pigtail_part, start)
+
+        # in the schematic the cable's wires are routed together, side by side, once the cable has a sleeve (user, 2026-11-12)
+        from ..wire_routing import reroute as _wire_reroute  # NOQA -- avoid a cycle at import time
+
+        _wire_reroute.route_shield_group(self.mainframe.project, self)
 
         self.obj3d.editor3d.Refresh()
         return sleeve
 
     @_check_types.do
-    def remove_shield_sleeve(self, start: bool) -> None:
+    def remove_shield_sleeve(self, start: bool, with_pigtail: bool = False) -> None:
         """Take the solder sleeve off one end. A pigtail that has nothing connected at its far end goes with the sleeve; one that is
-        connected stays (it is left as a wire of its own, as with any splice). The shield's own lead is not made again: join the end
-        and split it again for that.
+        connected stays (it is left as a wire of its own, as with any splice), unless *with_pigtail*: the cable is being deleted, and
+        the pigtail goes whatever it is connected to (user's bug, 2026-11-12: it was left behind). The shield's own lead is not made
+        again: join the end and split it again for that.
 
         :param start: Which end.
         :type start: bool
+        :param with_pigtail: Delete every wire on the sleeve, connected or not.
+        :type with_pigtail: bool
         """
         sleeve = self.shield_sleeve(start)
 
@@ -1243,7 +1409,7 @@ class Cable(_ObjectBase):
         for wire in list(sleeve.branch_wires):
             far = wire.start_sibling if wire.db_obj.stop_position3d_id == branch_id else wire.stop_sibling
 
-            if far is None:
+            if far is None or with_pigtail:
                 wire.delete()
 
         sleeve.delete()
@@ -1285,13 +1451,43 @@ class Cable(_ObjectBase):
             live += delta
 
         pigtails = sleeve.branch_wires
+
+        # where the sleeve is in the schematic, and whether it is shown: the new row takes both over
+        old_2d = row.position2d
+        schematic_place = (float(old_2d.x), float(old_2d.y), float(old_2d.z))
+        schematic_shown = bool(row.is_visible2d)
+        ring_state = (row.ring_size, row.ring_dir, row.ring_hard)
+
         sleeve.delete(keep_branch=True)
         moved = self._build_sleeve(start, part_id, part, pose, branch_id)
 
+        new_2d = moved.db_obj.position2d
+        new_2d += _point.Point(*schematic_place) - new_2d
+        moved.db_obj.is_visible2d = schematic_shown
+
+        # the shield ring in the schematic (placed by the router, or by the user: hard set) belongs to the sleeve
+        moved.db_obj.ring_size, moved.db_obj.ring_dir, moved.db_obj.ring_hard = ring_state
+        moved.objschematic.reload_ring()
+
         for wire in pigtails:
             moved.add_wire(wire)
-            end = wire.obj3d.stop_position if wire.db_obj.stop_position3d_id == branch_id else wire.obj3d.start_position
+            at_stop = wire.db_obj.stop_position3d_id == branch_id
+            end = wire.obj3d.stop_position if at_stop else wire.obj3d.start_position
             wire.set_sibling(moved, end)
+
+            # on the board the lead's end is the new sleeve's branch point (the old one went with the old sleeve's row)
+            board_branch = moved.db_obj.branch_position_pegboard
+
+            if at_stop:
+                wire.db_obj.stop_position_pegboard_id = moved.db_obj.branch_position_pegboard_id
+                wire.objpegboard.set_stop_position(board_branch)
+                wire.db_obj.stop_position2d_id = moved.db_obj.position2d_id
+                wire.objschematic.set_stop_position(moved.db_obj.position2d)
+            else:
+                wire.db_obj.start_position_pegboard_id = moved.db_obj.branch_position_pegboard_id
+                wire.objpegboard.set_start_position(board_branch)
+                wire.db_obj.start_position2d_id = moved.db_obj.position2d_id
+                wire.objschematic.set_start_position(moved.db_obj.position2d)
 
     @property
     @_check_types.do
@@ -1317,7 +1513,7 @@ class Cable(_ObjectBase):
         self._slack_handler.release()
 
         for start in (True, False):
-            self.remove_shield_sleeve(start)
+            self.remove_shield_sleeve(start, with_pigtail=True)
 
         junctions = []
 

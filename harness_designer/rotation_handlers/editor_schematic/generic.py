@@ -100,7 +100,8 @@ class Rings2D(_base_schematic.BaseSchematic):
         # every attached wire whenever the rotation actually changes.
         self._attached_wires = sorted(
             _wire_reroute.wires_attached_to(selected),
-            key=lambda w: (not _wire_reroute.is_junction_wire(w), _wire_reroute.crow_flies_distance(w)))
+            key=lambda w: (not _wire_reroute.is_shield_group_wire(w), not _wire_reroute.is_junction_wire(w),
+                           _wire_reroute.crow_flies_distance(w)))
 
         self._config_sig = self._current_config_sig()
 
@@ -350,10 +351,16 @@ class Rings2D(_base_schematic.BaseSchematic):
             return
 
         project = self.mainframe.project
-        frame = _wire_reroute.build_frame(project, self._attached_wires)
 
-        unsettled = set(self._attached_wires)
-        for wire in self._attached_wires:
+        # the wires of a shielded cable are routed as a group through their shield rings FIRST (user, 2026-11-12), then the rest
+        for cable in _wire_reroute.shield_cables(self._attached_wires):
+            _wire_reroute.route_shield_group(project, cable)
+
+        plain = [w for w in self._attached_wires if not _wire_reroute.is_shield_group_wire(w)]
+        frame = _wire_reroute.build_frame(project, plain)
+
+        unsettled = set(plain)
+        for wire in plain:
             unsettled.discard(wire)
             _wire_reroute.reroute_wire(project, wire, skip_wires=unsettled, frame=frame)
 

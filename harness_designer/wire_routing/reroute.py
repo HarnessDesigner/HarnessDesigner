@@ -26,6 +26,7 @@ from . import routing as _wire_routing
 from ..database.project_db import pjt_wire as _pjt_wire
 from ..database.project_db import pjt_point2d as _pjt_point2d
 from .. import config as _config
+from ..geometry import point as _point_module
 from .. import check_types as _check_types
 
 
@@ -92,6 +93,8 @@ def on_wire_attached(project: "_project.Project",
     if not wire.is_connected:
         return
 
+    _show_attached_shield_sleeve(wire)
+
     wire.db_obj.is_visible2d = True
 
     # A wire whose path the user placed by hand (see add_handlers.
@@ -100,6 +103,63 @@ def on_wire_attached(project: "_project.Project",
     # inside the attach, where the add handler can't reach it.
     reroute_wire(project, wire, fixed_prefix=wire.route_prefix)  # NOQA
     wire.mainframe.editor2d.add_object(wire)
+
+    # a conductor of a shielded cable: the cable's wires are routed together, first, so they run side by side (see route_shield_group)
+    if is_shield_group_wire(wire):
+        route_shield_group(project, wire.node.cable)
+
+
+# how far, in stub lengths, a shield sleeve is put from the terminal its pigtail is connected to
+_SLEEVE_STUB_FACTOR = 4.0
+
+
+@_check_types.do
+def _show_attached_shield_sleeve(wire: "_wire_obj.Wire") -> None:
+    """A fully connected wire that has a solder sleeve on one end (the shield wire, the pigtail) shows the sleeve's ring in the schematic (a
+    sleeve is hidden until its pigtail is connected) and has the cable's wires routed through it (:func:`route_shield_group`: the ring is
+    placed where the cable's wires leave their terminals). While none of the cable's wires is drawn there is no ring to place, and the
+    sleeve's point (where the shield wire ends) is put beside what the wire is connected to, out along the terminal's wire stub.
+
+    :param wire: A wire that has just become fully connected.
+    """
+    for end, sibling in (('start', wire.start_sibling), ('stop', wire.stop_sibling)):
+        if sibling is None or not getattr(sibling, 'is_splice', False):
+            continue
+
+        part = sibling.db_obj.part
+
+        if part is None or not part.is_solder_sleeve:
+            continue
+
+        row = sibling.db_obj
+
+        if not row.is_visible2d:
+            row.is_visible2d = True
+
+        found = row.shield_cable
+        cable = None if found is None else found[0].get_object()
+
+        if cable is not None:
+            route_shield_group(wire.mainframe.project, cable)
+
+        place = row.position2d
+
+        if row.ring_size > 0.0 or abs(float(place.x)) > 1e-9 or abs(float(place.z)) > 1e-9:
+            continue
+
+        other_end = 'stop' if end == 'start' else 'start'
+        other = wire.stop_sibling if end == 'start' else wire.start_sibling
+        anchor = other.db_obj.wire_position2d if other is not None and other.is_terminal else other.db_obj.position2d
+        stub = _terminal_exit_stub_point(wire, other_end)
+
+        if stub is None:
+            target_x, target_z = float(anchor.x) - 20.0, float(anchor.z)
+        else:
+            dx, dz = stub[0] - float(anchor.x), stub[1] - float(anchor.z)
+            target_x = float(anchor.x) + dx * _SLEEVE_STUB_FACTOR
+            target_z = float(anchor.z) + dz * _SLEEVE_STUB_FACTOR
+
+        place += _point_module.Point(target_x - float(place.x), 0.0, target_z - float(place.z))
 
 
 @_check_types.do
@@ -695,7 +755,37 @@ def reroute_wire(
     else:
         route_stop = stop_stub
 
-    if frame is not None and wire in frame:
+    # A wire of a shielded cable crosses the shield ring of its sleeve straight, so it is routed in legs: up to the near side of the ring,
+    # straight through it, on from the far side (``shield_ring.gates``). Not for a wire whose first part the user placed by hand.
+    crossings = []
+
+    if is_shield_group_wire(wire) and not fixed_prefix:
+        from . import shield_ring as _shield_ring
+
+        crossings = _shield_ring.ordered_gates(project, wire)
+
+    if crossings:
+        interior = []
+        previous, previous_anchor = route_start, start_anchor
+        through = list(crossings)
+        fixed_legs = [(first, second) for first, second in through]
+
+        for first, second in through:
+            if math.hypot(first[0] - previous[0], first[1] - previous[1]) > 1e-9:
+                interior.extend(_wire_routing.route(
+                    project, previous, first, ignore_wire=wire, skip_wires=skip_wires,
+                    start_anchor=previous_anchor, stop_anchor=second,
+                    extra_segments=_skipped_stub_segments(skip_wires) + own_lanes + fixed_legs))
+
+            interior.extend((first, second))
+            previous, previous_anchor = second, first
+
+        if math.hypot(route_stop[0] - previous[0], route_stop[1] - previous[1]) > 1e-9:
+            interior.extend(_wire_routing.route(
+                project, previous, route_stop, ignore_wire=wire, skip_wires=skip_wires,
+                start_anchor=previous_anchor, stop_anchor=None if stop_stub is None else stop_xz,
+                extra_segments=_skipped_stub_segments(skip_wires) + own_lanes + fixed_legs))
+    elif frame is not None and wire in frame:
         interior = frame.route(wire)
     else:
         interior = _wire_routing.route(
@@ -728,6 +818,113 @@ def reroute_wire(
     # WireLayout re-anchored) and only add/remove the difference in
     # count -- see set_waypoints's own docstring.
     set_waypoints(project, wire, waypoints)
+
+
+@_check_types.do
+def is_shield_group_wire(wire: "_wire_obj.Wire") -> bool:
+    """
+    Whether *wire* is the drawn conductor (a :class:`~harness_designer.objects.cable_conductor.ConductorRun`) of a cable that has a
+    solder sleeve on one of its ends, i.e. one of the wires the shield is connected to (user, 2026-11-12).
+
+    Those wires are routed FIRST (user, 2026-11-12), before every other wire, so that the ring and the cable's wires claim their place close
+    to the housing and everything else routes around them. A wire that is not shielded but leaves the housing between the cable's wires needs
+    room to get out first: ``shield_ring.auto_place`` pushes the ring away from the housing by one pitch for each such pin
+    (``shield_ring.foreign_pins``). See :func:`route_shield_group`, the housing drag, the housing rotation and
+    ``objects_schematic.auto_arrange.auto_arrange``.
+    """
+
+    from ..objects import cable_conductor as _cable_conductor
+
+    if not isinstance(wire, _cable_conductor.ConductorRun):
+        return False
+
+    node = wire.node
+
+    if node is None:
+        return False
+
+    cable = node.cable
+
+    if cable is None:
+        return False
+
+    db_obj = cable.db_obj
+
+    return db_obj.start_shield_splice_id is not None or db_obj.stop_shield_splice_id is not None
+
+
+@_check_types.do
+def shield_cables(wires: list["_wire_obj.Wire"]) -> list["_objects.ObjectBase"]:
+    """The cables that have a shield group wire (:func:`is_shield_group_wire`) among *wires*, each once."""
+    cables = {}
+
+    for wire in wires:
+        if is_shield_group_wire(wire):
+            cables[id(wire.node.cable)] = wire.node.cable
+
+    return list(cables.values())
+
+
+@_check_types.do
+def route_shield_group(project: "_project.Project", cable: "_objects.ObjectBase") -> bool:
+    """
+    Route a shielded *cable* again (user, 2026-11-12): put the shield ring of each of its sleeves where it belongs (``shield_ring.auto_place``:
+    the closest place beyond the terminals where it circles all of the cable's wires and no other wire passes through it; a hard set ring is
+    left where the user put it), route every drawn conductor of the cable through its ring or rings (:func:`reroute_wire` does the
+    crossing), shortest first, then route the shield wires (the pigtails: black wires) to the ring's connected end.
+
+    Without a ring (the cable has no sleeve, or no place was found) the conductors are routed together through one shared grid instead, so
+    they run side by side. Nothing else is rerouted: the group is routed FIRST, before the wires that are not shielded
+    (:func:`is_shield_group_wire`), which route around the ring.
+
+    :param project: The project.
+    :param cable: The cable (the facade).
+    :returns: ``False`` when a ring that had a place could not be placed again (nothing frees a place for it where the wires are now: the
+        move that caused this must not be allowed, user 2026-11-12, see ``drag_handlers.editor_schematic.generic.Generic``); ``True``
+        otherwise.
+    """
+    from . import shield_ring as _shield_ring
+
+    db_obj = cable.db_obj
+
+    if db_obj.start_shield_splice_id is None and db_obj.stop_shield_splice_id is None:
+        return True
+
+    runs = _shield_ring.runs_of(cable)
+
+    if not runs:
+        return True
+
+    sleeves = []
+    placed = True
+
+    for at_start in (True, False):
+        sleeve = cable.shield_sleeve(at_start)
+
+        if sleeve is not None:
+            sleeves.append((at_start, sleeve))
+
+            # a ring that has never been placed does not refuse anything (there is nothing to keep); one that had a place does
+            if not _shield_ring.auto_place(project, cable, at_start, sleeve) and sleeve.db_obj.ring_size > 0.0:
+                placed = False
+
+    runs.sort(key=crow_flies_distance)
+
+    through_ring = any(_shield_ring.ring_of(sleeve.db_obj) is not None for _at_start, sleeve in sleeves)
+    frame = build_frame(project, runs) if len(runs) > 1 and not through_ring else None
+    unsettled = set(runs)
+
+    for run in runs:
+        unsettled.discard(run)
+        reroute_wire(project, run, skip_wires=unsettled, frame=frame)
+
+    # the shield wires end on the ring's connected end, which may have moved
+    for _at_start, sleeve in sleeves:
+        for wire in sleeve.branch_wires:
+            if wire.is_connected:
+                reroute_wire(project, wire)
+
+    return placed
 
 
 @_check_types.do

@@ -99,6 +99,10 @@ NEW 2026-11-11 (`SHIELD_SLEEVE_DESIGN.md`): the solder sleeve (cable shield term
 
 `PIGTAIL_LENGTH_MM = 150.0` (user, 2026-11-11, from TE's drawings): the lead of a catalog sleeve that comes with one is 150 mm long measured from the MIDDLE of the sleeve; `Cable.add_shield_sleeve` makes it that long and `WireDragMixin._clamp_sleeve_pigtail` does not let a drag make it longer. A pigtail the user adds has no length limit.
 
+#### taper.py
+
+NEW 2026-11-12: a hollow frustum, the 45 degree TAPER a shield wire makes in the schematic from the full wire size down to the thickness of its ring's dashes (user). Same pattern as `cylinder.py` (`create` / `create_vbo`, pooled VBO `'taper'`, base-anchored along +Z, unit size scaled by `(D, D, length)`, built lazily by `objects_schematic/wire.py` `render`, not in `cache_primitives`). `END_RATIO` (0.3) is the far end's part of the base, also the thickness of the ring's dashes (`objects_schematic/splice.py` `SHIELD_DASH_THICKNESS`); `length(diameter)` is the length of the 45 degree taper (the radius changes by as much as the length). Checked on numpy (`twist/taper_test.py`); not drawn in the app.
+
 #### sphere.py
 
 Procedural primitive generator exposing `create(...)` (raw mesh data) and `create_vbo()` (pooled

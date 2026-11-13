@@ -44,6 +44,8 @@ Schema for `pjt_cables` (NEW 2026-11-05): a placed cable, i.e. a wire part that 
 
 **Clipped shield (user, 2026-11-11):** `shield_clipped` (INTEGER NOT NULL DEFAULT 0): which ends of a shielded cable have the shield clipped off, 0 = neither, 1 = the start end, 2 = the stop end, 3 = both. `update_fields` adds it to an existing project (every cable gets 0). Stand-in test `twist/clip_column_test.py`.
 
+**Shield ring (2026-11-12):** `pjt_splices.ring_size` (REAL, 0 = not placed), `ring_dir` (INTEGER 0 +X, 1 +Z, 2 -X, 3 -Z) and `ring_hard` (INTEGER) hold the dashed ellipse of a solder sleeve in the schematic (see `wire_routing/shield_ring.py`); the connected narrow end is the splice's own `point2d_id`. `update_fields` adds them to an existing project.
+
 #### wires.py (cable_conductor_id)
 
 `pjt_wires` has a nullable `cable_conductor_id` (2026-11-05): set on a wire that is a LEAD of a cable conductor; no reference (`cable_conductors.py` imports this module).

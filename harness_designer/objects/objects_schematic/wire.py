@@ -18,6 +18,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
+from ...shapes import taper as _taper
 from ... import check_types as _check_types
 from ...crash_dump import Attr, capturable
 
@@ -98,6 +99,12 @@ def _yaw_matrix(degrees: float) -> np.ndarray:
         _YAW_MATRICES[key] = matrix
 
     return matrix
+
+
+# The ``id`` of every Point that is a bend or an end of a SHIELD wire (see ``Wire._shield_draws``). A bend of a wire carries a round handle
+# (``objects_schematic/wire_layout.py``, a sphere of the wire's own size, which hides inside an ordinary wire): on a shield wire, which is
+# thin, those handles would show as dots (user, 2026-11-12), so ``WireLayout.render`` draws them as thin as the wire.
+THIN_POINTS: set[int] = set()
 
 
 @capturable()
@@ -287,6 +294,60 @@ class Wire(_base_schematic.BaseSchematic):
             seg_scale = _point.Point(diameter, diameter, seg_len)
 
             yield seg_position, seg_angle, seg_scale, seg_len
+
+    @_check_types.do
+    def _shield_terminal_at_start(self) -> bool | None:
+        """For a shield wire (the pigtail of a solder sleeve that finishes a cable's shield): whether its terminal end is the START of its path
+        (``True``) or its stop (``False``); ``None`` for every other wire."""
+        for sibling, terminal_at_start in ((self.parent.stop_sibling, True), (self.parent.start_sibling, False)):
+            view = getattr(sibling, 'objschematic', None) if sibling is not None else None
+
+            if view is not None and getattr(view, 'is_shield', False):
+                return terminal_at_start
+
+        return None
+
+    @_check_types.do
+    def _shield_draws(self, terminal_at_start: bool) -> list[tuple[bool, _point.Point, _angle.Angle, _point.Point]]:
+        """The pieces a shield wire is drawn as (user, 2026-11-12): from its terminal a 45 degree TAPER (a short frustum) from the full wire
+        size down to the thickness of the dashes of the shield ring, then the rest of the wire at that thickness all the way to the ring.
+        ``(is_taper, position, angle, scale)`` for each."""
+        diameter = self._scale.x
+        thin = diameter * _taper.END_RATIO
+        points = [self._p1.as_numpy]
+        points.extend(point.as_numpy for point in self._waypoint_points)
+        points.extend(np.array([x, 0.0, z], dtype=self._p1.as_numpy.dtype) for x, z in self._preview_points)
+        points.append(self._p2.as_numpy)
+
+        if not terminal_at_start:
+            points.reverse()
+
+        draws = []
+        first = True
+
+        for a, b in zip(points, points[1:]):
+            dx = float(b[0]) - float(a[0])
+            dz = float(b[2]) - float(a[2])
+            seg_len = math.sqrt(dx * dx + dz * dz)
+
+            if seg_len < 1e-6:
+                continue
+
+            angle = _yaw_angle(math.degrees(math.atan2(dx, dz)))
+            start = _point.Point(float(a[0]), float(a[1]), float(a[2]))
+
+            # the taper is on the first segment (the terminal's exit stub is longer than it), from the terminal
+            step = min(_taper.length(diameter), seg_len) if first else 0.0
+            first = False
+
+            if step > 0.0:
+                draws.append((True, start, angle, _point.Point(diameter, diameter, step)))
+
+            if seg_len - step > 1e-6:
+                begin = _point.Point(float(a[0]) + dx / seg_len * step, float(a[1]), float(a[2]) + dz / seg_len * step)
+                draws.append((False, begin, angle, _point.Point(thin, thin, seg_len - step)))
+
+        return draws
 
     @_check_types.do
     def _recalculate_geometry(self) -> None:
@@ -556,6 +617,7 @@ class Wire(_base_schematic.BaseSchematic):
         """
         for point in self._waypoint_points:
             point.unbind(self._update_position)
+            THIN_POINTS.discard(id(point))
 
         self._waypoint_points = [wp.point for wp in self.db_obj.waypoints2d]
 
@@ -597,6 +659,12 @@ class Wire(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def _delete(self) -> None:
+        for point in self._waypoint_points:
+            THIN_POINTS.discard(id(point))
+
+        THIN_POINTS.discard(id(self._p1))
+        THIN_POINTS.discard(id(self._p2))
+
         self._segment_pool.release(self)
         super()._delete()
 
@@ -751,6 +819,29 @@ class Wire(_base_schematic.BaseSchematic):
                   # f'({float(seg_p2[0]):.3f}, {float(seg_p2[2]):.3f})')
 
         real_position, real_angle, real_scale = self._position, self._angle, self._scale
+
+        # A shield wire is drawn tapered from its terminal down to the thickness of its ring's dashes (no stripe on it)
+        terminal_at_start = self._shield_terminal_at_start()
+
+        if terminal_at_start is not None and self._position is not None and self.is_visible:
+            real_vbo = self._vbo
+            taper_vbo = _taper.create_vbo()
+
+            # the round handles on this wire's bends are drawn as thin as it is (see THIN_POINTS)
+            THIN_POINTS.update(id(point) for point in self._waypoint_points)
+            THIN_POINTS.add(id(self._p1))
+            THIN_POINTS.add(id(self._p2))
+
+            try:
+                for is_taper, seg_position, seg_angle, seg_scale in self._shield_draws(terminal_at_start):
+                    self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+                    self._vbo = taper_vbo if is_taper else real_vbo
+                    super().render(shaders)
+            finally:
+                self._position, self._angle, self._scale = real_position, real_angle, real_scale
+                self._vbo = real_vbo
+
+            return
 
         # Built once and used for both passes below -- every entry allocates
         # an Angle and two Points.

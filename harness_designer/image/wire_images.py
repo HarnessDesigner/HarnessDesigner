@@ -1169,7 +1169,8 @@ def build_image(
     * a :class:`WireImageRow`: the same as a catalog wire, from plain query
       results (the parts editor's list, which does not make a ``Wire`` row per line);
     * a project :class:`PJTWireServiceLoop`: a :class:`WireLoopImage` in the
-      colours of its catalog wire.
+      colours of its catalog wire;
+    * a catalog :class:`WireConductor` on its own: a single wire in its colours (user's log, 2026-11-12: the circuit editor passes one).
 
     The image classes cache by how a wire looks (see :class:`_CableImageMeta`),
     so calling this for every row of a list costs a dictionary lookup per row
@@ -1181,7 +1182,7 @@ def build_image(
     :returns: The image, or ``None`` when the row cannot be drawn (the caller then shows ``images.no_image``).
     :rtype: :class:`Image` | None
 
-    :raises TypeError: ``row`` is none of the four row types.
+    :raises TypeError: ``row`` is none of the row types above.
     """
 
     # not at the top: the database packages import this one's package,
@@ -1210,5 +1211,9 @@ def build_image(
     if isinstance(row, pjt_wire_service_loop.PJTWireServiceLoop):
         return _loop_image(row.part)
 
+    # a catalog conductor of a cable on its own (what the part of a lead of a conductor is): the circuit editor asks for it
+    if isinstance(row, gl_wire_conductor.WireConductor):
+        return _conductor_image(row)
+
     raise TypeError(f'cannot draw a {type(row).__name__}: expected a Wire, a '
-                    f'PJTWire, a PJTWireServiceLoop or a WireImageRow')
+                    f'PJTWire, a PJTWireServiceLoop, a WireConductor or a WireImageRow')

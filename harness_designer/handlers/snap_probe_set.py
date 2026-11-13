@@ -93,12 +93,11 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
     - UNLESS the terminal is seated in a cavity, in which case NEITHER of
       its own points is used at all -- the owning cavity gets the probe
       instead, at the cavity's own wire-side/back connection point
-      (``PJTCavity.wire_position3d``) -- only when the seated terminal's
-      crimp range actually fits the wire part being placed/dragged (see
-      ``check_terminal_compat`` -- a combined-cross-section-only mismatch
-      does NOT skip the probe, since that never blocks the connection,
-      only warns; a genuine AWG-range mismatch does, since there's
-      nothing to snap onto if it can't ever connect). Both probe kinds
+      (``PJTCavity.wire_position3d``) -- whatever the wire's size (user,
+      2026-11-12: a terminal takes several wires, so a wire that is too
+      small must still be attachable; ``check_terminal_compat``'s AWG
+      mismatch is shown as a message when snapping, it never skips the
+      probe). Both probe kinds
       resolve to the exact same real ``Terminal`` once picked -- see
       ``PseudoPJTWireLayout.snap_terminal`` -- so wire_handler.py's/
       dragging.py's own commit logic (``Terminal.add_wire``) needs no
@@ -144,6 +143,9 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
             self._probes.append(probe)
             self.snap_terminals.append(terminal)
 
+        # A seated terminal gets its probe whatever the wire's size (user, 2026-11-12): a terminal takes more than one wire, so an
+        # undersized wire has to be attachable (and then the next one). The size mismatch is shown as a message when the wire is
+        # snapped, never as a refusal.
         for cavity in project.cavities:
             pjt_terminal = cavity.db_obj.terminal
             if pjt_terminal is None:
@@ -151,12 +153,6 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
 
             terminal = pjt_terminal.get_object()
             if terminal is None:
-                continue
-
-            ok, _block_msg, _warning_msg = (
-                _wire_snap.check_terminal_compat(terminal, wire_part))
-
-            if not ok:
                 continue
 
             kwargs = self._get_wire_position(cavity.db_obj)

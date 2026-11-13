@@ -26,20 +26,25 @@ def _process_worker(in_queue: multiprocessing.Queue,
                     exit_event: multiprocessing.Event,
                     print_lock: "multiprocessing.synchronize.Lock") -> None:
 
-    """Download and register missing image resources in a subprocess.
+    """
+    Download and register missing image resources in a subprocess.
 
     :param in_queue: Queue containing image identifiers to process.
     :type in_queue: multiprocessing.Queue
+
     :param out_queue: Queue used to send progress messages back to the parent.
     :type out_queue: multiprocessing.Queue
+
     :param exit_event: Process event used to coordinate startup and shutdown.
     :type exit_event: multiprocessing.Event
+
     :param print_lock: Lock used when printing diagnostics.
     :type print_lock: multiprocessing.Lock
 
     :returns: ``None``.
     :rtype: None
     """
+
     from . import manager
     from .. import config as _config
 
@@ -58,7 +63,9 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
     credentials = cred_manager.retrieve_credentials(print_lock)
     if credentials is None:
-        out_queue.put(json.dumps({'log': 'IMAGE DOWNLOADER: error collecting credentials'}))
+        out_queue.put(json.dumps(
+            {'log': 'IMAGE DOWNLOADER: error collecting credentials'}))
+
         return
 
     from . import db_broker
@@ -66,7 +73,9 @@ def _process_worker(in_queue: multiprocessing.Queue,
     connector = db_broker.connect_to_database(credentials)
 
     if connector is None:
-        out_queue.put(json.dumps({'log': 'IMAGE DOWNLOADER: unknown database type'}))
+        out_queue.put(json.dumps(
+            {'log': 'IMAGE DOWNLOADER: unknown database type'}))
+
         return
 
     heartbeat_interval = _config.Config.resources.heartbeat_interval
@@ -93,7 +102,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
                 # a clean interpreter shutdown, see ProcessWorker.__init__).
                 # No retries -- self-terminate now rather than being left
                 # orphaned.
-                os._exit(1)
+                os._exit(1)  # NOQA
 
             if not waiting_for_pong:
                 out_queue.put({'ping': True})
@@ -104,6 +113,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
         if 'pong' in in_message:
             waiting_for_pong = False
+
             continue
 
         # Real job data -- busy processing is exempt from the heartbeat.
@@ -133,14 +143,19 @@ def _process_worker(in_queue: multiprocessing.Queue,
             out_message['err_no'] = -100
             out_message['err_msg'] = f'Unknown resource type ({type_})'
             out_queue.put(out_message)
+
             continue
 
-        connector.execute(f'SELECT uuid, path FROM {table_name} WHERE id=?;', (db_id,))
+        connector.execute(
+            f'SELECT uuid, path FROM {table_name} WHERE id=?;', (db_id,))
+
         image = connector.fetchall()
 
         if not image:
             out_message['err_no'] = -500
-            out_message['err_msg'] = f'Record foes not exist in table "{table_name}" ({db_id})'
+            out_message['err_msg'] = (f'Record foes not exist in '
+                                      f'table "{table_name}" ({db_id})')
+
             out_queue.put(out_message)
             continue
 
@@ -151,7 +166,9 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
         if uuid is not None or not path:
             out_message['err_no'] = -600
-            out_message['err_msg'] = f'Record uuid or path is not correct "{table_name}" ({db_id})'
+            out_message['err_msg'] = (f'Record uuid or path is not '
+                                      f'correct "{table_name}" ({db_id})')
+
             out_queue.put(out_message)
             continue
 
@@ -168,6 +185,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
             tb = traceback.format_exception(err)
             out_message['traceback'] = ''.join(tb)
             out_queue.put(out_message)
+
             continue
         # catchall for all other resource exceptions
         except _resources.ResourceException as err:
@@ -177,17 +195,21 @@ def _process_worker(in_queue: multiprocessing.Queue,
             tb = traceback.format_exception(err)
             out_message['traceback'] = ''.join(tb)
             out_queue.put(out_message)
+
             continue
         except Exception as err:
             tb = traceback.format_exception(err)
             out_message['traceback'] = ''.join(tb)
             out_queue.put(out_message)
+
             continue
 
         if values is None:
             out_message['err_no'] = -1000
-            out_message['err_msg'] = f'This should not occur "{table_name}" ({db_id})'
+            out_message['err_msg'] = (f'This should not occur '
+                                      f'"{table_name}" ({db_id})')
             out_queue.put(out_message)
+
             continue
 
         out_message['step'] = 4
@@ -199,6 +221,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
         connector.execute(
             f'UPDATE {table_name} SET file_type_id=?, uuid=? '
             f'WHERE id=?;', (file_type_id, file_id, db_id))
+
         connector.commit()
 
         out_message['step'] = 5
@@ -237,13 +260,15 @@ class ProcessWorker:
 
         :returns: ``None``.
         :rtype: None
+
         :raises RuntimeError: Raised when the connector or worker enters an unexpected state.
         """
 
         self.process.start()
         self.exit_event.wait(timeout=10.0)
         if not self.exit_event.is_set():
-            raise RuntimeError('image process_worker failed to start within 10 seconds')
+            raise RuntimeError(
+                'image process_worker failed to start within 10 seconds')
 
         self.exit_event.clear()
 
@@ -274,8 +299,10 @@ class ProcessWorker:
                     del self.queue[priority]
 
                 message = item.copy()
+
                 del message['db_obj']
                 del message['resource_obj']
+
                 message['id'] = item['db_obj'].db_id
 
                 self.out_queue.put(message)
@@ -284,6 +311,7 @@ class ProcessWorker:
             db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"],
             resource_obj: "_resource_state.ResourceState", mfg: str,
             part_number: str, path: str) -> None:
+
         """
         Queue an image identifier for background resource collection.
 
@@ -329,17 +357,13 @@ class ProcessWorker:
             if priority not in self.queue:
                 self.queue[priority] = []
 
-            self.queue[priority].append(
-                {
-                    'db_obj': db_obj,
-                    'resource_obj': resource_obj,
-                    'type': obj_type,
-                    'part_number': part_number,
-                    'mfg': mfg,
-                    'path': path,
-                    'priority': priority
-                }
-            )
+            self.queue[priority].append({'db_obj': db_obj,
+                                         'resource_obj': resource_obj,
+                                         'type': obj_type,
+                                         'part_number': part_number,
+                                         'mfg': mfg,
+                                         'path': path,
+                                         'priority': priority})
 
     def recv(self) -> None:  # NOQA
 
@@ -350,6 +374,7 @@ class ProcessWorker:
                 # Heartbeat keep-alive -- see _process_worker. Answered
                 # unconditionally, whether or not a job is running.
                 self.out_queue.put({'pong': True})
+
                 return
 
             if self.running is None:
@@ -368,28 +393,43 @@ class ProcessWorker:
                 else:
                     message['allow_retry'] = True
 
-                def _do(rs: "_resource_state.ResourceState", db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"], msg: dict[str, Any]) -> None:
+                def _do(rs: "_resource_state.ResourceState",
+                        db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"],
+                        msg: dict[str, Any]) -> None:
+
                     db_obj.set_progress(-1)
                     rs.set_error(**msg)
 
-                self.app.CallAfter(_do, resource_state, self.running['db_obj'], message)
+                self.app.CallAfter(
+                    _do, resource_state, self.running['db_obj'], message)
+
                 self.running = None
 
             else:
                 if message['step'] == 5:
-                    def _do(rs: "_resource_state.ResourceState", db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"]) -> None:
+                    def _do(
+                        rs: "_resource_state.ResourceState",
+                        db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"]
+                    ) -> None:
+
                         db_obj.set_progress(5)
                         rs.delete()
                         db_obj.download_complete()
 
-                    self.app.CallAfter(_do, resource_state, self.running['db_obj'])
+                    self.app.CallAfter(
+                        _do, resource_state, self.running['db_obj'])
+
                     self.running = None
                 else:
-                    def _do(rs: "_resource_state.ResourceState", db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"], step: int) -> None:
+                    def _do(rs: "_resource_state.ResourceState",
+                            db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"],
+                            step: int) -> None:
+
                         db_obj.set_progress(step)
                         rs.update_progress(step)
 
-                    self.app.CallAfter(_do, resource_state, self.running['db_obj'], message['step'])
+                    self.app.CallAfter(
+                        _do, resource_state, self.running['db_obj'], message['step'])
 
     def reset(self) -> None:
         pass
@@ -401,6 +441,7 @@ class ProcessWorker:
         :returns: ``None``.
         :rtype: None
         """
+
         self.exit_event.set()
         self.out_queue.put(None)
 

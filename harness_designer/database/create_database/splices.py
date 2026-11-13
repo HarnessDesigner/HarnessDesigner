@@ -411,6 +411,13 @@ pjt_table = _con.SQLTable(
                                                      on_update=_con.REFERENCE_NO_ACTION)),
     _con.TextField('quat_pegboard', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle_pegboard', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    # The shield ring of a solder sleeve in the schematic (user, 2026-11-12; a splice that is not a sleeve leaves all three at 0): the
+    # dashed ellipse across the shielded wires. Its connected narrow end is the splice's own ``point2d`` (where the shield wire ends);
+    # ``ring_size`` is the semi-long axis in the schematic's units (0 = not placed yet), ``ring_dir`` the direction from the connected
+    # end to the far end (0 +X, 1 +Z, 2 -X, 3 -Z), ``ring_hard`` 1 once the user placed or sized it by hand (the auto placement leaves it).
+    _con.FloatField('ring_size', default='"0.0"', no_null=True),
+    _con.IntField('ring_dir', default='0', no_null=True),
+    _con.IntField('ring_hard', default='0', no_null=True),
     _con.UUIDField('circuit_id', default='NULL',
                    references=_con.SQLFieldReference(_circuits.pjt_table,
                                                      _circuits.pjt_id_field,

@@ -36,6 +36,10 @@ _call_on_main = None
 # in the main thread but handles events as it goes, so it does not count as blocked.
 _HANG_SECONDS = 20
 
+# Whether the hang watchdog runs at all (user, 2026-11-12: it left a ``log/hang_<time>.txt`` behind whenever the application did not exit cleanly
+# (stopped from the IDE, a crash), and a slow start is not a hang). Set it to ``True`` to look for a real hang again.
+_HANG_WATCHDOG = False
+
 
 @_check_types.do
 def _qt_message_handler(msg_type: QtCore.QtMsgType, context: QtCore.QMessageLogContext, message: str) -> None:
@@ -217,7 +221,8 @@ class App(QtCore.QObject):
         self.logger = logger
         logger.startup()
         self._log_gpu_info()
-        self._start_hang_watchdog()
+        if _HANG_WATCHDOG:
+            self._start_hang_watchdog()
 
         # Capture Qt's own native warnings/errors (e.g. "Cannot make
         # QOpenGLContext current in a different thread") into the log --
@@ -442,14 +447,15 @@ class App(QtCore.QObject):
         """Called automatically by MainLoop when the event loop ends."""
         from . import config
 
-        faulthandler.cancel_dump_traceback_later()
-        self._hang_file.flush()
-        empty = os.path.getsize(self._hang_path) == 0
+        if _HANG_WATCHDOG:
+            faulthandler.cancel_dump_traceback_later()
+            self._hang_file.flush()
+            empty = os.path.getsize(self._hang_path) == 0
 
-        if empty:
-            faulthandler.disable()
-            self._hang_file.close()
-            os.remove(self._hang_path)
+            if empty:
+                faulthandler.disable()
+                self._hang_file.close()
+                os.remove(self._hang_path)
 
         if self.logger:
             self.logger.info('Saving Config Data...')

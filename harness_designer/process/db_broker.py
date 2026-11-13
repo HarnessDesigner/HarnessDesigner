@@ -15,58 +15,73 @@ if TYPE_CHECKING:
 
 
 class BaseConnector:
-
-    """Wrap a low-level database connection used by monitor workers.
     """
-    def __init__(self, con: _Union["sqlite3.Connection", "MySQLConnection"], cur: _Union["sqlite3.Cursor", "MySQLCursor"]):
-        """Initialize the connection and cursor wrapper.
+    Wrap a low-level database connection used by monitor workers.
+    """
+
+    def __init__(self, con: _Union["sqlite3.Connection", "MySQLConnection"],
+                 cur: _Union["sqlite3.Cursor", "MySQLCursor"]):
+
+        """
+        Initialize the connection and cursor wrapper.
 
         :param con: Open database connection.
         :type con: UNKNOWN
+
         :param cur: Open cursor associated with ``con``.
         :type cur: UNKNOWN
         """
+
         self._connection = con
         self._cursor = cur
 
     def execute(self, cmd: str, params: tuple | list | None = None) -> None:
-        """Execute a SQL statement with the wrapped cursor.
+        """
+        Execute a SQL statement with the wrapped cursor.
 
         :param cmd: SQL command string to execute.
         :type cmd: UNKNOWN
+
         :param params: Bound parameters for ``cmd``, if any.
         :type params: UNKNOWN
 
         :returns: The connector-specific cursor result, if one is returned.
         :rtype: UNKNOWN
         """
+
         if params is None:
             self._cursor.execute(cmd)
         else:
             self._cursor.execute(cmd, params)
 
     def fetchall(self) -> list[tuple]:
-        """Fetch all rows from the wrapped cursor.
+        """
+        Fetch all rows from the wrapped cursor.
 
         :returns: All remaining rows from the cursor.
         :rtype: list[tuple]
         """
+
         return self._cursor.fetchall()
 
     def commit(self) -> None:
-        """Commit the wrapped database transaction.
+        """
+        Commit the wrapped database transaction.
 
         :returns: ``None``.
         :rtype: None
         """
+
         self._connection.commit()
 
     def close(self) -> None:
-        """Close the wrapped cursor and connection if possible.
+        """
+        Close the wrapped cursor and connection if possible.
 
         :returns: ``None``.
         :rtype: None
         """
+
         try:
             self._cursor.close()
             self._connection.close()
@@ -75,23 +90,32 @@ class BaseConnector:
 
 
 class MySQLConnector(BaseConnector):
-
-    """Open a monitor-side connection to a MySQL database.
     """
-    def __init__(self, host: str, port: int, user: str, password: str, database: str):
-        """Initialize the MySQL monitor connector.
+    Open a monitor-side connection to a MySQL database.
+    """
+
+    def __init__(self, host: str, port: int, user: str,
+                 password: str, database: str):
+
+        """
+        Initialize the MySQL monitor connector.
 
         :param host: MySQL host name or address.
         :type host: UNKNOWN
+
         :param port: MySQL server port.
         :type port: UNKNOWN
+
         :param user: MySQL user name.
         :type user: UNKNOWN
+
         :param password: MySQL password.
         :type password: UNKNOWN
+
         :param database: MySQL database name.
         :type database: UNKNOWN
         """
+
         import mysql.connector
 
         con = mysql.connector.connect(
@@ -127,15 +151,18 @@ class MySQLConnector(BaseConnector):
 
 
 class SQLiteConnector(BaseConnector):
-
-    """Open a monitor-side connection to a SQLite database.
     """
+    Open a monitor-side connection to a SQLite database.
+    """
+
     def __init__(self, path: str):
-        """Initialize the SQLite monitor connector.
+        """
+        Initialize the SQLite monitor connector.
 
         :param path: Path to the SQLite database file.
         :type path: UNKNOWN
         """
+
         import sqlite3
 
         con = sqlite3.connect(path)
@@ -145,7 +172,8 @@ class SQLiteConnector(BaseConnector):
 
 
 def connect_to_database(credentials: dict[str, Any]) -> _Union["BaseConnector", None]:
-    """Create a monitor connector from stored credentials.
+    """
+    Create a monitor connector from stored credentials.
 
     :param credentials: Credential dictionary previously stored in the keyring.
     :type credentials: UNKNOWN
@@ -153,6 +181,7 @@ def connect_to_database(credentials: dict[str, Any]) -> _Union["BaseConnector", 
     :returns: A connector instance for the supplied credentials.
     :rtype: BaseConnector | None
     """
+
     from ..database import db_connectors as _db_connectors
 
     if credentials['type'] == _db_connectors.CONNECTOR_SQLITE:
@@ -166,6 +195,3 @@ def connect_to_database(credentials: dict[str, Any]) -> _Union["BaseConnector", 
             password=credentials['password'],
             database=credentials['database']
         )
-
-
-

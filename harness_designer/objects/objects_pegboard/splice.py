@@ -4,11 +4,16 @@ from typing import TYPE_CHECKING
 
 import math
 
+from OpenGL import GL
+
 from . import base_pegboard as _base_pegboard
+from ..objects_3d import splice as _splice_3d
+from ...shapes import sleeve as _sleeve
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
+from ... import color as _color
 from ... import check_types as _check_types
 from ... import config as _config
 from ...crash_dump import Attr, capturable
@@ -16,6 +21,7 @@ from ...crash_dump import Attr, capturable
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_splice as _pjt_splice
+    from ...gl import shaders as _shaders
     from .. import splice as _splice
 
 
@@ -92,12 +98,12 @@ class Splice(_base_pegboard.BasePegboard):
         area2 = [0.0]
 
         for wire in wires[0]:
-            dia = wire.od_mm
+            dia = float(wire.part.od_mm or 0.0)
             area = math.pi * ((dia / 2.0) ** 2.0)
             area1.append(area)
 
         for wire in wires[-1]:
-            dia = wire.od_mm
+            dia = float(wire.part.od_mm or 0.0)
             area = math.pi * ((dia / 2.0) ** 2.0)
             area2.append(area)
 
@@ -127,6 +133,28 @@ class Splice(_base_pegboard.BasePegboard):
         # vbo=None (see housing.py's own comment on this).
         with parent.mainframe.editor_pegboard.context:
             vbo = _cylinder.create_vbo()
+            material = _materials.Rubber(self._part.color.ui)
+
+            # A solder sleeve (SHIELD_SLEEVE_DESIGN.md) is the hollow, translucent tube of ``shapes/sleeve.py`` with the solder ring
+            # inside its wall, scaled by the diameter of the cable it is on, as in the 3D view; the wires on it (a pigtail) are not
+            # what gives it its size (user, 2026-11-12: the sleeve was not drawn on the board at all).
+            self._ring_vbo = None
+            self._ring_material = None
+            self._ring_shape = None
+            self._ring_key = None
+            self._ring_position = _point.Point(0.0, 0.0, 0.0)
+
+            if self._part.is_solder_sleeve:
+                on_cable = db_obj.shield_cable
+                cable_od = on_cable[0].part.od_mm if on_cable is not None else 0.0
+
+                self._ring_shape = shape = _sleeve.sizes(cable_od, self._part.min_dia, self._part.max_dia, self._part.length)
+                scale = _point.Point(shape['diameter'], shape['diameter'], shape['length'])
+                vbo = _sleeve.create_vbo()
+                material = _splice_3d.sleeve_tube_material(self._part)
+
+                self._ring_vbo = _cylinder.create_vbo()
+                self._ring_material = _materials.Metallic(_color.Color(*_splice_3d._RING_COLOR))  # NOQA
 
             super().__init__(
                 parent, db_obj,
@@ -134,7 +162,7 @@ class Splice(_base_pegboard.BasePegboard):
                 angle=angle,
                 position=self._p1,
                 scale=scale,
-                material=_materials.Rubber(self._part.color.ui),
+                material=material,
             )
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
@@ -145,6 +173,68 @@ class Splice(_base_pegboard.BasePegboard):
         if self._model is not None:
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
+
+    @_check_types.do
+    def reload_pose(self) -> None:
+        """Turn the splice to lie from its start point to its stop point again. The angle is worked out once, when the view is made; a
+        solder sleeve whose cable moved on the board has its points moved (``Cable._sync_board_sleeve``) and turns here."""
+        angle = _angle.Angle.from_points(self._p1, self._p2)
+
+        # in place: the view is bound to this angle object (its bound callback turns the boxes); the difference is added so the
+        # rotation is exactly the one from_points gives (setting the x / y / z of an angle made from points does not)
+        self._angle += angle - self._angle
+
+        self._ring_key = None
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the splice. A solder sleeve is drawn as in the 3D view (``objects_3d.splice.Splice.render``): its solder ring first, then
+        the translucent tube over it without writing depth.
+
+        :param shaders: The canvas's shader programs.
+        """
+        if self._ring_vbo is None or not self.is_visible or self._vbo is not _sleeve.create_vbo():
+            super().render(shaders)
+            return
+
+        self._render_ring(shaders)
+
+        if self.is_selected:
+            super().render(shaders)
+            return
+
+        GL.glDepthMask(GL.GL_FALSE)
+
+        try:
+            super().render(shaders)
+        finally:
+            GL.glDepthMask(GL.GL_TRUE)
+
+    @_check_types.do
+    def _render_ring(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the solder ring of a sleeve, inside the wall of the tube, centred on it along its axis."""
+        start = self._p1.as_numpy
+        stop = self._p2.as_numpy
+        key = (tuple(start), tuple(stop))
+
+        if key != self._ring_key:
+            axis = stop - start
+            norm = float(math.sqrt(float((axis * axis).sum())))
+
+            if norm < 1e-9:
+                return
+
+            at = start + axis / norm * self._ring_shape['ring_offset']
+            self._ring_position = _point.Point(float(at[0]), float(at[1]), float(at[2]))
+            self._ring_key = key
+
+        shape = self._ring_shape
+        ring_scale = _point.Point(shape['ring_diameter'], shape['ring_diameter'], shape['ring_length'])
+        angle = self._ring_vbo.render_angle(self._angle)
+
+        with shaders.faces:
+            self._ring_material.set(shaders.faces)
+            self._ring_vbo.render(shaders.faces, self._ring_position, angle, ring_scale, self.smooth)
 
     @property
     @_check_types.do

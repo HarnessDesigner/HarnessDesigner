@@ -350,8 +350,14 @@ def auto_arrange(project: "_project.Project") -> None:
     # docstring), so they claim their lanes around a junction terminal's
     # own pushed-out attach point before anything else routes near it;
     # within each of those two groups, thickest-first as before.
+    #
+    # The wires of shielded cables are routed FIRST (user, 2026-11-12), as a group through their shield rings.
+    connected = [w for w in project.schematic_wires if w.is_connected]
+
+    for cable in _wire_reroute.shield_cables(connected):
+        _wire_reroute.route_shield_group(project, cable)
+
     for wire in sorted(
-            (w for w in project.schematic_wires if w.is_connected),
-            key=lambda w: (not _wire_reroute.is_junction_wire(w),
-                          -float(w.objschematic._part.od_mm))):  # NOQA
+            (w for w in connected if not _wire_reroute.is_shield_group_wire(w)),
+            key=lambda w: (not _wire_reroute.is_junction_wire(w), -float(w.objschematic._part.od_mm))):  # NOQA
         _wire_reroute.reroute_wire(project, wire)

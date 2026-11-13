@@ -12,6 +12,7 @@ from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
 from ...shapes import sphere as _sphere
+from ...shapes import taper as _taper
 from ... import check_types as _check_types
 
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from ...ui.editor_schematic import editor_schematic as _editor_schematic
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_schematic
@@ -94,6 +96,25 @@ class WireLayout(_base_schematic.BaseSchematic):
         with parent.mainframe.editor2d.editor.context:
             vbo = _sphere.create_vbo()
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """The round handle on a bend (or end) of a SHIELD wire is drawn as thin as that wire (user, 2026-11-12): at the wire's own size it
+        would be a dot on the thin wire, appearing and disappearing as the route changes."""
+        from . import wire as _wire_view
+
+        if self._position is None or self._scale is None or id(self._position) not in _wire_view.THIN_POINTS:
+            super().render(shaders)
+            return
+
+        real_scale = self._scale
+        thin = real_scale.x * _taper.END_RATIO
+        self._scale = _point.Point(thin, thin, thin)
+
+        try:
+            super().render(shaders)
+        finally:
+            self._scale = real_scale
 
     @_check_types.do
     def can_rotate(self) -> bool:

@@ -255,8 +255,10 @@ def _obstacle_excludes(
     if ignore_wire is not None:
         from ..objects import terminal as _terminal_obj
 
+        from . import shield_ring as _shield_ring
+
         for splice in project.splices:
-            if splice in (ignore_wire.start_sibling, ignore_wire.stop_sibling):
+            if splice in (ignore_wire.start_sibling, ignore_wire.stop_sibling) or _shield_ring.excluded_for(ignore_wire, splice):
                 exclude_aabb.append(splice.objschematic._aabb_index)  # NOQA
 
         for sibling in (ignore_wire.start_sibling, ignore_wire.stop_sibling):

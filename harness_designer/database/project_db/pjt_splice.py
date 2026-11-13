@@ -181,7 +181,7 @@ class PJTSplicesTable(PJTTableBase):
             quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
             scale3d_id=None, scale_pegboard_id=None, notes='',
             is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None,
-            operating_temp=None)
+            operating_temp=None, ring_size=0.0, ring_dir=0, ring_hard=0)
 
         self.db.pjt_circuits_table.members_changed(circuit_id)
 
@@ -222,6 +222,48 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         super().delete()
 
         self._table.db.pjt_circuits_table.members_changed(circuit_id)
+
+    @property
+    @_check_types.do
+    def ring_size(self) -> float:
+        """The shield ring's semi-long axis in the schematic's units (0.0 = not placed yet); see ``create_database/splices.py``."""
+        return float(self._table.select('ring_size', id=self._db_id)[0][0] or 0.0)
+
+    @ring_size.setter
+    @_check_types.do
+    def ring_size(self, value: float) -> None:
+        """Set the shield ring's semi-long axis."""
+        self._table.update(self._db_id, ring_size=float(value))
+        self._populate('ring_size')
+
+    @property
+    @_check_types.do
+    def ring_dir(self) -> int:
+        """The direction from the shield ring's connected narrow end to the far one: 0 +X, 1 +Z, 2 -X, 3 -Z."""
+        return int(self._table.select('ring_dir', id=self._db_id)[0][0] or 0)
+
+    @ring_dir.setter
+    @_check_types.do
+    def ring_dir(self, value: int) -> None:
+        """Set the shield ring's direction (0 +X, 1 +Z, 2 -X, 3 -Z)."""
+        if value not in (0, 1, 2, 3):
+            raise ValueError(f'ring_dir must be 0, 1, 2 or 3, got {value!r}')
+
+        self._table.update(self._db_id, ring_dir=int(value))
+        self._populate('ring_dir')
+
+    @property
+    @_check_types.do
+    def ring_hard(self) -> bool:
+        """Whether the user placed or sized the shield ring by hand (the automatic placement then leaves it alone)."""
+        return bool(self._table.select('ring_hard', id=self._db_id)[0][0])
+
+    @ring_hard.setter
+    @_check_types.do
+    def ring_hard(self, value: bool) -> None:
+        """Set whether the shield ring is hard set."""
+        self._table.update(self._db_id, ring_hard=int(bool(value)))
+        self._populate('ring_hard')
 
     @property
     @_check_types.do

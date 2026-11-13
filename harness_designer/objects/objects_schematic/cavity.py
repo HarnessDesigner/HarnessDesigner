@@ -2,16 +2,19 @@
 
 from typing import TYPE_CHECKING, Union as _Union
 
+import build123d
 import numpy as np
 
 from . import base_schematic as _base_schematic
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry import line as _line
 from ...geometry import cavity_layout as _cavity_layout
 from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
 from ...shapes import text as _text
+from ...shapes import cylinder as _cylinder
 from ... import utils as _utils
 from ... import check_types as _check_types
 from ...crash_dump import Attr, capturable, dump_property
@@ -40,6 +43,30 @@ def _is_180(degrees: float) -> bool:
 
 # What a label is drawn with at exactly 180 degrees -- see Cavity.render.
 _NO_ROTATION = _angle.Angle()
+
+# A cavity with no terminal in it is drawn with its wire stub and "(" as a seated terminal's are, and a red X at the end of the stub: nothing
+# can be connected there (user, 2026-11-12). The X is a bit smaller than the bracket.
+_NO_CONNECTION_MATERIAL = _materials.Generic(_color.Color(220, 30, 30))
+_NO_CONNECTION_SIZE = 0.8
+
+# The glyphs ("(", ")", "X") are shared by every empty cavity of the same size: a Text builds its meshes when it is made, which needs the
+# GL context, and a housing can have a hundred cavities.
+_GLYPHS: dict[tuple[str, float], _text.Text] = {}
+
+
+@_check_types.do
+def _glyph(editor: "object", character: str, size: float) -> _text.Text:
+    """The (shared) centre-anchored flat glyph *character* at font size *size*."""
+    key = (character, round(size, 4))
+    glyph = _GLYPHS.get(key)
+
+    if glyph is None:
+        with editor.context:
+            glyph = _text.Text(character, size, build123d.FontStyle.REGULAR, local_tilt=_text.TOP_DOWN_TILT, center_anchor=True)
+
+        _GLYPHS[key] = glyph
+
+    return glyph
 
 
 @capturable()
@@ -135,6 +162,12 @@ class Cavity(_base_schematic.BaseSchematic):
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+        # Whether nothing is seated here: such a cavity is drawn with its stub, bracket and a red X (see _render_empty_marker). Kept up
+        # to date by _on_terminal_changed, so a frame does not ask the database.
+        self._empty = db_obj.terminal is None
+        self._marker_key = None
+        self._marker = None
+
         self._name_cb = self.db_obj.bind(self._on_name_changed, 'name')
 
         # Fires whenever a terminal is attached, detached, or moved
@@ -176,13 +209,13 @@ class Cavity(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def _on_terminal_changed(self, _entry: _Union["_pjt_cavity.PJTCavity", None] = None) -> None:
-        """No-op -- see this class's own docstring: repositioning a
-        seated terminal after this fires is not currently handled
-        anywhere (``objects_schematic/housing.py``'s ``Housing`` used to
-        do it as part of a full relayout, but that was removed
-        2026-09-10, Kevin, and nothing has replaced it yet).
+        """A terminal was seated here or taken out: the empty-cavity marker (stub, bracket, red X) is drawn only while there is none
+        (a seated terminal draws its own). Repositioning a seated terminal after this fires is not handled anywhere
+        (``objects_schematic/housing.py``'s ``Housing`` used to do it as part of a full relayout, but that was removed 2026-09-10,
+        Kevin, and nothing has replaced it yet).
         """
-        pass
+        self._empty = self.db_obj.terminal is None
+        self.editor2d.Refresh()
 
     @_check_types.do
     def _local_to_world(self, local_x: float, local_z: float) -> _point.Point:
@@ -416,7 +449,96 @@ class Cavity(_base_schematic.BaseSchematic):
 
         super().render(shaders)
 
+        if self._empty:
+            self._render_empty_marker(shaders, housing)
+
         self._angle = real_angle
+
+    @_check_types.do
+    def _marker_world(self, housing: "_housing_schematic.Housing", local: tuple[float, float]) -> _point.Point:
+        """A housing-local point of this cavity (bracket, stub start / stop) in the world, by the housing's CURRENT position and angle; at
+        exactly 180 degrees by :meth:`CavityGeometry.point_at_180` (a plain rotation is wrong there), as a seated terminal's are."""
+        if _is_180(housing.angle.y):
+            wx, wz = self._geometry.point_at_180(local)
+            wy = 0.0
+        else:
+            points = np.array([[local[0], 0.0, local[1]]], dtype=np.float32)
+            wx, wy, wz = _base_schematic._rotate_about_y(points, housing.angle.y)[0]  # NOQA
+
+        return _point.Point(housing.position.x + float(wx), housing.position.y + float(wy), housing.position.z + float(wz))
+
+    @_check_types.do
+    def _marker_pieces(self, housing: "_housing_schematic.Housing"):
+        """Where the empty-cavity marker's pieces are in the world: ``(bracket, stub start, stub stop, stub angle, stub scale)``. Worked
+        out again only when the housing's position or angle changed since the last frame."""
+        key = (float(housing.position.x), float(housing.position.z), float(housing.angle.y))
+
+        if key == self._marker_key and self._marker is not None:
+            return self._marker
+
+        geometry = self._geometry
+
+        if geometry is None:
+            return None
+
+        bracket = self._marker_world(housing, geometry.bracket_position)
+        start = self._marker_world(housing, geometry.cylinder_start)
+        stop = self._marker_world(housing, geometry.cylinder_stop)
+
+        line = _line.Line(start, stop)
+        diameter = Config.object_sizes.wire.diameter
+        scale = _point.Point(diameter, diameter, line.length())
+
+        self._marker = (bracket, start, stop, line.get_angle(start), scale)
+        self._marker_key = key
+
+        return self._marker
+
+    @_check_types.do
+    def _render_empty_marker(self, shaders: "_shaders.ShaderProgram", housing: "_housing_schematic.Housing") -> None:
+        """Draw what a cavity with no terminal shows (user, 2026-11-12): the "(" bracket and the wire stub a seated terminal has, and a red
+        X at the end of the stub, meaning nothing can be connected to this cavity. Swaps this object's vbo / angle / scale / position /
+        material around each piece, as :meth:`objects_schematic.terminal.Terminal.render` does, and restores them.
+
+        Called by :meth:`_render_label` while ``self._angle`` is the angle the labels are drawn at (the housing's; none at 180).
+        """
+        pieces = self._marker_pieces(housing)
+
+        if pieces is None:
+            return
+
+        bracket, start, stop, stub_angle, stub_scale = pieces
+        geometry = self._geometry
+        editor = self.editor2d.editor
+        label_angle = self._angle
+
+        real_vbo, real_scale, real_position, real_material = self._vbo, self._scale, self._position, self._material
+        unit = _point.Point(1.0, 1.0, 1.0)
+
+        try:
+            # the "(" (at 180 the mirrored layout needs a ")": a flat glyph is not turned half way round)
+            self._vbo = _glyph(editor, ')' if label_angle is _NO_ROTATION else '(', geometry.bracket_font_size)
+            self._scale = unit
+            self._position = bracket
+            super().render(shaders)
+
+            # the stub
+            self._vbo = _cylinder.create_vbo()
+            self._angle = stub_angle
+            self._scale = stub_scale
+            self._position = start
+            super().render(shaders)
+
+            # the red X where a wire would end
+            self._vbo = _glyph(editor, 'X', geometry.bracket_font_size * _NO_CONNECTION_SIZE)
+            self._angle = label_angle
+            self._scale = unit
+            self._position = stop
+            self._material = _NO_CONNECTION_MATERIAL
+            super().render(shaders)
+        finally:
+            self._vbo, self._scale, self._position, self._material = real_vbo, real_scale, real_position, real_material
+            self._angle = label_angle
 
     @_check_types.do
     def _rebuild(self, _entry: _Union["_pjt_cavity.PJTCavity", None] = None) -> None:

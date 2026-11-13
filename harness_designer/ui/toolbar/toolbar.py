@@ -708,6 +708,8 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
                       (_wire.Wire, _cable.Cable, _cavity.Cavity, _wire_layout.WireLayout,
                        _bundle_layout.BundleLayout, _bundle.Bundle,
                        _wire_service_loop.WireServiceLoop,
+                       # a splice (a solder sleeve is one) has no position_pegboard / angle_pegboard of its own
+                       _splice.Splice,
                        # A peg-board table has no angle_pegboard at all --
                        # its quad is always screen-axis-aligned (the
                        # mouse-dispatch math in objects_pegboard.
@@ -800,10 +802,11 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
             act.setEnabled(False)
 
+        # a drawn conductor of a cable (its row is a cable conductor) has no position of its own in the schematic, like a wire
         if isinstance(obj,
                       (_wire.Wire, _cavity.Cavity, _terminal.Terminal,
                        _wire_layout.WireLayout)
-        ):
+        ) or not hasattr(obj.db_obj, 'position2d'):
 
             for act in (self.rotate_y, self.move_x, self.move_y, self.move_z):
                 act.setEnabled(False)
@@ -817,18 +820,25 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self._position = obj.db_obj.position2d  # NOQA
             self._position.bind(self.on_position)
 
-            self._angle = obj.db_obj.angle2d  # NOQA
-            self._angle.bind(self.on_angle)
-
             x, y, z = self._position.as_float
             self.move_x.SetValue(x)
             self.move_y.SetValue(y)
             self.move_z.SetValue(z)
 
-            x, y, z = self._angle.as_euler_float
-            self.rotate_x.SetValue(0.0)
-            self.rotate_y.SetValue(y)
-            self.rotate_z.SetValue(0.0)
+            # a splice (a solder sleeve is one) has a position in the schematic but no angle2d: no rotation entry for it
+            angle = getattr(obj.db_obj, 'angle2d', None)
+
+            if angle is None:
+                self.rotate_y.setEnabled(False)
+                self.rotate_y.SetValue(0.0)
+            else:
+                self._angle = angle  # NOQA
+                self._angle.bind(self.on_angle)
+
+                x, y, z = self._angle.as_euler_float
+                self.rotate_x.SetValue(0.0)
+                self.rotate_y.SetValue(y)
+                self.rotate_z.SetValue(0.0)
 
     @_check_types.do
     def _on_obj_schematic_unselected(self, _: "_gl.GLObjectEvent") -> None:
@@ -879,7 +889,9 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
         if isinstance(obj,
                       (_bundle.Bundle, _wire.Wire, _cable.Cable, _cavity.Cavity, _wire_marker.WireMarker,
-                       _wire_layout.WireLayout, _bundle_layout.BundleLayout)):
+                       _wire_layout.WireLayout, _bundle_layout.BundleLayout,
+                       # a splice (a solder sleeve is one) is placed by its start / stop / branch points: no position3d / angle3d / scale3d
+                       _splice.Splice)):
 
             for act in (self.rotate_x, self.rotate_y, self.rotate_z,
                         self.scale_x, self.scale_y, self.scale_z,

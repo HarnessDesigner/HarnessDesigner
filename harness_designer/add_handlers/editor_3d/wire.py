@@ -514,14 +514,10 @@ class Wire(_base.AddHandlerBase):
                 ok, block_msg, warning_msg = (
                     _wire_snap.check_terminal_compat(picked, wire_part))
 
+                # a terminal the wire is too small / large for is still hovered and can be used (user, 2026-11-12: a terminal takes
+                # several wires, so one that is too small has to be placeable): the message is shown, nothing is refused
                 if not ok:
-                    self._overlay.show_message(
-                        mouse_pos, block_msg, blocking=True)
-
-                    self._clear_hover()
-                    self._update_preview_stop(picked.db_obj.attach_position3d)
-
-                    return
+                    warning_msg = block_msg
 
             if warning_msg:
                 self._overlay.show_message(
@@ -587,14 +583,9 @@ class Wire(_base.AddHandlerBase):
                 ok, block_msg, warning_msg = (
                     _wire_snap.check_terminal_compat(picked, wire_part))
 
+                # see _hover_phase0: the terminal is still hovered, the message is shown
                 if not ok:
-                    self._overlay.show_message(
-                        mouse_pos, block_msg, blocking=True)
-
-                    self._clear_hover()
-                    self._update_preview_stop(picked.obj3d.position)
-
-                    return
+                    warning_msg = block_msg
 
             if warning_msg:
                 self._overlay.show_message(
