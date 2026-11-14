@@ -1,5 +1,5 @@
 # harness_designer/database/create_database/points3d.py
 
-No SQL in this module. Nothing on the database hot path.
+Table definition and seed data for `pjt_points3d` (5 column definitions, 0 foreign key references). Runs at first build and at the startup "does the table need new columns" check, not in any interaction.
 
-Status: static read of the code only. Nothing here has been profiled.
+No secondary index is created for this table; lookups by anything other than the primary key or a `UNIQUE` column are scans. Only matters if the table is large (see `database/README.md`, finding 4, for the measured cost on the big catalog tables).

@@ -1,13 +1,9 @@
 # harness_designer/database/project_db/pjt_bundle_path.py
 
-SQL calls in this module (AST count): 8.
+Project row class. 8 property getters read through `self._table.select('col', id=...)`, which is a dict lookup in the table's in-memory `TableData` (no SQL; see `database/project_db/table_data.md`). The `_stored_*` / `DefaultStoredValue` guard, where present, saves only the call overhead.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `PJTBundlePath.bundle_id`: cached after first read.
-- `PJTBundlePath.idx`: cached after first read.
-- `PJTBundlePath.point3d_id`: cached after first read.
-- `PJTBundlePath.point_pegboard_id`: cached after first read.
+Getters that call `select` on every read (no stored-value guard; each is one dict lookup, but chains of them add up in a per-frame loop): `bundle_id`, `idx`, `point3d_id`, `point_pegboard_id`.
 
+4 setters; 4 of them call `PJTTableBase.update`. Outside a gesture that is `UPDATE` + `commit` (about 0.015 ms on WAL) + a cache mirror per write; inside `begin_gesture()` it only changes the cache and is flushed in one transaction on `end_gesture`. Drags and rotations run inside a gesture; anything else that sets several of these properties per user action pays one commit each.
 
-Status: static read of the code only. Nothing here has been profiled.
+Selects by a column other than the id (answered from a lazily built index after the first call): `_route_rows` (by bundle_id), `delete_for_bundle` (by bundle_id).

@@ -1,6 +1,6 @@
 # harness_designer/objects/objects_3d/wire_marker.py
 
-## Line 235-262 (`WireMarker._update_position`) — builds a `Line` on every endpoint move
+## Line 253-308 (`WireMarker._update_position`) — builds a `Line` on every endpoint move
 Each call constructs `_line.Line(self._p2, self._p1)` (line 247) and computes
 its length, even when the event came from the marker's own position. The line
 is needed for both branches, so the cost is one small allocation per event.

@@ -8,8 +8,8 @@ The geometry itself is already handled well: the docstring explains that `_name_
 ## Line 881-887 — free-terminal early path
 A free terminal (`_is_free`) draws through a single `super().render`, the cheapest path. No change needed.
 
-## Line 583-666 (`_update_position`, `_update_angle`) — cascade from the housing on every move
+## Line 596-733 (`_update_position`, `_update_angle`) — cascade from the housing on every move
 Both call `_rebuild_geometry` (see the docstring at lines 871-876), which runs on every housing move or rotation. A housing move therefore re-derives geometry for every seated terminal. That is the correct behaviour, but it makes a housing drag O(terminals) per mouse event, the same shape as the cavity cascade.
 
-## Line 784-847 (`_compute_obb`, `_compute_aabb`, `hit_test_step2`/`3`) — per-pick mesh path
+## Line 798-848 (`_compute_obb`, `_compute_aabb`, `hit_test_step2`/`3`) — per-pick mesh path
 `hit_test_step3` follows the same full-mesh structure as the other views' step 3 (see `objects_3d/base_3d.md`).

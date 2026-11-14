@@ -1,0 +1,3 @@
+# harness_designer/plugins/plugins/claude_ai/__init__.py
+
+Facade that re-exports about 40 names (client, conversation, errors, settings, key store). It does not import Qt or the Anthropic SDK (the docstring says so and the imports confirm it); the SDK is imported inside `client.py`'s `warm_up` (on a background thread, because the first import takes about three seconds, per its docstring) and `ClaudeClient._sdk`, so the import cost of this package itself is small. Keep `warm_up` off the main thread. The docstring still shows the old `from harness_designer import claude` path, which is a documentation point, not a performance one.

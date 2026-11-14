@@ -1,14 +1,6 @@
 # harness_designer/rope_pull/rope_pull_py.py
 
-## Line 139-201 (`solve_chain`) — one pass over at most two spans
-Builds a two- or three-point skeleton, then solves each span. It is O(number of spans) and runs once per solve. Called from the peg-board drag path many times per mouse move (see `handlers/rope_pull_handler.md`), so the per-solve constant matters. The work is a few `hypot` calls and a loop, which is cheap.
+The pure-Python reference for the rope-pull span solver (`solve_chain`, `_solve_span`). The compiled port (`rope_pull.pyx`, see `rope_pull.md`) is what the app calls when it is built; this version is the reference it is checked against. Pure scalar math on `(x, z)` tuples, no NumPy, which is the right shape for many tiny calls (MEMORY.md).
 
-## Line 204-213 (`_polyline_length`) — Python loop over a short list
-Two or three points. Fine.
-
-## Line 216-283 (`_solve_span`) — the zigzag waypoints
-Creates `count` bumps, where `count = ceil(excess / (2 * height_cap))`. The count grows as the slack grows and the height cap shrinks. With a normal height cap it is small.
-
-**Edge case (flagged, not changed):** `height_cap = max(height_cap_fraction * straight, min_height_mm)` (line 241). If both `height_cap_fraction * straight` and `min_height_mm` are zero, `height_cap` is zero and line 244 divides by zero (`ZeroDivisionError`). That happens for coincident endpoints with a zero minimum height. The callers in this codebase pass a positive floor, but nothing enforces it.
-
-Also, if `height_cap` is very small compared with the slack, `count` (and so the number of waypoints) can grow large. There is no upper bound on `count`.
+## Line 144-211 (`solve_chain`), 228-297 (`_solve_span`) — O(spans) plus O(zigzag count)
+Builds a two- or three-point skeleton, then for each span computes the bump count and places the zigzag waypoints with one loop of `count` iterations. The count is now bounded (`max_count = floor(straight / spacing)`, so it cannot grow without limit), and a zero straight length is handled (`straight < _EPS`). The earlier notes about a possible division by zero and an unbounded count no longer apply. Cost per solve is a few `hypot` and `sqrt` calls plus the waypoint loop; `handlers/rope_pull_handler.py` calls it many times per mouse move (up to 18 `_evaluate_points` passes, see its note), so the constant matters but the function itself is cheap.

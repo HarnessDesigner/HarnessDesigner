@@ -1,13 +1,7 @@
 # harness_designer/database/global_db/mixins/temperature.py
 
-SQL calls in this module (AST count): 14.
+Column mixin. 4 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `TemperatureMixin.min_temp`: cached after first read.
-- `TemperatureMixin.min_temp_id`: cached after first read.
-- `TemperatureMixin.max_temp`: cached after first read.
-- `TemperatureMixin.max_temp_id`: cached after first read.
+2 setters; 2 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.
 
-
-Status: static read of the code only. Nothing here has been profiled.
+Direct SQL in this file (`execute`/`executemany`): `_on_max_temp`, `_on_min_temp`, `set_obj`.

@@ -1,6 +1,6 @@
 # harness_designer/objects/terminal.py
 
-## Line 329-424 (`_junction_push_length`) — scans every cavity in the housing to find one immediate neighbour
+## Line 639-735 (`_junction_push_length`) — scans every cavity in the housing to find one immediate neighbour
 Every time a terminal gains its second wire (`_make_room_for_second_wire`,
 which calls this), the loop at line 384 (`for other_cavity in
 housing.cavities`) walks *every* cavity in the housing, doing a
@@ -16,7 +16,7 @@ the interactive moment a terminal's wire count goes from one to two -- but
 worth a second look if adding a wire to a densely-populated housing is ever
 reported as sluggish.
 
-## Line 72-83 (`wires` property) — prunes dead weakrefs on every access, not just periodically
+## Line 141-153 (`wires` property) — prunes dead weakrefs on every access, not just periodically
 Every read of `self.wires` walks the full `_wire_refs` list, dereferences
 every weakref, and rebuilds `self._wire_refs` from the survivors (line 82)
 -- so a terminal with N attached wires pays an O(N) weakref-dereference

@@ -9,7 +9,7 @@ lock/unlock and on arena growth. That reasoning holds. The camera-move path
 across all tracked notes with no per-note Python loop, which is the right
 design for 1000+ notes. No change recommended.
 
-## Line 208-220 (`_start_camera_tracking`) — called once per tracked note, not per frame
+## Line 209-220 (`_start_camera_tracking`) — called once per tracked note, not per frame
 Delegates to `Text.enable_camera_tracking`, which registers the note into the
 arena. Runs at construction and on unlock, not per frame.
 

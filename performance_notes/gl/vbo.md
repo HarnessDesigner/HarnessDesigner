@@ -1,7 +1,18 @@
 # harness_designer/gl/vbo.py
 
-## Line 679-724 (`VBOHandlerBase.render`) — per-draw uniform work, a string round-trip, and an unconditional hasattr
-- Line 706 used to call `hasattr(type(program), "normal_mode")` on every draw. It now reads `program.has_normal_mode`, a class flag, so the probe is gone. The per-draw cost of the check is now a single attribute read.
-- Line 714 builds the rotation uniform as `[float(str(v)) for v in angle.as_quat_numpy.tolist()]`. That converts each float to a string and back, four times per draw. `angle.as_quat_numpy` is already a float array, so the uniform can take it directly (or `tuple(map(float, ...))` if a plain list is needed). This is pure waste on the hot draw path.
-- Lines 713-715 write `position`, `rotation`, and `scale` uniforms on every draw. Consecutive draws of the same mesh with the same transform (or repeated draws of one object's passes) rewrite identical values. A per-program last-written cache would skip the redundant `glUniform` calls.
-- Lines 722-724 bind the VAO and draw. That is one bind, one draw, and one unbind per call, which is the expected cost for an unbatched draw. Batching meshes that share a program is the only larger gain, and it is a change to the callers, not this method.
+Per-draw cost of the model path and the pooled arenas. Pooling (2026-11-08, `arena_pool.py` / `arena_buffer.py`) is built and in use; the old per-model-buffer description no longer applies.
+
+## Line 493-538 (`VBOHandlerBase.render`) — string round trip and three uniform writes per draw
+- Line 528 builds the rotation uniform as `[float(str(v)) for v in angle.as_quat_numpy.tolist()]`: four float -> string -> float conversions per draw. `as_quat_numpy` is already a float array, so the uniform can take `.tolist()` directly. Measured cost of the same conversion pattern in `Point.x`: about 0.4 us per value, so about 2 us per draw; at 1,000 draws a frame, 2 ms.
+- Lines 527 and 529 write `position` and `scale` with `position.as_float` and `scale.as_float`, each a list comprehension of `float(str())` (2.1 us each, measured in `geometry/point.md`). That is about 4 us more per draw, 4 ms at 1,000 draws. Using `as_numpy` (a view, 0.06 us) and passing it to the uniform setter would remove it.
+- The three `glUniform` writes happen on every draw even when the same mesh draws repeatedly with the same transform. A last-written cache per program would skip identical writes (a few floats of memory per program). The `normal_mode` probe is now a class flag (`program.has_normal_mode`), as intended.
+- One VAO bind, one `glDrawArrays`, one unbind per call is the expected cost of an unbatched draw. The only larger gain is batching meshes that share a program, which the wire path already does (`wire_batch.py`).
+
+## Line 320-327 (`_compute_local_obb`)
+Two `Point(*[float(str(item)) ...])` constructions per model, once per VBO creation. Not per frame.
+
+## Line 703-1103 (`PooledVBOHandler`) — VRAM cost of tiers
+Two arena tiers: one open long arena reserves `MODEL_ARENA_CAPACITY_VERTICES` (4,000,000 vertices, 144 MB) and short arenas are half that. The long arena reserves its full size even when it holds one model, so VRAM can go UP right after the first promotion (still open item 1 in MEMORY.md: arena sizes are not tuned). Trade: far fewer buffers and VAOs; cost: reserved but unused VRAM. Pick the sizes from the real mesh-size distribution (the housing models in `D:\...\models`), not from guesswork.
+
+## Line 868-921 (`update`)
+`glBufferSubData` for one model's vertices into its arena slot; once per model change, not per frame.

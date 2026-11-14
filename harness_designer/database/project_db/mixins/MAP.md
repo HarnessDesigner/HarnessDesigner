@@ -12,6 +12,8 @@ Package init for `project_db/mixins`; no real logic of its own. Column mixins fo
 
 `Angle3DMixin` — 3D-view angle column/property (`AngleProperty(axes='y')`), plus its paired `*Control` editor widget. Binds `self._update_angle3d` by default for subclasses that cascade (e.g. `PJTHousing`). Euler angles are stored in the database alongside the derived quaternion (`geometry/angle/angle.py`'s `Angle` holds both forms) — any change to an angle MUST be made via the Euler angles, never the quaternion, since quaternion → Euler conversion suffers gimbal lock while Euler → quaternion does not; reload passes the stored Euler into `Angle.from_quat` rather than deriving it fresh.
 
+`angle3d` asks `slot_pools3d.build_angle` first: for a row in a housing's group (the housing, its accessories, terminals, seals) the angle is built over rows of the angle pool and the other classes (a note) get a plain `Angle`. `PJTCavity` has its own `angle3d` that does the same.
+
 #### angle3d_lock.py
 
 `Angle3DLockMixin` — a boolean `angle3d_lock` getter/setter gating whether a row's `angle3d` participates in whatever would otherwise update it. The only `project_db` class using this is `PJTNote`.

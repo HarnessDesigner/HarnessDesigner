@@ -1,35 +1,9 @@
 # harness_designer/database/global_db/housing.py
 
-SQL calls in this module (AST count): 60.
+Catalog row class. 33 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `Housing.compat_covers`: cached after first read.
-- `Housing.compat_covers_array`: cached after first read.
-- `Housing.compat_boots`: cached after first read.
-- `Housing.compat_boots_array`: cached after first read.
-- `Housing.compat_cpas`: cached after first read.
-- `Housing.compat_cpas_array`: cached after first read.
-- `Housing.compat_tpas`: cached after first read.
-- `Housing.compat_tpas_array`: cached after first read.
-- `Housing.ip_rating_id`: cached after first read.
-- `Housing.cavity_lock_id`: cached after first read.
-- `Housing.seal_type_id`: cached after first read.
-- `Housing.cpa_lock_type_id`: cached after first read.
-- `Housing.terminal_sizes`: cached after first read.
-- `Housing.terminal_size_counts`: cached after first read.
-- `Housing.sealing`: cached after first read.
-- `Housing.centerline`: cached after first read.
-- `Housing.rows`: cached after first read.
-- `Housing.num_pins`: cached after first read.
-- `Housing.cavities`: cached after first read.
-- `Housing.cover_position3d`: cached after first read.
-- `Housing.seal_position3d`: cached after first read.
-- `Housing.boot_position3d`: cached after first read.
-- `Housing.tpa_lock_1_position3d`: cached after first read.
-- `Housing.tpa_lock_2_position3d`: cached after first read.
-- `Housing.cpa_lock_position3d`: cached after first read.
-- `Housing.angle3d`: cached after first read.
+15 setters; 14 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.
 
+Direct SQL in this file (`execute`/`executemany`): `_load_tab`, `_on_seal_type`, `compat_boots`, `compat_covers`, `compat_cpas`, `compat_tpas`, `get_compat`.
 
-Status: static read of the code only. Nothing here has been profiled.
+Lookups by a column other than the id go to SQL: `__getitem__` (by part_number), `cavities` (by housing_id). Unique columns (`part_number`, `name`) are indexed; a plain FK column is not (see `database/README.md`, finding 4).

@@ -13,6 +13,7 @@ import numpy as np
 
 from . import quaternion as _quaternion
 from .. import point as _point
+from .. import slot_pool as _slot_pool
 from ..decimal import Decimal as _d
 from ... import app_mixins as _app_mixins
 from ... import check_types as _check_types
@@ -61,7 +62,8 @@ class AngleMeta(type):
     @_check_types.do
     def __call__(cls, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: bytes | None = None) -> "Angle":
+                 db_id: bytes | None = None, euler_view: np.ndarray | None = None,
+                 matrix_view: np.ndarray | None = None) -> "Angle":
         """
         Return a cached or new :class:`Angle` instance.
 
@@ -71,6 +73,10 @@ class AngleMeta(type):
         :type euler_angles: list[float, float, float] | None
         :param db_id: Optional cache key.
         :type db_id: bytes | None
+        :param euler_view: Optional pool row that becomes the Euler storage.
+        :type euler_view: :class:`numpy.ndarray` | None
+        :param matrix_view: Optional pool row that becomes the matrix storage.
+        :type matrix_view: :class:`numpy.ndarray` | None
         :returns: Shared or new angle instance.
         :rtype: :class:`Angle`
         """
@@ -83,16 +89,16 @@ class AngleMeta(type):
                     instance = None
 
                 if instance is None:
-                    instance = super().__call__(q, euler_angles, db_id)
+                    instance = super().__call__(q, euler_angles, db_id, euler_view, matrix_view)
                     cls._instances[db_id] = weakref.ref(instance, cls._remove_instance)
         else:
-            instance = super().__call__(q, euler_angles, db_id)
+            instance = super().__call__(q, euler_angles, db_id, euler_view, matrix_view)
 
         return instance
 
 
 @capturable(severity=2)
-class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
+class Angle(_app_mixins.CallbackMixin, _slot_pool.PoolMember, metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
     @_check_types.do
@@ -228,7 +234,8 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @_check_types.do
     def __init__(self, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: bytes | None = None):
+                 db_id: bytes | None = None, euler_view: np.ndarray | None = None,
+                 matrix_view: np.ndarray | None = None):
         """
         Create an angle.
 
@@ -238,6 +245,12 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :type euler_angles: list[float, float, float] | None
         :param db_id: Optional shared-instance identifier.
         :type db_id: bytes | None
+        :param euler_view: A float32 ``(3,)`` pool row that becomes the Euler
+            storage (``euler_angles`` is then ignored). See :meth:`from_views`.
+        :type euler_view: :class:`numpy.ndarray` | None
+        :param matrix_view: A float32 ``(3, 3)`` pool row that becomes the
+            rotation-matrix storage; it is not recomputed.
+        :type matrix_view: :class:`numpy.ndarray` | None
         """
 
         self.db_id = db_id
@@ -247,7 +260,9 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         self._q = q
 
-        if euler_angles is None:
+        if euler_view is not None:
+            self.__euler_angles = euler_view
+        elif euler_angles is None:
             self.__euler_angles = None
         else:
             self.__euler_angles = np.array(euler_angles, dtype=np.float32)
@@ -256,7 +271,10 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self.__unbound_callbacks__ = []
         self.__ref_count__ = 0
 
-        self._matrix = self._q.as_matrix
+        if matrix_view is None:
+            self._matrix = self._q.as_matrix
+        else:
+            self._matrix = matrix_view
 
     @property
     @_check_types.do
@@ -426,6 +444,21 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         self.__update_quat(q)
         self._process_callbacks()
+
+    @_check_types.do
+    def _leave_pool(self) -> None:
+        """
+        Take a private copy of the quaternion, Euler angles and matrix, so this
+        angle no longer aliases pool rows. Called by ``SlotPool.release`` for an
+        angle that outlives its block (see the module docstring of ``database/project_db/pjt_housing.py`` ("POOLED 3D STORAGE"), section 3).
+        """
+
+        self._q._data = self._q._data.copy()  # NOQA
+
+        if self.__euler_angles is not None:
+            self.__euler_angles = self.__euler_angles.copy()
+
+        self._matrix = self._matrix.copy()
 
     @_check_types.do
     def copy(self) -> "Angle":
@@ -906,6 +939,36 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         q = _quaternion.Quaternion.from_euler(x, y, z)  # NOQA
         ret = cls(q, [x, y, z], db_id)
         return ret
+
+    @classmethod
+    @_check_types.do
+    def from_views(cls, quat_view: np.ndarray, euler_view: np.ndarray, matrix_view: np.ndarray,
+                   db_id: bytes | None = None) -> "Angle":
+        """
+        Create an angle whose quaternion, Euler angles and rotation matrix ARE
+        rows of a pool (see :mod:`~harness_designer.geometry.slot_pool`):
+        nothing is copied, and a write by the pool's owner is seen by the angle
+        and the other way round. The rows must stay the same arrays for the
+        angle's whole life.
+
+        :param quat_view: float32 ``(4,)`` row, ``(w, x, y, z)``.
+        :type quat_view: :class:`numpy.ndarray`
+        :param euler_view: float32 ``(3,)`` row, degrees.
+        :type euler_view: :class:`numpy.ndarray`
+        :param matrix_view: float32 ``(3, 3)`` row.
+        :type matrix_view: :class:`numpy.ndarray`
+        :param db_id: Optional shared-instance identifier.
+        :type db_id: bytes | None
+        :returns: The angle.
+        :rtype: :class:`Angle`
+
+        How and why pool rows are used: see the module docstring of ``database/project_db/pjt_housing.py`` ("POOLED 3D STORAGE"),
+        sections 3 and 7.
+        """
+
+        q = _quaternion.Quaternion(q=quat_view)  # NOQA
+
+        return cls(q, None, db_id, euler_view, matrix_view)
 
     @classmethod
     @_check_types.do

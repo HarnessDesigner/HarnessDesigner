@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
+from typing import Any, TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
 from PySide6 import QtWidgets
@@ -140,6 +140,24 @@ class PJTSealsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
+    def update(self, db_id: int | bytes, **kwargs: dict[str, Any]) -> None:
+        """Write columns of a seal row. A seal that sits on a terminal or plugs a cavity has a
+        point of its own in its cavity's pooled slots; setting its point or its owner binds it
+        (see the module docstring of ``pjt_housing.py``, section 6).
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        :param kwargs: Column names and their new values.
+        :type kwargs: dict[str, Any]
+        """
+        super().update(db_id, **kwargs)
+
+        for name in ('point3d_id', 'terminal_id', 'cavity_id', 'housing_id'):
+            if name in kwargs:
+                self.db.slot_pools3d.seal_changed(db_id)
+                break
+
+    @_check_types.do
     def insert(self, part_id: bytes, name: str, position3d_id: bytes, housing_id: bytes | None,
                terminal_id: bytes | None, cavity_id: bytes | None = None) -> "PJTSeal":
         """Execute the insert operation.
@@ -167,6 +185,10 @@ class PJTSealsTable(PJTTableBase):
             quat3d='[1.0, 0.0, 0.0, 0.0]', angle3d='[0.0, 0.0, 0.0]',
             quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
             is_visible3d=1, is_visible_pegboard=1, smooth=None)
+
+        # Bind the seal's own point to its cavity's slot (module docstring of pjt_housing.py,
+        # "POOLED 3D STORAGE", section 6).
+        self.db.slot_pools3d.seal_changed(db_id)
 
         seal = PJTSeal(self, db_id)
 

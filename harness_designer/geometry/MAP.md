@@ -17,6 +17,10 @@ reactive behavior here before inventing a new event/signal mechanism. Writers th
 listeners must use the **unbind -> write -> rebind** idiom to avoid feedback loops (see
 `prop_ctrls` and `Rings3D.apply_drag_angle` for the reference pattern).
 
+#### batch.py
+
+Rotation and move math over many points / angles at once (`compose`, `to_matrices`, `euler_from_matrices`, `rotate_points`): the array versions of what `Quaternion` / `Angle` / `Point` do one object at a time, in float64, with the same conventions (`compose(a, b)` is `Quaternion.__add__`, i.e. `b (x) a` normalised; column-vector matrices; the YXZ Euler order and the +-180 continuity wrap of `pjt_housing._euler_from_matrix_continuous`). Used on pooled slots by `database/project_db/housing_slots.py`; checked against the real classes to float32 precision.
+
 #### cavity_layout.py
 
 **Not a procedural mesh generator like `shapes/`** — this computes 2D layout geometry for
@@ -62,7 +66,7 @@ permanently merges into another's) — this is explicitly a *different* concept 
 file) is a *different*, independently-written row that just also tracks a parent's position going
 forward, used for multiple wires sharing one terminal's snap point — the user explicitly corrected
 a case where the latter was mislabeled "clone" in code/comments, so don't conflate the two.
-Separately, **the rotation matrix convention is load-bearing and has caused a real bug**:
+`Point(..., data=view)` (`PointMeta.__call__` / `__init__`) builds a point over a pool row (`slot_pool.py`): `_data` IS that row, never copied and never replaced afterwards (the culling pipeline aliases it and `attach()` copies into it in place); `_leave_pool()` gives it a private copy. Separately, **the rotation matrix convention is load-bearing and has caused a real bug**:
 `Angle.as_matrix_numpy` returns the **column-vector** rotation matrix `R` where `R @ v` rotates a
 column vector, but everywhere in the codebase that applies rotation via numpy `@` (e.g. `corners
 @= angle`, including this file's own point/line math) uses **row-vector** convention, equivalent
@@ -73,6 +77,10 @@ rotated. When building any matrix-based ray/point transform cache from `Angle.as
 store `rot = angle.as_matrix_numpy`; forward (local->world) uses `rot.T`; inverse (world->local)
 uses `rot` (see `utils/mesh_surface_picker.py` `_refresh_transform_cache`/`_on_angle` for the fixed
 reference implementation).
+
+#### slot_pool.py
+
+`SlotPool`: pre-allocated, chunked slot storage for `Point` / `Quaternion` / `Angle` data. The module docstring is the full design (written down the day the user settled it). A pool owns several float32 arrays that share one slot index; chunks are allocated once at full size and never grow, move or compact, so a `Point` / `Angle` can hold a VIEW of its row for its whole life. `allocate(count)` returns a contiguous `SlotBlock` by best fit over every chunk (a chunk's unused tail counts as a free block; a new chunk, sized for the request when it is larger than a normal one, when nothing fits). `release` first gives every live member in the block a private copy of its data (`PoolMember._leave_pool`), resets the rows to neutral values and merges the block with its free neighbours. `array(block, name)` is a zero-copy slice of a block, `row(block, name, offset)` one slot's view; `register` / `members` / `evict` track the object built over a slot weakly. `Point` and `Angle` derive from `PoolMember`. Only a block's owner and the pool know slot numbers, the objects never do. The whole design is documented in the module docstring of `database/project_db/pjt_housing.py` ("POOLED 3D STORAGE", sections 3 and 4 describe this pool).
 
 ## FOLDERS
 

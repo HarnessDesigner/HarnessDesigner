@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import Any, TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
 from PySide6 import QtWidgets
@@ -10,6 +10,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import (PJTEntryBase, PJTTableBase,
                         DefaultStoredValue, DefaultStoredValueType)
 from . import pjt_point3d as _pjt_point3d
+from . import housing_slots as _housing_slots
 from . import pjt_point2d as _pjt_point2d
 from . import pjt_point_pegboard as _pjt_point_pegboard
 from . import pjt_seal as _pjt_seal
@@ -160,6 +161,25 @@ class PJTTerminalsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
+    def update(self, db_id: int | bytes, **kwargs: dict[str, Any]) -> None:
+        """Write columns of a terminal row. A change of one of its point-id columns rebinds the
+        matching slot of its housing's pooled storage (see the module docstring of ``pjt_housing.py``,
+        section 6).
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        :param kwargs: Column names and their new values.
+        :type kwargs: dict[str, Any]
+        """
+        super().update(db_id, **kwargs)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots.TERMINAL_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools3d.column_changed('pjt_terminals', db_id, columns)
+
+    @_check_types.do
     def insert(self, part_id: bytes, name: str, position2d_id: bytes | None,
                position3d_id: bytes | None, cavity_id: bytes | None) -> "PJTTerminal":
         """Execute the insert operation.
@@ -198,6 +218,11 @@ class PJTTerminalsTable(PJTTableBase):
             is_start=1, volts=0.0, load=0.0, voltage_drop=0.0,
             is_visible3d=1, is_visible2d=1, is_visible_pegboard=1, smooth=None,
             operating_temp=None, load_type=0)
+
+        # A terminal in a cavity takes the cavity's slot for its point, so it follows the housing
+        # (module docstring of pjt_housing.py, "POOLED 3D STORAGE", section 6).
+        if cavity_id is not None and position3d_id is not None:
+            self.db.slot_pools3d.column_changed('pjt_terminals', db_id, {'point3d_id': position3d_id})
 
         terminal = PJTTerminal(self, db_id)
 

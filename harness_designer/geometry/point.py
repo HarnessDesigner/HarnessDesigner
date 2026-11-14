@@ -12,6 +12,7 @@ import weakref
 import numpy as np
 
 from .decimal import Decimal as _d
+from . import slot_pool as _slot_pool
 from .. import app_mixins as _app_mixins
 from .. import check_types as _check_types
 from ..crash_dump import Attr, capturable, dump_property
@@ -99,7 +100,8 @@ class PointMeta(type):
 
     @_check_types.do
     def __call__(cls, x: int | float | _d | np.float32, y: int | float | _d | np.float32,
-                 z: int | float | _d | np.float32 | None = None, db_id: bytes | None = None) -> "Point":
+                 z: int | float | _d | np.float32 | None = None, db_id: bytes | None = None,
+                 data: np.ndarray | None = None) -> "Point":
         """
         Return a cached or newly created :class:`Point` instance.
 
@@ -111,6 +113,9 @@ class PointMeta(type):
         :type z: float | :class:`~harness_designer.geometry.decimal.Decimal` | None
         :param db_id: Optional cache key for singleton reuse.
         :type db_id: bytes | None
+        :param data: Optional pool row that becomes the point's storage (see
+            :meth:`Point.__init__`); ignored when the point already exists.
+        :type data: :class:`numpy.ndarray` | None
         :returns: Shared or new point instance.
         :rtype: :class:`Point`
         """
@@ -123,7 +128,7 @@ class PointMeta(type):
         if db_id is not None:
             with cls._instances_lock:
                 if db_id not in cls._instances:
-                    instance = super().__call__(x, y, z, db_id)
+                    instance = super().__call__(x, y, z, db_id, data)
                     cls._instances[db_id] = weakref.ref(instance)
 
                 elif cls._instances[db_id]() is None:
@@ -134,18 +139,18 @@ class PointMeta(type):
                     # mechanics in weakref and not wanting it to remove
                     # the newly added reference
                     del cls._instances[db_id]
-                    instance = super().__call__(x, y, z, db_id)
+                    instance = super().__call__(x, y, z, db_id, data)
                     cls._instances[db_id] = weakref.ref(instance)
                 else:
                     instance = cls._instances[db_id]()
         else:
-            instance = super().__call__(x, y, z, db_id)
+            instance = super().__call__(x, y, z, db_id, data)
 
         return instance
 
 
 @capturable(severity=2)
-class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
+class Point(_app_mixins.CallbackMixin, _slot_pool.PoolMember, metaclass=PointMeta):
     """
     A 3D (or 2D) position that is the connective tissue of the entire
     harness object graph.
@@ -407,7 +412,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @_check_types.do
     def __init__(self, x: float | _d | np.float32, y: float | _d | np.float32,
-                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None):
+                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None,
+                 data: np.ndarray | None = None):
         """
         Construct a Point.
 
@@ -432,6 +438,15 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
             Pass None for temporary Points used in geometry calculations
             that have no database backing and should never be shared.
+        data : np.ndarray | None
+            A float32, C-contiguous ``(3,)`` row of a pool (see
+            :mod:`~harness_designer.geometry.slot_pool`). When given it IS this
+            point's storage: nothing is copied or written, ``x``, ``y`` and ``z``
+            are ignored, and the point and the pool's owner see each other's
+            writes. It must remain the same array for the point's whole life,
+            because other code aliases it (see :attr:`as_numpy`). How and why pool rows
+            are used: see the module docstring of ``database/project_db/pjt_housing.py`` ("POOLED 3D STORAGE"),
+            sections 3 and 7.
         """
 
         self._db_id = db_id
@@ -444,7 +459,10 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         else:
             self.is2d = False
 
-        self._data = np.ascontiguousarray(np.array([x, y, z], dtype=np.float32))
+        if data is None:
+            self._data = np.ascontiguousarray(np.array([x, y, z], dtype=np.float32))
+        else:
+            self._data = data
 
         self.__callbacks__ = []
         self.__unbound_callbacks__ = []
@@ -574,6 +592,16 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
         self._data[2] = float(value)
         self._process_callbacks()
+
+    @_check_types.do
+    def _leave_pool(self) -> None:
+        """
+        Take a private copy of the data, so this point no longer aliases a
+        pool row. Called by ``SlotPool.release`` for a point that outlives its block
+        (see the module docstring of ``database/project_db/pjt_housing.py`` ("POOLED 3D STORAGE"), section 3).
+        """
+
+        self._data = self._data.copy()
 
     @_check_types.do
     def copy(self) -> "Point":

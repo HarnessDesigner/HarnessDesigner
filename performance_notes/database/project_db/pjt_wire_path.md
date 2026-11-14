@@ -1,18 +1,9 @@
 # harness_designer/database/project_db/pjt_wire_path.py
 
-SQL calls in this module (AST count): 18.
+Project row class. 14 property getters read through `self._table.select('col', id=...)`, which is a dict lookup in the table's in-memory `TableData` (no SQL; see `database/project_db/table_data.md`). The `_stored_*` / `DefaultStoredValue` guard, where present, saves only the call overhead.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `PJTWirePath.wire_id`: cached after first read.
-- `PJTWirePath.idx`: cached after first read.
-- `PJTWirePath.point3d_id`: cached after first read.
-- `PJTWirePath.point_pegboard_id`: cached after first read.
-- `PJTWirePath.point2d_id`: cached after first read.
-- `PJTWirePath.bundle_id`: cached after first read.
-- `PJTWirePath.concentric_id`: cached after first read.
-- `PJTWirePath.transition_id`: cached after first read.
-- `PJTWirePath.transition_branch_id`: cached after first read.
+Getters that call `select` on every read (no stored-value guard; each is one dict lookup, but chains of them add up in a per-frame loop): `wire_id`, `idx`, `point3d_id`, `point_pegboard_id`, `point2d_id`, `bundle_id`, `concentric_id`, `transition_id`, `transition_branch_id`.
 
+9 setters; 9 of them call `PJTTableBase.update`. Outside a gesture that is `UPDATE` + `commit` (about 0.015 ms on WAL) + a cache mirror per write; inside `begin_gesture()` it only changes the cache and is flushed in one transaction on `end_gesture`. Drags and rotations run inside a gesture; anything else that sets several of these properties per user action pays one commit each.
 
-Status: static read of the code only. Nothing here has been profiled.
+Selects by a column other than the id (answered from a lazily built index after the first call): `_route_rows` (by wire_id), `delete_for_wire` (by wire_id).

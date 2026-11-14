@@ -1,12 +1,12 @@
 # harness_designer/drag_handlers/editor_schematic/wire.py
 
-## Line 269-319 (`_find_blocking_wire`) — full project wire scan, called once per push-cascade level
-The module docstring (lines 277-279) reasons that this "only ever runs once
+## Line 443-495 (`_find_blocking_wire`) — full project wire scan, called once per push-cascade level
+The function's docstring reasons that this "only ever runs once
 or twice per interactive mouse move, never per A* neighbour" -- true for
-the direct call from `__call__` (line 503), but `_attempt_push` (line
-322-406) can recurse up to `_MAX_PUSH_DEPTH` (12) levels deep when a push
+the direct call from `__call__`, but `_attempt_push` (line
+499-575) can recurse up to `_MAX_PUSH_DEPTH` (12) levels deep when a push
 cascades through a stack of wires, and each recursive level that hits the
-`reason == 'wire'` branch (line 382-388) calls `_find_blocking_wire` again
+`reason == 'wire'` branch (line ~560) calls `_find_blocking_wire` again
 -- a fresh O(wires x segments-per-wire) scan per level, not just once or
 twice, whenever a push chain actually engages multiple wires. The docstring
 frames this as a bounded, not-expected-to-bind ceiling ("a generous ceiling
@@ -26,5 +26,5 @@ instrumentation here would answer it directly rather than needing to
 reason about it from the source.
 
 ## Added in the folder review: per-move path
-Each move calls `_maybe_reroute_past`, which only compares a distance until a push has failed. The full auto-router (`reroute_wire`) runs at most once per drag, guarded by `_rerouted`, so the expensive call is bounded to one per drag. `_find_layout` scans the wire layouts linearly, which is fine while a wire carries only a few layouts.
+Each move calls `_maybe_reroute_past` (line 737), which only compares a distance until a push has failed. The full auto-router (`reroute_wire`) runs at most once per drag, guarded by `_rerouted`, so the expensive call is bounded to one per drag. `_find_layout` scans the wire layouts linearly, which is fine while a wire carries only a few layouts.
 

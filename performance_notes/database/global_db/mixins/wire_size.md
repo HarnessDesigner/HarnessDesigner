@@ -1,15 +1,5 @@
 # harness_designer/database/global_db/mixins/wire_size.py
 
-SQL calls in this module (AST count): 24.
+Column mixin. 6 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `WireSizeMixin.wire_size_dia_min`: cached after first read.
-- `WireSizeMixin.wire_size_dia_max`: cached after first read.
-- `WireSizeMixin.wire_size_cross_min`: cached after first read.
-- `WireSizeMixin.wire_size_cross_max`: cached after first read.
-- `WireSizeMixin.wire_size_awg_min`: cached after first read.
-- `WireSizeMixin.wire_size_awg_max`: cached after first read.
-
-
-Status: static read of the code only. Nothing here has been profiled.
+6 setters; 6 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.

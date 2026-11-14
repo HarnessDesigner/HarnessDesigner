@@ -1,33 +1,23 @@
 # harness_designer/app_mixins/callback_mixin.py
 
-This class is the callback backbone for `Point`/`Angle` (see MEMORY.md) --
-`_process_callbacks` fires on every position/angle mutation across the
-whole app, so it is about as hot a path as this codebase has.
+This is the reactive backbone for `Point`, `Angle` and `Color` (see MEMORY.md). `_process_callbacks` runs on every mutation of a Point or Angle that is not inside a `with` batch, so it is among the hottest paths in the app. Anything saved here is saved on every drag frame.
 
-## Added in the folder review: class-level mutable defaults (correctness, not performance)
-`__callbacks__` and `__unbound_callbacks__` are class-level mutable defaults (`[]`). A child class that forgets to set them in its `__init__` shares one list with every other instance. The class comment says the children must set them. Worth checking in the review of each class that mixes this in, but it is a correctness question and nothing here changes it.
+Measured 2026-11-13 (interpreted Python 3.11, real `Point`): `_process_callbacks` costs 0.58 us with no listeners and 4.96 us with three listeners (whose own bodies are included); `p.x = 2.0` costs 0.79 us with none and 5.2 us with three. The callback system is cheap; the arithmetic that triggers it (`geometry/decimal.md`) is the expensive part of a move.
 
-## Line 144-173 (`_process_callbacks`) — several O(n) list-membership checks per call, needs investigation before changing
-Three separate places do `x in some_list`/`some_list.remove(x)` against
-plain lists while iterating the callback set:
-- `if ref in used_callbacks: continue` inside the main firing loop.
-- `elif cb in self.__unbound_callbacks__: self.__unbound_callbacks__.remove(cb)`
-  in the pruning pass.
-- The final rebuild's list comprehension re-checks
-  `ref not in self.__callbacks__ and ref() not in self.__unbound_callbacks__`
-  for every surviving callback.
+## Line 131-185 (`_process_callbacks`) — three small lists allocated per call, even with no callbacks
+Each call does `del self.__unbound_callbacks__[:]`, builds `used_callbacks = []` and a copy `callbacks = self.__callbacks__[:]`, clears the callback list, loops, then rebuilds with a list comprehension. A Point with no bound callback (most vertices of a mesh path, many intermediate points) still pays the allocations and the clear/extend round trip.
+Fix: an early exit for the empty case. It must still clear `__unbound_callbacks__`, because `unbind` (line 100) appends the strong bound-method reference of a callback it did not find there; leaving it would keep the callback's owner alive on a point that never fires again. So:
+`if not self.__callbacks__: del self.__unbound_callbacks__[:]; return`.
+No memory cost. The saving is only about 0.4 us per mutation of a listener-less Point (measured cost 0.58 us), so it matters only for loops that move thousands of points per frame. Low priority; the `Decimal` fixes are worth far more.
 
-Each is O(n) per check, so the whole method is roughly O(n^2) in the number
-of bound callbacks on a single Point/Angle. In practice n (callbacks per
-Point/Angle instance) is probably small, so this may not matter -- flagging
-because of call frequency, not because n is known to be large.
+## Line 131-185 — membership tests are O(n) in the callback count (no change advised)
+`ref in used_callbacks`, `cb in self.__unbound_callbacks__` and the final comprehension's `ref not in self.__callbacks__` / `ref() not in self.__unbound_callbacks__` are list scans, so the method is O(n^2) in the number of callbacks on a single Point/Angle. Typical n is 1 to 5 (a camera, a few view objects), so this is not measurable. A `set` would change the dedup semantics: weakref equality is content-based while the referent is alive (the docstring explains this was the cause of earlier errors), so hashing is not a drop-in replacement. Leave as is unless a single Point/Angle is found with dozens of listeners.
 
-A `set()` would make these membership checks O(1), but the method's own
-comment block (lines 136-141) documents that `weakref.WeakMethod` equality
-is content-based while the referent is alive (two distinct `WeakMethod`
-wrapper objects can compare equal), which is exactly the kind of thing that
-changes behavior under a `set` (hashing/dedup semantics) in a way that
-isn't obviously safe without understanding why the list-based approach was
-chosen. Needs a deeper look at `WeakMethod.__eq__`/`__hash__` interaction
-with this method's dedup logic before changing the container type -- don't
-convert to `set` without confirming the dedup behavior stays identical.
+## Line 100-128 (`unbind`) — `while ref in list: list.remove(ref)` loops
+Each `in` and `remove` is a scan, so unbinding an entry that has duplicates is O(n x copies), plus a second pass that prunes dead references. `unbind` runs when an object is deleted or reconnected, not per frame. Fine.
+
+## Class-level mutable defaults (correctness note)
+`__callbacks__` and `__unbound_callbacks__` are `[]` defaults on the class; a subclass that does not set them in `__init__` shares one list across all instances. The classes that mix this in set them in `__init__`; check any new user of the mixin.
+
+## Memory
+Each Point/Angle/Color carries two lists and a counter, and every callback is a `WeakMethod` (one small object each), so a bound listener adds about 100 bytes. Bounded by the number of bound listeners, not by how often a value changes.

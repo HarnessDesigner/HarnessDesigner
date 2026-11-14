@@ -387,7 +387,14 @@ class PJTPoint3D(PJTEntryBase):
         :rtype: :class:`_point.Point`
         """
         if self._stored_point3d is None:
-            self._stored_point3d = _point.Point(self.x, self.y, self.z, db_id=self.db_id + b'3d')
+            # A row bound to a housing slot gets a Point over its pool row; any other row gets a
+            # normal Point (module docstring of pjt_housing.py, "POOLED 3D STORAGE", section 7).
+            point = self._table.db.slot_pools3d.build_point(self._db_id, self.db_id + b'3d')
+
+            if point is None:
+                point = _point.Point(self.x, self.y, self.z, db_id=self.db_id + b'3d')
+
+            self._stored_point3d = point
             if not self._is_clone:
                 self._stored_point3d.bind(self._update_point)
 
@@ -692,5 +699,8 @@ class PJTPoint3D(PJTEntryBase):
         """
         if self.is_referenced():
             return
+
+        # Free the slot this row was bound to (module docstring of pjt_housing.py, section 6).
+        self._table.db.slot_pools3d.point_deleted(self._db_id)
 
         super().delete()

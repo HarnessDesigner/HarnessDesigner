@@ -1,17 +1,9 @@
 # harness_designer/database/global_db/seal.py
 
-SQL calls in this module (AST count): 23.
+Catalog row class. 11 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `Seal.scale`: cached after first read.
-- `Seal.o_dia`: cached after first read.
-- `Seal.i_dia`: cached after first read.
-- `Seal.type_id`: cached after first read.
-- `Seal.hardness`: cached after first read.
-- `Seal.lubricant`: cached after first read.
-- `Seal.wire_dia_min`: cached after first read.
-- `Seal.wire_dia_max`: cached after first read.
+7 setters; 7 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.
 
+Direct SQL in this file (`execute`/`executemany`): `get_compat`.
 
-Status: static read of the code only. Nothing here has been profiled.
+Lookups by a column other than the id go to SQL: `__getitem__` (by part_number). Unique columns (`part_number`, `name`) are indexed; a plain FK column is not (see `database/README.md`, finding 4).

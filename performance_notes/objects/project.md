@@ -1,6 +1,6 @@
 # harness_designer/objects/project.py
 
-## Line 49-114 (`_reconcile_wire_sibling_graph`) — O(wires x (terminals + splices + loops)) scan at every project load
+## Line 88-182 (`_reconcile_wire_sibling_graph`) — O(wires x (terminals + splices + loops)) scan at every project load
 For every wire (line 65 `for wire in project.wires`), this scans *every*
 terminal (line 73), *every* splice (line 80), and *every* wire service loop
 (line 101) in the project, comparing point ids to find the sibling that
@@ -13,11 +13,11 @@ path (`Project.__init__` at line 416) that already shows up in the
 `{point_id: (splice, role)}`, `{point_id: (loop, role)}` -- and doing three
 dict lookups per wire instead of three full-collection scans would turn
 this into O(wires + terminals + splices + loops), a large win on big
-projects. The function's own docstring (46-64) explains *why* this rebuild
+projects. Each inner iteration also reads `terminal.db_obj.attach_position3d_id_raw` (a property plus a dict lookup in the in-memory store, on the order of a microsecond), so 2000 wires x 2000 terminals is several seconds of load time, not just comparisons. A dict keyed by point id (one entry per terminal, splice end and loop end: a few hundred bytes per junction) makes it O(junctions + wires). The function's own docstring (46-64) explains *why* this rebuild
 has to happen every load (nothing here is a persisted DB column), but not
 why it has to be an O(n x m) scan rather than an indexed lookup.
 
-## Line 147-174 (`_reconcile_bundle_sibling_graph`) — same O(bundles x transitions x 6) pattern, same fix
+## Line 211-241 (`_reconcile_bundle_sibling_graph`) — same O(bundles x transitions x 6) pattern, same fix
 Mirrors the wire version above at smaller scale (bundles/transitions/
 branches are typically far fewer than wires/terminals in a harness, and the
 branch loop at 162 is fixed to 6 iterations), so the absolute cost is much
@@ -26,7 +26,7 @@ lower -- but it's the identical fixable shape: build a
 branches, then do one dict lookup per bundle end instead of a nested scan
 over every transition's every branch for every bundle.
 
-## Line 300-322 (`_load_objects`) — one `mainframe.set_progress` call per object, every load
+## Line 439-459 (`_load_objects`) — one `mainframe.set_progress` call per object, every load
 Every single row loaded (every note, cavity, housing, terminal, wire, ...)
 triggers a `mainframe.set_progress(cur_count, f'Loading {label}...')` call
 (line 311-315) -- for a project with tens of thousands of rows across all

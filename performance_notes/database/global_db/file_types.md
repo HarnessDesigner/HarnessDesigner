@@ -1,13 +1,13 @@
 # harness_designer/database/global_db/file_types.py
 
-SQL calls in this module (AST count): 7.
+Catalog row class. 4 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `FileTypesTable.choices`: no cache guard found (queries on every read).
-- `FileType.extension`: cached after first read.
-- `FileType.mimetype`: cached after first read.
-- `FileType.is_model`: cached after first read.
+Getters without the `DefaultStoredValue` guard (a `select` call on every read, still a dict lookup for a cached row): `choices`.
 
+3 setters; 3 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.
 
-Status: static read of the code only. Nothing here has been profiled.
+Direct SQL in this file (`execute`/`executemany`): `choices`.
+
+Calls inside a loop (one query per iteration, check the row count): `choices`.
+
+Lookups by a column other than the id go to SQL: `__getitem__` (by name). Unique columns (`part_number`, `name`) are indexed; a plain FK column is not (see `database/README.md`, finding 4).

@@ -1,22 +1,7 @@
 # harness_designer/database/global_db/wire.py
 
-SQL calls in this module (AST count): 32.
+Catalog row class. 28 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `Wire.resistance_1km`: cached after first read.
-- `Wire.weight_1km`: cached after first read.
-- `Wire.volts`: cached after first read.
-- `Wire.od_mm`: cached after first read.
-- `Wire.shielded`: cached after first read.
-- `Wire.strands`: cached after first read.
-- `Wire.tpi`: cached after first read.
-- `Wire.num_conductors`: cached after first read.
-- `Wire.core_material_id`: cached after first read.
-- `Wire.conductor_dia_mm`: cached after first read.
-- `Wire.size_mm2`: cached after first read.
-- `Wire.size_awg`: cached after first read.
-- `Wire.stripe_color_id`: cached after first read.
+22 setters; 13 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.
 
-
-Status: static read of the code only. Nothing here has been profiled.
+Lookups by a column other than the id go to SQL: `__getitem__` (by part_number). Unique columns (`part_number`, `name`) are indexed; a plain FK column is not (see `database/README.md`, finding 4).

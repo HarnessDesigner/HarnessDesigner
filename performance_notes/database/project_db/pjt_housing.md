@@ -1,34 +1,24 @@
 # harness_designer/database/project_db/pjt_housing.py
 
-SQL calls in this module (AST count): 63.
+The housing row class. Its 3D move and rotate cascades now run on pooled storage (`housing_slots.py`, `geometry/slot_pool.py`, `geometry/batch.py`; measurements in `housing_slots.md`): `_update_position3d` and `_update_angle3d` compute the delta and hand it to `HousingSlots3D.move` / `.rotate`. The peg-board and schematic cascades (`_update_position_pegboard`, `_update_angle_pegboard`, `_update_position2d`, `_update_angle2d`) still work one object at a time and have the costs described below.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `PJTHousing.cavities`: no cache guard found (queries on every read).
-- `PJTHousing.wires`: no cache guard found (queries on every read).
-- `PJTHousing.cover_position3d_id`: cached after first read.
-- `PJTHousing.seal_position3d_id`: cached after first read.
-- `PJTHousing.seal_position_pegboard_id`: cached after first read.
-- `PJTHousing.boot_position3d_id`: cached after first read.
-- `PJTHousing.tpa_lock_1_position3d_id`: cached after first read.
-- `PJTHousing.tpa_lock_2_position3d_id`: cached after first read.
-- `PJTHousing.cpa_lock_position3d_id`: cached after first read.
-- `PJTHousing.seal`: no cache guard found (queries on every read).
-- `PJTHousing.cpa_lock`: no cache guard found (queries on every read).
-- `PJTHousing.tpa_lock1`: no cache guard found (queries on every read).
-- `PJTHousing.tpa_lock2`: no cache guard found (queries on every read).
-- `PJTHousing.tpa_locks`: no cache guard found (queries on every read).
-- `PJTHousing.cover`: no cache guard found (queries on every read).
-- `PJTHousing.boot`: no cache guard found (queries on every read).
+## How the cascades write (checked 2026-11-13, still true)
+Inside a gesture, `PJTTableBase.update` and `batch_update` call `cache.change` and return, and each point's bound callback does the same through `update`. Nothing reaches SQLite until `end_gesture` -> `PJTTables._flush_gesture`, which issues one `executemany` per dirty table and set of changed columns in one transaction with one commit; repeated frames overwrite a row's pending values, so each row is written once. Measured (700 point rows + 307 angle rows over 5 tables): 1.4-1.8 ms, once per drag, the same with one commit per table. There is nothing to gain by changing the flush.
 
-## Functions that issue SQL inside a loop
-Each iteration makes its own query. Batching these outside the loop is the first thing to measure.
-- `PJTHousing.wires`.
+## Peg-board and schematic cascades — still per object (not yet pooled)
+`_update_angle_pegboard` (line numbers in the file) sets `angle_pegboard.x / .y / .z` on every cavity, terminal and seal and then overwrites the quaternion and matrix, exactly the pattern that made the old 3D rotate frame 91% wasted work (`geometry/angle/angle.md`): 3 discarded quaternion and matrix rebuilds per object, about 2 ms per object in the interpreter. It also gathers and rewrites every point through `float(str())` and the `Point` setters, and it asks `_find_child_points_pegboard` for clone points with a raw SQL query on every frame. `_update_position2d` / `_update_angle2d` do the same point gather and scatter (the schematic only has positions for cavities and terminals, and one angle, the housing's). The same pooled machinery applies (the pegboard has the same six points and three angles per cavity and only the housing seal among the accessories; the schematic has three points per cavity and no angles but the housing's), as pools of their own.
 
+## `_find_child_points_pegboard` — a raw SQL scan of the whole point table on every frame
+It runs `SELECT id FROM pjt_points_pegboard WHERE parent_point_id IN (...)` through the connector on every move and rotate frame; `parent_point_id` has no index (the `create_database` modules define indexes only for `deratings` and `wire_conductors`), so SQLite scans every row of the table. Measured 2026-11-13 on a 19-column point table with 5% clone rows (140 ids is about a 20-cavity housing, 700 about 100): 2.8 ms (140 ids) and 3.9 ms (700) at 10,000 point rows, 15.4 ms and 18.8 ms at 50,000, against 0.11-0.7 ms with an index and 0.16-0.8 ms from the `TableData` lazy column index (`table.select('id', parent_point_id=pid)` per id). The cache lookup is not faster than an index but it sees rows still pending in the gesture and needs no connector round trip (which matters if the project database is MySQL, unmeasured); building the index costs 0.8 MB at 10,000 point rows and 2.8 MB at 50,000 (measured), because the rows without a parent share one big bucket. The 3D cascade now asks for its clone ids once per plan with the same SQL (`find_child_point_ids`), so the 3D first frame of a drag still pays one scan; switching it to the cache lookup is the same change.
 
-Status: static read of the code only. Nothing here has been profiled.
+## Line 1089-1166 (`cache_names`) — a three-table LEFT JOIN through the connector
+Reads cavities, 2D points and terminals in one SQL statement, bypassing the cache. `WRITE_DESIGN.md` 7a notes it needs an in-memory join. It is not on a per-frame path as far as the callers show (check before relying on that); the cost is one query over this project's rows.
 
-## `_update_position_pegboard` -- fixed, profiled (2026-10-17)
-Moves every cavity/terminal/seal/wire-routing point of the housing by the same delta, one at a time, each firing `pos._process_callbacks()` separately. Several of these points belong to the SAME wire (a seated terminal's own attach point, its own stub, and its cavity's stub), so each one independently triggering that wire's full geometry rebuild (`objects_pegboard.wire.Wire._recalculate_geometry`) meant one housing move rebuilt the same wire's geometry up to three times over -- confirmed live via a logged call-stack dump (see `handlers/rope_pull_handler.md`'s "Part 6" note for the full history). Fixed by collecting every chain touching any of `all_positions` before the move loop, calling `suspend_updates()` on each, then `resume_updates()` in a `finally` -- one real rebuild per affected chain for the whole housing move, not one per point. Lazy-imports `rope_pull_handler` inside the function (that module transitively imports this whole package) -- verified safe by simulating the lazy import after the full app module graph loads, same pattern `objects_pegboard.wire.Wire._bind_waypoints` already uses for the identical reason.
+## `PJTHousingsTable.insert` and `update_cavities`
+One-shot (click-triggered), bulk `executemany` per table (points3d, points2d, points_pegboard, cavities) in one transaction: already the efficient shape. Both now take the housing's pooled cavity slots right after the cavity rows are inserted (`cavities_created`); that reads the rows back from the cache and seeds the slots (one `select` per row; about 3 ms for 100 cavities, mostly parsing the angle strings).
 
-**Correction (2026-10-17): the first version of the collection step above (`chain_objpegboards_for_point`, a peg-board-path-table lookup by point id) silently missed some of these points** -- `cavity.wire_position_pegboard`/`terminal.wire_position_pegboard` can return a per-wire clone of a structural stub whose own id never matches the wire's own path-table entry for that stub (see `handlers/rope_pull_handler.md`'s "Part 8" for the full story). Replaced with `chains_bound_to_point`, which inspects each point's own already-bound callbacks directly instead of looking anything up by id. **User-confirmed live: this fixed it.**
+## `_update_position_pegboard` — suspend/resume pattern
+A housing move collects every chain touching its points first, suspends their geometry rebuilds and resumes once, so each affected wire is rebuilt once per frame instead of once per point. That is the pattern to copy for any other cascade that moves several points of the same wire (the 3D cascade does not do this yet: each pooled point's callbacks rebuild the wires attached to it).
+
+## Memory
+The class keeps `_o_position3d`, `_o_quat3d` and similar diff snapshots as small Python lists per housing (hundreds of bytes). Needed for the delta computation; not a concern. The housing's pooled slots are in `housing_slots.md`.

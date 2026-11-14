@@ -1,5 +1,3 @@
 # harness_designer/database/global_db/ip/supp.py
 
-No SQL in this module. Nothing on the database hot path.
-
-Status: static read of the code only. Nothing here has been profiled.
+Lookups by a column other than the id go to SQL: `__getitem__` (by name). Unique columns (`part_number`, `name`) are indexed; a plain FK column is not (see `database/README.md`, finding 4).

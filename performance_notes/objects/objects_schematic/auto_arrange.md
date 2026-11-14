@@ -11,11 +11,11 @@ The bigger change is vectorization. Positions can live in an `(N, 2)` numpy arra
 
 Scale: at 50 nodes this is about 1,250 pairs × up to 500 iterations, which is tolerable. At a few hundred nodes it is the difference between seconds and minutes, so it's worth doing before large projects are routinely auto-arranged.
 
-## Line 207-249 (`_snap_and_resolve`) — O(N²) per pass, up to 20 passes, again pure Python
+## Line 208-249 (`_snap_and_resolve`) — O(N²) per pass, up to 20 passes, again pure Python
 The overlap-nudging loop (lines 222-240) walks every pair on every pass, for up to 20 passes, and calls `_rects_overlap` per pair. The same vectorization applies: build all rectangles as arrays, compute the overlap mask in one broadcast, and only touch the flagged pairs. Most passes after the first should flag few or no pairs, so a mask-first approach makes the late passes nearly free.
 
-## Line 99-123 (`_edge_weights`, `_average_od_mm`) — per-wire walk, once per arrange
+## Line 87-127 (`_edge_weights`, `_average_od_mm`) — per-wire walk, once per arrange
 These walk `project.wires` once per arrange action and call `_node_housing` per sibling. That is linear in the number of wires and runs once per user action, so it is fine.
 
-## Line 43-67 (`_footprint_half_extent`, `_node_center`, `_node_housing`) — once per node
+## Line 43-83 (`_footprint_half_extent`, `_node_center`, `_node_housing`) — once per node
 Each calls `node.objschematic.get_bounds()` once per node per arrange (lines 159 and 162 build the caches up front). Cheap, and correctly done once rather than inside the iteration loop.

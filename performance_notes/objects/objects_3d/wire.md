@@ -1,59 +1,19 @@
 # harness_designer/objects/objects_3d/wire.py
 
-## Line 500-596 (`Wire.render`) — per-segment shader program churn and uniform resets
-Each sub-segment costs three `with program:` context entries (faces, edges,
-vertices), each followed by two uniform writes (`stripe_clip_start`,
-`stripe_clip_stop`), then a full `super().render()` (which re-binds the same
-programs again internally), then the stripe draw. For a wire with N segments
-that is roughly 9N program binds and 6N uniform uploads per frame before any
-geometry is drawn. The clip reset is unconditional on purpose (see the comment
-at line 552-573), so the fix is not to delete it but to batch it: bind each of
-the three programs once around the whole segment loop and reset the clip
-uniforms only when the previous draw actually set them (track a dirty flag set
-by `WireStripe.render_segment`). Typical wires have only a few segments, so
-this is not a problem on its own; it multiplies with the number of wires in the
-scene, which is the case to watch for.
+Rewritten 2026-11-13. `Wire.render` is now six lines that call `TubeMixin._render_tubes` (one batched draw for all wires, see `objects/mixins/tube.md` and `gl/wire_batch.md`), so the earlier note about nine program binds per segment no longer applies. What remains costly is the geometry work done around a path change and while the wire is selected. Measured on the real classes (interpreted Python, 2026-11-13): `Angle.from_axis_angle` 132 us, `Angle.from_quat` 94 us, `Point(...)` 2.1 us.
 
-## `Wire._segment_transforms` — hidden-segment filtering adds one list build, no new query
-The routed-through-skeleton hiding added 2026-10-10 builds a `point_ids` list by walking `self._waypoints(self.db_obj)` once per call (same list `_segments()` itself already walks, so no new DB access) and does an O(1) set-membership check (`self._hidden_waypoint_ids`, cached by `_bind_waypoints`, see `performance_notes/handlers/wire_topology.md`) per segment. No SELECT happens here. Same per-call-allocation shape the note below already flags for the rest of this method -- caching the transforms would subsume this too.
+## Line 363-399 (`_recalculate_geometry`) — bounds computed twice per path change (still)
+`self._scale.z = total_length` (line 385) fires `BaseVar._update_scale`, which takes the GL context, calls `_compute_obb()` and `_compute_aabb()` and `editor.Refresh(False)`; then lines 398-399 call `_compute_obb()` and `_compute_aabb()` again. The peg-board wire (`objects_pegboard/wire.py` line 472-534) had the same duplicate and no longer does. Removing the two trailing calls here (and in `objects_3d/bundle.py` lines 547-548) halves the bounds work per path change, with no behaviour change (the scale assignment already recomputes them). `_compute_obb` and `_compute_aabb` each call `_segment_world_corners`, which walks `_segment_transforms` (below), so each saved call saves a full pass of Angle constructions.
 
-## Line 351-369 (`Wire._segment_transforms`) — rebuilt on every call
-`_segment_transforms` is a generator that allocates a `Point` and an `Angle`
-per segment and recomputes `_rotation_from_direction` for each. It is called
-from four places per frame or per move: `render` (line 535), `_segment_world_corners`
-(line 438, reached from both `_compute_obb` and `_compute_aabb`), and
-`hit_test_step3` (line 470). Nothing it depends on changes between those calls
-unless a waypoint moved, so the transforms could be cached and invalidated
-from `_bind_waypoints`/`_update_position`/`_update_angle`/`_update_scale`
-(the same invalidation points that already call `_recalculate_geometry`).
+## Line 412-450 (`_segment_transforms`) and 679-701 (`_rotation_from_direction`) — an `Angle` per segment per call, about 130 us each
+Each yielded segment builds `Angle.from_axis_angle(...)` (132 us) plus two `Point`s. `_segment_transforms` is called from `_segment_world_corners` (so from every `_compute_obb` / `_compute_aabb`), `segment_obbs` (line 502), `hit_test_step3` (line 558, per pick candidate), `_twist_segments` (per rebuild) and `render_selected_overlay` (line 588, every frame while the wire is selected). A path change therefore constructs about five Angles per segment (two bounds passes of two calls each, plus the plan), and a selected wire does one Angle per segment every frame: a selected wire with 20 segments spends about 2.6 ms per frame in these constructions alone.
+Fixes, in order: (1) remove the duplicate bounds calls above; (2) cache the transform list per path version (invalidate where `_recalculate_geometry` already sets `_twist_plan = None`): memory is one `(position, angle, scale, length)` tuple per segment, about 0.5 KB per segment, which is a good trade for a result that is read several times per change and every frame while selected; (3) derive the rotation from the compiled path (`twisted_path.build_path` already returns each piece's quaternion and matrix) or compute it in floats instead of through `Angle`, which removes the 130 us per call (see `geometry/decimal.md`).
 
-## Line 300-337 (`Wire._recalculate_geometry`) — three walks of the segment list per drag move
-Every endpoint or waypoint move calls this synchronously (`_update_position`,
-line 340). Inside it:
-- `self._segments()` is walked once for the length (lines 310-314),
-- `_compute_obb` (line 336) calls `_segment_world_corners`, which walks
-  `_segment_transforms()` again (line 438),
-- `_compute_aabb` (line 337) calls `_segment_world_corners` a second time,
-  rebuilding the same corner array from scratch.
+## Line 558-578 (`hit_test_step3`) — full mesh transform per segment on every pick candidate
+For every segment it transforms the whole cylinder mesh (`(vertices_local * scale) @ angle`) and runs the vectorised triangle test, on top of the Angle construction above. As for `BaseVar.hit_test_step3` (see `objects/objectsvar/base_var.md`), transforming the ray into each segment's local space instead and testing the untransformed mesh removes the per-segment mesh transform.
 
-So an endpoint drag does three segment walks and two identical corner
-builds per mouse-move event. Computing the corners once and feeding both the
-OBB and the AABB would halve the corner work. Caching the segment transforms
-(above) would remove the rest.
+## Line 266-294 (`is_housing_attached`) — full project scan
+Loops over wires and their ends; called on user actions, not per frame.
 
-## Line 459-479 (`Wire.hit_test_step3`) — full mesh transform per segment
-For each sub-segment this transforms the entire cylinder mesh
-(`vertices_local * seg_scale @ seg_angle`, line 473), which is O(V) per segment
-per candidate wire on every hover/click that reaches this test. The picker
-already avoids this for whole objects by transforming the ray into local space
-once (`BaseVar`/`gl.object_picker`). The same approach works per segment: one
-inverse transform of the ray origin and direction per segment, then test
-against the untransformed local triangles. That turns the per-segment cost
-from O(V) into O(1) plus the (unavoidable) triangle test.
-
-## Line 233-262 (`Wire.is_housing_attached`) — full project scan, and dead code
-Scans every cavity and every terminal in the project per call. No callers
-exist under `harness_designer/` (checked with `dep_trace.py --calls`), so it
-currently costs nothing. If it is ever wired into a drag-start check, it should
-use a per-housing index rather than a linear scan on each drag. Flagged as
-possibly dead code; not removed.
+## Line 588-664 (`render_selected_overlay`, `_render_waypoint_layouts`) — per frame while selected
+The overlay renders each segment through `super().render_selected_overlay` with swapped transforms (one full render call per segment) and then the floor outline (see `gl/floor_outline.md`). Selected wires are few, so this is bounded; the Angle constructions above are the largest part.

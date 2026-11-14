@@ -1,6 +1,6 @@
 # harness_designer/objects/objects_3d/cavity.py
 
-## Line 142-160 (`Cavity.render`) — calls `super().render()` then draws up to two marker decals, every frame
+## Line 152-170 (`Cavity.render`) — calls `super().render()` then draws up to two marker decals, every frame
 `super().render(shaders)` runs the full `BaseVar.render` for the cavity's
 placeholder geometry, which is usually invisible (see `identify`'s docstring).
 That is a full render pass for an object with no visible mesh, every frame.

@@ -1,6 +1,6 @@
 # harness_designer/utils/model_utils.py
 
-## Line 25-64 (`compute_edges`) — NumPy concatenation of edge pairs
+## Line 25-61 (`compute_edges`) — NumPy concatenation of edge pairs
 Builds the edge list from face indices with `np.concatenate`. Linear and vectorised. Fine.
 
 ## Line 65-end (`convert_model_to_mesh`) — tessellates a build123d solid, then copies it into Python lists

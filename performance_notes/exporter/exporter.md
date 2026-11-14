@@ -1,6 +1,6 @@
 # harness_designer/exporter/exporter.py
 
-## Line 139-152 (`_build_assimp_scene`) and Line 288-303 (`_build_assimp_scene_with_progress`) — per-vertex Python loop to fill a ctypes array from a numpy array
+## Line 133-223 (`_build_assimp_scene`) and Line 288-303 (`_build_assimp_scene_with_progress`) — per-vertex Python loop to fill a ctypes array from a numpy array
 Vertex and normal data starts as a numpy `(N, 3)` float32 array (`verts`/
 `normals`) and is copied into a `ctypes` array of `structs.Vector3D` one
 element at a time: `v_arr[i].x = float(verts[i, 0])`, `.y`, `.z`, repeated

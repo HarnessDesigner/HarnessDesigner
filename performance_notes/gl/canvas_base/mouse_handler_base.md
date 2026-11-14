@@ -1,6 +1,6 @@
 # harness_designer/gl/canvas_base/mouse_handler_base.py
 
-## Line 261-270 (`_pick_object`) and 272-327 (`_dispatch_to_active_handler`) — one full picker call per mouse event that needs a pick
+## Line 271-280 (`_pick_object`) and 272-327 (`_dispatch_to_active_handler`) — one full picker call per mouse event that needs a pick
 `_pick_object` calls `object_picker.find_object`, which runs the coarse bounds-pool ray test and then a per-candidate `hit_test_step3` (see `object_picker.md`). Whether this runs on every mouse move depends on the caller; if it runs for hover as well as press, each mouse move pays the full pick. Gating the pick on press and drag start only, and reusing the last result while the cursor stays within a small radius, would cut that cost.
 
 ## Line 255-258, 591, 756, 985 - probes removed

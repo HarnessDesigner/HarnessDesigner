@@ -1,14 +1,5 @@
 # harness_designer/database/global_db/used_part.py
 
-SQL calls in this module (AST count): 5.
+Catalog row class. 5 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `UsedPart.housing_id`: cached after first read.
-- `UsedPart.tpa_lock_id`: cached after first read.
-- `UsedPart.cpa_lock_id`: cached after first read.
-- `UsedPart.cover_id`: cached after first read.
-- `UsedPart.terminal_id`: cached after first read.
-
-
-Status: static read of the code only. Nothing here has been profiled.
+Lookups by a column other than the id go to SQL: `for_housing` (by housing_id). Unique columns (`part_number`, `name`) are indexed; a plain FK column is not (see `database/README.md`, finding 4).

@@ -1,0 +1,4 @@
+# harness_designer/objects/object_base.py
+
+## Line 251-408 (the `is_*` properties) — a function-local import on every call
+Each of the 23 `is_housing`, `is_wire`, `is_terminal`, ... properties does `from . import <module>` inside the property and then an `isinstance`. A function-local import costs about 0.6 us in the interpreter (measured: 0.60 us against 0.04 us for a module global), where the `isinstance` itself is negligible. The properties are used at about 90 call sites (`is_terminal` 13, `is_splice` 12, `is_housing` and `is_wire_service_loop` 11 each), several in loops over every object of a project. Fix: import each class lazily once into a module global (the `_TERMINAL` pattern `tube.py` already uses) and compare against the global. No memory cost. Low priority individually; worth doing as a mechanical pass.

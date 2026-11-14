@@ -1,6 +1,6 @@
 # harness_designer/objects/objects_3d/terminal.py
 
-## Line 317-361 (`render_cavity_overlay`) and 247-296 (`_refresh_overlay_state`) — re-resolves the overlay state every frame, per terminal
+## Line 365-420 (`render_cavity_overlay`) and 247-296 (`_refresh_overlay_state`) — re-resolves the overlay state every frame, per terminal
 `render_cavity_overlay` calls `_refresh_overlay_state()` on every frame for
 every seated terminal. Inside, the cavity identity is cached by `cavity_id`
 (good), but these run unconditionally every frame:
@@ -15,7 +15,7 @@ surface match is async and can finish after the first render). So the design
 is correct, but the gender string work in `_pin_overlay_needed` does not depend
 on that async state and could be computed once per part and cached.
 
-## Line 317-361 (`render_cavity_overlay`) — three housing-level draw calls per terminal, per frame
+## Line 365-420 (`render_cavity_overlay`) — three housing-level draw calls per terminal, per frame
 Up to three draws per terminal per frame (wire surface or wire marker, plus the
 pin surface), each going through `housing_3d.render_surface_overlay` or
 `render_marker_overlay`. With many seated terminals in one housing, those draws
@@ -23,7 +23,7 @@ are the main cost. They are the same batching question as the housing overlays:
 the decals share a program, so batching them per housing would reduce state
 churn.
 
-## Line 183-196 (`_update_position`, `_update_angle`) — `super()` call per drag event
+## Line 201-211 (`_update_position`, `_update_angle`) — `super()` call per drag event
 Calls `super()` and then whatever terminal-specific work follows. Same per-event
 GL-context cost as the rest of `Base3D`; see `base_3d.md`.
 

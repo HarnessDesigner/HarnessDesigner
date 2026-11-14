@@ -1,10 +1,7 @@
 # harness_designer/database/create_database/ip_fluids.py
 
-SQL calls in this module (AST count): 3.
+Table definition and seed data for `ip_fluids` (4 column definitions, 0 foreign key references). Runs at first build and at the startup "does the table need new columns" check, not in any interaction.
 
-## Load-time functions
-These run when the database is opened or built, not on every interaction.
-- `add_records`.
+Seeding only happens when the table is empty (`add_records` checks first), so the per-row `get_*_id` lookups and inserts are a one-time cost. Not worth batching.
 
-
-Status: static read of the code only. Nothing here has been profiled.
+No secondary index is created for this table; lookups by anything other than the primary key or a `UNIQUE` column are scans. Only matters if the table is large (see `database/README.md`, finding 4, for the measured cost on the big catalog tables).

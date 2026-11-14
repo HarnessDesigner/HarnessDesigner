@@ -1,10 +1,5 @@
 # harness_designer/database/project_db/mixins/angle3d_lock.py
 
-SQL calls in this module (AST count): 2.
+Column mixin. 1 property getters read through `self._table.select('col', id=...)`, which is a dict lookup in the table's in-memory `TableData` (no SQL; see `database/project_db/table_data.md`). The `_stored_*` / `DefaultStoredValue` guard, where present, saves only the call overhead.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `Angle3DLockMixin.angle3d_lock`: cached after first read.
-
-
-Status: static read of the code only. Nothing here has been profiled.
+1 setters; 1 of them call `PJTTableBase.update`. Outside a gesture that is `UPDATE` + `commit` (about 0.015 ms on WAL) + a cache mirror per write; inside `begin_gesture()` it only changes the cache and is flushed in one transaction on `end_gesture`. Drags and rotations run inside a gesture; anything else that sets several of these properties per user action pays one commit each.

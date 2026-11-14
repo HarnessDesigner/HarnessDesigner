@@ -15,6 +15,7 @@ from ..common_db import callback as _callback
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 from . import table_data as _table_data
+from . import housing_slots as _housing_slots
 from ...crash_dump import Attr, capturable, dump_property
 
 
@@ -1347,6 +1348,16 @@ class PJTTables:
         # accumulated in one transaction.
         self._gesture_depth = 0
 
+        # How many gestures have been opened (see begin_gesture): the plan a
+        # housing works out for a gesture is valid for that gesture only
+        # (pjt_housing.py docstring, "POOLED 3D STORAGE", section 9).
+        self._gesture_serial = 0
+
+        # The pooled 3D point / angle storage of every housing of the open project:
+        # how it works is documented in the module docstring of pjt_housing.py
+        # ("POOLED 3D STORAGE").
+        self.slot_pools3d = _housing_slots.SlotPools3D(self)
+
         # This instance's own fixed table SET never changes after this
         # __init__ returns, so the real insert-safe ordering of them
         # (see _insert_safe_project_tables) is computed once, lazily, on
@@ -1377,6 +1388,7 @@ class PJTTables:
         :type project_id: UNKNOWN
         """
         self.mainframe.unload()
+        self.slot_pools3d.reset()
         tables = self.connector.get_tables()
 
         _logger.database('TABLES:', tables)
@@ -1436,6 +1448,10 @@ class PJTTables:
 
         for table in self._ordered_project_tables():
             table.load_cache()
+
+        # Every housing gets its slots now, before anything builds a Point or an Angle
+        # (pjt_housing.py docstring, "POOLED 3D STORAGE", section 5).
+        self.slot_pools3d.allocate_all()
 
     @_check_types.do
     def _ordered_project_tables(self) -> list[PJTTableBase]:
@@ -1512,6 +1528,16 @@ class PJTTables:
         """
         return self._gesture_depth
 
+    @property
+    @_check_types.do
+    def gesture_serial(self) -> int:
+        """How many gestures have been opened so far (a new one gets a new number).
+
+        :returns: The serial of the most recently opened gesture.
+        :rtype: int
+        """
+        return self._gesture_serial
+
     @_check_types.do
     def begin_gesture(self) -> None:
         """Open one gesture (a drag or rotate in progress).
@@ -1523,6 +1549,9 @@ class PJTTables:
         :meth:`end_gesture` flushes.
         """
         self._gesture_depth += 1
+
+        if self._gesture_depth == 1:
+            self._gesture_serial += 1
 
     @_check_types.do
     def end_gesture(self) -> None:

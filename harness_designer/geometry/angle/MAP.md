@@ -28,6 +28,8 @@ own "natural" `R @ v` reading. Construction: `from_direction`, `from_euler`, `fr
 separate, distinct operations** (lines 263 and 281) — see the package-wide negation/inverse note
 below before treating them as interchangeable.
 
+`Angle.from_views(quat_view, euler_view, matrix_view, db_id)` builds an angle whose quaternion, Euler angles and matrix ARE rows of a pool (`geometry/slot_pool.py`): nothing is copied or recomputed, and the arrays stay the same for the angle's whole life; `_leave_pool()` gives it private copies. The `x` / `y` / `z` setters rebuild the quaternion and the matrix every time, even inside `with angle:`, so code that already holds all three should write the rows directly.
+
 #### quaternion.py
 
 `Quaternion` — the plain (non-metaclass, non-callback) quaternion value type `Angle` wraps. Full

@@ -1,0 +1,7 @@
+# harness_designer/ui/editor_db/bundle_cover.py
+
+One file per catalog part type pattern (see wire.py below for the representative shape): defines an EditorList subclass for bundle covers plus any type-specific column/icon logic, importing its matching database.global_db.bundle_cover module only under TYPE_CHECKING.
+
+Cold path (41 lines): the AST pass finds no per-frame or per-event handlers, no nested loops, no loops that allocate Qt or NumPy objects, no timers and no threads. It runs when its feature is opened or used, so there is nothing here worth optimising.
+
+Status: static read of the code only. Nothing here has been profiled.

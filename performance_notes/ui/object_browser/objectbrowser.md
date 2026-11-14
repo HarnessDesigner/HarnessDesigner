@@ -7,7 +7,7 @@ A wire's tree entry needs the bundles, splices, and transitions that contain it.
 - `_splices_containing_wire` loops over every splice and reads each splice's `wires`.
 - `_transitions_for_wire` calls `_bundles_containing_wire`, then `_transitions_for_bundle` for each bundle found. `_transitions_for_bundle` loops over every transition and reads its six branch properties.
 
-The comment in the code says these run only while the tree is built, so the cost is one-time per tree build. The cost is still roughly `W x (B + S + T)` database reads for W wires, B bundles, S splices, and T transitions, and it grows as the project grows. Each read is a round trip when the database is on a network, which the project's performance priorities call out.
+The comment in the code says these run only while the tree is built, so the cost is one-time per tree build. The cost is still roughly `W x (B + S + T)` table reads for W wires, B bundles, S splices, and T transitions, and it grows as the project grows. Since the project tables moved into the in-memory store (`database/README.md`), each read is a dict lookup of about a microsecond rather than a query, so 2,000 wires against 300 bundles, splices and transitions is on the order of a second of Python loop time on a tree build, not network or disk time. Each read is a round trip when the database is on a network, which the project's performance priorities call out.
 
 Candidate fixes, to be measured before adopting:
 - Build the parent-to-children map once per tree build (one pass over bundles, splices, and transitions), then look each wire up in that map. That makes the build linear in the number of rows read.

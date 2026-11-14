@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
+from typing import Any, Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import uuid
 import weakref
@@ -9,6 +9,7 @@ from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from . import housing_slots as _housing_slots
 from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -220,6 +221,25 @@ class PJTCavitiesTable(PJTTableBase):
             raise IndexError(str(item))
 
         raise KeyError(item)
+
+    @_check_types.do
+    def update(self, db_id: int | bytes, **kwargs: dict[str, Any]) -> None:
+        """Write columns of a cavity row. A change of one of its point-id columns rebinds the
+        matching slot of its housing's pooled storage (see the module docstring of ``pjt_housing.py``,
+        section 6).
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        :param kwargs: Column names and their new values.
+        :type kwargs: dict[str, Any]
+        """
+        super().update(db_id, **kwargs)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots.CAVITY_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools3d.column_changed('pjt_cavities', db_id, columns)
 
     @_check_types.do
     def insert(self, part_id: bytes, housing_id: bytes, name: str = "") -> "PJTCavity":
@@ -1075,22 +1095,22 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     @_check_types.do
     def angle3d(self) -> _angle.Angle:
         """
-        Return the angle 3D.
+        Return the angle 3D: a view of the angle pool, built once and cached on this row object
+        (see the module docstring of ``pjt_housing.py``, "POOLED 3D STORAGE", section 7).
 
-        :returns: Property value. UNKNOWN details.
+        :returns: Property value.
         :rtype: :class:`_angle.Angle`
         """
 
-        quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-        euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+        if self._stored_angle3d is DefaultStoredValue:
+            if self._angle3d_db_id is None:
+                self._angle3d_db_id = uuid.uuid4().bytes
 
-        if self._angle3d_db_id is None:
-            self._angle3d_db_id = uuid.uuid4().bytes
+            angle = self._table.db.slot_pools3d.build_angle('pjt_cavities', self._db_id, self._angle3d_db_id)
+            angle.bind(self._update_angle3d)
+            self._stored_angle3d = angle
 
-        angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
-        angle.bind(self._update_angle3d)
-
-        return angle
+        return self._stored_angle3d
 
 
 class PJTCavityControl(QtWidgets.QTabWidget, LazyTabMixin):

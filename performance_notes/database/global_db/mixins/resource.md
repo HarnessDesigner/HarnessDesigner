@@ -1,12 +1,7 @@
 # harness_designer/database/global_db/mixins/resource.py
 
-SQL calls in this module (AST count): 17.
+Column mixin. 9 property getters read through `self._table.select('col', id=...)`, which `TableBase.select` answers from the per-wrapper row cache (one `SELECT` of the whole row when the wrapper is created, dropped when the wrapper is garbage collected). Reads after that are dict lookups; see `database/README.md`.
 
-## Property getters that issue SQL
-A property read runs a query unless a cache branch returns first. Each getter below is listed with whether it has the `DefaultStoredValue` cache guard.
-- `ResourceMixin.cad_id`: cached after first read.
-- `ResourceMixin.image_id`: cached after first read.
-- `ResourceMixin.datasheet_id`: cached after first read.
+3 setters; 3 of them call `TableBase.update`, which is one `UPDATE` plus one `commit` (about 0.015 ms on WAL) and refreshes the cached row. Catalog edits are one cell at a time, so no batching is needed.
 
-
-Status: static read of the code only. Nothing here has been profiled.
+Direct SQL in this file (`execute`/`executemany`): `_on_cad`, `_on_datasheet`, `_on_image`, `set_obj`.

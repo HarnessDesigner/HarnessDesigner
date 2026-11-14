@@ -61,7 +61,15 @@ class Angle3DMixin(BaseMixin):
             if self._angle3d_db_id is None:
                 self._angle3d_db_id = uuid.uuid4().bytes
     
-            angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
+            # A housing, an accessory, a terminal or a seal gets an Angle over its pool rows; any
+            # other class gets a normal Angle (module docstring of pjt_housing.py,
+            # "POOLED 3D STORAGE", section 7).
+            angle = self._table.db.slot_pools3d.build_angle(
+                self._table.__table_name__, self._db_id, self._angle3d_db_id)
+
+            if angle is None:
+                angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
+
             angle.bind(self._update_angle3d)
             self._stored_angle3d = angle
 

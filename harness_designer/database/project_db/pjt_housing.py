@@ -1,6 +1,473 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
+"""The housing row object, and the documentation of POOLED 3D STORAGE.
+
+This file is where the whole pooled-storage design is written down. The other files that take
+part (listed in section 2) keep only a description of their own part and point here. When
+the design changes, change this text in the same edit.
+
+Contents
+    1. What it is and why
+    2. The files and what each one owns
+    3. The storage: pools, chunks and blocks
+    4. A housing's slots (the layout)
+    5. When slots are allocated and released
+    6. Binding: which row lives in which slot
+    7. How a Point or an Angle gets its view
+    8. The rules that keep it correct
+    9. The move and the rotate, step by step
+   10. What is different from the old per-object cascade
+   11. Changing it (a new object type, a new layout, another view)
+   12. Errors you can get and what they mean
+   13. What was checked, and what was not
+   14. Limitations and open work
+
+
+1. WHAT IT IS AND WHY
+---------------------
+Moving or rotating a housing has to change every point and every angle of the housing, its
+cavities, terminals, seals and accessories, on every mouse move. Doing that one Python object
+at a time (a ``Point`` per point, an ``Angle`` per angle, each going through ``Decimal``
+arithmetic and setters that rebuild a quaternion and a matrix) cost 712 ms per rotate frame
+for a housing with 100 cavities, each with a terminal and a seal (measured, interpreted).
+
+The data of all of those objects now lives in a few contiguous float32 NumPy arrays (the
+"pools"), laid out so that one housing is one slice. ``Point``, ``Quaternion`` and ``Angle``
+objects do not own their numbers any more: they hold VIEWS of their row of a pool. A move or
+a rotate is a few array operations over the housing's slice, and then one callback per
+``Point`` that has an object. The same frame takes 4.7 ms (a move frame went from 4.7 ms to
+0.9 ms), and gives the same results as the old cascade (section 13).
+
+The design is the user's. The decisions that shape everything else:
+    * Slots are allocated for a housing as soon as the housing's row object is known, whether
+      the slots will be used or not (pre-allocation), in fixed-size chunks that never grow,
+      move or compact.
+    * Points, and angles, are in separate pools. The euler angles, quaternions and matrices
+      of the angles are three arrays that share one slot index.
+    * ``Point`` and ``Angle`` never learn a slot number; they hold the view they were built
+      with. Only the housing's slots object and the pool know slot numbers.
+    * The housing's database row object hands out the views (through the pools it owns), so
+      references pass back from it to the objects that need them.
+
+
+2. THE FILES AND WHAT EACH ONE OWNS
+-----------------------------------
+geometry/slot_pool.py
+    ``SlotPool`` (chunks, best-fit blocks, release), ``SlotBlock``, ``SlotField`` and
+    ``PoolMember``, the base class of ``Point`` and ``Angle``. Knows nothing about housings.
+geometry/batch.py
+    The array math: ``compose``, ``to_matrices``, ``euler_from_matrices``,
+    ``rotate_points``. Knows nothing about pools or housings.
+geometry/point.py, geometry/angle/angle.py
+    ``Point(..., data=view)`` and ``Angle.from_views(...)`` build objects over pool rows.
+    ``_leave_pool()`` gives an object a private copy of its data.
+database/project_db/housing_slots.py
+    ``SlotPools3D`` (the two pools of a project, every housing's slots, the row -> slot
+    registry, ``build_point`` / ``build_angle``) and ``HousingSlots3D`` (one housing's blocks,
+    its bindings, its plan, ``move`` and ``rotate``).
+database/project_db/pjt_housing.py (this file)
+    ``PJTHousing.__init__`` takes the slots, ``delete`` releases them, ``insert`` and
+    ``update_cavities`` call ``cavities_created``, ``PJTHousingsTable.update`` rebinds a slot
+    when an accessory's point column is written, ``_update_position3d`` / ``_update_angle3d``
+    compute the delta and hand it to ``move`` / ``rotate``, ``find_child_point_ids`` finds the
+    clone points.
+database/project_db/pjt_cavity.py, pjt_terminal.py, pjt_seal.py
+    Their tables' ``update`` (and the terminal's and the seal's ``insert``) rebind a slot when
+    a point column is written; ``PJTCavity.angle3d`` is a view of the angle pool.
+database/project_db/pjt_point3d.py
+    ``PJTPoint3D.point`` asks the pools for its view; ``delete`` unbinds the row.
+database/project_db/mixins/angle3d.py
+    ``Angle3DMixin.angle3d`` asks the pools for the view (housing, accessories, terminals,
+    seals).
+database/project_db/pjt_bases.py
+    ``PJTTables.slot_pools3d`` (created in ``__init__``, reset and filled in ``load``) and
+    ``PJTTables.gesture_serial``.
+
+
+3. THE STORAGE: POOLS, CHUNKS AND BLOCKS
+----------------------------------------
+There are two pools per view; this is the 3D view's pair (``SlotPools3D``).
+
+    point pool    ``data``    (n, 3)      float32      neutral value: 0, 0, 0
+    angle pool    ``quat``    (n, 4)      float32      neutral value: 1, 0, 0, 0 (identity)
+                  ``euler``   (n, 3)      float32      neutral value: 0, 0, 0
+                  ``matrix``  (n, 3, 3)   float32      neutral value: identity
+
+float32 is what ``Point`` / ``Quaternion`` / ``Angle`` always stored; every row of a pool is
+a C-contiguous array, which is what the code that aliases a ``Point``'s array expects.
+
+A pool is a list of chunks. A chunk is a set of arrays of the pool's fixed length, allocated
+once at full size. A normal chunk holds 10 housings of 100 cavities each:
+
+    point chunk   10 * (7 + 7 * 100)  = 7,070 slots * 12 bytes =  85 KB
+    angle chunk   10 * (7 + 3 * 100)  = 3,070 slots * 64 bytes = 196 KB
+
+so a housing with 130 cavities still fits in one chunk, and a typical 10-cavity housing
+(77 point slots, 37 angle slots) is a few KB, about 90 of them to a chunk.
+
+A BLOCK is a contiguous run of slots inside one chunk, handed out by ``SlotPool.allocate``:
+    * Best fit: the smallest free run that is big enough, searched over every chunk. A chunk's
+      unused tail is just another free run. When nothing fits, a new chunk is created (large
+      enough for the request if the request is bigger than a normal chunk).
+    * ``SlotPool.release`` returns a block: every live object built over it first takes a
+      private copy of its data (so it can never write into the next owner's rows), the rows
+      are reset to the neutral value, and the free run is merged with its free neighbours.
+      Merging is bookkeeping; nothing is ever moved or compacted.
+    * ``SlotPool.array(block, name)`` is a zero-copy slice of the whole block;
+      ``SlotPool.row(block, name, offset)`` is the view of one slot, which is what a ``Point``
+      or ``Angle`` is built over. ``register`` / ``members`` / ``evict`` keep a weak reference
+      to the object built over each slot.
+    * ``SlotPool.reset()`` drops every chunk (a project is being replaced). Storage is dropped,
+      not wiped: an object that still holds a view keeps its own array alive and cannot write
+      into a new project's rows.
+
+Why nothing moves: ``Point._data`` is aliased by other code (the culling pipeline keeps the
+array; ``Point.attach`` copies into it in place). The array behind a live object must never
+be replaced, so a slot's address is fixed for as long as the block lives.
+
+
+4. A HOUSING'S SLOTS (THE LAYOUT)
+---------------------------------
+Each housing has two blocks in each pool: a FIXED block, and, once it has cavities, a CAVITY
+block (a second block so that cavities created late, when the housing's catalog part had none
+yet, can get theirs later). In this text a slot number is the "global" number inside the
+housing: fixed block 0-6, then the cavity block.
+
+    FIXED BLOCK (7 slots; the points and the angles use the same order)
+        0 housing   1 boot   2 cover   3 cpa lock   4 housing seal   5 tpa lock 1   6 tpa lock 2
+
+    CAVITY BLOCK, per cavity i (i = the cavity's place in the housing's cavity rows when the
+    block was allocated)
+        POINTS, 7 per cavity, global slot  7 + i * 7 + role
+            0 cavity                          cavities.point3d_id
+            1 cavity wire point               cavities.wire_point3d_id
+            2 terminal                        terminals.point3d_id, the SAME row as
+                                              cavities.terminal_point3d_id
+            3 terminal wire point             terminals.wire_point3d_id
+            4 terminal attach point           terminals.attach_point3d_id (a wire's start /
+                                              stop point when it is seated)
+            5 seal                            the point of the seal in this cavity: the
+                                              terminal's seal, or a plug / dummy pin when the
+                                              cavity has no terminal (a cavity has one or the
+                                              other, never both)
+            6 terminal seal position          terminals.seal_point3d_id (the place a seal
+                                              snaps to on the terminal; not the seal's point)
+        ANGLES, 3 per cavity, global slot  7 + i * 3 + role
+            0 cavity   1 terminal   2 seal (the terminal's seal, or the cavity's own)
+
+Rows behind the fixed block:
+    points   the housing's own columns point3d_id, boot_point3d_id, cover_point3d_id,
+             cpa_lock_point3d_id, seal_point3d_id, tpa_lock_1_point3d_id,
+             tpa_lock_2_point3d_id. An accessory row is created with the housing's column as
+             its own point3d_id, so the housing and its accessory share ONE point row and one
+             slot.
+    angles   the housing row, and the accessory rows found by ``housing_id`` (the tpa locks by
+             ``idx`` 1 and 2; the housing's seal is the seals row with a ``housing_id``).
+
+Example, a housing with 10 cavities: 7 + 10 * 7 = 77 point slots and 7 + 10 * 3 = 37 angle
+slots.
+
+Seals are of three kinds: the housing's own (fixed block), a seal on a terminal (``terminal_id``
+set) and a plug or dummy pin (``cavity_id`` set). The last two use their cavity's seal slots.
+
+
+5. WHEN SLOTS ARE ALLOCATED AND RELEASED
+----------------------------------------
+Allocation is by "get or create" on the pools (``SlotPools3D.housing(housing_id)``), which
+keeps the housing's ``HousingSlots3D`` in a dict by row id. The pools, not the row object, own
+the slots, so a row object that is dropped and built again finds the same slots.
+
+    Project load       ``PJTTables.load``: ``mainframe.unload()``, ``slot_pools3d.reset()``,
+                       the tables are built and their caches loaded, then
+                       ``slot_pools3d.allocate_all()`` allocates every housing of the project
+                       (fixed block, cavity block, every existing row bound and seeded). This
+                       runs before anything builds a ``Point`` or an ``Angle``.
+    Housing added      ``PJTHousingsTable.insert`` inserts the housing row and builds the
+                       ``PJTHousing`` (``__init__`` -> ``housing(db_id)``: the fixed block;
+                       there are no cavity rows yet). Right after the cavity rows are
+                       inserted it calls ``cavities_created()``: the cavity block. The
+                       accessory points are created on demand by the housing's getters.
+    Cavities late      ``PJTHousing.update_cavities`` inserts the cavity rows and calls
+                       ``cavities_created()`` BEFORE it builds the cavity row objects and
+                       facades (which build ``Point`` objects).
+    Housing deleted    ``PJTHousing.delete`` deletes its accessories and cavities, then the row,
+                       then ``slot_pools3d.release(db_id)``: both blocks go back to their pools.
+    Project replaced   ``slot_pools3d.reset()`` at the start of the next ``load``.
+
+``cavities_created()`` may be called once per housing; a second call raises.
+
+
+6. BINDING: WHICH ROW LIVES IN WHICH SLOT
+-----------------------------------------
+A slot is BOUND to a row when the row's data is put into it. ``HousingSlots3D`` keeps, per
+housing, ``_point_rows`` (the point row id in each point slot) and ``_angle_owners`` (the
+(table name, row id) of the owner in each angle slot); ``SlotPools3D`` keeps a registry
+``_point_slots`` (point row id -> housing slots, slot, block, offset).
+
+Binding a point (``bind_point``) seeds the slot from the row's x, y, z in the database cache,
+registers the row, and removes whatever row was bound before (its ``Point``, if it has one,
+leaves the pool). Binding an angle (``bind_angle``) seeds quaternion and euler from the row's
+``quat3d`` / ``angle3d`` strings and the matrix from the quaternion; a changed owner evicts the
+previous owner's ``Angle``. Binding ``None`` clears the slot to its neutral value.
+
+What causes a binding:
+    Allocation                  every row that exists then (housing, accessories, cavities,
+                                their terminals and seals).
+    A point-id column written   ``PJTHousingsTable.update``, ``PJTCavitiesTable.update`` and
+                                ``PJTTerminalsTable.update`` look at the columns they are given
+                                (the lists ``HOUSING_POINT_COLUMNS``, ``CAVITY_POINT_COLUMNS``,
+                                ``TERMINAL_POINT_COLUMNS`` in housing_slots.py) and call
+                                ``SlotPools3D.column_changed``. Every getter and setter that
+                                creates or changes one of these ids ends in ``update``, so they
+                                are all covered. ``PJTTerminalsTable.insert`` binds the new
+                                terminal's point the same way.
+    A seal row                  ``PJTSealsTable.insert`` / ``update`` call ``seal_changed``,
+                                which binds the point of a seal on a terminal or in a cavity.
+                                A housing's own seal uses the housing column.
+    A point row deleted         ``PJTPoint3D.delete`` calls ``point_deleted``, which clears the
+                                slot, so nothing writes to a deleted row.
+    An angle owner              resolved by pull (section 7) and re-checked when a plan is
+                                built (section 9): a terminal or seal that appeared, vanished or
+                                was replaced is noticed there.
+
+A terminal's point is bound from two places (the cavity's ``terminal_point3d_id`` and the
+terminal's ``point3d_id``); they are the same row. If they differ, the terminal's wins.
+
+
+7. HOW A POINT OR AN ANGLE GETS ITS VIEW
+----------------------------------------
+Points.   ``PJTPoint3D.point`` (the only place a ``Point`` is built for a ``pjt_points3d``
+          row) calls ``SlotPools3D.build_point(row_id, point_db_id)``. If the row is bound,
+          the ``Point`` is built over the slot's view (``Point(..., data=view)``) and
+          registered with the pool; otherwise ``None`` comes back and a normal ``Point`` is
+          built (wire waypoints and every other point are not in a housing's group). This works
+          whoever asks first: the housing, a cavity, a terminal or a wire, because the row ->
+          slot registry does not depend on the asker.
+Angles.   ``Angle3DMixin.angle3d`` (the housing, its accessories, terminals, seals) and
+          ``PJTCavity.angle3d`` call ``SlotPools3D.build_angle(table_name, row_id, db_id)``
+          once per row object (the result is cached in ``_stored_angle3d``). The pools find the
+          housing and the slot from the table name and the row (cavity -> its housing;
+          terminal -> its cavity -> housing; seal -> housing, terminal or cavity; accessory ->
+          its ``housing_id``), bind the owner, and build ``Angle.from_views`` over the slot's
+          quaternion, euler and matrix rows. A table that is not in a group (a note) gets
+          ``None`` and a normal ``Angle``.
+
+Why the view is given at creation and never swapped later: the array of a live ``Point`` is
+aliased elsewhere (see section 3), so an object cannot be moved into the pool afterwards.
+This is why section 5 allocates before anything builds a ``Point``, and why a violation is an
+error, not something the code repairs (section 12).
+
+
+8. THE RULES THAT KEEP IT CORRECT
+---------------------------------
+    1. The pool is the live data. For every bound slot the database cache is brought up to
+       date after each move or rotate (not only for slots that have an object), so the cache
+       and the pool agree whenever no cascade is running. A slot is seeded from the cache only
+       when a row is bound to it.
+    2. An object over a pool row keeps the same array for its whole life, until
+       ``_leave_pool`` (release, eviction) gives it a private copy.
+    3. A point row is bound to at most one slot, and a slot holds at most one row.
+    4. Point-id columns of a housing, a cavity and a terminal are written only through their
+       table's ``update`` (and the inserts named in section 6); that is what keeps the
+       bindings current.
+    5. Unused slots hold neutral values, so a whole block can be rotated with no masks.
+       Slots whose owner is absent are rotated too (section 10).
+    6. A plan (section 9) is valid for one gesture only.
+    7. Angle objects fire no callbacks during a cascade (as before); only ``Point`` objects
+       do, one callback each. The values of every slot, points and angles, are final before
+       the first callback fires.
+
+
+9. THE MOVE AND THE ROTATE, STEP BY STEP
+----------------------------------------
+Callers.   Dragging or rotating a housing writes its own ``Point`` or ``Angle``, which fires the
+callback bound to ``PJTHousing._update_position3d`` / ``_update_angle3d``. The drag handlers
+open a gesture first (``PJTTables.begin_gesture``); typing a value in the property grid does
+not.
+
+``PJTTables.gesture_serial`` counts opened gestures (it is incremented when the depth goes from
+0 to 1). ``HousingSlots3D`` keeps one PLAN and reuses it while ``gesture_depth > 0`` and the
+serial has not changed; outside a gesture every call builds its own plan.
+
+THE PLAN (``HousingSlots3D._build_plan``), built on the first frame of a gesture:
+    * walks the housing's cavities, terminals and seals and re-checks who owns each angle slot
+      (``bind_angle``): a terminal or seal that is new, gone or replaced is handled here;
+    * per cavity: its part's OBB corners, the part model's own quaternion, and the corner
+      indices of the forward face (face 4) and the up face (face 3);
+    * per accessory (tpa lock 1, housing seal, tpa lock 2, boot, cpa lock, cover): a mode, and
+      for the OBB mode the model's OBB, quaternion and the corner indices of its own forward and
+      up faces. Mode OBB: the part has a model with usable ``forward_up`` faces. Mode MATRIX: no
+      part or no model, so the plain rotation is used. Mode SKIP: the faces are -1 (the
+      accessory's angle is left alone);
+    * the row ids of the clone points of the housing's wire-side points
+      (``find_child_point_ids``: one SQL query for the whole set). The clone ``Point`` objects
+      are built the first time they are needed and kept with the plan.
+
+MOVE (``HousingSlots3D.move``, called by ``_update_position3d`` with the delta of the housing's
+point; the housing's own point, fixed slot 0, is not moved):
+    1. get the plan;
+    2. add the delta to the fixed block (slots 1-6) and to the whole cavity block (float32);
+    3. ``_write_points``: write x, y, z of every bound point slot (including slot 0) into the
+       database cache with one ``batch_update``; inside a gesture that only records the change;
+    4. move the clone points (set x, y, z, fire their callbacks);
+    5. fire the callbacks of the pooled points that have an object (order below).
+
+ROTATE (``HousingSlots3D.rotate``, called by ``_update_angle3d`` with the rotation delta
+``angle._q - o_angle._q`` as a quaternion and the housing's position as the center; the
+housing's own angle, fixed slot 0, is the input and is not recomputed):
+    1. get the plan;
+    2. rotate every point slot of both blocks about the center (``batch.rotate_points``);
+    3. ``_write_points`` as above;
+    4. rotate the clone points about the center and fire their callbacks;
+    5. angles (``_rotate_angles``, ``_angles_from_obb``), for the cavities and then the accessories:
+         new quaternion       q = compose(current quaternion, delta). ``compose(a, b)`` is
+                              ``Quaternion.__add__``: ``b (x) a`` normalised, ``b`` applied in
+                              world space before ``a``'s own rotation.
+         OBB orientation      q_obb = compose(model quaternion, q); rotate the part's OBB corners
+                              by q_obb; the forward direction is the centroid of the four
+                              forward-face corners minus the centroid of all eight (likewise up);
+                              right = up x forward; up = forward x right; the matrix has columns
+                              right, up, forward.
+         Euler angles         from that matrix (YXZ: pitch, yaw, roll in degrees), each wrapped
+                              to within 180 degrees of the previous value so the displayed
+                              numbers never jump.
+         Rows left alone      (cavity without a known part; accessory in mode SKIP; a face whose
+                              direction cannot be read) keep their slot as it was and are not
+                              written to the cache.
+         MATRIX rows          (an accessory without a model; a degenerate "right" vector) use
+                              the plain rotation matrix of q instead of the OBB matrix.
+       The quaternion, euler and matrix of a cavity are written to the cavity's slots AND to the
+       slots of its terminal and its seal (they take their cavity's orientation); the accessories
+       get their own results. Then, for every updated slot that has an owner bound, the strings
+       ``quat3d`` / ``angle3d`` are written into that owner's row, with one ``batch_update`` per
+       table (the slots of an absent terminal or seal are written but have no row to update);
+    6. fire the callbacks of the pooled points that have an object, in this order: the cavity
+       points; the accessory points (cover, housing seal, boot, tpa lock 1, tpa lock 2, cpa
+       lock); the terminal points; then the terminal wire points, the terminal attach points,
+       the cavity wire points, the seal points and the terminal seal-position points.
+After the cascade ``_update_angle3d`` calls ``_populate('angle3d')``.
+
+Outside a gesture the same steps run, and ``batch_update`` writes to the database immediately
+(one ``executemany`` and commit per table) instead of recording a change.
+
+
+10. WHAT IS DIFFERENT FROM THE OLD PER-OBJECT CASCADE
+-----------------------------------------------------
+    * A rotation moves EVERY point of the housing's slots, including points whose owner is
+      absent: an empty cavity's wire point and terminal point, a terminal's seal-position
+      point, a plug seal's point. The old cascade skipped everything of a cavity without a
+      terminal except the cavity's own point (it did rotate that seal's angle). A move does the
+      same.
+    * The terminal seal-position point (``terminals.seal_point3d_id``) is carried along with its
+      housing; before, it was never moved after it was first computed.
+    * Every value is final before any callback fires. The old code set a point and fired its
+      callbacks one point at a time and only then computed the angles.
+    * The clone points' callbacks fire before the pooled points' callbacks (they used to fire
+      last).
+    * The clone points are looked up once per gesture, not on every frame.
+    * Angle objects are views of slots; ``PJTCavity.angle3d`` is cached on the row object (it
+      read and parsed the row on every access).
+    * Results are computed in float64 and stored as float32 (the stored precision never
+      changed); each quaternion product is normalised. They agree with the old results to
+      1.8e-4 mm for points and 6e-5 for angles (section 13).
+The peg board and the schematic cascades (``_update_position_pegboard``,
+``_update_angle_pegboard``, ``_update_position2d``, ``_update_angle2d``) have not been changed.
+
+
+11. CHANGING IT
+---------------
+A new object type in the housing's group (a new accessory, say): add its slot constant and raise
+``FIXED_COUNT``; add its point column to ``_HOUSING_POINT_COLUMNS`` and its table to
+``_ACCESSORY_SLOTS``, ``SlotPools3D.table`` and ``_resolve_angle``; add it to
+``_ACCESSORY_ORDER`` / ``_ACCESSORY_POINT_ORDER`` and to ``_build_plan``; check the chunk sizes
+(``POINT_CHUNK_SLOTS``, ``ANGLE_CHUNK_SLOTS``); make its class get its ``Angle`` from
+``Angle3DMixin`` so the pull in section 7 finds it.
+
+A new slot per cavity: change ``POINTS_PER_CAVITY`` / ``ANGLES_PER_CAVITY`` and the role
+constants, ``_bind_cavities``, the column lists and (for a point that has a row created on
+demand) make sure the code that creates the row writes its id column through the table's
+``update``. Stored data is not affected (slot numbers are never stored).
+
+Another view (the peg board, the schematic): the same classes with pools of their own and a
+layout of their own. The peg board has the same six points and three angles per cavity and only
+the housing seal among the accessories; its housing seal is linked to the seal's own point by
+``Point.attach`` (two rows), not one shared row as in 3D. The schematic has three points per
+cavity (cavity, terminal wire, terminal) and no angle but the housing's, and its rotation has a
+special 180 degree correction. Nothing of this is built.
+
+Never: swap ``Point._data`` or an ``Angle``'s arrays for others; write a point-id column of a
+housing, cavity or terminal without ``update``; build a ``Point`` of a pooled row before the
+housing was allocated; keep a slot number in a ``Point`` or an ``Angle`` or in the database.
+
+
+12. ERRORS YOU CAN GET AND WHAT THEY MEAN
+-----------------------------------------
+RuntimeError "a Point for this row was built before its housing bound the slot ..."
+    A ``Point`` over its own array already exists for a row that is being bound (or was built
+    for a pooled row by ``build_point``). Something built it before the housing was allocated.
+    Check the order in section 5.
+RuntimeError "a point row cannot be bound to two slots"
+    The same ``pjt_points3d`` row is the point of two different slots, so two owners share a
+    row they must not share.
+RuntimeError "this housing already has its cavity slots"
+    ``cavities_created`` was called twice; cavity rows are created once per housing.
+KeyError raised from ``cavity_slot``
+    A cavity row exists that was not present when the cavity block was allocated (it was
+    created without ``cavities_created``; the single-cavity ``PJTCavitiesTable.insert`` path
+    does this and has no live callers).
+IndexError while loading a project
+    ``bind_point`` / ``bind_angle`` looked up a row that does not exist: a housing, cavity or
+    terminal column points at a deleted row (dangling reference in the data).
+ValueError from ``SlotPool``
+    "block already released", "slot already has live member", or a block of fewer than one slot.
+
+
+13. WHAT WAS CHECKED, AND WHAT WAS NOT
+--------------------------------------
+Checked with throwaway scripts (kept outside the repo; no test files are kept, by the project's
+rule), interpreted Python, the real ``Point`` / ``Angle`` / ``Quaternion`` classes and the real
+``slot_pool`` / ``batch`` / ``housing_slots`` / ``PJTHousing`` cascade methods, with stand-in
+tables:
+    * ``SlotPool``: 6,000 random allocations and releases against an independent model (no
+      overlapping blocks, free runs always merged and sorted, capacity conserved, best fit
+      confirmed by brute force, rows neutral where free, members told to leave on release).
+    * ``batch``: against ``Quaternion.__add__``, ``Quaternion.as_matrix``,
+      ``_euler_from_matrix_continuous`` and the old point rotation.
+    * ``Point`` / ``Angle`` over views: aliasing in both directions, setters, ``attach``,
+      singleton behaviour, release.
+    * The cascades: the old methods (from git HEAD) and the new ones on two identical random
+      worlds (cavities with and without terminals, terminal seals, plug seals, accessories in
+      every mode, clone points), driven through 6 random moves and rotates each, 30 worlds: 1,431
+      point pairs (966 of them clone points) and 2,180 angle rows agree to 1.8e-4 mm and 6e-5, and
+      the pool and the database cache agree exactly on every pooled row.
+    * Lifecycle: cavities created late, a ``Point`` built too early is refused, a column change
+      rebinds, a deleted row unbinds, the plan is built once per gesture, release and reuse.
+    * Timing (100 cavities, 100 terminals, 100 seals, 6 accessories): rotate frame 712 ms ->
+      4.7 ms, move frame 4.7 ms -> 0.9 ms. The old figures leave out the per-frame SQL for
+      clones and any listener bound to a point beyond the database cache.
+NOT checked: the app itself, the real ``PJTTables.load``, ``PJTHousingsTable.insert``,
+``update_cavities`` and table ``update`` hooks against a real database; any view other than 3D;
+the listeners that rebuild wires and 3D objects when a point's callbacks fire (they are the next
+cost, unmeasured).
+
+
+14. LIMITATIONS AND OPEN WORK
+-----------------------------
+    * The peg board and the schematic are not pooled (section 11).
+    * A terminal moved to another cavity keeps its old slots for its points; a seal moved off a
+      terminal or cavity keeps its slot bound.
+    * The database cache is written for every bound point slot and the angle rows are formatted
+      as strings on every frame. They could be written once, at the end of the gesture, from the
+      pool (needs a lazy value in ``TableData``).
+    * There is still one callback per pooled ``Point`` that has an object; a batched "these
+      rows changed" notification would remove that loop.
+    * The clone points are found with a raw SQL query that scans the point table (no index on
+      ``parent_point_id``); it now runs once per plan, the first frame of a gesture.
+    * ``Angle3DMixin.angle3d`` still reads and parses the row before it asks the pool.
+    * A chunk that becomes completely empty is not freed.
+"""
+
+from typing import Any, TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import ast
 import math
@@ -12,6 +479,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .. import id_generator as _id_generator
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from . import housing_slots as _housing_slots
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import cavity_layout as _cavity_layout
@@ -207,6 +675,24 @@ class PJTHousingsTable(PJTTableBase):
             raise IndexError(str(item))
 
         raise KeyError(item)
+
+    @_check_types.do
+    def update(self, db_id: int | bytes, **kwargs: dict[str, Any]) -> None:
+        """Write columns of a housing row. A change of one of its point-id columns (an accessory's
+        point) rebinds the matching slot of the housing's pooled storage (see this module's docstring, section 6).
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        :param kwargs: Column names and their new values.
+        :type kwargs: dict[str, Any]
+        """
+        super().update(db_id, **kwargs)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots.HOUSING_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools3d.column_changed('pjt_housings', db_id, columns)
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, position3d_id: bytes | None = None,
@@ -453,6 +939,10 @@ class PJTHousingsTable(PJTTableBase):
                  'aabb': aabb_str[i], 'obb': obb_str[i]}
                 for i in range(n)])  # commit=True (default): this is the batch's one shared commit
 
+            # The housing's pooled slots for these cavities, taken now: before
+            # anything builds a Point or an Angle for them (see this file's docstring, section 5).
+            db_obj._slots3d.cavities_created()  # NOQA
+
             # Set the geometry cache directly -- see PJTHousing.
             # cavity_geometry's own docstring for why: everything needed
             # to build it was just computed above anyway, so there's no
@@ -495,6 +985,21 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     """
 
     _table: PJTHousingsTable = None
+
+    @_check_types.do
+    def __init__(self, table: PJTHousingsTable, db_id: bytes):
+        """Initialise the housing row object and take its pooled 3D slots (allocated when the
+        project was loaded, or now for a housing that was just added; see this module's
+        docstring, section 5).
+
+        :param table: The housings table.
+        :type table: :class:`PJTHousingsTable`
+        :param db_id: The row id.
+        :type db_id: bytes
+        """
+        super().__init__(table, db_id)
+
+        self._slots3d = table.db.slot_pools3d.housing(db_id)
 
     @_check_types.do
     def delete(self) -> None:
@@ -549,6 +1054,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self.delete_table_overlay()
 
         super().delete()
+
+        self._table.db.slot_pools3d.release(self._db_id)
 
     @_check_types.do
     def update_cavities(self) -> None:
@@ -738,6 +1245,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                  'is_visible2d': 1, 'is_visible3d': 0, 'is_visible_pegboard': 0,
                  'aabb': aabb_str[i], 'obb': obb_str[i]}
                 for i in range(n)])  # commit=True (default): this is the batch's one shared commit
+
+            # The pooled slots for the cavities just created, taken before the
+            # Cavity objects below build any Point or Angle (see this file's docstring, section 5).
+            self._slots3d.cavities_created()
 
             # Set the geometry cache directly -- see PJTHousing.
             # cavity_geometry's own docstring for why: everything needed
@@ -1815,32 +2326,24 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_part
 
     @_check_types.do
-    def _find_child_points(self, canonical_positions: list) -> list:
-        """Return the live ``Point`` for every clone of any point in
-        *canonical_positions* -- see ``objects.terminal.Terminal.
-        _own_or_cloned_point_id``/``PJTPoint3D.parent_point_id``.
+    def find_child_point_ids(self, parent_ids: list[bytes]) -> list[bytes]:
+        """Return the row id of every clone of any point in *parent_ids*.
 
-        A second-or-later wire attached to the same terminal/cavity gets
-        its own cloned point (historically a ``pjt_points3d`` row's own
-        ``wire_id``/``idx`` tag could only belong to one wire, so the
-        canonical row couldn't be shared directly; wire routes are now
-        ``pjt_wire_paths`` rows and can share a point, but the clone
-        mechanism is kept as is until reworked) --
-        without this, a housing move/rotate would carry the canonical
-        point along (it's already in *canonical_positions*) while leaving
-        every clone of it behind. Called by ``_update_position3d``/
-        ``_update_angle3d`` with whatever they already collected, so the
-        clones just fold into the same batch move/rotate those methods
-        already do for everything else -- no other change needed there.
+        A second-or-later wire attached to the same terminal/cavity gets its own
+        cloned point (``PJTPoint3D.parent_point_id``); a housing move/rotate has
+        to carry those clones along with their parents (see
+        ``housing_slots.HousingSlots3D``, which asks once per gesture).
 
-        One batched query for the whole set of canonical ids passed in,
-        not one query per point -- this runs on every housing move/rotate
-        frame during a drag.
+        One batched query for the whole set of ids.
+
+        :param parent_ids: ``pjt_points3d`` row ids of the housing's wire-side points.
+        :type parent_ids: list[bytes]
+        :returns: The row ids of the clones.
+        :rtype: list[bytes]
         """
-        if not canonical_positions:
+        if not parent_ids:
             return []
 
-        parent_ids = [pos.db_id[:-2] for pos in canonical_positions]
         table = self._table.db.pjt_points3d_table
         placeholders = ','.join('?' * len(parent_ids))
 
@@ -1848,7 +2351,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             f'SELECT id FROM pjt_points3d WHERE parent_point_id IN ({placeholders});',
             parent_ids)
 
-        return [table[row[0]].point for row in table.fetchall()]
+        return [row[0] for row in table.fetchall()]
 
     @_check_types.do
     def _find_child_points_pegboard(self, canonical_positions: list) -> list:
@@ -2060,7 +2563,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     def _update_position3d(self, point: _point.Point) -> None:
         """Update the position 3D.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Moves every point of the housing (its cavities, accessories, terminals,
+        wire-side points and seals, which live in the housing's pooled slots) by
+        the same delta, brings the database cache up to date and fires the
+        callbacks; see this module's docstring (section 9) and ``housing_slots.HousingSlots3D.move``.
 
         :param point: Point value.
         :type point: :class:`_point.Point`
@@ -2069,105 +2575,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         delta = point - self._o_position3d
         self._o_position3d = point.copy()
 
-        cavities = [c for c in self.cavities if c is not None]
-
-        cavity_positions = [cavity.position3d for cavity in cavities]
-
-        accessory_positions = [self.cover_position3d, self.seal_position3d,
-                               self.boot_position3d, self.tpa_lock_1_position3d,
-                               self.tpa_lock_2_position3d, self.cpa_lock_position3d]
-
-        terminal_positions = []
-        wire_positions = []
-        for cavity in cavities:
-            terminal = cavity.terminal
-
-            if terminal is None:
-                continue
-
-            terminal_positions.append(cavity.terminal_position3d)
-            terminal_positions.append(terminal.position3d)
-
-            wp = terminal.wire_position3d
-            if wp is not None:
-                wire_positions.append(wp)
-
-            ap = terminal.attach_position3d
-            if ap is not None:
-                wire_positions.append(ap)
-
-            cwp = cavity.wire_position3d
-            if cwp is not None:
-                wire_positions.append(cwp)
-
-            # A wire seal on this terminal has its own independent point
-            # (deliberately NOT shared with/attached to any of the
-            # terminal's own points above -- see handlers.seal_handler,
-            # which needs it independently user-positionable), so it
-            # must be included here explicitly to ride along with the
-            # housing at all -- nothing else in this method would ever
-            # touch it otherwise.
-            seal = terminal.seal
-            if seal is not None:
-                sp = seal.position3d
-                if sp is not None:
-                    wire_positions.append(sp)
-
-        wire_positions.extend(self._find_child_points(wire_positions))
-
-        all_positions = cavity_positions + accessory_positions + terminal_positions + wire_positions
-
-        seen = {}
-        for pos in all_positions:
-            key = pos.db_id[:-2]
-            if key not in seen:
-                seen[key] = pos
-        all_positions = list(seen.values())
-
-        if not all_positions:
-            return
-
-        # changed the data type to a float32
-        all_positions_array = np.array([pos.as_float for pos in all_positions], dtype=np.float32)
-
-        # ONE numpy operation for all positions at once.
-        # there is no need to turn the delta into a numpy array. the code
-        # already exists to directly apply a Point delta directly
-        # to a numpy array.
-
-        new_pos_arr = all_positions_array + delta
-
-        f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-
-        # Set every point's new value directly -- no explicit batch DB
-        # write here anymore (WRITE_DESIGN.md section 4.12). Every caller of
-        # this callback (the move drag handlers, one per editor) opens a
-        # gesture before touching position3d at all, so each point's own
-        # bound DB-writing callback (PJTPoint3D._update_point, fired by
-        # _process_callbacks() below) defers into that table's cache
-        # instead of running real SQL -- the gesture's own end flushes
-        # every point this drag touched in one batched UPDATE, no matter
-        # how many drag frames or how many points. Outside a gesture (e.g.
-        # a typed value from the property grid) this runs exactly as it
-        # always has: one real UPDATE per point.
-        #
-        # `with pos:` still suppresses every bound callback (DB write
-        # included) until all three axes are set, so a point fires its
-        # callbacks once per frame, not three times -- _process_callbacks()
-        # outside the block is what actually fires them, and must run for
-        # EVERY point: rendering-side geometry recompute and
-        # Point.attach() delegate-sync (_on_delegate_changed) have to run
-        # for a .attach()-shared point (a wire ending on a terminal/layout,
-        # or a snapped cover/seal/lock) to actually follow the housing,
-        # same as before this method stopped special-casing which points
-        # get their own write.
-        for i, pos in enumerate(all_positions):
-            with pos:
-                pos.x = f_position_array[i][0]
-                pos.y = f_position_array[i][1]
-                pos.z = f_position_array[i][2]
-
-            pos._process_callbacks()  # NOQA
+        self._slots3d.move(self, np.array(delta.as_float, dtype=np.float64))
 
     _o_position3d: _point.Point = None
 
@@ -2343,7 +2751,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     def _update_angle3d(self, angle: _angle.Angle) -> None:
         """Update the angle 3D.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Rotates every point of the housing about its position and every angle of its
+        cavities, terminals, seals and accessories by the housing's own change of
+        rotation; see this module's docstring (section 9) and ``housing_slots.HousingSlots3D.rotate``.
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
@@ -2368,272 +2778,14 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._o_quat3d = new_quat
         self._o_euler3d = new_euler
 
-        # Compute the true world-space rotation delta as q_new ⊗ q_old⁻¹.
+        # Compute the true world-space rotation delta as q_new (x) q_old^-1.
         # Using the Euler-path (angle - o_angle) gives a component-wise
         # difference that is only correct when the non-rotated axes are zero.
         actual_delta_q = angle._q - o_angle._q  # NOQA
-        position = self.position3d
-        cavities = [c for c in self.cavities if c is not None]
 
-        w_d, x_d, y_d, z_d = actual_delta_q.as_float
-        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
-        center = position.as_numpy.copy()
-
-        # ── Collect all positions for one vectorized rotation ─────────────────
-        all_positions = []
-        for cavity in cavities:
-            all_positions.append(cavity.position3d)
-            terminal = cavity.terminal
-            if terminal is not None:
-                all_positions.append(cavity.terminal_position3d)
-                all_positions.append(terminal.position3d)
-                wp = terminal.wire_position3d
-                if wp is not None:
-                    all_positions.append(wp)
-
-                ap = terminal.attach_position3d
-                if ap is not None:
-                    all_positions.append(ap)
-
-                cwp = cavity.wire_position3d
-                if cwp is not None:
-                    all_positions.append(cwp)
-
-                # A wire seal on this terminal has its own independent
-                # point (see _update_position3d above for why) -- must be
-                # included here too so it rotates along with the housing.
-                seal = terminal.seal
-                if seal is not None:
-                    sp = seal.position3d
-                    if sp is not None:
-                        all_positions.append(sp)
-
-        all_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
-                              self.tpa_lock_2_position3d, self.boot_position3d,
-                              self.cpa_lock_position3d, self.cover_position3d])
-
-        all_positions.extend(self._find_child_points(all_positions))
-
-        seen = {}
-        for pos in all_positions:
-            key = pos.db_id[:-2]
-            if key not in seen:
-                seen[key] = pos
-
-        all_positions = list(seen.values())
-
-        if all_positions:
-            pos_arr = np.array([list(p.as_float) for p in all_positions], dtype=np.float32)
-            rel = pos_arr - center
-            t_vec = np.cross(qvec_d, rel)
-            new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
-
-            f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-
-            # Set every point's new value directly -- see
-            # _update_position3d's identical comment (WRITE_DESIGN.md
-            # section 4.12). No explicit batch DB write here anymore: the
-            # rotate handlers (editor_3d/editor_schematic/editor_pegboard
-            # rotation_handlers/generic.py) open a gesture before touching
-            # angle3d, so each point's own DB-writing callback defers into
-            # its table's cache instead of running real SQL.
-            for i, pos in enumerate(all_positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
-
-                pos._process_callbacks()  # NOQA
-
-        # ── Per-cavity angle computation (OBB-based) ──────────────────────────
-        angle_results = []  # [(cavity, q_acc_new, new_euler), ...]
-
-        for cavity in cavities:
-            cavity_angle = cavity.angle3d
-            old_euler = cavity_angle.as_euler_float
-            q_acc_new = cavity_angle._q + actual_delta_q  # NOQA
-
-            new_euler = None
-            part = cavity.part
-            local_obb = part.obb
-            q_model3d = part.angle3d._q  # NOQA
-            q_obb = q_model3d + q_acc_new
-
-            w_o, x_o, y_o, z_o = q_obb.as_float
-            qvec_o = np.array([x_o, y_o, z_o], dtype=np.float32)
-            t_o = np.cross(qvec_o, local_obb)
-            rotated = local_obb + 2.0 * w_o * t_o + 2.0 * np.cross(qvec_o, t_o)
-
-            fwd = _obb_face_direction(rotated, local_obb, 4)
-            up = _obb_face_direction(rotated, local_obb, 3)
-
-            if fwd is None or up is None:
-                continue
-
-            right = np.cross(up, fwd)
-            right_norm = float(str(np.linalg.norm(right)))
-            if right_norm > 1e-8:
-                right /= right_norm
-                up = np.cross(fwd, right)
-                rot_mat = np.column_stack([right, up, fwd])
-                new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
-
-            if new_euler is None:
-                new_euler = _euler_from_matrix_continuous(q_acc_new.as_matrix, old_euler)
-
-            angle_results.append((cavity, q_acc_new, new_euler))
-
-        for cav, q_acc_new, new_euler in angle_results:
-            cav_angle = cav.angle3d
-            with cav_angle:
-                cav_angle.x = new_euler[0]
-                cav_angle.y = new_euler[1]
-                cav_angle.z = new_euler[2]
-                cav_angle._q.w = q_acc_new.w  # NOQA
-                cav_angle._q.x = q_acc_new.x  # NOQA
-                cav_angle._q.y = q_acc_new.y  # NOQA
-                cav_angle._q.z = q_acc_new.z  # NOQA
-                cav_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
-
-        if angle_results:
-            angle_rows = [(str(list(q.as_float)), str(eu), cav._db_id)
-                          for cav, q, eu in angle_results]
-
-            angle_results[0][0].table.batch_update(['quat3d', 'angle3d'], angle_rows)
-
-        # ── Terminal/seal angle mirrors its cavity's angle exactly — no OBB
-        # alignment needed, so the cavity's already-computed q_acc_new/
-        # new_euler are reused directly instead of recomputing per object.
-        # A cavity holds a terminal XOR a cavity-level (PLUG/dummy-pin) seal,
-        # never both — cavity.seal only finds seals linked via cavity_id.
-        # When a terminal is present, any seal on it (SWS) is linked via
-        # terminal_id instead, invisible to cavity.seal, so it must be
-        # looked up through terminal.seal.
-        terminal_angle_results = []  # [(terminal, q_acc_new, new_euler), ...]
-        seal_angle_results = []      # [(seal, q_acc_new, new_euler), ...]
-
-        for cav, q_acc_new, new_euler in angle_results:
-            terminal = cav.terminal
-            if terminal is not None:
-                terminal_angle_results.append((terminal, q_acc_new, new_euler))
-
-                seal = terminal.seal
-                if seal is not None:
-                    seal_angle_results.append((seal, q_acc_new, new_euler))
-            else:
-                seal = cav.seal
-                if seal is not None:
-                    seal_angle_results.append((seal, q_acc_new, new_euler))
-
-        for term, q_acc_new, new_euler in terminal_angle_results:
-            term_angle = term.angle3d
-            with term_angle:
-                term_angle.x = new_euler[0]
-                term_angle.y = new_euler[1]
-                term_angle.z = new_euler[2]
-                term_angle._q.w = q_acc_new.w  # NOQA
-                term_angle._q.x = q_acc_new.x  # NOQA
-                term_angle._q.y = q_acc_new.y  # NOQA
-                term_angle._q.z = q_acc_new.z  # NOQA
-                term_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
-
-        if terminal_angle_results:
-            terminal_angle_rows = [(str(list(q.as_float)), str(eu), term._db_id)
-                                   for term, q, eu in terminal_angle_results]
-
-            terminal_angle_results[0][0].table.batch_update(
-                ['quat3d', 'angle3d'], terminal_angle_rows)
-
-        for seal, q_acc_new, new_euler in seal_angle_results:
-            seal_angle = seal.angle3d
-            with seal_angle:
-                seal_angle.x = new_euler[0]
-                seal_angle.y = new_euler[1]
-                seal_angle.z = new_euler[2]
-                seal_angle._q.w = q_acc_new.w  # NOQA
-                seal_angle._q.x = q_acc_new.x  # NOQA
-                seal_angle._q.y = q_acc_new.y  # NOQA
-                seal_angle._q.z = q_acc_new.z  # NOQA
-                seal_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
-
-        if seal_angle_results:
-            seal_angle_rows = [(str(list(q.as_float)), str(eu), seal._db_id)
-                               for seal, q, eu in seal_angle_results]
-
-            seal_angle_results[0][0].table.batch_update(
-                ['quat3d', 'angle3d'], seal_angle_rows)
-
-        # ── Accessory angle computation (OBB-based) ───────────────────────────
-        acc_objs = [self.tpa_lock1, self.seal,
-                    self.tpa_lock2, self.boot,
-                    self.cpa_lock, self.cover]
-
-        acc_angle_results = []  # [(obj, q_acc_new, new_euler), ...]
-
-        for obj in acc_objs:
-            if obj is None:
-                continue
-
-            obj_angle = obj.angle3d
-            old_euler = obj_angle.as_euler_float
-            q_acc_new = obj_angle._q + actual_delta_q  # NOQA
-
-            new_euler = None
-            part = obj.part
-            if part is not None:
-                model3d = part.model3d
-                if model3d is not None:
-                    local_obb = model3d.obb
-                    fwd_face, up_face = model3d.forward_up
-                    if fwd_face == -1 or up_face == -1:
-                        continue
-
-                    q_model3d = model3d.angle3d._q  # NOQA
-                    q_obb = q_model3d + q_acc_new
-
-                    w_o, x_o, y_o, z_o = q_obb.as_float
-                    qvec_o = np.array([x_o, y_o, z_o], dtype=np.float32)
-                    t_o = np.cross(qvec_o, local_obb)
-                    rotated = local_obb + 2.0 * w_o * t_o + 2.0 * np.cross(qvec_o, t_o)
-
-                    fwd = _obb_face_direction(rotated, local_obb, fwd_face)
-                    up = _obb_face_direction(rotated, local_obb, up_face)
-
-                    if fwd is None or up is None:
-                        continue
-
-                    right = np.cross(up, fwd)
-                    right_norm = float(str(np.linalg.norm(right)))
-                    if right_norm > 1e-8:
-                        right /= right_norm
-                        up = np.cross(fwd, right)
-                        rot_mat = np.column_stack([right, up, fwd])
-                        new_euler = _euler_from_matrix_continuous(rot_mat, old_euler)
-
-            if new_euler is None:
-                new_euler = _euler_from_matrix_continuous(q_acc_new.as_matrix, old_euler)
-
-            acc_angle_results.append((obj, q_acc_new, new_euler))
-
-        for obj, q_acc_new, new_euler in acc_angle_results:
-            obj_angle = obj.angle3d
-            with obj_angle:
-                obj_angle.x = new_euler[0]
-                obj_angle.y = new_euler[1]
-                obj_angle.z = new_euler[2]
-                obj_angle._q.w = q_acc_new.w  # NOQA
-                obj_angle._q.x = q_acc_new.x  # NOQA
-                obj_angle._q.y = q_acc_new.y  # NOQA
-                obj_angle._q.z = q_acc_new.z  # NOQA
-                obj_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
-
-        if acc_angle_results:
-            from collections import defaultdict as _dd
-            table_angle_rows = _dd(list)
-            for obj, q, eu in acc_angle_results:
-                table_angle_rows[obj.table].append((str(list(q.as_float)), str(eu), obj._db_id))
-            for table, rows in table_angle_rows.items():
-                table.batch_update(['quat3d', 'angle3d'], rows)
+        self._slots3d.rotate(
+            self, np.array(actual_delta_q.as_float, dtype=np.float64),
+            np.array(self.position3d.as_numpy, dtype=np.float64))
 
         self._populate('angle3d')
 
