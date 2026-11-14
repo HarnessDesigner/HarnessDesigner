@@ -22,7 +22,7 @@ Re-exports the module as `_system_menu` only; no public symbols of its own.
 
 #### settings.py
 
-`SettingsMenu(QMenu)` -- Settings menu (app-level preferences/dialogs such as render/debug settings).
+`SettingsMenu(QMenu)` -- Settings menu: "Preferences" (`ui/dialogs/preferences`, UI/graphics/mouse/keyboard settings, 2026-11-14) and "Debug Settings".
 
 #### system_menu.py
 

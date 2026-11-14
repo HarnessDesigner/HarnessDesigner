@@ -541,6 +541,7 @@ class Log(object):
 
     def startup(self) -> None:
         from ..gl import info as _gl_info
+        from .. import system_info as _system_info
 
         self.info_block(
             '\n'.join(
@@ -604,9 +605,12 @@ class Log(object):
                 f'{platform.python_implementation()} '
                 f'{platform.python_build()} '
                 f'[{platform.python_compiler()}]'
-            ),
-            '----------------------------------------'
+            )
         ]
+
+        # Core/thread counts and physical memory (a snapshot taken now).
+        startup_block.extend(_system_info.describe())
+        startup_block.append('----------------------------------------')
 
         self.info_block('\n'.join(startup_block))
 

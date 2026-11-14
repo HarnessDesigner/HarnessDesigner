@@ -80,7 +80,7 @@ Queries OpenGL capability strings/limits. Ported from wx's "create a throwaway 1
 `glcanvas.GLCanvas` purely to get a context, call `SetCurrent`, query GL strings" pattern to Qt's
 `QOffscreenSurface` + `QOpenGLContext`, which needs no visible widget at all. The public API is
 unchanged across the port: call `get(parent)` once to collect and cache, then call `get()` with no
-argument to read the cached result.
+argument to read the cached result. Also records `Max Samples` (`GL_MAX_SAMPLES`), which the Preferences > Graphics page uses to offer only the anti-aliasing levels the driver has.
 
 #### object_picker.py
 
@@ -95,6 +95,10 @@ by reading it directly), pegboard's mouse handler is now just as thin as the oth
 and goes through this same shared module — the old pegboard-only `_find_anchor_at_point` AABB
 hit-test MEMORY.md once flagged as the one remaining gap here is gone; all three editors now pick
 through `object_picker` exclusively. `_render_id_of` (the tie-break between overlapping floating panels) returns the render id of a peg-board wire table AND of a concentric section widget (`is_pegboard_table` / `is_pegboard_section`); both draw from `Table._render_id_counter`.
+
+#### surface_format.py
+
+NEW 2026-11-14. `build_default_format()` builds the application's default `QSurfaceFormat` from `Config.graphics` (vsync = swap interval 1/0, `msaa_samples`, `buffering` = swap behavior default/single/double/triple) and `Config.debug.opengl.debug_context`; `App._init` hands it to `QSurfaceFormat.setDefaultFormat` before any GL context exists (the GL info query included), so every one of those settings is read once per run and a change needs a restart. `texture_format()` is the internal format `CanvasBase.__init__` gives `setTextureFormat` (RGBA8 / RGB10_A2 / RGBA16F, or SRGB8_ALPHA8 when `Config.graphics.srgb` is on). Measured on the NVIDIA GPU (2026-11-14): the 10 bit and 16 bit float formats really give a 10 bit / 16 bit float framebuffer; `QSurfaceFormat.setColorSpace(sRGB)` does nothing on a `QOpenGLWidget` (the framebuffer stays linear), so sRGB is the SRGB8_ALPHA8 texture format plus `glEnable(GL_FRAMEBUFFER_SRGB)` in `CanvasBase.initializeGL`; nothing here is read back with `glReadPixels` (only `grabFramebuffer()`, which converts), so none of the formats needed other code changes.
 
 #### vbo.py
 

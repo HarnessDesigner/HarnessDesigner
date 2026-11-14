@@ -34,7 +34,7 @@ No imports found -- a plain empty package marker, no re-exports.
 
 #### debug_settings.py
 
-`DebugSettingsDialog` (`_ColourPickerCtrl` helper) -- developer-facing debug toggles, developer-facing toggles for the faces / edges / normals / vertices passes and the other debug drawing options (the "Wire Benchmark" group and the GPU performance logging were removed 2026-11-08, together with the `gpu_single_wires` / `pooled_wires` / `batched_wires` check boxes).
+`DebugSettingsDialog` (`_ColourPickerCtrl` helper) -- developer-facing debug toggles, developer-facing toggles for the faces / edges / normals / vertices passes and the other debug drawing options (the "Wire Benchmark" group and the GPU performance logging were removed 2026-11-08, together with the `gpu_single_wires` / `pooled_wires` / `batched_wires` check boxes). "Show Frame Rate and Object Count" (`Config.debug.performance.show_stats`) turns the FPS / object count HUD of every canvas on and off; a canvas reads it every frame, so it takes effect on that canvas's next repaint. Two more checkboxes sit under it, both in `Config.debug.performance`: "Log Event Loop Profile" (`profile_events`, starts/stops `gl.canvas_base.stats_overlay.EventProfiler` immediately from `SetValues`; off means nothing is collected) and (under `Config.debug.opengl`) "OpenGL Debug Context" (`debug_context`, read once by `gl/surface_format.py` when `App._init` builds the default `QSurfaceFormat`, so a change needs a restart). VSync moved to Preferences > Graphics (2026-11-14).
 
 #### dialog_base.py
 
@@ -101,6 +101,10 @@ No imports found -- a plain empty package marker, no re-exports.
 #### housing_editor/
 
 The housing cavity/accessory editor subsystem -- lets a user author/correct a catalog housing's cavity surfaces and accessories by picking faces directly on its real 3D model. See `housing_editor/MAP.md`.
+
+#### preferences/
+
+NEW 2026-11-14. Settings > Preferences: a tree of topics on the left and the settings of the selected topic on the right (Graphics, Mouse, Keyboard, the three editors, General, ...). See `preferences/MAP.md`.
 
 #### transition_editor/
 

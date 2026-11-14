@@ -127,6 +127,7 @@ def get(parent: _Union["QtWidgets.QWidget", None] = None) -> dict[str, dict[str,
             'OpenGL Version': _safe_gl_get_string(GL.GL_VERSION),
             'GLSL Version':  _safe_gl_get_string(GL.GL_SHADING_LANGUAGE_VERSION),
             'Extension Count': _safe_gl_get_integer(GL.GL_NUM_EXTENSIONS),
+            'Max Samples': _safe_gl_get_integer(GL.GL_MAX_SAMPLES),
             'Element Limits': {
                 'Max Elements Indices':  _safe_gl_get_integer(GL.GL_MAX_ELEMENTS_INDICES),
                 'Max Elements Vertices': _safe_gl_get_integer(GL.GL_MAX_ELEMENTS_VERTICES),

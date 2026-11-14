@@ -10,6 +10,7 @@ from ..widgets import checkbox_ctrl as _checkbox_ctrl
 from ..widgets import float_ctrl as _float_ctrl
 from ... import color as _color
 from ... import config as _config
+from ...gl.canvas_base import stats_overlay as _stats_overlay
 
 # PySide6 colour picker — uses QColorDialog indirectly via a thin wrapper.
 # We provide a small ColourPickerCtrl shim below that matches the wx API
@@ -233,6 +234,24 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         self.mesh_stats.SetValue(rendering3d.show_mesh_stats)
         visual_lay.addWidget(self.mesh_stats)
 
+        self.show_stats = _checkbox_ctrl.CheckboxCtrl(
+            visual_box, 'Show Frame Rate and Object Count (all canvases):')
+
+        self.show_stats.SetValue(Config.debug.performance.show_stats)
+        visual_lay.addWidget(self.show_stats)
+
+        self.profile_events = _checkbox_ctrl.CheckboxCtrl(
+            visual_box, 'Log Event Loop Profile (every 2 seconds):')
+
+        self.profile_events.SetValue(Config.debug.performance.profile_events)
+        visual_lay.addWidget(self.profile_events)
+
+        self.debug_context = _checkbox_ctrl.CheckboxCtrl(
+            visual_box, 'OpenGL Debug Context (restart needed if changed):')
+
+        self.debug_context.SetValue(Config.debug.opengl.debug_context)
+        visual_lay.addWidget(self.debug_context)
+
         vsizer.addWidget(visual_box)
 
         # Function Settings group
@@ -309,6 +328,15 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
             _get_color(self.vertices_color))
 
         Config.debug.rendering3d.show_mesh_stats = self.mesh_stats.GetValue()
+        Config.debug.performance.show_stats = self.show_stats.GetValue()
+        Config.debug.performance.profile_events = (
+            self.profile_events.GetValue())
+
+        Config.debug.opengl.debug_context = self.debug_context.GetValue()
+
+        # Start/stop it now rather than at the next canvas paint, so turning
+        # it off really stops it collecting.
+        _stats_overlay.event_profiler(Config.debug.performance.profile_events)
 
         Config.debug.functions.log_args = self.log_args.GetValue()
         Config.debug.functions.log_duration = self.log_duration.GetValue()

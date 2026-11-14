@@ -57,6 +57,10 @@ Config = _config.Config.mainframe
 # missing a title bar that's really off-screen.
 _ASSUMED_TITLE_BAR_HEIGHT = 40
 
+# Most often, in milliseconds, the status bar's X/Y/Z coordinate labels are
+# rewritten while the mouse moves over a canvas (see MainFrame.__init__).
+_STATUS_COORD_INTERVAL = 100
+
 # ---------------------------------------------------------------------------
 # EVT_GL_* constants are plain strings equal to the signal names,
 # so pass them directly to editor.connect() — no mapping table needed.
@@ -257,6 +261,19 @@ class MainFrame(QtWidgets.QMainWindow):
         status_bar.addPermanentWidget(self._status_x)
         status_bar.addPermanentWidget(self._status_y)
         status_bar.addPermanentWidget(self._status_z)
+
+        # The coordinates change on every mouse move, and QLabel.setText
+        # asks the parent to re-lay-out each time (a LayoutRequest on this
+        # window, which also repaints the tab bars/toolbars/panels): doing
+        # that per mouse move capped the 3D view at ~45 fps. A worker thread
+        # keeps only the newest text and has it written on this (the GUI)
+        # thread at most every _STATUS_COORD_INTERVAL ms (coordinate_thread).
+        from . import coordinate_thread as _coordinate_thread
+
+        self._coordinate_thread = _coordinate_thread.CoordinateThread(
+            _STATUS_COORD_INTERVAL / 1000.0)
+
+        self._coordinate_thread.start()
 
         self.progress_bar = QtWidgets.QProgressBar()
         self.progress_bar.setRange(0, 100)  # Set your known max here
@@ -920,6 +937,9 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self._is_closing = True
 
+        # No more status bar coordinate hand-overs once the window is going.
+        self._coordinate_thread.stop()
+
         # close_dlg = _closing_dialog.ClosingDialog(self, total_steps=11)
         # close_dlg.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         # close_dlg.show()
@@ -1099,9 +1119,30 @@ class MainFrame(QtWidgets.QMainWindow):
             position = self.editor3d.camera.get_position_on_focal_plane(mouse_pos)
 
         x, y, z = position.as_float
-        self._status_x.setText(f'X: {round(float(x), 4)}')
-        self._status_y.setText(f'Y: {round(float(y), 4)}')
-        self._status_z.setText(f'Z: {round(float(z), 4)}')
+        self._set_status_coordinates(
+            f'X: {round(float(x), 4)}',
+            f'Y: {round(float(y), 4)}',
+            f'Z: {round(float(z), 4)}')
+
+    @_check_types.do
+    def _set_status_coordinates(self, x_text: str, y_text: str,
+                                z_text: str) -> None:
+        """Hand the status bar coordinate text to the coordinate thread; it
+        keeps only the newest and has :meth:`_write_status_coordinates` run
+        on the GUI thread at most once per ``_STATUS_COORD_INTERVAL`` ms (see
+        ``__init__`` for why)."""
+        self._coordinate_thread.add(
+            self._write_status_coordinates, x_text, y_text, z_text)
+
+    @_check_types.do
+    def _write_status_coordinates(self, x_text: str, y_text: str,
+                                  z_text: str) -> None:
+        """Runs on the GUI thread (called by the coordinate thread)."""
+        labels = (self._status_x, self._status_y, self._status_z)
+        for label, text in zip(labels, (x_text, y_text, z_text)):
+            # An unchanged text still costs a re-layout, so skip it.
+            if label.text() != text:
+                label.setText(text)
 
     @_check_types.do
     def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent | _gl.GLObjectEvent) -> None:
@@ -1119,9 +1160,8 @@ class MainFrame(QtWidgets.QMainWindow):
         #     position = self.editor_pegboard.camera.get_position_on_focal_plane(mouse_pos)
 
         x, y, _ = position.as_float
-        self._status_x.setText(f'X: {round(float(x), 4)}')
-        self._status_y.setText(f'Y: {round(float(y), 4)}')
-        self._status_z.setText('')
+        self._set_status_coordinates(
+            f'X: {round(float(x), 4)}', f'Y: {round(float(y), 4)}', '')
 
     @_check_types.do
     def showEvent(self, event: QtGui.QShowEvent) -> None:

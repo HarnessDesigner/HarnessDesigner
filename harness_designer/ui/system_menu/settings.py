@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from PySide6 import QtWidgets
 
 from ..dialogs import debug_settings as _debug_settings
+from ..dialogs import preferences as _preferences
 from ... import check_types as _check_types
 
 
@@ -30,7 +31,16 @@ class SettingsMenu(QtWidgets.QMenu):
         super().__init__('Settings', mainframe)
         self.mainframe = mainframe
 
+        self.addAction('Preferences').triggered.connect(self.on_preferences)
         self.addAction('Debug Settings').triggered.connect(self.on_debug_settings)
+
+    @_check_types.do
+    def on_preferences(self) -> None:
+        """Open the Preferences dialog (UI, graphics, mouse and keyboard settings)."""
+        dlg = _preferences.PreferencesDialog(self.mainframe)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            dlg.SetValues()
+            self.mainframe.update()
 
     @_check_types.do
     def on_debug_settings(self) -> None:

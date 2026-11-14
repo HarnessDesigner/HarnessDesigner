@@ -1587,6 +1587,40 @@ class Config(metaclass=ConfigDB):
         log_database = False
         log_file_transfers = True
 
+    class graphics(metaclass=ConfigDB):
+        """
+        How the OpenGL surfaces are created (``gl/surface_format.py``);
+        edited in Preferences > Graphics.
+
+        Every one of these is read once, when the application starts and
+        builds the default ``QSurfaceFormat`` (``App._init``) or when a
+        canvas is created (``texture_format``): a change needs a restart.
+        """
+
+        # Wait for the monitor's vertical blank when a window is flushed
+        # (swap interval 1) or do not (swap interval 0). Off lets the 3D
+        # view run well above the refresh rate but can tear.
+        vsync = False
+
+        # Multisample anti-aliasing: samples per pixel, 0 is off. A value
+        # the driver does not support is rounded down by Qt/the driver.
+        msaa_samples = 4
+
+        # Back buffers of the window surface: 'default' (the platform's
+        # choice), 'single', 'double' or 'triple'.
+        buffering = 'default'
+
+        # Internal format of the texture every canvas renders into:
+        # 'RGBA8' (8 bits per channel), 'RGB10_A2' (10 bit colour, 2 bit
+        # alpha) or 'RGBA16F' (16 bit float per channel).
+        texture_format = 'RGBA8'
+
+        # An sRGB framebuffer: the canvases render into an SRGB8_ALPHA8
+        # texture (this replaces texture_format) with GL_FRAMEBUFFER_SRGB
+        # on, so blending and the MSAA resolve happen in linear space.
+        # Experimental: it changes how translucent geometry looks.
+        srgb = False
+
     class debug(metaclass=ConfigDB):
         """
         Debug feature toggles used throughout the application.
@@ -1633,6 +1667,34 @@ class Config(metaclass=ConfigDB):
             tracemalloc_frames = 25
             listener_port = 47441
             snapshot_dir = os.path.join(_utils.get_appdata(), 'memory_snapshots')
+
+        class performance(metaclass=ConfigDB):
+            """
+            Render-performance HUD shown in the upper right corner of every
+            GL canvas (see ``gl/canvas_base/stats_overlay.py``).
+            """
+
+            # Frames per second (paint to paint, so it includes everything
+            # a frame costs) and the number of objects drawn that frame.
+            show_stats = False
+
+            # Log which Qt event types the GUI thread spends its time on,
+            # every 2 s (``stats_overlay.EventProfiler``). While this is off
+            # the profiler does not exist, so nothing is collected.
+            profile_events = False
+
+        class opengl(metaclass=ConfigDB):
+            """
+            OpenGL driver diagnostics.
+            """
+
+            # Create the OpenGL contexts as debug contexts and send the
+            # driver's own messages (errors, deprecated calls, performance
+            # warnings) to the log (``gl/canvas_base/canvas_base.py``
+            # ``_attach_debug_logger``). Read once when the application
+            # starts, building the default QSurfaceFormat in
+            # ``gl/surface_format.py``: a change needs a restart.
+            debug_context = False
 
         class rendering3d(metaclass=ConfigDB):
             """3D debug rendering overlays and colours."""

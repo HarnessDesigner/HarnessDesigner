@@ -195,17 +195,13 @@ class App(QtCore.QObject):
 
         # Set default QSurfaceFormat for shared OpenGL contexts
         # This MUST be called before ANY OpenGL context is created (including GL info query)
-        fmt = QtGui.QSurfaceFormat()
-        fmt.setDepthBufferSize(24)
-        # 4x MSAA — QOpenGLWidget renders into a multisampled FBO and
-        # resolves it automatically. Framebuffer readbacks must go through
-        # grabFramebuffer() (resolved), not raw glReadPixels.
-        fmt.setSamples(4)
-        # fmt.setSwapBehavior(QtGui.QSurfaceFormat.SwapBehavior.DoubleBuffer)
-        fmt.setVersion(3, 3)
-        # fmt.setProfile(QtGui.QSurfaceFormat.OpenGLContextProfile.CoreProfile)
-        fmt.setProfile(QtGui.QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        QtGui.QSurfaceFormat.setDefaultFormat(fmt)
+        # The format itself (MSAA, vsync, buffering, colour space, debug
+        # context, ...) comes from Config.graphics / Config.debug.opengl;
+        # see gl/surface_format.py. A change in Preferences needs a restart.
+        from .gl import surface_format as _surface_format
+
+        QtGui.QSurfaceFormat.setDefaultFormat(
+            _surface_format.build_default_format())
 
         # Query GL capabilities using a temporary offscreen surface
         try:

@@ -113,6 +113,7 @@ editors, a multi-process DB/model/image back end, and Cython-compiled release bu
     - datasheet_viewer/ — datasheet viewer dock
     - dialogs/ — standalone dialogs (About, part search, project, ...)
       - housing_editor/ — housing cavity/accessory editor
+      - preferences/ — Settings > Preferences: topic tree plus settings pages (graphics, mouse, keyboard, editors, ...)
       - transition_editor/ — transition catalog-part editor with live 3D preview
     - editor_3d/ — 3D editor dock
     - editor_assembly/ — assembly editor dock

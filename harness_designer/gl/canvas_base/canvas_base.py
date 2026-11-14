@@ -3,6 +3,8 @@
 from typing import Union as _Union
 from typing import Self as _Self, TYPE_CHECKING
 
+import collections
+import time
 import types
 from OpenGL import GL
 import ctypes
@@ -10,9 +12,11 @@ import weakref
 import numpy as np
 from PySide6 import QtCore
 from PySide6 import QtGui
+from PySide6 import QtOpenGL
 from PySide6 import QtOpenGLWidgets
 
 from .. import shaders as _shaders
+from .. import surface_format as _surface_format
 from ... import debug as _debug
 from ... import config as _config
 from .. import culling as _culling
@@ -26,6 +30,7 @@ from . import floor_base as _floor_base
 from . import key_handler as _key_handler
 from . import scene_light as _scene_light
 from . import mouse_handler_base as _mouse_handler_base
+from . import stats_overlay as _stats_overlay
 
 
 if TYPE_CHECKING:
@@ -40,6 +45,21 @@ MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
 
 _debug_config = _config.Config.debug.rendering3d
+_performance_config = _config.Config.debug.performance
+_opengl_config = _config.Config.debug.opengl
+_graphics_config = _config.Config.graphics
+
+# The frame rate is the frames painted over a window this long (seconds);
+# a gap between two paints longer than the idle gap means nothing was
+# repainting (the scene was still), so the window starts over instead of
+# reporting a near-zero rate.
+_STATS_WINDOW = 0.5
+_STATS_IDLE_GAP = 1.0
+
+# The averaged frame rate: the per-frame rate (1 / time since the previous
+# paint) of the last this-many frames, a FIFO (the newest goes on the back,
+# the oldest falls off the front).
+_STATS_AVG_SAMPLES = 20
 
 
 class CanvasEventFilter(QtCore.QObject):
@@ -247,7 +267,13 @@ class CanvasEventFilter(QtCore.QObject):
                 # taking over the camera -- see CanvasBase.user_input_seen.
                 self.canvas._user_input_seen = True  # NOQA
 
+            # Timed for the frame rate HUD (events per second, ms each).
+            mouse_start = time.perf_counter()
             self.canvas._mouse_handler.handle_event(event)  # NOQA
+            self.canvas._stats_mouse_total += (  # NOQA
+                time.perf_counter() - mouse_start)
+
+            self.canvas._stats_mouse_events += 1  # NOQA
 
         elif t in (
             QtCore.QEvent.Type.KeyPress,
@@ -389,6 +415,13 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         super().__init__(None)
 
+        # Internal format of the texture this widget renders into
+        # (Config.graphics.texture_format); has to be set before the widget
+        # is first shown/initialised, which is why it is the first thing here.
+        self.setTextureFormat(_surface_format.texture_format())
+
+        self._gl_debug_logger: QtOpenGL.QOpenGLDebugLogger | None = None
+
         self._event_signals = {
             'gl_object_selected': self.gl_object_selected,
             'gl_object_unselected': self.gl_object_unselected,
@@ -467,6 +500,22 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         self._object_addr_mapping = {}
 
         self._object_data = [[], [], [], [], [], [], [], [], [], []]
+
+        # Frame rate / object count HUD (Config.debug.performance.show_stats)
+        self._stats_overlay: _stats_overlay.StatsOverlay | None = None
+        self._stats_frames = 0
+        self._stats_paint_total = 0.0
+        self._stats_repaint_total = 0.0
+        self._stats_repaints = 0
+        self._stats_mouse_total = 0.0
+        self._stats_mouse_events = 0
+        self._stats_busy_start = 0.0
+        self._stats_busy_wall = 0.0
+        self._stats_fps_samples: collections.deque = collections.deque(
+            maxlen=_STATS_AVG_SAMPLES)
+
+        self._stats_window_start = 0.0
+        self._stats_last_paint = 0.0
 
         self.size = None
 
@@ -776,6 +825,21 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
+    def repaint(self) -> None:
+        """
+        ``QWidget.repaint`` timed for the frame rate HUD. A synchronous
+        repaint covers ``paintGL`` plus the FBO resolve and the window
+        flush that follow it, so ``Repaint`` minus ``Paint`` is the cost of
+        Qt compositing the GL widgets, and the frame interval minus
+        ``Repaint`` is time spent outside the repaint (mouse handling,
+        event delivery).
+        """
+        start = time.perf_counter()
+        super().repaint()
+        self._stats_repaint_total += time.perf_counter() - start
+        self._stats_repaints += 1
+
     @property
     @_check_types.do
     def user_input_seen(self) -> bool:
@@ -918,12 +982,21 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         Qt guarantees the context is already current here — no makeCurrent needed.
         """
 
+        self._attach_debug_logger()
+
         try:
             GL.glEnable(GL.GL_DEPTH_TEST)
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glEnable(GL.GL_LINE_SMOOTH)
             GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
+
+            # Config.graphics.srgb: the canvas texture is SRGB8_ALPHA8 (see
+            # gl/surface_format.py); this makes writes to it sRGB-encode and
+            # blend in linear space.
+            if _graphics_config.srgb:
+                GL.glEnable(GL.GL_FRAMEBUFFER_SRGB)
+
             GL.glClearColor(*self.config.background_color)
 
             self._shaders = _shaders.ShaderProgram()
@@ -954,6 +1027,50 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         except Exception as err:  # NOQA
             _logger.traceback(err, 'initializeGL')
             raise
+
+    @_check_types.do
+    def _attach_debug_logger(self) -> None:
+        """
+        With ``Config.debug.opengl.debug_context`` on (the context was made
+        a debug context, see ``gl/surface_format.py``), send the driver's own
+        messages to the application log. The context is current here.
+        """
+        if not _opengl_config.debug_context:
+            return
+
+        debug_logger = QtOpenGL.QOpenGLDebugLogger(self)
+
+        # False: this context is not a debug context, or the driver has
+        # neither KHR_debug nor ARB_debug_output.
+        if not debug_logger.initialize():
+            _logger.warning(
+                'OpenGL debug context requested but this context has no '
+                'debug output; no driver messages will be logged')
+
+            return
+
+        debug_logger.messageLogged.connect(self._on_gl_debug_message)
+        debug_logger.startLogging(
+            QtOpenGL.QOpenGLDebugLogger.LoggingMode.SynchronousLogging)
+
+        self._gl_debug_logger = debug_logger
+
+    @_check_types.do
+    def _on_gl_debug_message(self, message: QtOpenGL.QOpenGLDebugMessage) -> None:
+        """A message from the OpenGL driver (see :meth:`_attach_debug_logger`)."""
+        severity = message.severity()
+        severities = QtOpenGL.QOpenGLDebugMessage.Severity
+
+        text = f'[OpenGL {message.source().name}/{message.type().name}] {message.message()}'
+
+        if severity == severities.HighSeverity:
+            _logger.error(text)
+        elif severity == severities.MediumSeverity:
+            _logger.warning(text)
+        elif severity == severities.LowSeverity:
+            _logger.notice(text)
+        else:
+            _logger.debug(text)
 
     @_check_types.do
     def notify_virtual_size_changed(self, width: int, height: int) -> None:
@@ -1013,7 +1130,131 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         Called by Qt to render a frame. Context is already current here.
         """
 
+        paint_start = time.perf_counter()
+
         self._on_draw()
+        self._update_stats(paint_start)
+
+    @_check_types.do
+    def _update_stats(self, paint_start: float) -> None:
+        """
+        Frame rate and object count HUD. Called at the end of every
+        ``paintGL`` with the time that paint began.
+
+        The rate is the number of paints over a half second window, so it
+        is the time from one paint to the next, everything a frame costs,
+        not just the time spent in ``_on_draw``. ``perf_counter`` is used
+        rather than ``time.time``: on Windows ``time.time`` only ticks every
+        ~15 ms, which is a visible error on a 60 fps frame.
+        """
+
+        # Time spent inside paintGL itself (the CPU side of the draw). When
+        # this is far below the frame interval the time is going somewhere
+        # else -- Qt's event delivery, the window compositing the GL
+        # widgets, or vsync -- not into drawing.
+        paint_seconds = time.perf_counter() - paint_start
+
+        # Independent of the HUD: picks up the saved profile_events setting
+        # at startup (a no-op once it matches) -- the Debug Settings dialog
+        # applies a change itself.
+        _stats_overlay.event_profiler(_performance_config.profile_events)
+
+        overlay = self._stats_overlay
+
+        if not _performance_config.show_stats:
+            if overlay is not None and not overlay.isHidden():
+                overlay.hide()
+
+            # Nothing reads the loop figure while the HUD is off.
+            _stats_overlay.release_loop_monitor()
+
+            # Start over when it is turned back on.
+            self._stats_last_paint = 0.0
+            self._stats_fps_samples.clear()
+            return
+
+        if overlay is None:
+            wrapper = self.parentWidget()
+            if wrapper is None:
+                return
+
+            overlay = _stats_overlay.StatsOverlay(wrapper)
+            self._stats_overlay = overlay
+        elif overlay.isHidden():
+            overlay.show()
+            overlay.raise_()
+
+        monitor = _stats_overlay.loop_monitor()
+
+        gap = paint_start - self._stats_last_paint
+        self._stats_last_paint = paint_start
+
+        if gap > _STATS_IDLE_GAP:
+            self._stats_window_start = paint_start
+            self._stats_frames = 0
+            self._stats_paint_total = 0.0
+            self._stats_repaint_total = 0.0
+            self._stats_repaints = 0
+            self._stats_mouse_total = 0.0
+            self._stats_mouse_events = 0
+            self._stats_busy_wall = time.perf_counter()
+            self._stats_busy_start = monitor.busy_seconds()
+            self._stats_fps_samples.clear()
+            overlay.set_stats(None, len(self._objects_in_view))
+            return
+
+        # deque(maxlen=N): appending to the back drops the front once full.
+        if gap > 0.0:
+            self._stats_fps_samples.append(1.0 / gap)
+
+        self._stats_frames += 1
+        self._stats_paint_total += paint_seconds
+        elapsed = paint_start - self._stats_window_start
+
+        if elapsed >= _STATS_WINDOW:
+            if self._stats_repaints:
+                repaint_ms = (
+                    self._stats_repaint_total * 1000.0 / self._stats_repaints)
+            else:
+                repaint_ms = None
+
+            if self._stats_mouse_events:
+                mouse_rate = self._stats_mouse_events / elapsed
+                mouse_ms = (
+                    self._stats_mouse_total * 1000.0 /
+                    self._stats_mouse_events)
+            else:
+                mouse_rate = None
+                mouse_ms = None
+
+            samples = self._stats_fps_samples
+            if samples:
+                avg_fps = sum(samples) / len(samples)
+            else:
+                avg_fps = None
+
+            busy_now = monitor.busy_seconds()
+            wall_now = time.perf_counter()
+            wall = wall_now - self._stats_busy_wall
+            if wall > 0.0:
+                loop_busy = (busy_now - self._stats_busy_start) / wall
+            else:
+                loop_busy = None
+
+            overlay.set_stats(
+                self._stats_frames / elapsed, len(self._objects_in_view),
+                self._stats_paint_total * 1000.0 / self._stats_frames,
+                repaint_ms, mouse_rate, mouse_ms, loop_busy, avg_fps)
+
+            self._stats_busy_wall = wall_now
+            self._stats_busy_start = busy_now
+            self._stats_window_start = paint_start
+            self._stats_frames = 0
+            self._stats_paint_total = 0.0
+            self._stats_repaint_total = 0.0
+            self._stats_repaints = 0
+            self._stats_mouse_total = 0.0
+            self._stats_mouse_events = 0
 
     @_check_types.do
     def event_signal(self, event_type: str) -> QtCore.SignalInstance:

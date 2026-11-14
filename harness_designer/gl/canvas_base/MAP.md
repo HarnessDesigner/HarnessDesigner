@@ -30,6 +30,8 @@ rename; harmless, but a sign the rename was mechanical rather than a full re-rea
 
 #### canvas_base.py
 
+**GL surface settings (2026-11-14):** `__init__` calls `setTextureFormat(surface_format.texture_format())` first thing (`Config.graphics.texture_format`/`srgb`); `initializeGL` enables `GL_FRAMEBUFFER_SRGB` when `Config.graphics.srgb` is on and, with `Config.debug.opengl.debug_context` on, `_attach_debug_logger()` starts a `QOpenGLDebugLogger` whose driver messages go to the app log (high severity -> error, medium -> warning, low -> notice, notification -> debug); if the context is not a debug context it logs one warning and carries on. All three need a restart (the format is built once, see `gl/MAP.md` `surface_format.py`).
+
 (2026-11-08) `_draw_scene` starts a frame of `gl/wire_batch.py` (`BATCH.begin()`), flushes it after the main object loop (`_flush_wire_batch`: every wire that is not the selected object, in one draw) and again at the end (a selected wire), then `BATCH.end()`; every wire, cable and bundle of the view hands itself in (`objects/mixins/tube.py`).
 
 `CanvasBase(QOpenGLWidget)` — the shared canvas lifecycle/render pipeline all three editors
@@ -118,6 +120,14 @@ visibly "coasting" well after the user stopped turning the wheel.
 identical across what used to be the separate `canvas3d`/`new_canvas2d` packages (nothing in it is
 actually editor-specific) — exactly the kind of fully-duplicated file the base-class effort was
 built to absorb, and now lives here once instead of three times.
+
+#### stats_overlay.py
+
+`StatsOverlay(QLabel)` -- the frame rate / object count HUD in the upper right corner of a canvas, shown when `Config.debug.performance.show_stats` is on. Parented to the canvas WRAPPER (`CanvasWindowBase`), not the inner virtual-size GL widget, like `part_orientation.MeshStatsOverlay`. `CanvasBase.paintGL` stamps `time.perf_counter()` (not `time.time`, which only ticks every ~15 ms on Windows) and `CanvasBase._update_stats` feeds it twice a second: FPS is paints over a 0.5 s window (paint to paint, so it includes everything a frame costs); a gap over 1 s between paints means the scene was still, the window restarts and the rate shows `--` until it has data again; objects is `len(self._objects_in_view)`, the live objects that passed culling in the last `_draw_scene`. Turning the setting off hides the label on that canvas's next paint.
+
+The label is a diagnostic readout, one line each: `FPS` (0.5 s window), `Avg FPS` (mean of the per-frame rate over the last `_STATS_AVG_SAMPLES` = 20 paints, a `collections.deque(maxlen=20)` FIFO in `CanvasBase`, cleared on an idle gap), `Paint` (ms inside `paintGL`, CPU side only), `Repaint` (ms a synchronous `CanvasBase.repaint()` takes -- `CanvasBase` overrides `repaint` only to time it), `Mouse` (events/s reaching the canvas and ms each in `CanvasEventFilter`), `Loop busy` (share of the window the GUI thread's event loop was working, from `LoopMonitor`, which counts the time between the dispatcher's `awake` and `aboutToBlock`; `awake` can fire several times between blocks, so only the first one starts a busy stretch -- restarting on each read ~0% and even negative), and `Objects`. The module also holds `EventProfiler`, an application-wide event filter that logs the top event types (receiver class + event type) by time every 2 s; it is switched by `Config.debug.performance.profile_events` (Debug Settings checkbox, default off) because it runs Python for every event in the app. `event_profiler(enabled)` creates it or removes its filter and drops it, so while the setting is off nothing is timestamped or collected; it is called from `CanvasBase._update_stats` (before the HUD gate, so the saved setting applies at startup even with the HUD off) and from `DebugSettingsDialog.SetValues` (applies a change at once). When the HUD is off `_update_stats` also calls `release_loop_monitor()`, which disconnects the `LoopMonitor` slots from the event dispatcher.
+
+**How the 3D view got from ~35 to ~130 fps (2026-11-14):** `Paint` was ~1.2 ms the whole time, so the draw was never the cost. Two things were: (1) vsync -- `app.py` sets the swap interval on the default surface format from `Config.debug.performance.vsync` (default off = interval 0; see `harness_designer/MAP.md`), and (2) `MainFrame.Set3DCoordinates` rewriting the three status bar coordinate labels on every mouse move, each `QLabel.setText` posting a `LayoutRequest` to the main window and re-laying-out/repainting its tab bars, toolbars and panels every frame (see `ui/MAP.md` `mainframe.py`). Nothing in this folder needed changing for it.
 
 ## DESIGN NOTES
 
