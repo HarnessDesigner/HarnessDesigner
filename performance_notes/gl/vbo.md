@@ -8,6 +8,9 @@ Per-draw cost of the model path and the pooled arenas. Pooling (2026-11-08, `are
 - The three `glUniform` writes happen on every draw even when the same mesh draws repeatedly with the same transform. A last-written cache per program would skip identical writes (a few floats of memory per program). The `normal_mode` probe is now a class flag (`program.has_normal_mode`), as intended.
 - One VAO bind, one `glDrawArrays`, one unbind per call is the expected cost of an unbatched draw. The only larger gain is batching meshes that share a program, which the wire path already does (`wire_batch.py`).
 
+## `render_raw` (2026-11-14) -- the same draw from plain floats, over a range of the mesh
+`VBOHandlerBase.render_raw(program, position, rotation, scale, smooth, first, count)` skips the `Point` / `Angle` objects and the `float(str(v))` round trips above: the caller passes a tuple of 3 floats, a list of 4 and a tuple of 3. The rotation rings use it (38 draws a ring, about 18 us each including the caller's loop, against about 30 us through `render`, measured: `rotation_handlers/rotation_ring/_protractor_base.md`), and `first` / `count` let one mesh hold many parts that are drawn separately (the hovered tick). The items above still apply to `render`, which every other object uses.
+
 ## Line 320-327 (`_compute_local_obb`)
 Two `Point(*[float(str(item)) ...])` constructions per model, once per VBO creation. Not per frame.
 

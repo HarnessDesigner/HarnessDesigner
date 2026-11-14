@@ -126,7 +126,7 @@ arena (`_grow`) separate from `bounds/`'s `ArrayPool`. `geometry/cavity_layout.p
 file's `Text`/`CHARACTER_HEIGHT`/`TOP_DOWN_TILT` for cavity-number engraving layout — a deliberate,
 legitimate exception to the "`shapes/` is NOT build123d" rule (real font-glyph tessellation is
 exactly the kind of problem build123d is suited for), not a violation of it. Not listed in
-CODEBASE_MAP.md's `shapes/` file list (stale).
+CODEBASE_MAP.md's `shapes/` file list (stale). `Text.word_draw_data()` (2026-11-14) returns every word's VBO and its offset from the anchor (scaled by the font size, the `local_pos` `render` rotates by the angle), for a caller that places and draws the words itself with `VBOHandlerBase.render_raw` (a word is drawn at `anchor + rotate(angle, offset)` with scale `(size, size, 1)`): the rotation rings use it so a whole ring's 36 labels are placed by array math instead of 36 `Text.render` calls. The protractor labels no longer use `_tracking_angle` or the camera-tracking arena at all.
 
 #### torus.py
 

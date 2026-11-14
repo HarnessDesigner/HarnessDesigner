@@ -857,12 +857,10 @@ class _CameraTrackingArena:
         positions_f32 = positions.astype(np.float32)[:, None, :]
 
         # Only bounds-tracked rows (unlocked notes) need the 8-corner
-        # OBB/AABB einsum contraction below -- an angle-only row (every
-        # rotation-rings protractor tick label; routinely the large
-        # majority of a batch now that reposition_all() also triggers
-        # this update on every ring-drag frame, not just camera moves)
-        # only ever needs its own facing angle, from `matrices` below,
-        # which every row gets regardless. Filtering first, instead of
+        # OBB/AABB einsum contraction below -- an angle-only row (a
+        # tracked Text with no bounds of its own) only ever needs its own
+        # facing angle, from `matrices` below, which every row gets
+        # regardless. Filtering first, instead of
         # always contracting local_obb/local_aabb_corners for every row
         # and discarding the all-zero result for angle-only ones, turns
         # the actual matrix contraction from O(all rows) into O(bounds-
@@ -1288,6 +1286,31 @@ class Text:
     def _get(self, char: str) -> tuple[_Union["_vbo_handler.VBOHandlerBase", None], _point.Point]:
         vbo, dims, _center_y = self._entry(char)
         return vbo, dims
+
+    @_check_types.do
+    def word_draw_data(self) -> tuple[list[_vbo_handler.PooledVBOHandler], np.ndarray]:
+        """What a caller that draws this Text itself, with
+        :meth:`~harness_designer.gl.vbo.VBOHandlerBase.render_raw`, needs:
+        every word's VBO and, in the same order, each word's offset from the
+        Text's anchor in the Text's own (unrotated) frame, already scaled by
+        the font size (``local * size``, z unscaled, exactly the
+        ``local_pos`` :meth:`render` rotates by the angle). A word is drawn
+        at ``anchor + rotate(angle, offset)`` with the scale
+        ``(size, size, 1)``, which is what :meth:`render` does for it, minus
+        the ``Point`` / ``Angle`` objects and the cache that go with it. The
+        protractor labels use it so a whole ring's labels are placed by
+        array math (``rotation_handlers/rotation_ring/_protractor_base.py``).
+
+        :returns: The word VBOs and a ``(words, 3)`` float64 array of offsets.
+        :rtype: tuple[list[:class:`~harness_designer.gl.vbo.PooledVBOHandler`], :class:`numpy.ndarray`]
+        """
+        if not self._merged:
+            self.build_vbos()
+
+        offsets = np.array([[float(local.x) * self._size, float(local.y) * self._size, float(local.z)]
+                            for local in self._locals], dtype=np.float64).reshape(-1, 3)
+
+        return list(self._vbos), offsets
 
     @_check_types.do
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],

@@ -106,18 +106,18 @@ class RingsPegboard(_base_pegboard.BasePegboard):
                     axis, self._ring_center, obj_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
                     self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
-                    mainframe.editor_pegboard.context, mainframe, _base_pegboard.BasePegboard,
+                    mainframe.editor_pegboard.context,
                     # No camera -- this view's camera is permanently
                     # locked top-down (see canvas_pegboard.camera's own
                     # docstring), which is exactly the gimbal-lock
                     # orientation ProtractorRingBase's billboard math
                     # degenerates at, producing wrong label facings.
-                    # camera=None makes every tick label fall through to
-                    # its raw, non-tracking mesh_rotation instead (see
+                    # camera=None makes every tick label lie in the
+                    # ring plane along its tick instead (see
                     # ProtractorRingBase.start_camera_tracking/
-                    # _update_label_angles's own "no camera at all"
-                    # fallback, already built for exactly this case) --
-                    # confirmed 2026-09-07 (Kevin) as the fix.
+                    # _update_labels's own "no camera at all" case,
+                    # built for exactly this) -- confirmed 2026-09-07
+                    # (Kevin) as the fix.
                     None, local_tilt=_text.TOP_DOWN_TILT, has_torus=False)
                 for axis in self._axes
             }

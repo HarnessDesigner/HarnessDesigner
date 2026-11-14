@@ -123,7 +123,7 @@ class Rings3D(_base_3d.Base3D):
                     axis, self._center, self._ring_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
                     self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
-                    mainframe.editor3d.context, mainframe, _base_3d.Base3D,
+                    mainframe.editor3d.context,
                     mainframe.editor3d.camera, has_torus=self._HAS_TORUS)
                 for axis in self._axes
             }

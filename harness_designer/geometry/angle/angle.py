@@ -889,8 +889,9 @@ class Angle(_app_mixins.CallbackMixin, _slot_pool.PoolMember, metaclass=AngleMet
         discarding the true residual angle entirely. For a smooth sweep
         of directions passing near a pole -- exactly what
         rotation_handlers/rotation_ring's per-tick growth directions
-        are (see ProtractorRingBase.reposition_all, one call per tick
-        around a full circle) -- that produced a frozen band of ticks
+        are (one per tick around a full circle; the rings now place their
+        labels with the array form of this formula,
+        ``geometry.batch.quaternions_from_directions``) -- that produced a frozen band of ticks
         all snapped to the same flat orientation, then a visible jump
         where the general formula picked back up just outside that
         band: confirmed directly by comparing both formulas' rotated-

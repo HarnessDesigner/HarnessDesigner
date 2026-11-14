@@ -131,7 +131,7 @@ context's (deleting another context's id would delete an unrelated VAO of this o
 `acquire()`/`release()` — a different, unrelated pair from `GLContext`'s, deliberately kept as a
 manual acquire/release) so every object sharing a model reuses the same uploaded GPU data;
 `NonPooledVBOHandler` extends `VBOHandlerBase.render()` via `super()` for private, non-shared
-single-buffer meshes (e.g. decals, gizmo geometry).
+single-buffer meshes (e.g. decals, gizmo geometry). `VBOHandlerBase.render_raw(program, position, rotation, scale, smooth, first=0, count=None)` (2026-11-14) is `render` for a caller that already holds plain floats and wants a range of the mesh: no `Point` / `Angle`, no `float(str(v))` per component, and it can draw only vertices `first` to `first + count` (the rotation rings draw their hovered tick on its own out of the one mesh that holds all 360). `position` and `scale` must be tuples of three floats and `rotation` a list of four (`w, x, y, z`): those are the program setters' hints, which the compiled build enforces exactly. `NonPooledVBOHandler.render_raw` rebuilds a dirty VAO first, as its `render` does.
 
 #### floor_outline.py
 

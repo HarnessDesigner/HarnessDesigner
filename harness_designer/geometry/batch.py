@@ -21,7 +21,9 @@ Conventions match the single-object classes:
   degrees, each kept within +-180 of the previous value).
 
 Where they are used and why: the module docstring of ``database/project_db/pjt_housing.py``
-("POOLED 3D STORAGE", section 9).
+("POOLED 3D STORAGE", section 9), and the rotation gizmo's protractor rings, which place
+their degree labels with :func:`quaternions_from_matrices`, :func:`quaternions_from_directions`,
+:func:`rotate_vectors` and :func:`compose` (``rotation_handlers/rotation_ring/_protractor_base.py``).
 """
 
 import numpy as np
@@ -134,3 +136,103 @@ def rotate_points(points: np.ndarray, center: np.ndarray, delta: np.ndarray) -> 
     cross = np.cross(vector, relative)
 
     return relative + 2.0 * float(delta[0]) * cross + 2.0 * np.cross(vector, cross) + center
+
+
+@_check_types.do
+def rotate_vectors(q: np.ndarray, vectors: np.ndarray) -> np.ndarray:
+    """
+    Rotate each row of *vectors* by the matching unit quaternion of *q*: the
+    array form of ``Point @ Angle`` (``R @ v`` with the column-vector matrix).
+
+    :param q: Unit quaternions ``(w, x, y, z)``, ``(n, 4)`` (or ``(4,)`` for
+        one rotation applied to every row).
+    :type q: :class:`numpy.ndarray`
+    :param vectors: The vectors, ``(n, 3)``.
+    :type vectors: :class:`numpy.ndarray`
+    :returns: The rotated vectors, float64.
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    u = q[..., 1:].astype(np.float64)
+    w = q[..., 0:1].astype(np.float64)
+    v = vectors.astype(np.float64)
+
+    cross = np.cross(u, v)
+
+    return v + 2.0 * w * cross + 2.0 * np.cross(u, cross)
+
+
+@_check_types.do
+def quaternions_from_directions(directions: np.ndarray) -> np.ndarray:
+    """
+    The shortest-arc rotation that takes +Z to each unit vector of
+    *directions*: the array form of ``Angle.from_direction`` (``w = 1 + dot``,
+    ``xyz = cross(z, d)``, normalised; exactly antiparallel is the half turn
+    about X, the same fixed choice ``from_direction`` makes).
+
+    :param directions: Unit vectors, ``(n, 3)``.
+    :type directions: :class:`numpy.ndarray`
+    :returns: Unit quaternions ``(w, x, y, z)``, ``(n, 4)``, float64.
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    d = directions.astype(np.float64)
+    count = d.shape[0]
+
+    q = np.empty((count, 4), dtype=np.float64)
+
+    q[:, 0] = 1.0 + d[:, 2]
+    q[:, 1] = -d[:, 1]
+    q[:, 2] = d[:, 0]
+    q[:, 3] = 0.0
+
+    antiparallel = d[:, 2] < -1.0 + 0.0001
+    q[antiparallel] = (0.0, 1.0, 0.0, 0.0)
+
+    return q / np.linalg.norm(q, axis=1, keepdims=True)
+
+
+@_check_types.do
+def quaternions_from_matrices(matrices: np.ndarray) -> np.ndarray:
+    """
+    Unit quaternions of ``(n, 3, 3)`` column-vector rotation matrices (the
+    inverse of :func:`to_matrices`), by the largest-diagonal-term method so
+    no case divides by something near zero. The sign of a quaternion is
+    arbitrary (``q`` and ``-q`` are the same rotation); ``w`` is not forced
+    positive here.
+
+    :param matrices: Rotation matrices, ``(n, 3, 3)``.
+    :type matrices: :class:`numpy.ndarray`
+    :returns: Unit quaternions ``(w, x, y, z)``, ``(n, 4)``, float64.
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    m = matrices.astype(np.float64)
+
+    m00, m01, m02 = m[:, 0, 0], m[:, 0, 1], m[:, 0, 2]
+    m10, m11, m12 = m[:, 1, 0], m[:, 1, 1], m[:, 1, 2]
+    m20, m21, m22 = m[:, 2, 0], m[:, 2, 1], m[:, 2, 2]
+
+    trace = m00 + m11 + m22
+
+    tiny = 1e-12
+
+    s_w = np.sqrt(np.maximum(1.0 + trace, tiny)) * 2.0
+    s_x = np.sqrt(np.maximum(1.0 + m00 - m11 - m22, tiny)) * 2.0
+    s_y = np.sqrt(np.maximum(1.0 + m11 - m00 - m22, tiny)) * 2.0
+    s_z = np.sqrt(np.maximum(1.0 + m22 - m00 - m11, tiny)) * 2.0
+
+    by_w = np.stack([s_w / 4.0, (m21 - m12) / s_w, (m02 - m20) / s_w, (m10 - m01) / s_w], axis=1)
+    by_x = np.stack([(m21 - m12) / s_x, s_x / 4.0, (m01 + m10) / s_x, (m02 + m20) / s_x], axis=1)
+    by_y = np.stack([(m02 - m20) / s_y, (m01 + m10) / s_y, s_y / 4.0, (m12 + m21) / s_y], axis=1)
+    by_z = np.stack([(m10 - m01) / s_z, (m02 + m20) / s_z, (m12 + m21) / s_z, s_z / 4.0], axis=1)
+
+    use_w = trace > 0.0
+    use_x = ~use_w & (m00 >= m11) & (m00 >= m22)
+    use_y = ~use_w & ~use_x & (m11 >= m22)
+
+    q = np.where(use_w[:, None], by_w,
+                 np.where(use_x[:, None], by_x,
+                          np.where(use_y[:, None], by_y, by_z)))
+
+    return q / np.linalg.norm(q, axis=1, keepdims=True)

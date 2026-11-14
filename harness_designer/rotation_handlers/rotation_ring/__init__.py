@@ -14,6 +14,20 @@ rings get dimmed too, via :meth:`RotationRing.set_dimmed` -- called by
 whatever owns all three instances (``rotation_handlers/rotation_rings.py``)
 since dimming a sibling is inherently a cross-axis decision this class
 can't make on its own.
+
+HOW THE GIZMO STAYS FAST
+------------------------
+A protractor ring is a rigid object, so it is built ONCE in its own frame and
+only ever carried to the world by a centre and a rotation: the washer is one
+VBO, all 360 ticks are ONE VBO (one draw), the 360 pick boxes of the outer ring
+are one NumPy array moved with one matmul, and the 36 degree labels are placed
+by array math (a camera-facing billboard in 3D, lying along their tick in the
+2D views). Turning a ring costs about 2 ms and drawing one 0.7 ms (it was 91 ms
+and 12 ms, with 397 draws per ring and a ``Point`` and ``Angle`` per tick). The
+full description -- the tick mesh, the label placement, the pick arrays, what
+each event costs, the invariants and the measurements -- is the module
+docstring of :mod:`._protractor_base`; read it before changing anything that
+draws, places or picks a tick or a label.
 """
 
 from typing import TYPE_CHECKING, Union as _Union
@@ -27,13 +41,11 @@ from ...gl import materials as _materials
 from .. import rotation_mesh as _rotation_mesh
 from ... import color as _color
 from ... import check_types as _check_types
-from ...objects.objectsvar import base_var as _base_var
 from ...gl import shaders as _shaders
 from ...gl.canvas_base import camera_base as _camera_base
 
 
 if TYPE_CHECKING:
-    from ... import ui as _ui
     from ...gl import context as _gl_context
 
 
@@ -94,15 +106,6 @@ class RotationRing:
 
     :param label_size: Font size for tick numbers.
 
-    :param mainframe: Passed straight through to every outer-ring tick's
-                      :class:`.tick_pick_object.TickPickObject` -- see that
-                      module's docstring for why it's never actually registered
-                      with it.
-
-    :param base_cls: Whichever of ``Base3D``/``BaseSchematic``/``BasePegboard``
-                     matches the view this ring belongs to -- see
-                     :class:`.outer_ring.OuterRing`'s own docstring.
-
     :param has_torus: Whether this axis gets its own always-on torus
                       ("first ring") at all. ``True`` for every 3D axis,
                       where clicking one torus among several is how the
@@ -152,7 +155,6 @@ class RotationRing:
                  obj_angle: _angle.Angle, radius: float, object_radius: float,
                  tube_diameter_scale: float, color: _color.Color,
                  outer_color: _color.Color, label_size: float, context: "_gl_context.GLContext",
-                 mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar],
                  camera: _Union["_camera_base.CameraBase", None] = None, local_tilt: _angle.Angle | None = None,
                  has_torus: bool = True):
 
@@ -165,8 +167,6 @@ class RotationRing:
         self._context = context
         self._camera = camera
         self._label_size = label_size
-        self._mainframe = mainframe
-        self._base_cls = base_cls
         self._local_tilt = local_tilt
         self._has_torus = has_torus
 
@@ -243,8 +243,8 @@ class RotationRing:
         self.outer = OuterRing(self.axis, self.center, self._outer_id,
                                self._outer_od, self._protractor_depth,
                                self._outer_material, self._label_size,
-                               self.obj_angle, self._context, self._mainframe,
-                               self._base_cls, self._camera, self._local_tilt)
+                               self.obj_angle, self._context, self._camera,
+                               self._local_tilt)
 
     # Gap between the torus ring and the OUTER protractor, as a multiple
     # of the torus *tube's* own diameter (its cross-section -- radius *

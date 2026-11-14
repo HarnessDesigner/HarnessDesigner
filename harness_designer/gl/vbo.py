@@ -538,6 +538,41 @@ class VBOHandlerBase:
         GL.glBindVertexArray(0)
 
     @_check_types.do
+    def render_raw(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
+                   position: tuple[float, float, float], rotation: list[float], scale: tuple[float, float, float],
+                   smooth: bool | None, first: int = 0, count: int | None = None) -> None:
+        """:meth:`render` for a caller that already holds plain floats and
+        wants a range of the mesh: no ``Point`` / ``Angle`` objects, no
+        ``float(str(v))`` round trip per component (about half of what a
+        :meth:`render` call spends in Python), and optionally only vertices
+        ``first`` to ``first + count`` of the mesh (a protractor draws its
+        one hovered tick on its own out of the single mesh that holds all
+        360).
+
+        The exact types matter once this is compiled: *position* and
+        *scale* are tuples of three floats, *rotation* a list of four
+        (``w, x, y, z``), which is what the program's setters are hinted
+        with. *smooth* is as in :meth:`render`.
+        """
+        ctx_id = id(self.ctx)
+        if ctx_id not in self._vaos:
+            self.acquire()
+
+        if smooth is not None and program.has_normal_mode:
+            program.normal_mode = int(not smooth)
+
+        program.position = position
+        program.rotation = rotation
+        program.scale = scale
+
+        if count is None:
+            count = self._vert_count - first
+
+        GL.glBindVertexArray(self._vaos[ctx_id])
+        GL.glDrawArrays(GL.GL_TRIANGLES, first, count)
+        GL.glBindVertexArray(0)
+
+    @_check_types.do
     def acquire(self) -> None:
         ctx = self.ctx
 
@@ -698,6 +733,14 @@ class NonPooledVBOHandler(VBOHandlerBase):
         self._rebuild()
 
         super().render(program, position, angle, scale, smooth)
+
+    @_check_types.do
+    def render_raw(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
+                   position: tuple[float, float, float], rotation: list[float], scale: tuple[float, float, float],
+                   smooth: bool | None, first: int = 0, count: int | None = None) -> None:
+        self._rebuild()
+
+        super().render_raw(program, position, rotation, scale, smooth, first, count)
 
 
 class PooledVBOHandler(VBOHandlerBase, _arena_buffer.ArenaPoolBase, metaclass=VBOSingleton):

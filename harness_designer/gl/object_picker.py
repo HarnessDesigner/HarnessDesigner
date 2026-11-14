@@ -481,8 +481,9 @@ def find_object_in_list(mouse_pos: "_point.Point", scene_objects: Iterable["_obj
 
     Original list-based picker, kept for callers that pick against a
     private candidate list that isn't registered with the canvas's bounds
-    manager (the rotation rings' tick facades -- see
-    ``rotation_handlers.rotation_ring.outer_ring.OuterRing.pick_tick``);
+    manager (the rotation rings' tick facades used it until they moved to
+    their own array test, ``rotation_handlers.rotation_ring.outer_ring.
+    OuterRing.pick_tick_index``);
     everything registered with a canvas goes through :func:`find_object`.
 
     Shared between the 3D editor (``get_view=lambda obj: obj.obj3d``) and
