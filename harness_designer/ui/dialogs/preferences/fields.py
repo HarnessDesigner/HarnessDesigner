@@ -212,15 +212,21 @@ class IntField(Field):
 
     @_check_types.do
     def __init__(self, path: str, name: str, label: str, low: int, high: int,
-                 restart: bool = False):
+                 restart: bool = False, special: str = ''):
         super().__init__(path, name, label, restart)
         self._low = low
         self._high = high
+        self._special = special
 
     @_check_types.do
     def _create(self, parent: QtWidgets.QWidget, stored: Any) -> QtWidgets.QWidget:
         self._widget = QtWidgets.QSpinBox(parent)
         self._widget.setRange(self._low, self._high)
+
+        # Text shown instead of the lowest value (0 = 'System default').
+        if self._special:
+            self._widget.setSpecialValueText(self._special)
+
         self._widget.setValue(int(stored))
 
         return self._widget
@@ -235,12 +241,13 @@ class FloatField(Field):
     @_check_types.do
     def __init__(self, path: str, name: str, label: str, low: float,
                  high: float, step: float = 0.1, decimals: int = 3,
-                 restart: bool = False):
+                 restart: bool = False, special: str = ''):
         super().__init__(path, name, label, restart)
         self._low = low
         self._high = high
         self._step = step
         self._decimals = decimals
+        self._special = special
 
     @_check_types.do
     def _create(self, parent: QtWidgets.QWidget, stored: Any) -> QtWidgets.QWidget:
@@ -248,6 +255,11 @@ class FloatField(Field):
         self._widget.setDecimals(self._decimals)
         self._widget.setRange(self._low, self._high)
         self._widget.setSingleStep(self._step)
+
+        # Text shown instead of the lowest value (0 = 'Automatic').
+        if self._special:
+            self._widget.setSpecialValueText(self._special)
+
         self._widget.setValue(float(stored))
 
         return self._widget
@@ -410,14 +422,15 @@ def boolean(path: str, name: str, label: str, restart: bool = False) -> BoolFiel
 
 @_check_types.do
 def integer(path: str, name: str, label: str, low: int, high: int,
-            restart: bool = False) -> IntField:
-    return IntField(path, name, label, low, high, restart)
+            restart: bool = False, special: str = '') -> IntField:
+    return IntField(path, name, label, low, high, restart, special)
 
 
 @_check_types.do
 def real(path: str, name: str, label: str, low: float, high: float,
-         step: float = 0.1, decimals: int = 3, restart: bool = False) -> FloatField:
-    return FloatField(path, name, label, low, high, step, decimals, restart)
+         step: float = 0.1, decimals: int = 3, restart: bool = False,
+         special: str = '') -> FloatField:
+    return FloatField(path, name, label, low, high, step, decimals, restart, special)
 
 
 @_check_types.do

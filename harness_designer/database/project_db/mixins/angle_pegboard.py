@@ -57,7 +57,14 @@ class AnglePegboardMixin(BaseMixin):
             if self._angle_pegboard_db_id is None:
                 self._angle_pegboard_db_id = uuid.uuid4().bytes
 
-            angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle_pegboard_db_id)
+            # A housing, a cavity, a terminal or a seal gets an Angle over its pool rows; any other
+            # class gets a normal Angle (module docstring of pjt_housing.py, section 15).
+            angle = self._table.db.slot_pools_pegboard.build_angle(
+                self._table.__table_name__, self._db_id, self._angle_pegboard_db_id)
+
+            if angle is None:
+                angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle_pegboard_db_id)
+
             angle.bind(self._update_angle_pegboard)
 
             self._stored_angle_pegboard = angle

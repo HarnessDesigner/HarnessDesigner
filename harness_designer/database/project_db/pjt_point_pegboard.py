@@ -301,8 +301,14 @@ class PJTPointPegboard(PJTEntryBase):
         :rtype: :class:`_point.Point`
         """
         if self._stored_point_pegboard is None:
-            self._stored_point_pegboard = _point.Point(
-                self.x, self.y, self.z, db_id=self.db_id + b'pg')
+            # A row bound to a housing slot gets a Point over its pool row; any other row gets a
+            # normal Point (module docstring of pjt_housing.py, section 15).
+            point = self._table.db.slot_pools_pegboard.build_point(self._db_id, self.db_id + b'pg')
+
+            if point is None:
+                point = _point.Point(self.x, self.y, self.z, db_id=self.db_id + b'pg')
+
+            self._stored_point_pegboard = point
             if not self._is_clone:
                 self._stored_point_pegboard.bind(self._update_point)
 
@@ -526,5 +532,8 @@ class PJTPointPegboard(PJTEntryBase):
         """
         if self.is_referenced():
             return
+
+        # Free the slot this row was bound to (module docstring of pjt_housing.py, section 15).
+        self._table.db.slot_pools_pegboard.point_deleted(self._db_id)
 
         super().delete()

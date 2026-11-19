@@ -10,6 +10,7 @@ from ..widgets import checkbox_ctrl as _checkbox_ctrl
 from ..widgets import float_ctrl as _float_ctrl
 from ... import color as _color
 from ... import config as _config
+from ... import qt_settings as _qt_settings
 from ...gl.canvas_base import stats_overlay as _stats_overlay
 
 # PySide6 colour picker — uses QColorDialog indirectly via a thin wrapper.
@@ -111,7 +112,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         """
         self.mainframe = parent
         _dialog_base.BaseDialog.__init__(
-            self, parent, 'Debug Settings', size=(-1, 675))
+            self, parent, 'Debug Settings', size=(-1, 760))
 
         panel = self.panel
         vsizer = QtWidgets.QVBoxLayout(panel)
@@ -284,6 +285,21 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
 
         vsizer.addWidget(functions_box)
 
+        # Qt Diagnostics group
+        qt_box = QtWidgets.QGroupBox("Qt Diagnostics", panel)
+        qt_lay = QtWidgets.QHBoxLayout(qt_box)
+
+        qt_lay.addWidget(QtWidgets.QLabel('Logging rules:', qt_box))
+
+        self.qt_logging_rules = QtWidgets.QLineEdit(qt_box)
+        self.qt_logging_rules.setText(Config.debug.qt.logging_rules)
+        self.qt_logging_rules.setPlaceholderText(
+            'for example qt.qpa.fonts=true;qt.qpa.mime=true')
+
+        qt_lay.addWidget(self.qt_logging_rules, 1)
+
+        vsizer.addWidget(qt_box)
+
     @_check_types.do
     def SetValues(self) -> None:
         """Execute the set values operation.
@@ -294,7 +310,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         :rtype: UNKNOWN
         """
         @_check_types.do
-        def _get_color(picker: _ColourPickerCtrl) -> tuple[float, float, float]:
+        def _get_color(picker: _ColourPickerCtrl) -> list[float, float, float]:
             """Return the color.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -306,7 +322,9 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
             """
             c = picker.GetColour()
             color = _color.Color(c.GetRed(), c.GetGreen(), c.GetBlue(), 255)
-            return color.rgba_scalar[:-1]
+            # A list, like the defaults in config.py: the renderer builds the
+            # RGBA colour with ``list + [1.0]``, which fails for a tuple.
+            return list(color.rgba_scalar[:-1])
 
         Config.debug.rendering3d.draw_faces = self.faces.GetValue()
         Config.debug.rendering3d.draw_edges = self.edges.GetValue()
@@ -337,6 +355,9 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         # Start/stop it now rather than at the next canvas paint, so turning
         # it off really stops it collecting.
         _stats_overlay.event_profiler(Config.debug.performance.profile_events)
+
+        Config.debug.qt.logging_rules = self.qt_logging_rules.text()
+        _qt_settings.apply_logging_rules()
 
         Config.debug.functions.log_args = self.log_args.GetValue()
         Config.debug.functions.log_duration = self.log_duration.GetValue()

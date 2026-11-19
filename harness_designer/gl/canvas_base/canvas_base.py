@@ -419,6 +419,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         # (Config.graphics.texture_format); has to be set before the widget
         # is first shown/initialised, which is why it is the first thing here.
         self.setTextureFormat(_surface_format.texture_format())
+        self.setUpdateBehavior(_surface_format.update_behavior())
 
         self._gl_debug_logger: QtOpenGL.QOpenGLDebugLogger | None = None
 

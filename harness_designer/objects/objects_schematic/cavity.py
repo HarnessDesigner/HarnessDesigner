@@ -55,7 +55,7 @@ _GLYPHS: dict[tuple[str, float], _text.Text] = {}
 
 
 @_check_types.do
-def _glyph(editor: "object", character: str, size: float) -> _text.Text:
+def _glyph(editor: object, character: str, size: float) -> _text.Text:
     """The (shared) centre-anchored flat glyph *character* at font size *size*."""
     key = (character, round(size, 4))
     glyph = _GLYPHS.get(key)

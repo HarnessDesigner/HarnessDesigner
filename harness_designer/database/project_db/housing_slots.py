@@ -112,6 +112,57 @@ _IDENTITY_QUAT = np.array([1.0, 0.0, 0.0, 0.0])
 
 
 @_check_types.do
+def _is_row_of(array: np.ndarray, view: np.ndarray) -> bool:
+    """
+    Whether *array* is the same pool row as *view*: the same memory, not the same
+    Python object. ``SlotPool.row`` indexes the pool's array, which hands out a NEW
+    view object on every call, so ``array is view`` is False for a ``Point`` that was
+    legitimately built over this very row earlier; only a ``Point`` over a private
+    array (or over another row) has a different address.
+
+    :param array: A ``Point``'s data array.
+    :type array: :class:`numpy.ndarray`
+    :param view: A row from ``SlotPool.row``.
+    :type view: :class:`numpy.ndarray`
+    :returns: True if both start at the same address.
+    :rtype: bool
+    """
+
+    return array.__array_interface__['data'][0] == view.__array_interface__['data'][0]
+
+
+@_check_types.do
+def _seat_point(point: _point.Point, view: np.ndarray, block: _slot_pool.SlotBlock, offset: int,
+                points: _slot_pool.SlotPool) -> None:
+    """
+    Make a ``Point`` that already exists live in a pool row: its own array is the live
+    value, so it is copied into the row and the row becomes its storage
+    (``Point._join_pool``), then the pool remembers it. A point that is already over this
+    very row is only registered again; a point that delegates to a root point (an attached
+    preview) has no storage of its own and is left alone.
+
+    :param point: The existing point.
+    :type point: :class:`~harness_designer.geometry.point.Point`
+    :param view: The slot's row.
+    :type view: :class:`numpy.ndarray`
+    :param block: The slot's block.
+    :type block: :class:`~harness_designer.geometry.slot_pool.SlotBlock`
+    :param offset: The slot's number inside the block.
+    :type offset: int
+    :param points: The point pool.
+    :type points: :class:`~harness_designer.geometry.slot_pool.SlotPool`
+    """
+
+    if point._root is not None:  # NOQA
+        return
+
+    if not _is_row_of(point._data, view):  # NOQA
+        point._join_pool(view)  # NOQA
+
+    points.register(block, offset, point)
+
+
+@_check_types.do
 def _face_corners(local_obb: np.ndarray, face_idx: int) -> np.ndarray:
     """
     The four corner indices of an OBB face, the same ones
@@ -187,6 +238,10 @@ class HousingSlots3D:
         self._point_rows: list[bytes | None] = [None] * FIXED_COUNT
         self._angle_owners: list[tuple[str, bytes] | None] = [None] * FIXED_COUNT
 
+        # slot -> the row it was asked to hold but that already lives in ANOTHER slot (a point id
+        # that two parts share is allocated once; see ``bind_point``). Such a slot stays empty.
+        self._alias_rows: dict[int, bytes] = {}
+
         self._plan: _Plan | None = None
         self._plan_serial = 0
         self._released = False
@@ -232,9 +287,14 @@ class HousingSlots3D:
         if self._released:
             return
 
-        for row_id in self._point_rows:
-            if row_id is not None:
-                self._pools.forget_point(row_id)
+        for slot, row_id in self._alias_rows.items():
+            self._pools.drop_alias(row_id, self, slot)
+
+        self._alias_rows = {}
+        owned = [row_id for row_id in self._point_rows if row_id is not None]
+
+        for row_id in owned:
+            self._pools.forget_point(row_id)
 
         self._pools.points.release(self._fixed_points)
         self._pools.angles.release(self._fixed_angles)
@@ -244,6 +304,10 @@ class HousingSlots3D:
             self._pools.angles.release(self._cavity_angles)
 
         self._released = True
+
+        # a slot elsewhere that wanted one of these rows takes it over
+        for row_id in owned:
+            self._pools.promote_alias(row_id)
 
     @_check_types.do
     def _point_location(self, slot: int) -> tuple[_slot_pool.SlotBlock, int]:
@@ -286,8 +350,19 @@ class HousingSlots3D:
     def bind_point(self, slot: int, row_id: bytes | None) -> None:
         """
         Bind a ``pjt_points3d`` row to a point slot (or clear the slot with
-        ``None``). The slot is seeded from the row's cached coordinates; the
-        object built over the slot's previous row, if any, leaves the pool.
+        ``None``). The object built over the slot's previous row, if any, leaves the pool.
+
+        A point row is allocated ONCE. Two parts that share a point id (a housing's accessory
+        column and the accessory's own ``point3d_id``, a cavity's ``terminal_point3d_id`` and its
+        terminal's ``point3d_id``, a terminal's ``seal_point3d_id`` and its seal's ``point3d_id``)
+        ask for the same row; the first to ask owns the slot and the others are remembered as
+        aliases and left empty (a move or a rotate of the whole block needs the row once), until
+        the owner lets go of the row, when the first alias takes it over.
+
+        A ``Point`` that already exists for the row (a wire dropped on a cavity or a terminal had
+        one before the row had a slot) is NOT rebuilt: its own array is copied into the slot and
+        the slot becomes its array (:func:`_seat_point`). Only a row with no ``Point`` yet is
+        seeded from the cached coordinates.
 
         :param slot: Global point slot number.
         :type slot: int
@@ -295,9 +370,24 @@ class HousingSlots3D:
         :type row_id: bytes | None
         """
 
+        alias = self._alias_rows.pop(slot, None)
+        if alias is not None:
+            self._pools.drop_alias(alias, self, slot)
+
         old = self._point_rows[slot]
         if old == row_id:
             return
+
+        if row_id is not None:
+            owner = self._pools.point_slot(row_id)
+
+            if owner is not None and (owner[0] is not self or owner[1] != slot):
+                self._pools.add_alias(row_id, self, slot)
+                self._alias_rows[slot] = row_id
+                row_id = None
+
+                if old is None:
+                    return
 
         block, offset = self._point_location(slot)
         view = self._pools.points.row(block, 'data', offset)
@@ -310,20 +400,22 @@ class HousingSlots3D:
 
         if row_id is None:
             view[:] = 0.0
+            self._pools.promote_alias(old)
             return
 
-        x, y, z = self._db.pjt_points3d_table.select('x', 'y', 'z', id=row_id)[0]
-        view[:] = (x, y, z)
         self._pools.remember_point(row_id, self, slot, block, offset)
 
         existing = _point.PointMeta._instances.get(row_id + b'3d')  # NOQA
-        if existing is not None:
-            live = existing()
+        live = None if existing is None else existing()
 
-            if live is not None and live._data is not view:  # NOQA
-                raise RuntimeError(
-                    'a Point for this row was built before its housing bound the slot, so it '
-                    'cannot be given its pool view (its array is aliased elsewhere)')
+        if live is not None and live._root is None:  # NOQA
+            _seat_point(live, view, block, offset, self._pools.points)
+        else:
+            x, y, z = self._db.pjt_points3d_table.select('x', 'y', 'z', id=row_id)[0]
+            view[:] = (x, y, z)
+
+        if old is not None:
+            self._pools.promote_alias(old)
 
     @_check_types.do
     def bind_angle(self, slot: int, table_name: str | None, row_id: bytes | None) -> None:
@@ -485,6 +577,45 @@ class HousingSlots3D:
         """
 
         self.bind_point(self.cavity_slot(cavity_id, POINTS_PER_CAVITY, POINT_SEAL), point_id)
+
+    @_check_types.do
+    def terminal_left(self, terminal_id: bytes, cavity_id: bytes) -> None:
+        """
+        A terminal is no longer in this cavity (it moved to another cavity or was taken out of the
+        housing): the slots that hold its points let go of them, so a move of this housing no longer
+        carries them. A slot that holds something else (another terminal took the place) is left alone.
+
+        :param terminal_id: The terminal's row id.
+        :type terminal_id: bytes
+        :param cavity_id: The cavity it left.
+        :type cavity_id: bytes
+        """
+
+        names = [name for name, _ in _TERMINAL_POINT_COLUMNS]
+        row = self._db.pjt_terminals_table.select(*names, id=terminal_id)[0]
+
+        for (name, role), row_id in zip(_TERMINAL_POINT_COLUMNS, row):
+            slot = self.cavity_slot(cavity_id, POINTS_PER_CAVITY, role)
+
+            if row_id is not None and self._point_rows[slot] == row_id:
+                self.bind_point(slot, None)
+
+    @_check_types.do
+    def terminal_arrived(self, terminal_id: bytes, cavity_id: bytes) -> None:
+        """
+        A terminal is now in this cavity (a free terminal was seated, or it was moved here): its point
+        rows are bound to the cavity's slots, so a move of this housing carries them.
+
+        :param terminal_id: The terminal's row id.
+        :type terminal_id: bytes
+        :param cavity_id: The cavity it is in now.
+        :type cavity_id: bytes
+        """
+
+        names = [name for name, _ in _TERMINAL_POINT_COLUMNS]
+        row = self._db.pjt_terminals_table.select(*names, id=terminal_id)[0]
+
+        self.column_changed('pjt_terminals', terminal_id, dict(zip(names, row)))
 
     # ----------------------------------------------------------------- the plan
 
@@ -894,6 +1025,9 @@ class SlotPools3D:
         # point row id -> (the housing's slots, global slot number, block, offset)
         self._point_slots: dict[bytes, tuple[HousingSlots3D, int, _slot_pool.SlotBlock, int]] = {}
 
+        # point row id -> the (housing slots, slot) pairs that asked for a row that lives in another slot
+        self._aliases: dict[bytes, list[tuple[HousingSlots3D, int]]] = {}
+
     @_check_types.do
     def reset(self) -> None:
         """Forget everything: a different project is being loaded."""
@@ -902,6 +1036,7 @@ class SlotPools3D:
         self.angles.reset()
         self._housings = {}
         self._point_slots = {}
+        self._aliases = {}
 
     @_check_types.do
     def allocate_all(self) -> None:
@@ -983,9 +1118,38 @@ class SlotPools3D:
             housing_id = db.pjt_cavities_table.select('housing_id', id=row_id)[0][0]
         else:
             cavity_id = db.pjt_terminals_table.select('cavity_id', id=row_id)[0][0]
+
+            # a terminal that is in no cavity (a free terminal) has no slots
+            if cavity_id is None:
+                return
+
             housing_id = db.pjt_cavities_table.select('housing_id', id=cavity_id)[0][0]
 
         self.housing(housing_id).column_changed(table_name, row_id, columns)
+
+    @_check_types.do
+    def terminal_moved(self, terminal_id: bytes, old_cavity_id: bytes | None, new_cavity_id: bytes | None) -> None:
+        """
+        A terminal's ``cavity_id`` was written (a free terminal was seated, or it moved to another
+        cavity, or was taken out): its points leave the old cavity's slots and take the new cavity's.
+
+        :param terminal_id: The terminal's row id.
+        :type terminal_id: bytes
+        :param old_cavity_id: The cavity it was in, or ``None``.
+        :type old_cavity_id: bytes | None
+        :param new_cavity_id: The cavity it is in now, or ``None``.
+        :type new_cavity_id: bytes | None
+        """
+
+        cavities = self.db.pjt_cavities_table
+
+        if old_cavity_id is not None:
+            housing_id = cavities.select('housing_id', id=old_cavity_id)[0][0]
+            self.housing(housing_id).terminal_left(terminal_id, old_cavity_id)
+
+        if new_cavity_id is not None:
+            housing_id = cavities.select('housing_id', id=new_cavity_id)[0][0]
+            self.housing(housing_id).terminal_arrived(terminal_id, new_cavity_id)
 
     @_check_types.do
     def seal_changed(self, seal_id: bytes) -> None:
@@ -1022,6 +1186,10 @@ class SlotPools3D:
         :type row_id: bytes
         """
 
+        # slots that only asked for the row stop asking: it is gone, there is nothing to take over
+        for slots, slot in self._aliases.pop(row_id, []):
+            slots._alias_rows.pop(slot, None)  # NOQA
+
         entry = self._point_slots.get(row_id)
 
         if entry is not None:
@@ -1054,6 +1222,82 @@ class SlotPools3D:
         self._point_slots[row_id] = (slots, slot, block, offset)
 
     @_check_types.do
+    def point_slot(self, row_id: bytes) -> tuple[HousingSlots3D, int, _slot_pool.SlotBlock, int] | None:
+        """
+        The slot a point row lives in, or ``None``.
+
+        :param row_id: The ``pjt_points3d`` row id.
+        :type row_id: bytes
+        :returns: ``(housing slots, slot, block, offset)`` or ``None``.
+        :rtype: tuple | None
+        """
+
+        return self._point_slots.get(row_id)
+
+    @_check_types.do
+    def add_alias(self, row_id: bytes, slots: HousingSlots3D, slot: int) -> None:
+        """
+        Note that a slot asked for a row that already lives in another slot.
+
+        :param row_id: The ``pjt_points3d`` row id.
+        :type row_id: bytes
+        :param slots: The housing's slots that own the asking slot.
+        :type slots: :class:`HousingSlots3D`
+        :param slot: The asking slot (global number inside the housing).
+        :type slot: int
+        """
+
+        entries = self._aliases.setdefault(row_id, [])
+
+        if (slots, slot) not in entries:
+            entries.append((slots, slot))
+
+    @_check_types.do
+    def drop_alias(self, row_id: bytes, slots: HousingSlots3D, slot: int) -> None:
+        """
+        Forget that a slot asked for a row (it now asks for something else, or its housing is gone).
+
+        :param row_id: The ``pjt_points3d`` row id.
+        :type row_id: bytes
+        :param slots: The housing's slots that own the slot.
+        :type slots: :class:`HousingSlots3D`
+        :param slot: The slot (global number inside the housing).
+        :type slot: int
+        """
+
+        entries = self._aliases.get(row_id)
+
+        if entries is None:
+            return
+
+        if (slots, slot) in entries:
+            entries.remove((slots, slot))
+
+        if not entries:
+            del self._aliases[row_id]
+
+    @_check_types.do
+    def promote_alias(self, row_id: bytes) -> None:
+        """
+        The slot that owned a row let go of it: the first slot that asked for it while it lived
+        elsewhere takes it over (its existing ``Point`` joins that slot's row).
+
+        :param row_id: The ``pjt_points3d`` row id.
+        :type row_id: bytes
+        """
+
+        if row_id in self._point_slots:
+            return
+
+        entries = self._aliases.get(row_id)
+
+        if not entries:
+            return
+
+        slots, slot = entries[0]
+        slots.bind_point(slot, row_id)
+
+    @_check_types.do
     def forget_point(self, row_id: bytes) -> None:
         """
         Forget a point row's slot.
@@ -1076,7 +1320,6 @@ class SlotPools3D:
         :type db_id: bytes
         :returns: The point, or ``None``.
         :rtype: :class:`~harness_designer.geometry.point.Point` | None
-        :raises RuntimeError: A ``Point`` for the row already exists over a private array.
         """
 
         entry = self._point_slots.get(row_id)
@@ -1088,10 +1331,9 @@ class SlotPools3D:
         view = self.points.row(block, 'data', offset)
         point = _point.Point(0.0, 0.0, 0.0, db_id=db_id, data=view)
 
-        if point._data is not view:  # NOQA
-            raise RuntimeError('a Point for a pooled row was built before its housing allocated the slot')
-
-        self.points.register(block, offset, point)
+        # The row's Point may exist already: asked for a second time, or made before the row had its slot (a
+        # wire end dropped on a terminal). It is moved into the slot, never refused.
+        _seat_point(point, view, block, offset, self.points)
         return point
 
     @_check_types.do

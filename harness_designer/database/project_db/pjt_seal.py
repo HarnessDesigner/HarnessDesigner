@@ -9,6 +9,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import seal as _seal
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from . import housing_slots_pegboard as _housing_slots_pegboard
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -157,6 +158,9 @@ class PJTSealsTable(PJTTableBase):
                 self.db.slot_pools3d.seal_changed(db_id)
                 break
 
+        if not _housing_slots_pegboard.SEAL_COLUMNS.isdisjoint(kwargs):
+            self.db.slot_pools_pegboard.seal_changed(db_id)
+
     @_check_types.do
     def insert(self, part_id: bytes, name: str, position3d_id: bytes, housing_id: bytes | None,
                terminal_id: bytes | None, cavity_id: bytes | None = None) -> "PJTSeal":
@@ -178,6 +182,19 @@ class PJTSealsTable(PJTTableBase):
         :rtype: :class:`PJTSeal`
         """
 
+        # A seal on a terminal and the terminal's seal point (``pjt_terminals.seal_point3d_id``) are ONE row (one slot
+        # in the housing's pool): the terminal's row is used, and the point the caller made is dropped when
+        # nothing else uses it.
+        if terminal_id is not None:
+            shared = self.db.pjt_terminals_table[terminal_id].seal_position3d_id
+
+            if shared is not None and shared != position3d_id:
+                given = position3d_id
+                position3d_id = shared
+
+                if given is not None:
+                    self.db.pjt_points3d_table[given].delete()
+
         db_id = PJTTableBase.insert(
             self, part_id=part_id, name=name, point3d_id=position3d_id,
             housing_id=housing_id, terminal_id=terminal_id, cavity_id=cavity_id,
@@ -189,6 +206,7 @@ class PJTSealsTable(PJTTableBase):
         # Bind the seal's own point to its cavity's slot (module docstring of pjt_housing.py,
         # "POOLED 3D STORAGE", section 6).
         self.db.slot_pools3d.seal_changed(db_id)
+        self.db.slot_pools_pegboard.seal_changed(db_id)
 
         seal = PJTSeal(self, db_id)
 

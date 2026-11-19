@@ -604,6 +604,26 @@ class Point(_app_mixins.CallbackMixin, _slot_pool.PoolMember, metaclass=PointMet
         self._data = self._data.copy()
 
     @_check_types.do
+    def _join_pool(self, view: np.ndarray) -> None:
+        """
+        The opposite of :meth:`_leave_pool`: copy this point's data into *view* (a
+        pool row) and use *view* as its storage from now on. For a point that already
+        existed (a wire end that was dropped on a cavity or a terminal, say) when the
+        row it stands for was given a slot: the point's own array is the live value, so
+        it is copied INTO the slot, never read back out of it. Nothing changes the
+        point's coordinates, so no callback fires.
+
+        A holder of the old array (``as_numpy`` handed it out) keeps a private,
+        no longer updated copy.
+
+        :param view: A float32 ``(3,)`` row of a pool.
+        :type view: :class:`numpy.ndarray`
+        """
+
+        view[:] = self._data
+        self._data = view
+
+    @_check_types.do
     def copy(self) -> "Point":
         """
         Return a new Point with the same coordinates but NO db_id.

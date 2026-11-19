@@ -18,6 +18,7 @@ import harness_designer as _hd
 from . import logger
 from . import config as _config
 from . import themes as _themes
+from . import qt_settings as _qt_settings
 from . import check_types as _check_types
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
@@ -157,7 +158,15 @@ class App(QtCore.QObject):
         self.frame = None
         self.logger = None
 
+        # Display scaling, pen/touch and Windows platform options: Qt reads
+        # these while it creates the application object.
+        _qt_settings.apply_before_application()
+
         self._qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
+
+        # Font, style, colour scheme, pointer behaviour, Qt logging rules.
+        _qt_settings.apply_application(self._qt_app)
+
         self._signals = _AppSignals()
         self._signals.call_on_main.connect(self._dispatch)
 

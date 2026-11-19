@@ -10,7 +10,10 @@ its label gets a ``*`` and the dialog says so after OK.
 
 from typing import TYPE_CHECKING
 
+import sys
+
 from PySide6 import QtCore
+from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 from . import fields as _fields
@@ -20,6 +23,7 @@ from .. import render_setings as _render_settings
 from ....gl import info as _gl_info
 from ....gl import surface_format as _surface_format
 from .... import config as _config
+from .... import qt_settings as _qt_settings
 from .... import themes as _themes
 from .... import check_types as _check_types
 
@@ -73,7 +77,16 @@ class GraphicsPage(_page_base.PreferencesPage):
             _fields.choice('graphics', 'texture_format', 'Texture format',
                            _surface_format.TEXTURE_FORMAT_CHOICES, restart=True),
             _fields.boolean('graphics', 'srgb', 'sRGB framebuffer (experimental, replaces the format)',
-                            restart=True)
+                            restart=True),
+            _fields.choice('graphics', 'update_behavior', 'Between frames',
+                           _surface_format.UPDATE_BEHAVIOR_CHOICES, restart=True)
+        ])
+
+        self.add_group('Display scaling', [
+            _fields.choice('graphics', 'high_dpi_policy', 'Fractional scale rounding',
+                           _qt_settings.HIGH_DPI_CHOICES, restart=True),
+            _fields.real('graphics', 'scale_factor', 'Extra scale factor', 0.0, 4.0,
+                         0.05, 2, restart=True, special='Automatic')
         ])
 
         self.add_note(
@@ -122,8 +135,34 @@ class GraphicsPage(_page_base.PreferencesPage):
         return self.mainframe.editor2d.editor
 
 
-class AppearancePage(_page_base.PreferencesPage):
-    """The application theme and where the dock tabs sit."""
+class _InterfacePage(_page_base.PreferencesPage):
+    """A page whose ``Config.interface`` settings are applied to the running
+    application (``qt_settings.apply_live``) when any of them changed."""
+
+    @_check_types.do
+    def __init__(self, parent: QtWidgets.QWidget | None, mainframe: "_ui.MainFrame"):
+        super().__init__(parent, mainframe)
+
+        self._live_fields: list[_fields.Field] = []
+
+    @_check_types.do
+    def add_live_group(self, title: str, fields: list[_fields.Field]) -> _page_base.FieldGroup:
+        self._live_fields.extend(fields)
+
+        return self.add_group(title, fields)
+
+    @_check_types.do
+    def apply(self) -> list[str]:
+        restart = super().apply()
+
+        if any(field.changed for field in self._live_fields):
+            _qt_settings.apply_live(self.mainframe)
+
+        return restart
+
+
+class AppearancePage(_InterfacePage):
+    """Theme, fonts, widget style, toolbars and docks of the main window."""
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None, mainframe: "_ui.MainFrame"):
@@ -149,6 +188,54 @@ class AppearancePage(_page_base.PreferencesPage):
                 ('Triangular', shapes.Triangular.value)])
 
         self.add_group('Window', [self._theme, self._tab_location, self._tab_shape])
+
+        fonts: list[tuple[str, str]] = [('System default', '')]
+        fonts.extend((family, family) for family in QtGui.QFontDatabase.families())
+
+        styles: list[tuple[str, str]] = [('System default', '')]
+        styles.extend((name, name) for name in QtWidgets.QStyleFactory.keys())
+
+        self.add_live_group('Font and style', [
+            _fields.choice('interface', 'font_family', 'Font', fonts),
+            _fields.integer('interface', 'font_size', 'Font size (points)', 0, 72,
+                            special='System default'),
+            _fields.choice('interface', 'style', 'Widget style', styles),
+            _fields.choice('interface', 'color_scheme', 'Colour scheme',
+                           _qt_settings.COLOR_SCHEME_CHOICES)
+        ])
+
+        self.add_note(
+            "The theme's style sheet decides most of how the widgets look; "
+            'the widget style and colour scheme only show where it does not. '
+            'Widgets that set their own font keep it.')
+
+        self.add_live_group('Toolbars', [
+            _fields.integer('interface', 'toolbar_icon_size', 'Icon size (pixels)', 16, 64),
+            _fields.choice('interface', 'toolbar_button_style', 'Button style',
+                           _qt_settings.TOOLBAR_STYLE_CHOICES)
+        ])
+
+        self.add_note(
+            'Buttons that are placed on a toolbar as a widget, such as the '
+            'snap buttons, keep their own icon size.')
+
+        self.add_live_group('Docks', [
+            _fields.boolean('interface', 'dock_animated', 'Animate docking'),
+            _fields.boolean('interface', 'dock_vertical_tabs', 'Vertical tabs'),
+            _fields.boolean('interface', 'dock_grouped_dragging',
+                            'Drag a group of tabbed docks together')
+        ])
+
+        if sys.platform == 'win32':
+            self.add_group('Windows', [
+                _fields.choice('interface', 'windows_dark_mode', 'Dark window frames',
+                               _qt_settings.WINDOWS_DARK_MODE_CHOICES, restart=True),
+                _fields.choice('interface', 'windows_font_engine', 'Font engine',
+                               _qt_settings.WINDOWS_FONT_ENGINE_CHOICES, restart=True)
+            ])
+
+            self.add_note(_RESTART_NOTE)
+
         self.finish()
 
     @_check_types.do
@@ -170,6 +257,40 @@ class AppearancePage(_page_base.PreferencesPage):
                 QtWidgets.QTabWidget.TabShape(mainframe_config.tab_shape))
 
         return restart
+
+
+class PointerPage(_InterfacePage):
+    """Mouse wheel, drag and double click behaviour, and pen and touch."""
+
+    @_check_types.do
+    def __init__(self, parent: QtWidgets.QWidget | None, mainframe: "_ui.MainFrame"):
+        super().__init__(parent, mainframe)
+
+        self.add_live_group('Mouse', [
+            _fields.integer('interface', 'wheel_scroll_lines', 'Wheel scroll lines', 0, 20,
+                            special='System default'),
+            _fields.integer('interface', 'drag_distance', 'Drag distance (pixels)', 0, 100,
+                            special='System default'),
+            _fields.integer('interface', 'drag_time', 'Drag time (milliseconds)', 0, 2000,
+                            special='System default'),
+            _fields.integer('interface', 'double_click_interval',
+                            'Double click interval (milliseconds)', 0, 2000,
+                            special='System default')
+        ])
+
+        self.add_note(
+            'Drag distance and time are how far and how long a button must be '
+            'held before a click counts as a drag.')
+
+        self.add_group('Pen and touch', [
+            _fields.boolean('interface', 'compress_tablet_events',
+                            'Merge pen events that arrive in a burst', restart=True),
+            _fields.boolean('interface', 'touch_to_mouse',
+                            'Treat unhandled touch as mouse input', restart=True)
+        ])
+
+        self.add_note(_RESTART_NOTE)
+        self.finish()
 
 
 class _RayTracingItem(QtWidgets.QWidget):

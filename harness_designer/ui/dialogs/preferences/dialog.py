@@ -24,6 +24,7 @@ _PanelFactory = Callable[[QtWidgets.QWidget | None, "_ui.MainFrame"], QtWidgets.
 # panel (the three children of Mouse all show the Mouse notebook).
 _FACTORIES: dict[str, _PanelFactory] = {
     'appearance': _general_pages.AppearancePage,
+    'pointer': _general_pages.PointerPage,
     'project': _general_pages.project_page,
     'logging': _general_pages.logging_page,
     'resources': _general_pages.resources_page,
@@ -68,6 +69,7 @@ def _editor_tabs(key: str) -> list[_Node]:
 _TREE: list[_Node] = [
     _Node('General', children=[
         _Node('Appearance', 'appearance'),
+        _Node('Pointer and Touch', 'pointer'),
         _Node('Project', 'project'),
         _Node('Logging', 'logging'),
         _Node('Models and Resources', 'resources'),

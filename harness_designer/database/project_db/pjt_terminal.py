@@ -11,6 +11,8 @@ from .pjt_bases import (PJTEntryBase, PJTTableBase,
                         DefaultStoredValue, DefaultStoredValueType)
 from . import pjt_point3d as _pjt_point3d
 from . import housing_slots as _housing_slots
+from . import housing_slots_pegboard as _housing_slots_pegboard
+from . import housing_slots_schematic as _housing_slots_schematic
 from . import pjt_point2d as _pjt_point2d
 from . import pjt_point_pegboard as _pjt_point_pegboard
 from . import pjt_seal as _pjt_seal
@@ -171,13 +173,36 @@ class PJTTerminalsTable(PJTTableBase):
         :param kwargs: Column names and their new values.
         :type kwargs: dict[str, Any]
         """
+        # A terminal that is seated in a cavity (or moves to another one, or is taken out) takes its points
+        # to the cavity's slots in every view (pjt_housing.py docstring, sections 6 and 15).
+        old_cavity_id = None
+        if 'cavity_id' in kwargs:
+            old_cavity_id = self.select('cavity_id', id=db_id)[0][0]
+
         super().update(db_id, **kwargs)
+
+        if 'cavity_id' in kwargs and old_cavity_id != kwargs['cavity_id']:
+            self.db.slot_pools3d.terminal_moved(db_id, old_cavity_id, kwargs['cavity_id'])
+            self.db.slot_pools_pegboard.terminal_moved(db_id, old_cavity_id, kwargs['cavity_id'])
+            self.db.slot_pools_schematic.terminal_moved(db_id, old_cavity_id, kwargs['cavity_id'])
 
         columns = {name: value for name, value in kwargs.items()
                    if name in _housing_slots.TERMINAL_POINT_COLUMNS}
 
         if columns:
             self.db.slot_pools3d.column_changed('pjt_terminals', db_id, columns)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots_pegboard.TERMINAL_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools_pegboard.column_changed('pjt_terminals', db_id, columns)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots_schematic.TERMINAL_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools_schematic.column_changed('pjt_terminals', db_id, columns)
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, position2d_id: bytes | None,
@@ -205,6 +230,21 @@ class PJTTerminalsTable(PJTTableBase):
         :rtype: :class:`PJTTerminal`
         """
 
+        # The terminal's point and its cavity's terminal point are ONE row (one slot in the housing's pool): the
+        # terminal's own row wins, and the cavity's earlier guess is dropped when nothing else uses it.
+        if cavity_id is not None:
+            cavities = self.db.pjt_cavities_table
+            guess = cavities.select('terminal_point3d_id', id=cavity_id)[0][0]
+
+            if position3d_id is None:
+                position3d_id = guess
+
+            elif guess != position3d_id:
+                cavities.update(cavity_id, terminal_point3d_id=position3d_id)
+
+                if guess is not None:
+                    self.db.pjt_points3d_table[guess].delete()
+
         db_id = PJTTableBase.insert(
             self, part_id=part_id, name=name, cavity_id=cavity_id,
             point2d_id=position2d_id, point3d_id=position3d_id,
@@ -223,6 +263,10 @@ class PJTTerminalsTable(PJTTableBase):
         # (module docstring of pjt_housing.py, "POOLED 3D STORAGE", section 6).
         if cavity_id is not None and position3d_id is not None:
             self.db.slot_pools3d.column_changed('pjt_terminals', db_id, {'point3d_id': position3d_id})
+
+        # and in the schematic (the peg board's columns are made later, through ``update``)
+        if cavity_id is not None and position2d_id is not None:
+            self.db.slot_pools_schematic.column_changed('pjt_terminals', db_id, {'point2d_id': position2d_id})
 
         terminal = PJTTerminal(self, db_id)
 

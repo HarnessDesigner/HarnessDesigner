@@ -1144,9 +1144,9 @@ class BaseVar:
                          0.114 * material_color[2])
 
             if luminance < _debug_config.edge_luminance_threshold:
-                e_color = _debug_config.edge_color_dark[:] + [1.0]
+                e_color = list(_debug_config.edge_color_dark) + [1.0]
             else:
-                e_color = _debug_config.edge_color_light[:] + [1.0]
+                e_color = list(_debug_config.edge_color_light) + [1.0]
 
             with shaders.edges:
                 material = _materials.Metallic(_color.Color(*e_color))
@@ -1165,7 +1165,7 @@ class BaseVar:
             dynamic_normal_length = smallest_dimension / 10.0
 
             with shaders.edges:
-                color = _debug_config.normals_color[:] + [1.0]
+                color = list(_debug_config.normals_color) + [1.0]
                 material = _materials.Glowing(_color.Color(*color))
                 material.set(shaders.edges)
 
@@ -1176,7 +1176,7 @@ class BaseVar:
 
         if _debug_config.draw_vertices:
             with shaders.vertices:
-                shaders.vertices.color = _debug_config.vertices_color  # Red vertices
+                shaders.vertices.color = list(_debug_config.vertices_color)  # Red vertices
 
                 self._render_geometry(shaders.vertices)
 

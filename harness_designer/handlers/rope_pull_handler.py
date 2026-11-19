@@ -1270,15 +1270,22 @@ def _housing_id_of(ptables: "_PJTPegboardTable", attach_point_id: bytes) -> byte
 
 @_debug.logfunc
 @_check_types.do
-def _lead_pieces(ptables: "_PJTPegboardTable", conductor_id: bytes, split_id: bytes) -> tuple[list, list, bytes]:
+def _lead_pieces(ptables: "_PJTPegboardTable", conductor_id: bytes | None, split_id: bytes) -> tuple[list, list, bytes]:
     """Follow a conductor's lead outward from the cable's split point at *split_id*, over the wire service loops in it.
+
+    The pigtail of a solder sleeve is a lead of the cable's end too (*conductor_id* ``None``): it is a plain wire with no conductor
+    of its own, so *split_id* is the sleeve's branch point, and the pieces are found by the point each one starts from, not by the
+    conductor.
 
     :returns: ``(pieces, loops, end_id)``: the wires of the lead in order from the split point, the loops between them, and the board
         point the lead ends on (a terminal's attach point, or a free end).
     """
     wires_table = ptables.pjt_wires_table
     loops_table = ptables.pjt_wire_service_loops_table
-    rows = wires_table.select('id', 'start_point_pegboard_id', 'stop_point_pegboard_id', cable_conductor_id=conductor_id)
+    rows = []
+
+    if conductor_id is not None:
+        rows = wires_table.select('id', 'start_point_pegboard_id', 'stop_point_pegboard_id', cable_conductor_id=conductor_id)
 
     pieces: list = []
     loops: list = []
@@ -1287,6 +1294,11 @@ def _lead_pieces(ptables: "_PJTPegboardTable", conductor_id: bytes, split_id: by
 
     while True:
         found = None
+
+        if conductor_id is None:
+            rows = wires_table.select(
+                'id', 'start_point_pegboard_id', 'stop_point_pegboard_id', OR=True,
+                start_point_pegboard_id=current, stop_point_pegboard_id=current)
 
         for wire_id, start_id, stop_id in rows:
             if wire_id in used:
@@ -1331,7 +1343,8 @@ def _pinned_info(ptables: "_PJTPegboardTable", cable_db_obj: "_pjt_cable.PJTCabl
     not drawn on the board) is the most any of them may be: a shorter lead has no slack, it is straight; none may be longer. The
     wires of one lead share that length in proportion to their own.
 
-    :returns: ``{'caps': {wire id: most that wire may be (mm)}, 'loop_points': {board point ids of the loops in pinned leads},
+    :returns: ``{'caps': {wire id: most that wire may be (mm)}, 'rigid': {ids of the wires of a cable end and housing that two or more
+        leads join}, 'loop_points': {board point ids of the loops in pinned leads},
         'leads': [the pinned leads that have loops: {'pieces', 'caps' (of each piece), 'loops', 'split_id', 'end_id'}]}``, built once per
         solve (kept in *cache*).
     """
@@ -1341,18 +1354,30 @@ def _pinned_info(ptables: "_PJTPegboardTable", cable_db_obj: "_pjt_cable.PJTCabl
         return info
 
     caps: dict = {}
+    rigid: set = set()
     loop_points: set = set()
     with_loops: list = []
 
     for start in (True, False):
         groups: dict = {}
 
+        # the leads of the end: one per conductor, and the pigtail of a solder sleeve on it (a lead like the others: it comes out of
+        # the end at the sleeve's branch point, which is on the split plane)
+        lead_starts: list = []
+
         for conductor in cable_db_obj.conductors:
             split_id = conductor.start_split_point_pegboard_id if start else conductor.stop_split_point_pegboard_id
-            if split_id is None:
-                continue
+            if split_id is not None:
+                lead_starts.append((conductor.db_id, split_id))
 
-            pieces, loops, end_id = _lead_pieces(ptables, conductor.db_id, split_id)
+        sleeve_id = cable_db_obj.start_shield_splice_id if start else cable_db_obj.stop_shield_splice_id
+        if sleeve_id is not None:
+            branch_id = ptables.pjt_splices_table[sleeve_id].branch_position_pegboard_id
+            if branch_id is not None:
+                lead_starts.append((None, branch_id))
+
+        for conductor_id, split_id in lead_starts:
+            pieces, loops, end_id = _lead_pieces(ptables, conductor_id, split_id)
             if not pieces:
                 continue
 
@@ -1366,6 +1391,11 @@ def _pinned_info(ptables: "_PJTPegboardTable", cable_db_obj: "_pjt_cable.PJTCabl
 
         for leads in groups.values():
             longest = max(lead[3] for lead in leads)
+
+            # two or more taut leads between one cable end and one housing hold them as ONE rigid body (see pull_if_needed's *carry*)
+            if len(leads) > 1:
+                for lead in leads:
+                    rigid.update(piece.db_id for piece in lead[0])
 
             for pieces, lengths, loops, _total, split_id, end_id in leads:
                 scale = longest / max(sum(lengths), 1e-9)
@@ -1384,20 +1414,44 @@ def _pinned_info(ptables: "_PJTPegboardTable", cable_db_obj: "_pjt_cable.PJTCabl
                         'pieces': pieces, 'caps': [length * scale for length in lengths], 'loops': loops,
                         'split_id': split_id, 'end_id': end_id})
 
-    info = cache[key] = {'caps': caps, 'loop_points': loop_points, 'leads': with_loops}
+    info = cache[key] = {'caps': caps, 'rigid': rigid, 'loop_points': loop_points, 'leads': with_loops}
     return info
 
 
 @_debug.logfunc
 @_check_types.do
 def _pinned_cap(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire", cache: dict) -> float | None:
-    """The most *wire_db_obj* may be on the board when it is a wire of a PINNED lead (see :func:`_pinned_info`), else ``None``."""
-    conductor_id = wire_db_obj.cable_conductor_id
-    if conductor_id is None:
-        return None
+    """The most *wire_db_obj* may be on the board when it is a wire of a PINNED lead (see :func:`_pinned_info`), else ``None``. A
+    conductor's lead and the pigtail of a solder sleeve are both leads; the pigtail has no conductor of its own, so the caps of every
+    cable are looked through (built once per *cache*, which :func:`_evaluate_points` already fills with each cable's info)."""
+    caps = cache.get('pinned_caps')
 
-    cable_id = ptables.pjt_cable_conductors_table[conductor_id].cable_id
-    return _pinned_info(ptables, ptables.pjt_cables_table[cable_id], cache)['caps'].get(wire_db_obj.db_id)
+    if caps is None:
+        caps = {}
+
+        for cable_db_obj in ptables.pjt_cables_table:
+            caps.update(_pinned_info(ptables, cable_db_obj, cache)['caps'])
+
+        cache['pinned_caps'] = caps
+
+    return caps.get(wire_db_obj.db_id)
+
+
+@_debug.logfunc
+@_check_types.do
+def _pinned_rigid(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire", cache: dict) -> bool:
+    """Whether *wire_db_obj* is one of two or more pinned leads that join the same cable end and housing (see :func:`_pinned_info`)."""
+    wires = cache.get('pinned_rigid')
+
+    if wires is None:
+        wires = set()
+
+        for cable_db_obj in ptables.pjt_cables_table:
+            wires |= _pinned_info(ptables, cable_db_obj, cache)['rigid']
+
+        cache['pinned_rigid'] = wires
+
+    return wire_db_obj.db_id in wires
 
 
 @_debug.logfunc
@@ -1502,6 +1556,14 @@ def _cable_node(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, lis
             owned[start].extend(
                 point for point in (sleeve.start_position_pegboard_id, sleeve.stop_position_pegboard_id,
                                     sleeve.branch_position_pegboard_id) if point is not None)
+
+            # The pigtail is a lead of the end like the conductors': its free end goes with the end when nothing is on it, and is
+            # pulled on, as any lead is, when something is (a terminal, a splice, a loop).
+            if sleeve.branch_position_pegboard_id is not None:
+                pigtail_end_id = _lead_pieces(ptables, None, sleeve.branch_position_pegboard_id)[2]
+
+                if pigtail_end_id not in owned[start] and not _is_owned_end(ptables, pigtail_end_id):
+                    owned[start].append(pigtail_end_id)
 
         ends = {True: cable.start_position_pegboard_id, False: cable.stop_position_pegboard_id}
 
@@ -1952,7 +2014,7 @@ def _evaluate_points(
     def pull_if_needed(
         chain_id: bytes, far_point_id: bytes, far_xz: tuple[float, float],
         near_target_xz: tuple[float, float], required_length: float,
-        min_span: float = 0.0, near_old_xz: tuple[float, float] | None = None,
+        min_span: float = 0.0, near_old_xz: tuple[float, float] | None = None, carry: bool = False,
     ) -> tuple[float, float]:
         """The far end of a chain whose near end is going to *near_target_xz*: pulled straight toward it when the chain is too short
         to reach, pushed straight away from it when the near end was moved so close that the chain would fold over on itself
@@ -2003,6 +2065,16 @@ def _evaluate_points(
         # breaks the next, again and again, and never settles. The move that keeps every one of them as it was is to carry the node by
         # what its near end moved (the near ends are points of one rigid group that moved together): a chain that was fine stays fine.
         if is_repull and pulled_xz != far_xz and near_old_xz is not None:
+            carried_xz = (entry_far_xz[0] + near_target_xz[0] - near_old_xz[0], entry_far_xz[1] + near_target_xz[1] - near_old_xz[1])
+
+            if math.hypot(carried_xz[0] - near_target_xz[0], carried_xz[1] - near_target_xz[1]) <= required_length + _REPULL_TOLERANCE_MM:
+                pulled_xz = carried_xz
+
+        # The leads of one cable end that all run to one housing (the housing and the end are ONE rigid body while they are taut) and the
+        # end was itself pulled (*carry*): the housing goes by exactly what the end moved, on its FIRST pull too. A straight pull toward
+        # the end satisfies only the lead it came through, breaks the others, and the repulls that follow carry the end from where it
+        # began, which undoes the pull that moved it (the cable then ended up translated instead of turned).
+        if carry and not is_repull and pulled_xz != far_xz and near_old_xz is not None:
             carried_xz = (entry_far_xz[0] + near_target_xz[0] - near_old_xz[0], entry_far_xz[1] + near_target_xz[1] - near_old_xz[1])
 
             if math.hypot(carried_xz[0] - near_target_xz[0], carried_xz[1] - near_target_xz[1]) <= required_length + _REPULL_TOLERANCE_MM:
@@ -2354,14 +2426,19 @@ def _evaluate_points(
                 if pinned_cap is not None:
                     min_span = 0.0
 
+                carry = False
+
+                if pinned_cap is not None and point_id in write_points:
+                    carry = _pinned_rigid(ptables, chain_db_obj, chain_cache)
+
                 if drag_end is _rope_pull.DragEnd.START:
                     stop_xz = pull_if_needed(
                         chain_db_obj.db_id, chain_db_obj.stop_position_pegboard_id, stop_xz,
-                        effective_target, required_length, min_span, start_xz)
+                        effective_target, required_length, min_span, start_xz, carry)
                 elif drag_end is _rope_pull.DragEnd.STOP:
                     start_xz = pull_if_needed(
                         chain_db_obj.db_id, chain_db_obj.start_position_pegboard_id, start_xz,
-                        effective_target, required_length, min_span, stop_xz)
+                        effective_target, required_length, min_span, stop_xz, carry)
                 # DragEnd.WAYPOINT: both real anchors stay exactly as read --
                 # the anchor model never lets a waypoint drag move them, and
                 # a waypoint belongs to exactly one chain by construction,

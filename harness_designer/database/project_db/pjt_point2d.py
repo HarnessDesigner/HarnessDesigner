@@ -233,9 +233,15 @@ class PJTPoint2D(PJTEntryBase):
         :rtype: :class:`_point.Point`
         """
         if self._stored_point2d is None:
-            x, y, z = self._table.select('x', 'y', 'z', id=self._db_id)[0]
+            # A row bound to a housing slot gets a Point over its pool row; any other row gets a
+            # normal Point (module docstring of pjt_housing.py, section 15).
+            point = self._table.db.slot_pools_schematic.build_point(self._db_id, self.db_id + b'2d')
 
-            self._stored_point2d = _point.Point(x, y, z, db_id=self.db_id + b'2d')
+            if point is None:
+                x, y, z = self._table.select('x', 'y', 'z', id=self._db_id)[0]
+                point = _point.Point(x, y, z, db_id=self.db_id + b'2d')
+
+            self._stored_point2d = point
             self._stored_point2d.bind(self._update_point)
 
         return self._stored_point2d
@@ -349,5 +355,8 @@ class PJTPoint2D(PJTEntryBase):
         """
         if self.is_referenced():
             return
+
+        # Free the slot this row was bound to (module docstring of pjt_housing.py, section 15).
+        self._table.db.slot_pools_schematic.point_deleted(self._db_id)
 
         super().delete()

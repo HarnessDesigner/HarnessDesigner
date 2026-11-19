@@ -13,6 +13,7 @@ therefore read once per run and a change in the dialog needs a restart.
 
 from OpenGL import GL
 from PySide6 import QtGui
+from PySide6 import QtOpenGLWidgets
 
 from .. import config as _config
 from .. import check_types as _check_types
@@ -33,6 +34,18 @@ TEXTURE_FORMAT_CHOICES: list[tuple[str, str]] = [
     ('RGB10_A2 (10 bit colour, 2 bit alpha)', 'RGB10_A2'),
     ('RGBA16F (16 bit float per channel)', 'RGBA16F')
 ]
+
+UPDATE_BEHAVIOR_CHOICES: list[tuple[str, str]] = [
+    ('Discard each frame (Qt default)', 'no_partial'),
+    ('Keep the last frame', 'partial')
+]
+
+_UpdateBehavior = QtOpenGLWidgets.QOpenGLWidget.UpdateBehavior
+
+_UPDATE_BEHAVIORS: dict[str, QtOpenGLWidgets.QOpenGLWidget.UpdateBehavior] = {
+    'no_partial': _UpdateBehavior.NoPartialUpdate,
+    'partial': _UpdateBehavior.PartialUpdate
+}
 
 _SwapBehavior = QtGui.QSurfaceFormat.SwapBehavior
 
@@ -91,6 +104,18 @@ def build_default_format() -> QtGui.QSurfaceFormat:
         fmt.setOption(QtGui.QSurfaceFormat.FormatOption.DebugContext)
 
     return fmt
+
+
+@_check_types.do
+def update_behavior() -> QtOpenGLWidgets.QOpenGLWidget.UpdateBehavior:
+    """
+    Whether a canvas keeps its last frame between paints
+    (``Config.graphics.update_behavior``), for ``QOpenGLWidget.setUpdateBehavior``.
+
+    :rtype: QtOpenGLWidgets.QOpenGLWidget.UpdateBehavior
+    """
+
+    return _UPDATE_BEHAVIORS[Config.graphics.update_behavior]
 
 
 @_check_types.do

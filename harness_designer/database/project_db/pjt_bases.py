@@ -16,6 +16,8 @@ from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 from . import table_data as _table_data
 from . import housing_slots as _housing_slots
+from . import housing_slots_pegboard as _housing_slots_pegboard
+from . import housing_slots_schematic as _housing_slots_schematic
 from ...crash_dump import Attr, capturable, dump_property
 
 
@@ -1358,6 +1360,10 @@ class PJTTables:
         # ("POOLED 3D STORAGE").
         self.slot_pools3d = _housing_slots.SlotPools3D(self)
 
+        # The same for the peg board and the schematic (pjt_housing.py docstring, section 15).
+        self.slot_pools_pegboard = _housing_slots_pegboard.SlotPoolsPegboard(self)
+        self.slot_pools_schematic = _housing_slots_schematic.SlotPoolsSchematic(self)
+
         # This instance's own fixed table SET never changes after this
         # __init__ returns, so the real insert-safe ordering of them
         # (see _insert_safe_project_tables) is computed once, lazily, on
@@ -1389,6 +1395,8 @@ class PJTTables:
         """
         self.mainframe.unload()
         self.slot_pools3d.reset()
+        self.slot_pools_pegboard.reset()
+        self.slot_pools_schematic.reset()
         tables = self.connector.get_tables()
 
         _logger.database('TABLES:', tables)
@@ -1452,6 +1460,8 @@ class PJTTables:
         # Every housing gets its slots now, before anything builds a Point or an Angle
         # (pjt_housing.py docstring, "POOLED 3D STORAGE", section 5).
         self.slot_pools3d.allocate_all()
+        self.slot_pools_pegboard.allocate_all()
+        self.slot_pools_schematic.allocate_all()
 
     @_check_types.do
     def _ordered_project_tables(self) -> list[PJTTableBase]:

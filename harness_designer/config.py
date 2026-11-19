@@ -1621,6 +1621,75 @@ class Config(metaclass=ConfigDB):
         # Experimental: it changes how translucent geometry looks.
         srgb = False
 
+        # Whether a canvas keeps its last frame between paints:
+        # 'no_partial' (Qt's default; the frame is discarded, which suits
+        # a scene that is cleared and redrawn every frame, like this one) or
+        # 'partial'.
+        update_behavior = 'no_partial'
+
+        # How a fractional display scale (125%, 150%) is rounded:
+        # 'default' leaves Qt's own choice, or 'round', 'round_prefer_floor',
+        # 'ceil', 'floor' or 'pass_through' (use the exact factor). The
+        # canvases multiply their size by the device pixel ratio, so this
+        # changes the real pixel size of the virtual canvas. Set before the
+        # application object exists (``qt_settings.apply_before_application``).
+        high_dpi_policy = 'default'
+
+        # Extra scale factor for the whole interface (Qt's ``QT_SCALE_FACTOR``);
+        # 0 leaves the scale to the system. An environment variable that is
+        # already set wins.
+        scale_factor = 0.0
+
+    class interface(metaclass=ConfigDB):
+        """
+        Qt-level interface behaviour, edited in Preferences > Appearance and
+        Preferences > Pointer and Touch; applied by ``qt_settings.py``.
+
+        What is read once, before the Qt application object exists, is
+        marked (startup): a change needs a restart. Everything else is
+        applied again as soon as Preferences is closed with OK or Apply.
+        """
+
+        # Application font. '' / 0 keep the system's.
+        font_family = ''
+        font_size = 0
+
+        # Qt widget style ('' keeps the platform's) and colour scheme
+        # ('system', 'light' or 'dark'). The theme's style sheet still
+        # decides most of what the widgets look like.
+        style = ''
+        color_scheme = 'system'
+
+        # Every toolbar of the main window. The toolbars start at 32 pixels.
+        # Buttons put on a toolbar as a widget (the snap buttons) keep their
+        # own icon size. Button style: 'icon', 'text', 'text_beside' or
+        # 'text_under'.
+        toolbar_icon_size = 32
+        toolbar_button_style = 'icon'
+
+        # Dock behaviour of the main window.
+        dock_animated = True
+        dock_vertical_tabs = False
+        dock_grouped_dragging = True
+
+        # Pointer behaviour. 0 keeps the system's value.
+        wheel_scroll_lines = 0
+        drag_distance = 0
+        drag_time = 0
+        double_click_interval = 0
+
+        # Pen and touch (startup). Qt's own defaults.
+        compress_tablet_events = False
+        touch_to_mouse = True
+
+        # Windows only (startup), passed to the Windows platform plugin as
+        # QT_QPA_PLATFORM=windows:darkmode=..:fontengine=..: dark mode of the
+        # window frames ('default', 'off' or 'frames') and the font engine
+        # ('default', 'directwrite', 'freetype' or 'native'). An
+        # environment variable that is already set wins.
+        windows_dark_mode = 'default'
+        windows_font_engine = 'default'
+
     class debug(metaclass=ConfigDB):
         """
         Debug feature toggles used throughout the application.
@@ -1682,6 +1751,18 @@ class Config(metaclass=ConfigDB):
             # every 2 s (``stats_overlay.EventProfiler``). While this is off
             # the profiler does not exist, so nothing is collected.
             profile_events = False
+
+        class qt(metaclass=ConfigDB):
+            """
+            Qt's own diagnostics.
+            """
+
+            # Qt logging filter rules, one per line or separated by ';'
+            # (``qt.qpa.fonts=true``, ``*.debug=false``), handed to
+            # ``QLoggingCategory.setFilterRules`` at startup and whenever
+            # Debug Settings is closed with OK. The messages go to the
+            # application log (``app.py`` installs a Qt message handler).
+            logging_rules = ''
 
         class opengl(metaclass=ConfigDB):
             """

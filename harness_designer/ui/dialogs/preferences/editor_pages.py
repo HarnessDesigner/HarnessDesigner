@@ -169,6 +169,7 @@ def editor_pegboard_page(parent: QtWidgets.QWidget | None, mainframe: "_ui.MainF
         ]),
         ('Rope pull', [
             _fields.boolean(rope, 'enabled', 'Enabled'),
+            _fields.boolean(rope, 'trace', 'Trace every solver decision to the log'),
             _fields.real(rope, 'zigzag_length_factor', 'Zigzag length factor', 0.0, 100.0, 0.1, 2),
             _fields.real(rope, 'threshold_factor', 'Threshold factor', 0.0, 100.0, 0.1, 2)
         ]),

@@ -298,30 +298,6 @@ class BaseSchematic(_objectsvar.BaseVar):
 
         return False
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
-            if rings.objschematic.active_axis is not None:
-                if rings.objschematic.begin_inner_drag(current_pos, camera):
-                    return True
-
-                if rings.objschematic.click_outer_snap():
-                    return True
-
-                # Missed both the inner and outer protractor bands --
-                # leave the gizmo exactly as it is (still active on this
-                # axis) and let the default click/drag behavior run.
-                return False
-
-            axis = rings.objschematic.pick(current_pos, camera)
-            if axis is not None:
-                rings.objschematic.activate(axis)
-                return True
-
-            rings.delete()
-            self._active_handler = None
-            return False
-
-        return False
-
     @_check_types.do
     def render_handler(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render whatever's currently armed on :attr:`_active_handler`

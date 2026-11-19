@@ -10,6 +10,8 @@ from PySide6 import QtWidgets
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from . import housing_slots as _housing_slots
+from . import housing_slots_pegboard as _housing_slots_pegboard
+from . import housing_slots_schematic as _housing_slots_schematic
 from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -240,6 +242,18 @@ class PJTCavitiesTable(PJTTableBase):
 
         if columns:
             self.db.slot_pools3d.column_changed('pjt_cavities', db_id, columns)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots_pegboard.CAVITY_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools_pegboard.column_changed('pjt_cavities', db_id, columns)
+
+        columns = {name: value for name, value in kwargs.items()
+                   if name in _housing_slots_schematic.CAVITY_POINT_COLUMNS}
+
+        if columns:
+            self.db.slot_pools_schematic.column_changed('pjt_cavities', db_id, columns)
 
     @_check_types.do
     def insert(self, part_id: bytes, housing_id: bytes, name: str = "") -> "PJTCavity":
@@ -518,7 +532,19 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         """
 
         point_id = self._table.select('terminal_point3d_id', id=self._db_id)[0][0]
+
         if point_id is None:
+            # A terminal seated here has a point of its own, and that row IS the cavity's terminal point
+            # (one row, one slot): a second row for the same place would be a second allocation.
+            seated = self._table.db.pjt_terminals_table.select('point3d_id', cavity_id=self._db_id)
+
+            if seated and seated[0][0] is not None:
+                point_id = seated[0][0]
+                self._table.update(self._db_id, terminal_point3d_id=point_id)
+                self._populate('terminal_position3d_id')
+
+                return point_id
+
             cavity = self.part
 
             length = cavity.length

@@ -19,6 +19,7 @@ from ..gl.canvas_base import interaction as _interaction
 from ..gl import vbo as _vbo
 from .. import handlers as _handlers
 from .. import app as _app
+from .. import qt_settings as _qt_settings
 from .. import check_types as _check_types
 from .. import memory_diagnostics as _memory_diagnostics
 
@@ -401,12 +402,11 @@ class MainFrame(QtWidgets.QMainWindow):
             lambda visible: self._on_canvas_view_activated('editor_pegboard', visible))
         self.editor_toolbar.set_active_view('editor3d')
 
-        self.setDockOptions(
-            QtWidgets.QMainWindow.DockOption.GroupedDragging |
-            QtWidgets.QMainWindow.DockOption.AnimatedDocks |
-            QtWidgets.QMainWindow.DockOption.AllowTabbedDocks |
-            QtWidgets.QMainWindow.DockOption.AllowNestedDocks)
-        # QtWidgets.QMainWindow.DockOption.VerticalTabs
+        # Dock options and the toolbars' icon size / button style, from
+        # Config.interface (Preferences > Appearance). The defaults are what
+        # was set here before: grouped dragging, animated, tabbed and nested
+        # docks, no vertical tabs.
+        _qt_settings.apply_mainframe(self)
 
         self.setTabShape(QtWidgets.QTabWidget.TabShape(Config.tab_shape))
 

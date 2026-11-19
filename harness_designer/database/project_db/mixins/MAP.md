@@ -22,6 +22,8 @@ Package init for `project_db/mixins`; no real logic of its own. Column mixins fo
 
 `AnglePegboardMixin` — mirrors `angle3d.py` exactly, including the editor control, but for the peg-board view (`AngleProperty(axes='y')`). Important asymmetry vs. `position_pegboard.py`: this mixin's `angle_pegboard` property binds `self._update_angle_pegboard` by *default* — a subclass wanting a cascade only needs to override that *method* (not the property itself).
 
+`angle_pegboard` asks `slot_pools_pegboard.build_angle` for a housing, cavity, terminal or seal (a view of the peg board angle pool) and builds a normal `Angle` for any other class (2026-11-18).
+
 #### base.py
 
 Shared base plumbing for this package's mixins (parallel to `global_db/mixins/base.py`, but for the project-row mixins rather than the catalog mixins).
